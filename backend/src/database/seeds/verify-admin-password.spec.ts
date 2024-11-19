@@ -6,12 +6,6 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 
 // Mock User entity
-const mockUserEntity = {
-  id: 'user-1',
-  email: 'admin@example.com',
-  password: 'hashed-password',
-};
-
 jest.mock('../../users/entities/user.entity', () => ({
   User: jest.fn(),
 }));
@@ -22,7 +16,7 @@ jest.mock('path');
 
 describe('verify-admin-password', () => {
   let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<typeof mockUserEntity>>;
+  let mockUserRepository: Partial<Repository<any>>;
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -110,10 +104,14 @@ describe('verify-admin-password', () => {
   });
 
   describe('verifyAdminPassword', () => {
+    const mockUser = {
+      id: 'user-1',
+      email: 'admin@example.com',
+      password: 'hashed-password',
+    };
+
     it('should verify password successfully', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
-        ...mockUserEntity,
-      });
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await verifyAdminPassword(
         mockDataSource as DataSource,
@@ -137,9 +135,7 @@ describe('verify-admin-password', () => {
     });
 
     it('should handle invalid password', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
-        ...mockUserEntity,
-      });
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock)
         .mockResolvedValueOnce(false)  // Original password check fails
         .mockResolvedValueOnce(true);  // New hash verification succeeds
@@ -155,9 +151,7 @@ describe('verify-admin-password', () => {
     });
 
     it('should handle bcrypt errors', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
-        ...mockUserEntity,
-      });
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       const bcryptError = new Error('Bcrypt error');
       (bcrypt.compare as jest.Mock).mockRejectedValue(bcryptError);
 
@@ -168,10 +162,14 @@ describe('verify-admin-password', () => {
   });
 
   describe('runVerification', () => {
+    const mockUser = {
+      id: 'user-1',
+      email: 'admin@example.com',
+      password: 'hashed-password',
+    };
+
     it('should run verification successfully', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
-        ...mockUserEntity,
-      });
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await runVerification(mockDataSource as DataSource, {
         ADMIN_EMAIL: 'admin@example.com',

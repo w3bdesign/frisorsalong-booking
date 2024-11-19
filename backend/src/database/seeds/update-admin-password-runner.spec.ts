@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
+// Mock dependencies
 jest.mock('./update-admin-password.seed');
 jest.mock('fs');
 jest.mock('dotenv');

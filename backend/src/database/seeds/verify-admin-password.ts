@@ -13,7 +13,7 @@ export const loadEnvConfig = () => {
 export const createDataSource = (envConfig: any) => new DataSource({
   type: "postgres",
   url: envConfig.DATABASE_URL,
-  entities: ["src/**/*.entity{.ts,.js}"],
+  entities: [User],
   synchronize: false,
   ssl: {
     rejectUnauthorized: false
