@@ -27,10 +27,10 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto);
   }
 
-  @Get(":id")
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findOne(@Param("id") id: string) {
-    return this.bookingsService.findOne(id);
+  @Get("upcoming")
+  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findUpcoming() {
+    return this.bookingsService.findUpcoming();
   }
 
   @Get("customer/:customerId")
@@ -45,10 +45,10 @@ export class BookingsController {
     return this.bookingsService.findByEmployee(employeeId);
   }
 
-  @Get("upcoming")
-  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findUpcoming() {
-    return this.bookingsService.findUpcoming();
+  @Get(":id")
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findOne(@Param("id") id: string) {
+    return this.bookingsService.findOne(id);
   }
 
   @Put(":id")
