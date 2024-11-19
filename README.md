@@ -151,7 +151,7 @@ docker-compose up --build
 2. Access the services:
 
 - Backend API: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:5173`
+- Admin Dashboard: `http://localhost:3001`
 
 ## Development Guidelines
 
