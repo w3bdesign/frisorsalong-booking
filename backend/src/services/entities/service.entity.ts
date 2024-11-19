@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToMany,
-  JoinTable,
 } from 'typeorm';
 import { Employee } from '../../employees/entities/employee.entity';
 
@@ -20,31 +19,17 @@ export class Service {
   @Column('text')
   description: string;
 
+  @Column('int')
+  duration: number; // Duration in minutes
+
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
-
-  @Column('int')
-  durationMinutes: number;
-
-  @ManyToMany(() => Employee)
-  @JoinTable({
-    name: 'employee_services',
-    joinColumn: {
-      name: 'service_id',
-      referencedColumnName: 'id',
-    },
-    inverseJoinColumn: {
-      name: 'employee_id',
-      referencedColumnName: 'id',
-    },
-  })
-  employees: Employee[];
 
   @Column({ default: true })
   isActive: boolean;
 
-  @Column('simple-array', { nullable: true })
-  categories: string[];
+  @ManyToMany(() => Employee, employee => employee.services)
+  employees: Employee[];
 
   @CreateDateColumn()
   createdAt: Date;
