@@ -20,6 +20,25 @@ describe("BookingsController", () => {
     cancel: jest.fn(),
   };
 
+  const mockCustomer = {
+    id: "customer-id",
+    firstName: "John",
+    lastName: "Doe",
+  };
+
+  const mockEmployee = {
+    id: "employee-id",
+    user: {
+      firstName: "Jane",
+      lastName: "Smith",
+    },
+  };
+
+  const mockService = {
+    id: "service-id",
+    name: "Haircut",
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BookingsController],
@@ -51,6 +70,9 @@ describe("BookingsController", () => {
     const mockBooking = {
       id: "booking-id",
       ...createBookingDto,
+      customer: mockCustomer,
+      employee: mockEmployee,
+      service: mockService,
       endTime: new Date("2024-01-01T11:00:00.000Z"),
       status: BookingStatus.PENDING,
       totalPrice: 50,
@@ -63,7 +85,11 @@ describe("BookingsController", () => {
 
       const result = await controller.create(createBookingDto);
 
-      expect(result).toEqual(mockBooking);
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockBooking.id);
+      expect(result.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+      expect(result.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+      expect(result.serviceName).toBe(mockService.name);
       expect(service.create).toHaveBeenCalledWith(createBookingDto);
     });
 
@@ -81,6 +107,10 @@ describe("BookingsController", () => {
   describe("findOne", () => {
     const mockBooking = {
       id: "booking-id",
+      customer: mockCustomer,
+      employee: mockEmployee,
+      service: mockService,
+      startTime: "2024-01-01T10:00:00.000Z",
       status: BookingStatus.CONFIRMED,
     };
 
@@ -89,7 +119,11 @@ describe("BookingsController", () => {
 
       const result = await controller.findOne("booking-id");
 
-      expect(result).toEqual(mockBooking);
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockBooking.id);
+      expect(result.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+      expect(result.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+      expect(result.serviceName).toBe(mockService.name);
       expect(service.findOne).toHaveBeenCalledWith("booking-id");
     });
 
@@ -112,6 +146,10 @@ describe("BookingsController", () => {
 
     const mockBooking = {
       id: "booking-id",
+      customer: mockCustomer,
+      employee: mockEmployee,
+      service: mockService,
+      startTime: "2024-01-01T10:00:00.000Z",
       ...updateBookingDto,
     };
 
@@ -120,7 +158,11 @@ describe("BookingsController", () => {
 
       const result = await controller.update("booking-id", updateBookingDto);
 
-      expect(result).toEqual(mockBooking);
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockBooking.id);
+      expect(result.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+      expect(result.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+      expect(result.serviceName).toBe(mockService.name);
       expect(service.update).toHaveBeenCalledWith(
         "booking-id",
         updateBookingDto,
@@ -141,6 +183,10 @@ describe("BookingsController", () => {
   describe("cancel", () => {
     const mockBooking = {
       id: "booking-id",
+      customer: mockCustomer,
+      employee: mockEmployee,
+      service: mockService,
+      startTime: "2024-01-01T10:00:00.000Z",
       status: BookingStatus.CANCELLED,
       cancelledAt: new Date(),
       cancellationReason: "Customer request",
@@ -153,7 +199,11 @@ describe("BookingsController", () => {
         reason: "Customer request",
       });
 
-      expect(result).toEqual(mockBooking);
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockBooking.id);
+      expect(result.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+      expect(result.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+      expect(result.serviceName).toBe(mockService.name);
       expect(service.cancel).toHaveBeenCalledWith(
         "booking-id",
         "Customer request",
@@ -175,10 +225,18 @@ describe("BookingsController", () => {
     const mockBookings = [
       {
         id: "booking-1",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-01T10:00:00.000Z",
         status: BookingStatus.CONFIRMED,
       },
       {
         id: "booking-2",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-02T10:00:00.000Z",
         status: BookingStatus.PENDING,
       },
     ];
@@ -188,7 +246,14 @@ describe("BookingsController", () => {
 
       const result = await controller.findByCustomer("customer-id");
 
-      expect(result).toEqual(mockBookings);
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      result.forEach((booking, index) => {
+        expect(booking.id).toBe(mockBookings[index].id);
+        expect(booking.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+        expect(booking.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+        expect(booking.serviceName).toBe(mockService.name);
+      });
       expect(service.findByCustomer).toHaveBeenCalledWith("customer-id");
     });
   });
@@ -197,10 +262,18 @@ describe("BookingsController", () => {
     const mockBookings = [
       {
         id: "booking-1",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-01T10:00:00.000Z",
         status: BookingStatus.CONFIRMED,
       },
       {
         id: "booking-2",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-02T10:00:00.000Z",
         status: BookingStatus.PENDING,
       },
     ];
@@ -210,7 +283,14 @@ describe("BookingsController", () => {
 
       const result = await controller.findByEmployee("employee-id");
 
-      expect(result).toEqual(mockBookings);
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      result.forEach((booking, index) => {
+        expect(booking.id).toBe(mockBookings[index].id);
+        expect(booking.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+        expect(booking.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+        expect(booking.serviceName).toBe(mockService.name);
+      });
       expect(service.findByEmployee).toHaveBeenCalledWith("employee-id");
     });
   });
@@ -219,13 +299,19 @@ describe("BookingsController", () => {
     const mockBookings = [
       {
         id: "booking-1",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-01T10:00:00.000Z",
         status: BookingStatus.CONFIRMED,
-        startTime: new Date("2024-01-01T10:00:00.000Z"),
       },
       {
         id: "booking-2",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+        startTime: "2024-01-02T14:00:00.000Z",
         status: BookingStatus.CONFIRMED,
-        startTime: new Date("2024-01-02T14:00:00.000Z"),
       },
     ];
 
@@ -234,7 +320,14 @@ describe("BookingsController", () => {
 
       const result = await controller.findUpcoming();
 
-      expect(result).toEqual(mockBookings);
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      result.forEach((booking, index) => {
+        expect(booking.id).toBe(mockBookings[index].id);
+        expect(booking.customerName).toBe(`${mockCustomer.firstName} ${mockCustomer.lastName}`);
+        expect(booking.employeeName).toBe(`${mockEmployee.user.firstName} ${mockEmployee.user.lastName}`);
+        expect(booking.serviceName).toBe(mockService.name);
+      });
       expect(service.findUpcoming).toHaveBeenCalled();
     });
   });
