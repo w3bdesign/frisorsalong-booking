@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for building and running both backend and frontend
 
 # Stage 1: Build backend
-FROM node:20 AS backend-builder
+FROM node:22 AS backend-builder
 WORKDIR /app/backend
 COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install
@@ -9,7 +9,7 @@ COPY backend .
 RUN pnpm build
 
 # Stage 2: Build frontend
-FROM node:20 AS frontend-builder
+FROM node:22 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install
@@ -17,7 +17,7 @@ COPY frontend/admin .
 RUN pnpm build
 
 # Stage 3: Run backend and frontend
-FROM node:20
+FROM node:22
 WORKDIR /app
 
 # Copy backend build
