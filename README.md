@@ -4,6 +4,8 @@ A full-stack booking system for hair salons built with NestJS (backend) and Vue 
 
 ![Admin Panel](screenshot/admin.png)
 
+![API Documentation](screenshot/swagger.png)
+
 ## Features
 
 - 🔐 Secure JWT-based Authentication & Authorization
@@ -38,8 +40,6 @@ The system follows a modular architecture separating frontend, backend, and data
 - **Styling**: Tailwind CSS
 - **Testing**: Vitest
 
-![API Documentation](screenshot/swagger.png)
-
 ## Project Structure
 
 ```
@@ -71,32 +71,38 @@ The system follows a modular architecture separating frontend, backend, and data
 ### Backend Setup
 
 1. Navigate to the backend directory:
+
 ```bash
 cd backend
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
 3. Configure environment variables:
+
 ```bash
 cp .env.example .env
 # Update the values in .env according to your setup
 ```
 
 4. Run database migrations:
+
 ```bash
 pnpm migration:run
 ```
 
 5. Seed initial data:
+
 ```bash
 pnpm seed
 ```
 
 6. Start the development server:
+
 ```bash
 pnpm start:dev
 ```
@@ -106,16 +112,19 @@ The API will be available at `http://localhost:3000` with Swagger documentation 
 ### Frontend Setup
 
 1. Navigate to the admin frontend directory:
+
 ```bash
 cd frontend/admin
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
 3. Start the development server:
+
 ```bash
 pnpm dev
 ```
@@ -134,6 +143,7 @@ The admin dashboard will be available at `http://localhost:5173`
 ### Git Workflow
 
 1. Create a feature branch from `develop`:
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
@@ -143,6 +153,7 @@ git checkout -b feature/your-feature-name
 3. Write tests for your changes
 
 4. Commit using conventional commits:
+
 ```
 feat: add new feature
 fix: resolve bug
