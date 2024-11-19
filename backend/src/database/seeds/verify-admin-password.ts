@@ -5,31 +5,24 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-const verifyPassword = async () => {
+export const loadEnvConfig = () => {
+  const envPath = path.resolve(process.cwd(), '.env');
+  return dotenv.parse(fs.readFileSync(envPath));
+};
+
+export const createDataSource = (envConfig: any) => new DataSource({
+  type: "postgres",
+  url: envConfig.DATABASE_URL,
+  entities: ["src/**/*.entity{.ts,.js}"],
+  synchronize: false,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+export const verifyAdminPassword = async (dataSource: DataSource, adminEmail: string, adminPassword: string) => {
   try {
-    // Read .env file directly and parse it properly
-    const envPath = path.resolve(process.cwd(), '.env');
-    const envConfig = dotenv.parse(fs.readFileSync(envPath));
-    
-    const dataSource = new DataSource({
-      type: "postgres",
-      url: envConfig.DATABASE_URL,
-      entities: ["src/**/*.entity{.ts,.js}"],
-      synchronize: false,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    });
-
-    await dataSource.initialize();
-    console.log("Connected to database");
-
-    const adminEmail = envConfig.ADMIN_EMAIL;
-    const adminPassword = envConfig.ADMIN_PASSWORD;
-
-    if (!adminEmail || !adminPassword) {
-      throw new Error("Admin email and password must be set in environment variables");
-    }
+    const userRepository = dataSource.getRepository(User);
 
     console.log("\nPassword analysis:");
     console.log("Raw password:", adminPassword);
@@ -39,8 +32,6 @@ const verifyPassword = async () => {
       console.log(`${i}: '${adminPassword[i]}' (${adminPassword.charCodeAt(i)})`);
     }
 
-    const userRepository = dataSource.getRepository(User);
-
     // Find admin user
     const adminUser = await userRepository.findOne({
       where: { email: adminEmail },
@@ -48,8 +39,7 @@ const verifyPassword = async () => {
     });
 
     if (!adminUser) {
-      console.log("Admin user not found");
-      process.exit(1);
+      throw new Error("Admin user not found");
     }
 
     console.log("\nAdmin user found");
@@ -66,11 +56,43 @@ const verifyPassword = async () => {
     const verifyNewHash = await bcrypt.compare(adminPassword, newHash);
     console.log("Verification with new hash:", verifyNewHash);
 
-    process.exit(0);
+    return {
+      isValid: isPasswordValid,
+      newHashValid: verifyNewHash,
+      storedHash: adminUser.password,
+      newHash,
+    };
   } catch (error) {
-    console.error("Error:", error);
-    process.exit(1);
+    console.error("Error verifying password:", error);
+    throw error;
   }
 };
 
-verifyPassword();
+export const runVerification = async (dataSource: DataSource, envConfig: any) => {
+  try {
+    await dataSource.initialize();
+    console.log("Connected to database");
+
+    const adminEmail = envConfig.ADMIN_EMAIL;
+    const adminPassword = envConfig.ADMIN_PASSWORD;
+
+    if (!adminEmail || !adminPassword) {
+      throw new Error("Admin email and password must be set in environment variables");
+    }
+
+    return await verifyAdminPassword(dataSource, adminEmail, adminPassword);
+  } catch (error) {
+    console.error("Error:", error);
+    throw error;
+  }
+};
+
+// Only run if this file is being executed directly
+if (require.main === module) {
+  const envConfig = loadEnvConfig();
+  const dataSource = createDataSource(envConfig);
+
+  runVerification(dataSource, envConfig)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

@@ -1,4 +1,4 @@
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, DataSourceOptions } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { removeAdminUser, createDataSource } from './remove-admin-user';
 
@@ -98,20 +98,22 @@ describe('createDataSource', () => {
     expect(dataSource).toBeInstanceOf(DataSource);
     expect(dataSource.options).toEqual(expect.objectContaining({
       type: 'postgres',
-      url: 'postgres://user:pass@localhost:5432/db',
       entities: [User],
       synchronize: false,
       ssl: {
         rejectUnauthorized: false,
       },
     }));
+    // Check the URL separately as it's a runtime value
+    expect((dataSource.options as any).url).toBe('postgres://user:pass@localhost:5432/db');
   });
 
   it('should use environment variables for database configuration', () => {
-    process.env.DATABASE_URL = 'postgres://test:test@test:5432/testdb';
+    const testUrl = 'postgres://test:test@test:5432/testdb';
+    process.env.DATABASE_URL = testUrl;
 
     const dataSource = createDataSource();
 
-    expect(dataSource.options.url).toBe('postgres://test:test@test:5432/testdb');
+    expect((dataSource.options as any).url).toBe(testUrl);
   });
 });

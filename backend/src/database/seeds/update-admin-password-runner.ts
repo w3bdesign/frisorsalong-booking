@@ -5,11 +5,7 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// Read .env file directly and parse it properly
-const envPath = path.resolve(process.cwd(), '.env');
-const envConfig = dotenv.parse(fs.readFileSync(envPath));
-
-const dataSource = new DataSource({
+export const createDataSource = (envConfig: any) => new DataSource({
   type: "postgres",
   url: envConfig.DATABASE_URL,
   entities: ["src/**/*.entity{.ts,.js}"],
@@ -19,7 +15,12 @@ const dataSource = new DataSource({
   }
 });
 
-const runSeed = async () => {
+export const loadEnvConfig = () => {
+  const envPath = path.resolve(process.cwd(), '.env');
+  return dotenv.parse(fs.readFileSync(envPath));
+};
+
+export const runPasswordUpdate = async (dataSource: DataSource) => {
   try {
     await dataSource.initialize();
     console.log("Connected to database");
@@ -27,11 +28,19 @@ const runSeed = async () => {
     await updateAdminPassword(dataSource);
 
     console.log("Password update completed successfully");
-    process.exit(0);
+    return true;
   } catch (error) {
     console.error("Error running seed:", error);
-    process.exit(1);
+    throw error;
   }
 };
 
-runSeed();
+// Only run if this file is being executed directly
+if (require.main === module) {
+  const envConfig = loadEnvConfig();
+  const dataSource = createDataSource(envConfig);
+
+  runPasswordUpdate(dataSource)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
