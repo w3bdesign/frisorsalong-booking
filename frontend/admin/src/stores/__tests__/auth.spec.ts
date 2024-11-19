@@ -1,188 +1,196 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from '../auth'
-import axios from 'axios'
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { useAuthStore } from "../auth";
+import axios from "axios";
 
-vi.mock('axios')
+vi.mock("axios");
 
-// Mock Vite's import.meta.env
-vi.stubGlobal('import', {
-  meta: {
-    env: {
-      VITE_API_URL: 'http://localhost:3000'
-    }
-  }
-})
-
-describe('Auth Store', () => {
+describe("Auth Store", () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
-    // Clear localStorage
-    localStorage.clear()
-    // Reset axios mocks
-    vi.clearAllMocks()
-  })
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
 
-  describe('Initial State', () => {
-    it('should have correct initial state', () => {
-      const store = useAuthStore()
-      expect(store.token).toBeNull()
-      expect(store.user).toBeNull()
-      expect(store.isAuthenticated).toBeFalsy()
-      expect(store.error).toBeNull()
-      expect(store.isLoading).toBeFalsy()
-    })
+  describe("Initial State", () => {
+    it("should have correct initial state", () => {
+      const store = useAuthStore();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(store.isLoading).toBeFalsy();
+    });
 
-    it('should initialize with token from localStorage', () => {
-      localStorage.setItem('admin_token', 'test-token')
-      const store = useAuthStore()
-      expect(store.token).toBe('test-token')
-      expect(store.isAuthenticated).toBeTruthy()
-    })
-  })
+    it("should initialize with token from localStorage", () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+    });
+  });
 
-  describe('Login', () => {
+  describe("Login", () => {
     const mockCredentials = {
-      email: 'admin@test.com',
-      password: 'password123'
-    }
+      email: "admin@test.com",
+      password: "password123",
+    };
 
-    const mockResponse = {
+    const mockAdminResponse = {
       data: {
-        access_token: 'test-token',
+        access_token: "test-token",
         user: {
-          id: 1,
-          email: 'admin@test.com',
-          role: 'admin'
-        }
-      }
-    }
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User"
+        },
+      },
+    };
 
-    it('should successfully login admin user', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
-      
-      const store = useAuthStore()
-      const result = await store.login(mockCredentials)
+    it("should successfully login admin user", async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce(mockAdminResponse);
 
-      expect(result).toBeTruthy()
-      expect(store.token).toBe('test-token')
-      expect(store.user).toEqual(mockResponse.data.user)
-      expect(store.isAuthenticated).toBeTruthy()
-      expect(store.error).toBeNull()
-      expect(localStorage.getItem('admin_token')).toBe('test-token')
-    })
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
 
-    it('should handle non-admin user login attempt', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({
-        data: {
-          access_token: 'test-token',
-          user: {
-            id: 1,
-            email: 'user@test.com',
-            role: 'user'
-          }
-        }
-      })
+      expect(success).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.user).toEqual(mockAdminResponse.data.user);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBe("test-token");
+      expect(axios.defaults.headers.common["Authorization"]).toBe(
+        "Bearer test-token",
+      );
+    });
 
-      const store = useAuthStore()
-      const result = await store.login(mockCredentials)
+    it("should handle login error with invalid credentials", async () => {
+      vi.mocked(axios.post).mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: { message: "Invalid credentials" }
+        },
+        isAxiosError: true,
+      });
 
-      expect(result).toBeFalsy()
-      expect(store.error).toBe('Unauthorized: Admin access only')
-      expect(store.isAuthenticated).toBeFalsy()
-    })
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
 
-    it('should handle login error', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Login failed'))
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("Invalid credentials");
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
 
-      const store = useAuthStore()
-      const result = await store.login(mockCredentials)
+    it("should handle server connection error", async () => {
+      vi.mocked(axios.post).mockRejectedValueOnce({
+        code: "ECONNREFUSED",
+        isAxiosError: true,
+      });
 
-      expect(result).toBeFalsy()
-      expect(store.error).toBe('Login failed')
-      expect(store.isAuthenticated).toBeFalsy()
-    })
-  })
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
 
-  describe('Logout', () => {
-    it('should clear auth state and localStorage', () => {
-      const store = useAuthStore()
-      
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("An error occurred during login");
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
+
+  describe("Logout", () => {
+    it("should clear auth state and localStorage", () => {
+      const store = useAuthStore();
+
       // Setup initial authenticated state
-      localStorage.setItem('admin_token', 'test-token')
+      localStorage.setItem("admin_token", "test-token");
       store.$patch({
-        token: 'test-token',
-        user: { id: 1, email: 'admin@test.com', role: 'admin' as const },
-        isAuthenticated: true
-      })
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User"
+        },
+        isAuthenticated: true,
+      });
 
-      store.logout()
+      store.logout();
 
-      expect(store.token).toBeNull()
-      expect(store.user).toBeNull()
-      expect(store.isAuthenticated).toBeFalsy()
-      expect(store.error).toBeNull()
-      expect(localStorage.getItem('admin_token')).toBeNull()
-    })
-  })
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+      expect(axios.defaults.headers.common["Authorization"]).toBeUndefined();
+    });
+  });
 
-  describe('Check Auth', () => {
+  describe("Check Auth", () => {
     const mockUser = {
-      id: 1,
-      email: 'admin@test.com',
-      role: 'admin' as const
-    }
+      id: "1",
+      email: "admin@test.com",
+      role: "admin",
+      firstName: "Admin",
+      lastName: "User"
+    };
 
-    it('should verify valid admin token', async () => {
-      localStorage.setItem('admin_token', 'test-token')
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockUser })
+    it("should verify valid admin token", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { user: mockUser } });
 
-      const store = useAuthStore()
-      const result = await store.checkAuth()
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
 
-      expect(result).toBeTruthy()
-      expect(store.user).toEqual(mockUser)
-      expect(store.isAuthenticated).toBeTruthy()
-    })
+      expect(isValid).toBeTruthy();
+      expect(store.user).toEqual(mockUser);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(axios.defaults.headers.common["Authorization"]).toBe(
+        "Bearer test-token",
+      );
+    });
 
-    it('should handle invalid token', async () => {
-      localStorage.setItem('admin_token', 'invalid-token')
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Invalid token'))
+    it("should handle invalid token", async () => {
+      localStorage.setItem("admin_token", "invalid-token");
+      vi.mocked(axios.get).mockRejectedValueOnce({
+        response: {
+          status: 401,
+        },
+        isAxiosError: true,
+      });
 
-      const store = useAuthStore()
-      const result = await store.checkAuth()
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
 
-      expect(result).toBeFalsy()
-      expect(store.user).toBeNull()
-      expect(store.isAuthenticated).toBeFalsy()
-      expect(localStorage.getItem('admin_token')).toBeNull()
-    })
+      expect(isValid).toBeFalsy();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
 
-    it('should handle non-admin user token', async () => {
-      localStorage.setItem('admin_token', 'test-token')
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: { ...mockUser, role: 'user' }
-      })
+    it("should handle missing token", async () => {
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
 
-      const store = useAuthStore()
-      const result = await store.checkAuth()
+      expect(isValid).toBeFalsy();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
 
-      expect(result).toBeFalsy()
-      expect(store.user).toBeNull()
-      expect(store.isAuthenticated).toBeFalsy()
-      expect(localStorage.getItem('admin_token')).toBeNull()
-    })
-  })
+  describe("Error Handling", () => {
+    it("should clear error message", () => {
+      const store = useAuthStore();
 
-  describe('Error Handling', () => {
-    it('should set and clear error message', () => {
-      const store = useAuthStore()
-      
-      store.setError('Test error')
-      expect(store.error).toBe('Test error')
-      
-      store.clearError()
-      expect(store.error).toBeNull()
-    })
-  })
-})
+      // Set an error
+      store.$patch({ error: "Test error" });
+      expect(store.error).toBe("Test error");
+
+      // Clear error
+      store.clearError();
+      expect(store.error).toBeNull();
+    });
+  });
+});

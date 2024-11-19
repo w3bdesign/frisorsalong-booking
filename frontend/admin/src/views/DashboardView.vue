@@ -1,175 +1,184 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import type { Booking } from '@/types/booking'
+import { onMounted } from "vue";
+import { useBookingStore } from "../stores/bookings";
 
-const bookings = ref<Booking[]>([])
-const loading = ref(true)
-const totalBookings = ref(0)
-const todayBookings = ref(0)
-const upcomingBookings = ref(0)
+const bookingStore = useBookingStore();
 
-const fetchBookings = async () => {
-  try {
-    // TODO: Replace with actual API call
-    const response = await fetch('http://localhost:3000/api/bookings')
-    const data = await response.json()
-    bookings.value = data
-    calculateMetrics()
-  } catch (error) {
-    ElMessage.error('Failed to fetch bookings')
-  } finally {
-    loading.value = false
+const getStatusColor = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
+  switch (status) {
+    case "CONFIRMED":
+      return "bg-green-100 text-green-800";
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "CANCELLED":
+      return "bg-red-100 text-red-800";
   }
-}
+};
 
-const calculateMetrics = () => {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  
-  totalBookings.value = bookings.value.length
-  todayBookings.value = bookings.value.filter(booking => 
-    new Date(booking.startTime).toDateString() === today.toDateString()
-  ).length
-  upcomingBookings.value = bookings.value.filter(booking =>
-    new Date(booking.startTime) > today
-  ).length
-}
+defineEmits<{
+  (e: "view-booking", id: number): void;
+  (e: "cancel-booking", id: number): void;
+}>();
 
 onMounted(() => {
-  fetchBookings()
-})
+  bookingStore.fetchDashboardStats();
+});
 </script>
 
 <template>
-  <div class="dashboard">
-    <el-row :gutter="20" class="mb-4">
-      <el-col :span="8">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <h3>Total Bookings</h3>
-            </div>
-          </template>
-          <div class="card-content">
-            <span class="metric">{{ totalBookings }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <h3>Today's Bookings</h3>
-            </div>
-          </template>
-          <div class="card-content">
-            <span class="metric">{{ todayBookings }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <h3>Upcoming Bookings</h3>
-            </div>
-          </template>
-          <div class="card-content">
-            <span class="metric">{{ upcomingBookings }}</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="p-6" data-test="dashboard-view">
+    <!-- Statistics Cards -->
+    <div
+      class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
+      data-test="statistics-cards"
+    >
+      <div class="bg-white rounded-lg shadow p-6" data-test="total-bookings">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Total Bookings</h3>
+        <p class="text-3xl font-bold text-indigo-600">
+          {{ bookingStore.totalBookings }}
+        </p>
+      </div>
 
-    <el-card class="booking-list">
-      <template #header>
-        <div class="card-header">
-          <h2>Recent Bookings</h2>
-          <el-button type="primary" @click="fetchBookings">Refresh</el-button>
+      <div class="bg-white rounded-lg shadow p-6" data-test="today-bookings">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Today's Bookings
+        </h3>
+        <p class="text-3xl font-bold text-indigo-600">
+          {{ bookingStore.todayBookings }}
+        </p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-6" data-test="upcoming-bookings">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Upcoming Bookings
+        </h3>
+        <p class="text-3xl font-bold text-indigo-600">
+          {{ bookingStore.upcomingBookings }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="bg-white rounded-lg shadow" data-test="bookings-table">
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-semibold text-gray-900">Recent Bookings</h2>
+          <button
+            @click="bookingStore.fetchDashboardStats"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            data-test="refresh-button"
+          >
+            Refresh
+          </button>
         </div>
-      </template>
-      
-      <el-table
-        v-loading="loading"
-        :data="bookings"
-        style="width: 100%"
-        :default-sort="{ prop: 'startTime', order: 'descending' }"
-      >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="customerName" label="Customer" />
-        <el-table-column prop="employeeName" label="Employee" />
-        <el-table-column prop="serviceName" label="Service" />
-        <el-table-column prop="startTime" label="Date & Time" sortable>
-          <template #default="scope">
-            {{ new Date(scope.row.startTime).toLocaleString() }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="Status">
-          <template #default="scope">
-            <el-tag
-              :type="scope.row.status === 'CONFIRMED' ? 'success' : 
-                     scope.row.status === 'PENDING' ? 'warning' : 'info'"
+      </div>
+
+      <div class="overflow-x-auto">
+        <div
+          v-if="bookingStore.isLoading"
+          class="p-6 text-center text-gray-500"
+          data-test="loading-state"
+        >
+          Loading bookings...
+        </div>
+        <div
+          v-else-if="bookingStore.error"
+          class="p-6 text-center text-red-500"
+          data-test="error-state"
+        >
+          {{ bookingStore.error }}
+        </div>
+        <table v-else class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                ID
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Customer
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Employee
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Service
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Date & Time
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Status
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr
+              v-for="booking in bookingStore.bookings"
+              :key="booking.id"
+              class="hover:bg-gray-50"
             >
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="150">
-          <template #default="scope">
-            <el-button-group>
-              <el-button
-                size="small"
-                type="primary"
-                @click="viewBooking(scope.row.id)"
-              >
-                View
-              </el-button>
-              <el-button
-                size="small"
-                type="danger"
-                @click="cancelBooking(scope.row.id)"
-              >
-                Cancel
-              </el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ booking.id }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ booking.customerName }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ booking.employeeName }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ booking.serviceName }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ new Date(booking.startTime).toLocaleString() }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  :class="[
+                    'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
+                    getStatusColor(booking.status),
+                  ]"
+                >
+                  {{ booking.status }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button
+                  class="text-indigo-600 hover:text-indigo-900 mr-4"
+                  @click="$emit('view-booking', booking.id)"
+                  data-test="view-button"
+                >
+                  View
+                </button>
+                <button
+                  class="text-red-600 hover:text-red-900"
+                  @click="$emit('cancel-booking', booking.id)"
+                  data-test="cancel-button"
+                >
+                  Cancel
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.dashboard {
-  padding: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h2, .card-header h3 {
-  margin: 0;
-}
-
-.card-content {
-  text-align: center;
-}
-
-.metric {
-  font-size: 2.5em;
-  font-weight: bold;
-  color: #409EFF;
-}
-
-.booking-list {
-  margin-top: 20px;
-}
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-</style>
