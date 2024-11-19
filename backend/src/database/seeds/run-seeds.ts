@@ -2,6 +2,7 @@ import { DataSource } from "typeorm";
 import { config } from "dotenv";
 import { createAdminUser } from "./create-admin-user.seed";
 import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
 
 // Load environment variables
 config();
@@ -11,6 +12,9 @@ const dataSource = new DataSource({
   url: process.env.DATABASE_URL,
   entities: ["src/**/*.entity{.ts,.js}"],
   synchronize: false,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 const runSeeds = async () => {
@@ -18,9 +22,10 @@ const runSeeds = async () => {
     await dataSource.initialize();
     console.log("Connected to database");
 
-    // Run seeds
+    // Run seeds in sequence
     await createAdminUser(dataSource);
     await createInitialData(dataSource);
+    await createSampleBookings(dataSource);
 
     console.log("All seeds completed successfully");
     process.exit(0);

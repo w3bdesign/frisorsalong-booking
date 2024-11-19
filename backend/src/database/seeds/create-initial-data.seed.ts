@@ -25,25 +25,22 @@ export const createInitialData = async (dataSource: DataSource) => {
         name: "Haircut",
         description: "Basic haircut service",
         price: 30.0,
-        durationMinutes: 30,
+        duration: 30,
         isActive: true,
-        categories: ["basic"],
       },
       {
         name: "Hair Coloring",
         description: "Professional hair coloring service",
         price: 80.0,
-        durationMinutes: 120,
+        duration: 120,
         isActive: true,
-        categories: ["color"],
       },
       {
         name: "Styling",
         description: "Hair styling service",
         price: 40.0,
-        durationMinutes: 45,
+        duration: 45,
         isActive: true,
-        categories: ["styling"],
       },
     ]);
 
