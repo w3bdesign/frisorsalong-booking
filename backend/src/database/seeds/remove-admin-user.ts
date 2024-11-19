@@ -5,7 +5,7 @@ import { User } from "../../users/entities/user.entity";
 // Load environment variables
 config();
 
-const dataSource = new DataSource({
+export const createDataSource = () => new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
   entities: [User],
@@ -15,12 +15,8 @@ const dataSource = new DataSource({
   },
 });
 
-async function removeAdminUser() {
+export async function removeAdminUser(dataSource: DataSource) {
   try {
-    console.log("Connecting to database...");
-    await dataSource.initialize();
-    console.log("Connected to database");
-
     const userRepository = dataSource.getRepository(User);
     const adminEmail = process.env.ADMIN_EMAIL;
 
@@ -32,15 +28,34 @@ async function removeAdminUser() {
 
     if (result.affected > 0) {
       console.log("Admin user removed successfully");
+      return true;
     } else {
       console.log("Admin user not found");
+      return false;
     }
-
-    process.exit(0);
   } catch (error) {
     console.error("Error removing admin user:", error);
-    process.exit(1);
+    throw error;
   }
 }
 
-removeAdminUser();
+// Only run if this file is being executed directly
+if (require.main === module) {
+  const dataSource = createDataSource();
+
+  async function main() {
+    try {
+      console.log("Connecting to database...");
+      await dataSource.initialize();
+      console.log("Connected to database");
+
+      await removeAdminUser(dataSource);
+      process.exit(0);
+    } catch (error) {
+      console.error("Error in main:", error);
+      process.exit(1);
+    }
+  }
+
+  main();
+}
