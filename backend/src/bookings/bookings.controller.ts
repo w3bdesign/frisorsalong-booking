@@ -11,6 +11,7 @@ import {
 import { BookingsService } from "./bookings.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { BookingResponseDto } from "./dto/booking-response.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -24,31 +25,36 @@ export class BookingsController {
   @Post()
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async create(@Body() createBookingDto: CreateBookingDto) {
-    return this.bookingsService.create(createBookingDto);
+    const booking = await this.bookingsService.create(createBookingDto);
+    return BookingResponseDto.fromEntity(booking);
   }
 
   @Get("upcoming")
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findUpcoming() {
-    return this.bookingsService.findUpcoming();
+    const bookings = await this.bookingsService.findUpcoming();
+    return BookingResponseDto.fromEntities(bookings);
   }
 
   @Get("customer/:customerId")
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async findByCustomer(@Param("customerId") customerId: string) {
-    return this.bookingsService.findByCustomer(customerId);
+    const bookings = await this.bookingsService.findByCustomer(customerId);
+    return BookingResponseDto.fromEntities(bookings);
   }
 
   @Get("employee/:employeeId")
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findByEmployee(@Param("employeeId") employeeId: string) {
-    return this.bookingsService.findByEmployee(employeeId);
+    const bookings = await this.bookingsService.findByEmployee(employeeId);
+    return BookingResponseDto.fromEntities(bookings);
   }
 
   @Get(":id")
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async findOne(@Param("id") id: string) {
-    return this.bookingsService.findOne(id);
+    const booking = await this.bookingsService.findOne(id);
+    return BookingResponseDto.fromEntity(booking);
   }
 
   @Put(":id")
@@ -57,7 +63,8 @@ export class BookingsController {
     @Param("id") id: string,
     @Body() updateBookingDto: UpdateBookingDto,
   ) {
-    return this.bookingsService.update(id, updateBookingDto);
+    const booking = await this.bookingsService.update(id, updateBookingDto);
+    return BookingResponseDto.fromEntity(booking);
   }
 
   @Put(":id/cancel")
@@ -69,6 +76,7 @@ export class BookingsController {
     if (!cancellationDto.reason) {
       throw new BadRequestException("Cancellation reason is required");
     }
-    return this.bookingsService.cancel(id, cancellationDto.reason);
+    const booking = await this.bookingsService.cancel(id, cancellationDto.reason);
+    return BookingResponseDto.fromEntity(booking);
   }
 }

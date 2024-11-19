@@ -77,7 +77,7 @@ export class BookingsService {
   async findOne(id: string): Promise<Booking> {
     const booking = await this.bookingRepository.findOne({
       where: { id },
-      relations: ["customer", "employee", "service"],
+      relations: ["customer", "employee", "employee.user", "service"],
     });
 
     if (!booking) {
@@ -134,7 +134,7 @@ export class BookingsService {
   async findByCustomer(customerId: string): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { customer: { id: customerId } },
-      relations: ["customer", "employee", "service"],
+      relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "DESC" },
     });
   }
@@ -142,7 +142,7 @@ export class BookingsService {
   async findByEmployee(employeeId: string): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { employee: { id: employeeId } },
-      relations: ["customer", "employee", "service"],
+      relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "DESC" },
     });
   }
@@ -154,7 +154,7 @@ export class BookingsService {
         startTime: MoreThan(now),
         status: BookingStatus.CONFIRMED,
       },
-      relations: ["customer", "employee", "service"],
+      relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "ASC" },
     });
   }
