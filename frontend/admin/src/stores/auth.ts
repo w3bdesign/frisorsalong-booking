@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
+/// <reference types="vite/client" />
+
 interface AuthState {
   token: string | null
   user: AdminUser | null
@@ -24,6 +26,9 @@ interface AuthResponse {
   access_token: string
   user: AdminUser
 }
+
+// Get API URL from env with type safety
+const API_URL = import.meta.env.VITE_API_URL as string
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -49,7 +54,7 @@ export const useAuthStore = defineStore('auth', {
         this.error = null
 
         const response = await axios.post<AuthResponse>(
-          `${import.meta.env.VITE_API_URL}/auth/login`,
+          `${API_URL}/auth/login`,
           credentials
         )
 
@@ -103,7 +108,7 @@ export const useAuthStore = defineStore('auth', {
 
         // Verify token with backend
         const response = await axios.get<AdminUser>(
-          `${import.meta.env.VITE_API_URL}/auth/profile`,
+          `${API_URL}/auth/profile`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
