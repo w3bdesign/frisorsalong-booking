@@ -1,4 +1,4 @@
-import { DataSource, Repository, InsertQueryBuilder } from 'typeorm';
+import { DataSource, Repository, InsertQueryBuilder, EntityTarget } from 'typeorm';
 import { User, UserRole } from '../../users/entities/user.entity';
 import { Employee } from '../../employees/entities/employee.entity';
 import { Service } from '../../services/entities/service.entity';
@@ -38,14 +38,16 @@ describe('createInitialData', () => {
       execute: jest.fn().mockResolvedValue(undefined),
     };
 
-    // Mock DataSource
+    // Mock DataSource with proper typing
+    const mockGetRepository = (entity: EntityTarget<any>) => {
+      if (entity === User) return mockUserRepository as Repository<User>;
+      if (entity === Employee) return mockEmployeeRepository as Repository<Employee>;
+      if (entity === Service) return mockServiceRepository as Repository<Service>;
+      throw new Error(`Repository not mocked for entity: ${entity}`);
+    };
+
     mockDataSource = {
-      getRepository: jest.fn((entity) => {
-        if (entity === User) return mockUserRepository;
-        if (entity === Employee) return mockEmployeeRepository;
-        if (entity === Service) return mockServiceRepository;
-        return {} as Repository<any>;
-      }),
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
       createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
