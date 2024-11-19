@@ -1,0 +1,35 @@
+coverage:
+  status:
+    project:
+      backend:
+        paths:
+          - "backend/"
+        target: 80%
+        threshold: 1%
+    patch:
+      backend:
+        paths:
+          - "backend/"
+        target: 80%
+
+ignore:
+  - "frontend/"
+  - "**/node_modules/"
+  - "**/*.spec.ts"
+  - "**/*.test.ts"
+  - "**/test/"
+  - "**/tests/"
+  - "coverage/"
+  - "backend/dist/"
+
+flags:
+  backend:
+    paths:
+      - backend/
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes

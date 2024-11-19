@@ -1,12 +1,21 @@
 name: Run tests and upload coverage
 
 on: 
-  push
+  push:
+    paths:
+      - 'backend/**'
+  pull_request:
+    paths:
+      - 'backend/**'
 
 jobs:
   test:
-    name: Run tests and collect coverage
+    name: Run backend tests and collect coverage
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -15,14 +24,21 @@ jobs:
 
       - name: Set up Node
         uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: './backend/package.json'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests
-        run: npx jest --coverage
+        run: npm test -- --coverage
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
