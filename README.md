@@ -69,10 +69,11 @@ The system follows a modular architecture separating frontend, backend, and data
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js (v20 or higher)
 - pnpm
 - PostgreSQL
 - Redis
+- Docker
 
 ## Getting Started
 
@@ -138,6 +139,19 @@ pnpm dev
 ```
 
 The admin dashboard will be available at `http://localhost:5173`
+
+### Using Docker
+
+1. Build and run the Docker containers:
+
+```bash
+docker-compose up --build
+```
+
+2. Access the services:
+
+- Backend API: `http://localhost:3000`
+- Admin Dashboard: `http://localhost:5173`
 
 ## Development Guidelines
 
