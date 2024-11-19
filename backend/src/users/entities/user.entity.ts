@@ -7,19 +7,19 @@ import {
   OneToMany,
   BeforeInsert,
   BeforeUpdate,
-} from 'typeorm';
-import { Exclude } from 'class-transformer';
-import * as bcrypt from 'bcrypt';
+} from "typeorm";
+import { Exclude } from "class-transformer";
+import * as bcrypt from "bcrypt";
 
 export enum UserRole {
-  CUSTOMER = 'customer',
-  EMPLOYEE = 'employee',
-  ADMIN = 'admin',
+  CUSTOMER = "customer",
+  EMPLOYEE = "employee",
+  ADMIN = "admin",
 }
 
-@Entity('users')
+@Entity("users")
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ length: 100 })
@@ -36,7 +36,7 @@ export class User {
   password: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: UserRole,
     default: UserRole.CUSTOMER,
   })

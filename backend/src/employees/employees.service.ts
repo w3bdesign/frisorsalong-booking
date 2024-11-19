@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
-import { Employee } from './entities/employee.entity';
-import { Booking } from '../bookings/entities/booking.entity';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, LessThanOrEqual, MoreThanOrEqual, Not } from "typeorm";
+import { Employee } from "./entities/employee.entity";
+import { Booking } from "../bookings/entities/booking.entity";
 
 @Injectable()
 export class EmployeesService {
@@ -16,7 +16,7 @@ export class EmployeesService {
   async findOne(id: string): Promise<Employee> {
     const employee = await this.employeeRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     if (!employee) {
@@ -34,7 +34,7 @@ export class EmployeesService {
   ): Promise<boolean> {
     const whereClause: any = {
       employee: { id: employeeId },
-      status: Not('cancelled'),
+      status: Not("cancelled"),
       startTime: LessThanOrEqual(endTime),
       endTime: MoreThanOrEqual(startTime),
     };
@@ -53,7 +53,7 @@ export class EmployeesService {
 
   async findAll(): Promise<Employee[]> {
     return this.employeeRepository.find({
-      relations: ['user'],
+      relations: ["user"],
     });
   }
 
@@ -62,7 +62,7 @@ export class EmployeesService {
     startTime: Date,
   ): Promise<Employee[]> {
     const employees = await this.employeeRepository.find({
-      relations: ['services'],
+      relations: ["services"],
       where: {
         services: {
           id: serviceId,
@@ -74,7 +74,11 @@ export class EmployeesService {
     for (const employee of employees) {
       // Calculate end time based on service duration (this should be fetched from service)
       const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Assuming 1 hour duration
-      const isAvailable = await this.isAvailable(employee.id, startTime, endTime);
+      const isAvailable = await this.isAvailable(
+        employee.id,
+        startTime,
+        endTime,
+      );
       if (isAvailable) {
         availableEmployees.push(employee);
       }

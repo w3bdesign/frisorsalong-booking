@@ -1,12 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
-import { Booking, BookingStatus } from './entities/booking.entity';
-import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
-import { UsersService } from '../users/users.service';
-import { EmployeesService } from '../employees/employees.service';
-import { ServicesService } from '../services/services.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, MoreThan } from "typeorm";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
 
 @Injectable()
 export class BookingsService {
@@ -19,24 +23,25 @@ export class BookingsService {
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    const { customerId, employeeId, serviceId, startTime, notes } = createBookingDto;
+    const { customerId, employeeId, serviceId, startTime, notes } =
+      createBookingDto;
 
     // Verify customer exists
     const customer = await this.usersService.findOne(customerId);
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException("Customer not found");
     }
 
     // Verify employee exists
     const employee = await this.employeesService.findOne(employeeId);
     if (!employee) {
-      throw new NotFoundException('Employee not found');
+      throw new NotFoundException("Employee not found");
     }
 
     // Verify service exists
     const service = await this.servicesService.findOne(serviceId);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException("Service not found");
     }
 
     // Calculate end time based on service duration
@@ -51,7 +56,7 @@ export class BookingsService {
     );
 
     if (!isAvailable) {
-      throw new BadRequestException('Employee is not available at this time');
+      throw new BadRequestException("Employee is not available at this time");
     }
 
     // Create and save the booking
@@ -72,7 +77,7 @@ export class BookingsService {
   async findOne(id: string): Promise<Booking> {
     const booking = await this.bookingRepository.findOne({
       where: { id },
-      relations: ['customer', 'employee', 'service'],
+      relations: ["customer", "employee", "employee.user", "service"],
     });
 
     if (!booking) {
@@ -82,7 +87,10 @@ export class BookingsService {
     return booking;
   }
 
-  async update(id: string, updateBookingDto: UpdateBookingDto): Promise<Booking> {
+  async update(
+    id: string,
+    updateBookingDto: UpdateBookingDto,
+  ): Promise<Booking> {
     const booking = await this.findOne(id);
 
     // If updating start time, recalculate end time
@@ -100,7 +108,7 @@ export class BookingsService {
       );
 
       if (!isAvailable) {
-        throw new BadRequestException('Employee is not available at this time');
+        throw new BadRequestException("Employee is not available at this time");
       }
 
       booking.startTime = startDate;
@@ -126,16 +134,16 @@ export class BookingsService {
   async findByCustomer(customerId: string): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { customer: { id: customerId } },
-      relations: ['customer', 'employee', 'service'],
-      order: { startTime: 'DESC' },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
     });
   }
 
   async findByEmployee(employeeId: string): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { employee: { id: employeeId } },
-      relations: ['customer', 'employee', 'service'],
-      order: { startTime: 'DESC' },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
     });
   }
 
@@ -146,8 +154,8 @@ export class BookingsService {
         startTime: MoreThan(now),
         status: BookingStatus.CONFIRMED,
       },
-      relations: ['customer', 'employee', 'service'],
-      order: { startTime: 'ASC' },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "ASC" },
     });
   }
 }

@@ -3,12 +3,12 @@ import {
   UnauthorizedException,
   ConflictException,
   InternalServerErrorException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
-import { LoginDto, RegisterDto } from './dto';
-import { AuthResponse, JwtPayload } from './interfaces/auth.interface';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
 
 @Injectable()
 export class AuthService {
@@ -19,9 +19,11 @@ export class AuthService {
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
     try {
-      const existingUser = await this.usersService.findByEmail(registerDto.email);
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
       if (existingUser) {
-        throw new ConflictException('Email already exists');
+        throw new ConflictException("Email already exists");
       }
 
       const hashedPassword = await bcrypt.hash(registerDto.password, 10);
@@ -41,7 +43,7 @@ export class AuthService {
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new InternalServerErrorException('Error during registration');
+      throw new InternalServerErrorException("Error during registration");
     }
   }
 
@@ -49,7 +51,7 @@ export class AuthService {
     try {
       const user = await this.usersService.findByEmail(loginDto.email);
       if (!user) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException("Invalid credentials");
       }
 
       const isPasswordValid = await bcrypt.compare(
@@ -57,7 +59,7 @@ export class AuthService {
         user.password,
       );
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException("Invalid credentials");
       }
 
       const token = this.generateToken(user);
@@ -71,7 +73,7 @@ export class AuthService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new InternalServerErrorException('Error during login');
+      throw new InternalServerErrorException("Error during login");
     }
   }
 
