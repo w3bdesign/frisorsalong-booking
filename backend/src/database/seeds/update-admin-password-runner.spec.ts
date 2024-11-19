@@ -11,38 +11,53 @@ jest.mock('dotenv');
 jest.mock('path');
 
 describe('update-admin-password-runner', () => {
+  let mockDataSource: Partial<DataSource>;
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    // Mock DataSource
+    mockDataSource = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Mock updateAdminPassword
+    (updateAdminPassword as jest.Mock).mockResolvedValue(undefined);
+
+    // Mock path.resolve
+    (path.resolve as jest.Mock).mockReturnValue('/fake/path/.env');
+
+    // Mock fs.readFileSync
+    (fs.readFileSync as jest.Mock).mockReturnValue('mock env file content');
+
+    // Mock dotenv.parse
+    (dotenv.parse as jest.Mock).mockReturnValue({
+      DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+      ADMIN_EMAIL: 'admin@example.com',
+      ADMIN_PASSWORD: 'password123',
+    });
+
     // Mock console methods
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    process.env = originalEnv;
     jest.clearAllMocks();
   });
 
   describe('loadEnvConfig', () => {
     it('should load and parse environment configuration', () => {
-      // Mock path.resolve
-      (path.resolve as jest.Mock).mockReturnValue('/fake/path/.env');
-
-      // Mock fs.readFileSync
-      (fs.readFileSync as jest.Mock).mockReturnValue('mock env file content');
-
-      // Mock dotenv.parse
-      const mockEnvConfig = {
-        DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
-        ADMIN_EMAIL: 'admin@example.com',
-        ADMIN_PASSWORD: 'password123',
-      };
-      (dotenv.parse as jest.Mock).mockReturnValue(mockEnvConfig);
-
       const result = loadEnvConfig();
 
       expect(path.resolve).toHaveBeenCalledWith(expect.any(String), '.env');
       expect(fs.readFileSync).toHaveBeenCalledWith('/fake/path/.env');
       expect(dotenv.parse).toHaveBeenCalledWith('mock env file content');
-      expect(result).toEqual(mockEnvConfig);
+      expect(result).toEqual({
+        DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+        ADMIN_EMAIL: 'admin@example.com',
+        ADMIN_PASSWORD: 'password123',
+      });
     });
 
     it('should handle errors when loading env file', () => {
@@ -77,16 +92,6 @@ describe('update-admin-password-runner', () => {
   });
 
   describe('runPasswordUpdate', () => {
-    let mockDataSource: Partial<DataSource>;
-
-    beforeEach(() => {
-      mockDataSource = {
-        initialize: jest.fn().mockResolvedValue(undefined),
-      };
-
-      (updateAdminPassword as jest.Mock).mockResolvedValue(undefined);
-    });
-
     it('should initialize database and run password update', async () => {
       const result = await runPasswordUpdate(mockDataSource as DataSource);
 
