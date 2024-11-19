@@ -1,12 +1,11 @@
 import { Test } from '@nestjs/testing';
-import { EmployeesModule } from './employees.module';
+import { UsersModule } from './users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Employee } from './entities/employee.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { EmployeesService } from './employees.service';
+import { User } from './entities/user.entity';
+import { UsersService } from './users.service';
 
-describe('EmployeesModule', () => {
-  let module: EmployeesModule;
+describe('UsersModule', () => {
+  let module: UsersModule;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -18,27 +17,32 @@ describe('EmployeesModule', () => {
           username: 'test',
           password: 'test',
           database: 'test',
-          entities: [Employee, Booking],
+          entities: [User],
           synchronize: true,
         }),
-        EmployeesModule,
+        UsersModule,
       ],
     }).compile();
 
-    module = moduleRef.get(EmployeesModule);
+    module = moduleRef.get(UsersModule);
   }, 10000); // Increased timeout to 10 seconds
 
   it('should be defined', () => {
     expect(module).toBeDefined();
   });
 
-  it('should export EmployeesService', () => {
-    const moduleExports = Reflect.getMetadata('exports', EmployeesModule);
-    expect(moduleExports).toContain(EmployeesService);
+  it('should export UsersService', () => {
+    const moduleExports = Reflect.getMetadata('exports', UsersModule);
+    expect(moduleExports).toContain(UsersService);
   });
 
   it('should export TypeOrmModule', () => {
-    const moduleExports = Reflect.getMetadata('exports', EmployeesModule);
+    const moduleExports = Reflect.getMetadata('exports', UsersModule);
     expect(moduleExports).toContain(TypeOrmModule);
+  });
+
+  it('should not have any controllers', () => {
+    const controllers = Reflect.getMetadata('controllers', UsersModule);
+    expect(controllers).toEqual([]);
   });
 });
