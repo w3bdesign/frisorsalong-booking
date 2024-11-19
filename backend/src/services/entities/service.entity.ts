@@ -5,30 +5,30 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToMany,
-} from 'typeorm';
-import { Employee } from '../../employees/entities/employee.entity';
+} from "typeorm";
+import { Employee } from "../../employees/entities/employee.entity";
 
-@Entity('services')
+@Entity("services")
 export class Service {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
   name: string;
 
-  @Column('text')
+  @Column("text")
   description: string;
 
-  @Column('int')
+  @Column("int")
   duration: number; // Duration in minutes
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column("decimal", { precision: 10, scale: 2 })
   price: number;
 
   @Column({ default: true })
   isActive: boolean;
 
-  @ManyToMany(() => Employee, employee => employee.services)
+  @ManyToMany(() => Employee, (employee) => employee.services)
   employees: Employee[];
 
   @CreateDateColumn()

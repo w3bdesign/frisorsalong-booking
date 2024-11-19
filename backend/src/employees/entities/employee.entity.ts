@@ -8,23 +8,23 @@ import {
   JoinColumn,
   ManyToMany,
   JoinTable,
-} from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Service } from '../../services/entities/service.entity';
+} from "typeorm";
+import { User } from "../../users/entities/user.entity";
+import { Service } from "../../services/entities/service.entity";
 
-@Entity('employees')
+@Entity("employees")
 export class Employee {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @OneToOne(() => User, { nullable: false })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: "user_id" })
   user: User;
 
-  @Column('text', { array: true, default: [] })
+  @Column("text", { array: true, default: [] })
   specializations: string[];
 
-  @Column('jsonb', { nullable: true })
+  @Column("jsonb", { nullable: true })
   availability: {
     monday?: { start: string; end: string }[];
     tuesday?: { start: string; end: string }[];
@@ -37,14 +37,14 @@ export class Employee {
 
   @ManyToMany(() => Service)
   @JoinTable({
-    name: 'employee_services',
+    name: "employee_services",
     joinColumn: {
-      name: 'employee_id',
-      referencedColumnName: 'id',
+      name: "employee_id",
+      referencedColumnName: "id",
     },
     inverseJoinColumn: {
-      name: 'service_id',
-      referencedColumnName: 'id',
+      name: "service_id",
+      referencedColumnName: "id",
     },
   })
   services: Service[];

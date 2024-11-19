@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Service } from './entities/service.entity';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Service } from "./entities/service.entity";
 
 @Injectable()
 export class ServicesService {
@@ -33,7 +33,7 @@ export class ServicesService {
           id: employeeId,
         },
       },
-      relations: ['employees'],
+      relations: ["employees"],
     });
   }
 }
