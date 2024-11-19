@@ -6,32 +6,48 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
-  OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Service } from '../../services/entities/service.entity';
 
 @Entity('employees')
 export class Employee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @OneToOne(() => User)
-  @JoinColumn()
+  @OneToOne(() => User, { nullable: false })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column('simple-array', { nullable: true })
+  @Column('text', { array: true, default: [] })
   specializations: string[];
 
-  @Column('json', { nullable: true })
+  @Column('jsonb', { nullable: true })
   availability: {
-    monday: { start: string; end: string }[];
-    tuesday: { start: string; end: string }[];
-    wednesday: { start: string; end: string }[];
-    thursday: { start: string; end: string }[];
-    friday: { start: string; end: string }[];
-    saturday: { start: string; end: string }[];
-    sunday: { start: string; end: string }[];
+    monday?: { start: string; end: string }[];
+    tuesday?: { start: string; end: string }[];
+    wednesday?: { start: string; end: string }[];
+    thursday?: { start: string; end: string }[];
+    friday?: { start: string; end: string }[];
+    saturday?: { start: string; end: string }[];
+    sunday?: { start: string; end: string }[];
   };
+
+  @ManyToMany(() => Service)
+  @JoinTable({
+    name: 'employee_services',
+    joinColumn: {
+      name: 'employee_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'service_id',
+      referencedColumnName: 'id',
+    },
+  })
+  services: Service[];
 
   @Column({ default: true })
   isActive: boolean;
