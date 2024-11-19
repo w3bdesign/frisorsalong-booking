@@ -36,9 +36,13 @@ import { Booking } from "./bookings/entities/booking.entity";
     }),
 
     // Cache
-    CacheModule.register({
+    CacheModule.registerAsync({
       isGlobal: true,
-      ttl: 300, // 5 minutes
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        ttl: configService.get('cache.ttl', 300), // 5 minutes default
+        max: 100, // maximum number of items in cache
+      }),
     }),
 
     // Feature Modules
