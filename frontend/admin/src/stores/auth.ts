@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 interface AuthState {
   token: string | null
@@ -26,6 +26,36 @@ interface AuthResponse {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    // Handle specific error cases
+    if (error.response?.status === 400) {
+      return 'Invalid email or password'
+    }
+    if (error.response?.status === 401) {
+      return 'Unauthorized access'
+    }
+    if (error.response?.status === 403) {
+      return 'Access forbidden - Admin access only'
+    }
+    if (error.response?.status === 404) {
+      return 'User not found'
+    }
+    if (error.response?.status === 500) {
+      return 'Server error - Please try again later'
+    }
+    if (error.code === 'ECONNREFUSED') {
+      return 'Unable to connect to server - Please check if the server is running'
+    }
+    // If we have a specific error message from the backend, use it
+    if (error.response?.data?.message) {
+      return error.response.data.message
+    }
+    return error.message
+  }
+  return 'An unexpected error occurred'
+}
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -65,8 +95,8 @@ export const useAuthStore = defineStore('auth', {
         axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
 
         return true
-      } catch (err) {
-        this.error = err instanceof Error ? err.message : 'Login failed'
+      } catch (error) {
+        this.error = getErrorMessage(error)
         return false
       } finally {
         this.isLoading = false
@@ -114,13 +144,10 @@ export const useAuthStore = defineStore('auth', {
 
         return true
       } catch (error) {
+        this.error = getErrorMessage(error)
         this.logout()
         return false
       }
-    },
-
-    setError(error: string | null) {
-      this.error = error
     },
 
     clearError() {
