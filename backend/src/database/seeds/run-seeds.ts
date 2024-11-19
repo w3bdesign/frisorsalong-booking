@@ -7,7 +7,7 @@ import { createSampleBookings } from "./create-sample-bookings.seed";
 // Load environment variables
 config();
 
-const dataSource = new DataSource({
+export const createDataSource = () => new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
   entities: ["src/**/*.entity{.ts,.js}"],
@@ -17,7 +17,7 @@ const dataSource = new DataSource({
   }
 });
 
-const runSeeds = async () => {
+export const runSeeds = async (dataSource: DataSource) => {
   try {
     await dataSource.initialize();
     console.log("Connected to database");
@@ -28,11 +28,18 @@ const runSeeds = async () => {
     await createSampleBookings(dataSource);
 
     console.log("All seeds completed successfully");
-    process.exit(0);
+    return true;
   } catch (error) {
     console.error("Error running seeds:", error);
-    process.exit(1);
+    throw error;
   }
 };
 
-runSeeds();
+// Only run if this file is being executed directly
+if (require.main === module) {
+  const dataSource = createDataSource();
+
+  runSeeds(dataSource)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

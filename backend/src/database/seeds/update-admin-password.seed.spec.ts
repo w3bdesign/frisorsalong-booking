@@ -1,27 +1,29 @@
 import { DataSource, Repository } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
 import { updateAdminPassword } from './update-admin-password.seed';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
+// Mock User entity
+const mockUserEntity = {
+  id: 'user-1',
+  email: 'admin@example.com',
+  password: 'old-password',
+  validatePassword: jest.fn().mockResolvedValue(true),
+};
+
+jest.mock('../../users/entities/user.entity', () => ({
+  User: jest.fn(),
+}));
 jest.mock('fs');
 jest.mock('dotenv');
 jest.mock('path');
 
 describe('updateAdminPassword', () => {
   let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockUser: Partial<User>;
+  let mockUserRepository: Partial<Repository<typeof mockUserEntity>>;
 
   beforeEach(() => {
-    // Mock user with validatePassword method
-    mockUser = {
-      email: 'admin@example.com',
-      password: 'old-password',
-      validatePassword: jest.fn().mockResolvedValue(true),
-    };
-
     // Mock repository
     mockUserRepository = {
       findOne: jest.fn() as jest.Mock,
@@ -57,8 +59,8 @@ describe('updateAdminPassword', () => {
   it('should successfully update admin password', async () => {
     // Mock finding the admin user
     (mockUserRepository.findOne as jest.Mock)
-      .mockResolvedValueOnce(mockUser)  // First call - finding user
-      .mockResolvedValueOnce({ ...mockUser, password: 'new-password' });  // Second call - verification
+      .mockResolvedValueOnce({ ...mockUserEntity })  // First call - finding user
+      .mockResolvedValueOnce({ ...mockUserEntity, password: 'new-password' });  // Second call - verification
 
     await updateAdminPassword(mockDataSource as DataSource);
 
@@ -78,7 +80,7 @@ describe('updateAdminPassword', () => {
     );
 
     // Verify password was validated
-    expect(mockUser.validatePassword).toHaveBeenCalledWith('new-password');
+    expect(mockUserEntity.validatePassword).toHaveBeenCalledWith('new-password');
   });
 
   it('should throw error when admin user is not found', async () => {
@@ -132,7 +134,7 @@ describe('updateAdminPassword', () => {
   it('should throw error when password update cannot be verified', async () => {
     // Mock finding the admin user for update
     (mockUserRepository.findOne as jest.Mock)
-      .mockResolvedValueOnce(mockUser)  // First call - finding user
+      .mockResolvedValueOnce({ ...mockUserEntity })  // First call - finding user
       .mockResolvedValueOnce(null);     // Second call - verification fails
 
     await expect(updateAdminPassword(mockDataSource as DataSource)).rejects.toThrow(
@@ -142,7 +144,7 @@ describe('updateAdminPassword', () => {
 
   it('should handle database errors during save', async () => {
     // Mock finding the admin user
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue({ ...mockUserEntity });
 
     // Mock save error
     const dbError = new Error('Database error during save');
@@ -156,8 +158,8 @@ describe('updateAdminPassword', () => {
   it('should log password analysis information', async () => {
     // Mock finding the admin user
     (mockUserRepository.findOne as jest.Mock)
-      .mockResolvedValueOnce(mockUser)
-      .mockResolvedValueOnce({ ...mockUser, password: 'new-password' });
+      .mockResolvedValueOnce({ ...mockUserEntity })
+      .mockResolvedValueOnce({ ...mockUserEntity, password: 'new-password' });
 
     await updateAdminPassword(mockDataSource as DataSource);
 
