@@ -1,35 +1,32 @@
 coverage:
+  precision: 2
+  round: down
+  range: "70...100"
   status:
     project:
-      backend:
-        paths:
-          - "backend/"
+      default:
         target: 80%
         threshold: 1%
-    patch:
-      backend:
         paths:
-          - "backend/"
+          - "backend/src"
+    patch:
+      default:
         target: 80%
+        paths:
+          - "backend/src"
 
 ignore:
-  - "frontend/"
-  - "**/node_modules/"
-  - "**/*.spec.ts"
-  - "**/*.test.ts"
-  - "**/test/"
-  - "**/tests/"
-  - "coverage/"
-  - "backend/dist/"
-
-flags:
-  backend:
-    paths:
-      - backend/
+  - "frontend/**/*"
+  - "backend/node_modules/**/*"
+  - "backend/dist/**/*"
+  - "backend/test/**/*"
+  - "backend/coverage/**/*"
+  - "backend/**/*.spec.ts"
+  - "backend/**/*.test.ts"
 
 comment:
   layout: "reach, diff, flags, files"
   behavior: default
   require_changes: false
-  require_base: no
-  require_head: yes
+  require_base: false
+  require_head: true
