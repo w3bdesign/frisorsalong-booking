@@ -1,5 +1,7 @@
 # Hair Salon Booking System
 
+## This is still Work In Progress (WIP)!
+
 A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
 
 ![Admin Panel](screenshot/admin.png)
