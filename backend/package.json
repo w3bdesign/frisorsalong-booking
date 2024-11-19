@@ -23,7 +23,8 @@
     "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts"
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^2.1.0",
