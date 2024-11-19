@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA)](https://codecov.io/gh/w3bdesign/frisorsalong-booking)
+
 # Hair Salon Booking System
 
 ## This is still Work In Progress (WIP)!
