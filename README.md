@@ -1,2 +1,2 @@
-# frisorsalong-booking
+# Frisørsalong booking
  
