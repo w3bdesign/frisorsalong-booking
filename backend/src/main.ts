@@ -7,16 +7,25 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
-  // Global Validation Pipe
+  // Global Validation Pipe with detailed error messages
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Strip properties that don't have decorators
-      transform: true, // Transform payloads to DTO instances
-      forbidNonWhitelisted: true, // Throw errors if non-whitelisted properties are present
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
       transformOptions: {
-        enableImplicitConversion: true, // Automatically transform primitive types
+        enableImplicitConversion: true,
+      },
+      disableErrorMessages: false,
+      validationError: {
+        target: false,
+        value: false,
       },
     }),
   );
@@ -26,11 +35,28 @@ async function bootstrap() {
     .setTitle('Hair Salon Booking API')
     .setDescription('API documentation for the Hair Salon Booking System')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
 
   // Start the server
   const port = process.env.PORT || 3000;
