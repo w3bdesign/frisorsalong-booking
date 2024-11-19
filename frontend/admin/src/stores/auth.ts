@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-/// <reference types="vite/client" />
-
 interface AuthState {
   token: string | null
   user: AdminUser | null
@@ -27,8 +25,7 @@ interface AuthResponse {
   user: AdminUser
 }
 
-// Get API URL from env with type safety
-const API_URL = import.meta.env.VITE_API_URL as string
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -39,16 +36,8 @@ export const useAuthStore = defineStore('auth', {
     isLoading: false
   }),
 
-  getters: {
-    getUser: (state) => state.user,
-    getToken: (state) => state.token,
-    getIsAuthenticated: (state) => state.isAuthenticated,
-    getError: (state) => state.error,
-    getIsLoading: (state) => state.isLoading
-  },
-
   actions: {
-    async login(credentials: LoginCredentials) {
+    async login(credentials: LoginCredentials): Promise<boolean> {
       try {
         this.isLoading = true
         this.error = null
@@ -76,8 +65,8 @@ export const useAuthStore = defineStore('auth', {
         axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
 
         return true
-      } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Login failed'
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Login failed'
         return false
       } finally {
         this.isLoading = false
@@ -98,7 +87,7 @@ export const useAuthStore = defineStore('auth', {
       delete axios.defaults.headers.common['Authorization']
     },
 
-    async checkAuth() {
+    async checkAuth(): Promise<boolean> {
       try {
         const token = localStorage.getItem('admin_token')
         if (!token) {
