@@ -3,17 +3,15 @@ import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
-async function bootstrap() {
+export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
   app.enableCors({
     origin: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     credentials: true,
   });
 
-  // Global Validation Pipe with detailed error messages
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -30,7 +28,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger Documentation
   const config = new DocumentBuilder()
     .setTitle("Hair Salon Booking API")
     .setDescription("API documentation for the Hair Salon Booking System")
@@ -58,7 +55,6 @@ async function bootstrap() {
     },
   });
 
-  // Start the server
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
@@ -67,4 +63,7 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+// Only call bootstrap if this file is being run directly
+if (require.main === module) {
+  bootstrap();
+}
