@@ -1,56 +1,47 @@
-import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { CacheModule } from "@nestjs/cache-manager";
-import { databaseConfig, cacheConfig, jwtConfig } from "./config";
-
-// Feature Modules
-import { AuthModule } from "./auth/auth.module";
-import { UsersModule } from "./users/users.module";
-import { EmployeesModule } from "./employees/employees.module";
-import { ServicesModule } from "./services/services.module";
-import { BookingsModule } from "./bookings/bookings.module";
-
-// Entities
-import { User } from "./users/entities/user.entity";
-import { Employee } from "./employees/entities/employee.entity";
-import { Service } from "./services/entities/service.entity";
-import { Booking } from "./bookings/entities/booking.entity";
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { EmployeesModule } from './employees/employees.module';
+import { ServicesModule } from './services/services.module';
+import { OrdersModule } from './orders/orders.module';
+import databaseConfig from './config/database.config';
+import jwtConfig from './config/jwt.config';
+import cacheConfig from './config/cache.config';
 
 @Module({
   imports: [
-    // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, cacheConfig, jwtConfig],
-      envFilePath: ".env",
+      load: [databaseConfig, jwtConfig, cacheConfig],
     }),
-
-    // Database
     TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
+      imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        ...configService.get("database"),
-        entities: [User, Employee, Service, Booking],
+        ...configService.get('database'),
       }),
+      inject: [ConfigService],
     }),
-
-    // Cache
     CacheModule.registerAsync({
-      isGlobal: true,
-      inject: [ConfigService],
+      imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        ttl: configService.get('cache.ttl', 300), // 5 minutes default
-        max: 100, // maximum number of items in cache
+        ...configService.get('cache'),
       }),
+      inject: [ConfigService],
     }),
-
-    // Feature Modules
     AuthModule,
     UsersModule,
+    BookingsModule,
     EmployeesModule,
     ServicesModule,
-    BookingsModule,
+    OrdersModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
