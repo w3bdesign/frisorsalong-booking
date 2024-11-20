@@ -29,7 +29,7 @@ const mockConfigService = {
   }),
 };
 
-// Create mock repository
+// Create mock repository before using it
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -39,19 +39,21 @@ const mockRepository = {
   delete: jest.fn(),
 };
 
-// Mock @nestjs/typeorm
-jest.mock('@nestjs/typeorm', () => ({
-  TypeOrmModule: {
-    forRootAsync: jest.fn().mockReturnValue({
-      module: class MockTypeOrmModule {},
-    }),
-    forFeature: jest.fn().mockReturnValue({
-      module: class MockTypeOrmFeatureModule {},
-    }),
-  },
-  getRepositoryToken: jest.fn().mockReturnValue('MockRepository'),
-  InjectRepository: () => () => mockRepository,
-}));
+// Mock @nestjs/typeorm with mockRepository already defined
+jest.mock('@nestjs/typeorm', () => {
+  return {
+    TypeOrmModule: {
+      forRootAsync: jest.fn().mockReturnValue({
+        module: class MockTypeOrmModule {},
+      }),
+      forFeature: jest.fn().mockReturnValue({
+        module: class MockTypeOrmFeatureModule {},
+      }),
+    },
+    getRepositoryToken: jest.fn().mockReturnValue('MockRepository'),
+    InjectRepository: jest.fn().mockReturnValue(() => mockRepository),
+  };
+});
 
 // Mock feature modules
 jest.mock('./auth/auth.module', () => ({
@@ -74,6 +76,10 @@ jest.mock('./bookings/bookings.module', () => ({
   BookingsModule: class MockBookingsModule {},
 }));
 
+jest.mock('./orders/orders.module', () => ({
+  OrdersModule: class MockOrdersModule {},
+}));
+
 // Mock entities
 jest.mock('./users/entities/user.entity', () => ({
   User: class MockUser {},
@@ -89,6 +95,10 @@ jest.mock('./services/entities/service.entity', () => ({
 
 jest.mock('./bookings/entities/booking.entity', () => ({
   Booking: class MockBooking {},
+}));
+
+jest.mock('./orders/entities/order.entity', () => ({
+  Order: class MockOrder {},
 }));
 
 // Mock CacheModule
