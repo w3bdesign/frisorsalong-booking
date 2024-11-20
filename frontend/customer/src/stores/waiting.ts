@@ -31,7 +31,7 @@ export const useWaitingStore = defineStore('waiting', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3000/bookings/upcoming', {
+      const response = await fetch('http://localhost:3000/bookings/upcoming/count', {
         headers: {
           accept: '*/*',
         },
@@ -40,10 +40,10 @@ export const useWaitingStore = defineStore('waiting', () => {
         throw new Error('Failed to fetch queue status')
       }
 
-      const data = await response.json()
+      const count = await response.json()
       queueStatus.value = {
-        peopleWaiting: data.length, // Number of upcoming bookings
-        estimatedWaitTime: data.length * 30, // Rough estimate: 30 minutes per booking
+        peopleWaiting: count,
+        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
         lastUpdated: new Date().toISOString(),
       }
     } catch (err) {
