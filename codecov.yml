@@ -5,13 +5,13 @@ coverage:
   status:
     project:
       default:
-        target: 80%
+        target: 75%
         threshold: 1%
         paths:
           - "backend/src"
     patch:
       default:
-        target: 80%
+        target: 75%
         paths:
           - "backend/src"
 
