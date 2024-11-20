@@ -33,7 +33,7 @@
           <div class="text-5xl font-bold text-gradient mb-4">
             {{
               new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
-                selectedService?.price || 0,
+                parseFloat(selectedService?.price || '0'),
               )
             }}
           </div>

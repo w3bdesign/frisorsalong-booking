@@ -3,23 +3,23 @@
     <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
 
     <div v-if="!selectedService" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">Please select a service first</p>
-      <button @click="$router.push('/')" class="btn-secondary">Browse Services</button>
+      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
+      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
     </div>
 
     <form v-else @submit.prevent="handleSubmit" class="space-y-8">
       <!-- Service Summary -->
       <div class="card bg-gradient-to-br from-white to-gray-50">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Selected Service</h3>
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
         <div class="flex justify-between items-start">
           <div>
             <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
-            <p class="text-gray-600 mt-1">Duration: {{ selectedService.duration }} minutes</p>
+            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
           </div>
           <p class="text-xl font-bold text-gradient">
             {{
-              new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
-                selectedService.price,
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService.price),
               )
             }}
           </p>
@@ -28,7 +28,7 @@
 
       <!-- Time Slots -->
       <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Choose Your Time</h3>
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Velg tidspunkt</h3>
         <div class="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -40,8 +40,8 @@
             "
             @click="selectedTimeSlot = { time: 'now', waitTime: '5-10 min' }"
           >
-            <div class="font-bold text-lg mb-1">Right Now</div>
-            <div class="text-sm opacity-75">5-10 min wait</div>
+            <div class="font-bold text-lg mb-1">Nå</div>
+            <div class="text-sm opacity-75">5-10 min ventetid</div>
             <div v-if="selectedTimeSlot?.time === 'now'" class="absolute top-2 right-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -68,8 +68,8 @@
             "
             @click="selectedTimeSlot = { time: 'next', waitTime: '15-20 min' }"
           >
-            <div class="font-bold text-lg mb-1">Next Available</div>
-            <div class="text-sm opacity-75">15-20 min wait</div>
+            <div class="font-bold text-lg mb-1">Neste ledige</div>
+            <div class="text-sm opacity-75">15-20 min ventetid</div>
             <div v-if="selectedTimeSlot?.time === 'next'" class="absolute top-2 right-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -90,12 +90,12 @@
 
       <!-- Phone Number -->
       <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Your Phone Number</h3>
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer</h3>
         <input
           type="tel"
           v-model="phoneNumber"
           required
-          placeholder="+46 XXX XXX XXX"
+          placeholder="+47 XXX XX XXX"
           class="input text-lg"
           :class="{ 'ring-2 ring-red-500 border-red-500': error }"
         />
@@ -108,8 +108,8 @@
         :disabled="isLoading || !selectedTimeSlot"
         class="btn-primary w-full text-lg"
       >
-        <span v-if="isLoading">Processing...</span>
-        <span v-else> Continue to Payment </span>
+        <span v-if="isLoading">Behandler...</span>
+        <span v-else>Fortsett til betaling</span>
       </button>
     </form>
   </div>
