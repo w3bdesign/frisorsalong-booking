@@ -158,4 +158,14 @@ export class BookingsService {
       order: { startTime: "ASC" },
     });
   }
+
+  async getUpcomingCount(): Promise<number> {
+    const now = new Date();
+    return this.bookingRepository.count({
+      where: {
+        startTime: MoreThan(now),
+        status: BookingStatus.CONFIRMED,
+      },
+    });
+  }
 }

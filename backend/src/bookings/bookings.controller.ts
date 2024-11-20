@@ -18,11 +18,16 @@ import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/entities/user.entity";
 
 @Controller("bookings")
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  @Get("upcoming/count")
+  async getUpcomingCount() {
+    return { count: await this.bookingsService.getUpcomingCount() };
+  }
+
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async create(@Body() createBookingDto: CreateBookingDto) {
     const booking = await this.bookingsService.create(createBookingDto);
@@ -30,6 +35,7 @@ export class BookingsController {
   }
 
   @Get("upcoming")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findUpcoming() {
     const bookings = await this.bookingsService.findUpcoming();
@@ -37,6 +43,7 @@ export class BookingsController {
   }
 
   @Get("customer/:customerId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async findByCustomer(@Param("customerId") customerId: string) {
     const bookings = await this.bookingsService.findByCustomer(customerId);
@@ -44,6 +51,7 @@ export class BookingsController {
   }
 
   @Get("employee/:employeeId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findByEmployee(@Param("employeeId") employeeId: string) {
     const bookings = await this.bookingsService.findByEmployee(employeeId);
@@ -51,6 +59,7 @@ export class BookingsController {
   }
 
   @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async findOne(@Param("id") id: string) {
     const booking = await this.bookingsService.findOne(id);
@@ -58,6 +67,7 @@ export class BookingsController {
   }
 
   @Put(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async update(
     @Param("id") id: string,
@@ -68,6 +78,7 @@ export class BookingsController {
   }
 
   @Put(":id/cancel")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async cancel(
     @Param("id") id: string,
