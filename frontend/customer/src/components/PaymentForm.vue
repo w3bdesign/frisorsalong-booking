@@ -1,10 +1,10 @@
 <template>
   <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center py-6">Payment Terminal</h2>
+    <h2 class="heading-1 text-gradient text-center py-6">Betaling</h2>
 
     <div v-if="!currentBooking" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">No active booking found</p>
-      <button @click="$router.push('/')" class="btn-secondary">Return to Services</button>
+      <p class="text-gray-600 mb-6">Ingen aktiv bestilling funnet</p>
+      <button @click="$router.push('/')" class="btn-secondary">Tilbake til tjenester</button>
     </div>
 
     <div v-else>
@@ -32,13 +32,13 @@
 
           <div class="text-5xl font-bold text-gradient mb-4">
             {{
-              new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
-                selectedService?.price || 0,
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService?.price || '0'),
               )
             }}
           </div>
 
-          <p class="text-gray-600">Ready for payment</p>
+          <p class="text-gray-600">Klar for betaling</p>
         </div>
 
         <div class="pt-4">
@@ -68,13 +68,15 @@
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              Processing...
+              Behandler...
             </span>
-            <span v-else> Tap to Pay </span>
+            <span v-else>Trykk for å betale</span>
           </button>
         </div>
 
-        <p class="text-center text-sm text-gray-500">Press the button to simulate card payment</p>
+        <p class="text-center text-sm text-gray-500">
+          Trykk på knappen for å simulere kortbetaling
+        </p>
       </div>
 
       <!-- Success Screen -->
@@ -97,15 +99,15 @@
         </div>
 
         <div>
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-          <p class="text-gray-600">Your appointment is confirmed for:</p>
+          <h3 class="text-2xl font-bold text-gray-900 mb-2">Betaling vellykket!</h3>
+          <p class="text-gray-600">Din time er bekreftet for:</p>
           <p class="text-xl font-medium text-primary-600 mt-2">
             {{ currentBooking.time }}
           </p>
         </div>
 
         <div class="pt-4">
-          <button @click="$router.push('/')" class="btn-secondary">Return to Home</button>
+          <button @click="$router.push('/')" class="btn-secondary">Tilbake til forsiden</button>
         </div>
       </div>
 
