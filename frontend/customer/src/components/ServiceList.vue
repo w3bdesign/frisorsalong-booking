@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-4xl mx-auto">
-    <h2 class="heading-1 text-gradient text-center mb-12">Choose Your Service</h2>
+    <h2 class="heading-1 text-gradient text-center py-6">Velg tjeneste</h2>
 
     <div v-if="store.isLoading" class="grid gap-6 md:grid-cols-2">
       <div v-for="n in 4" :key="n" class="animate-pulse">
@@ -23,7 +23,7 @@
     </div>
 
     <div v-else-if="store.services.length === 0" class="text-center py-8">
-      <p class="text-gray-600">No services available at the moment</p>
+      <p class="text-gray-600">Ingen tjenester tilgjengelig for øyeblikket</p>
     </div>
 
     <div v-else class="grid gap-6 md:grid-cols-2">
@@ -98,8 +98,8 @@
             </div>
           </div>
           <div class="flex gap-3">
-            <button @click="store.clearSelection" class="btn-secondary">Cancel</button>
-            <button @click="$router.push('/booking')" class="btn-primary">Book Now</button>
+            <button @click="store.clearSelection" class="btn-secondary">Avbryt</button>
+            <button @click="$router.push('/booking')" class="btn-primary">Bestill nå</button>
           </div>
         </div>
       </div>

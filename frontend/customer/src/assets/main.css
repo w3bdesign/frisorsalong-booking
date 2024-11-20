@@ -18,15 +18,15 @@
   }
 
   .heading-1 {
-    @apply text-4xl font-bold text-gray-900;
+    @apply text-4xl font-bold text-gray-900 leading-relaxed;
   }
 
   .heading-2 {
-    @apply text-3xl font-semibold text-gray-800;
+    @apply text-3xl font-semibold text-gray-800 leading-relaxed;
   }
 
   .heading-3 {
-    @apply text-2xl font-medium text-gray-800;
+    @apply text-2xl font-medium text-gray-800 leading-relaxed;
   }
 
   .text-gradient {
