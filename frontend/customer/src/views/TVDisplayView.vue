@@ -2,17 +2,18 @@
   <div class="fixed inset-0 bg-[#0a0a0f] text-white overflow-hidden">
     <div class="h-full flex flex-col items-center">
       <!-- Status Text -->
-      <div class="text-center mt-12 mb-20">
+      <div class="text-center mt-12 mb-4">
         <h1
           class="text-9xl font-bold"
           :class="store.hasAvailableSlot ? 'text-[#c2ff00]' : 'text-red-500'"
         >
           {{ store.hasAvailableSlot ? 'Ledig' : 'Opptatt' }}
         </h1>
+        <h2 class="text-3xl text-[#c2ff00] mt-4">Venteliste</h2>
       </div>
 
       <!-- Waiting List -->
-      <div class="flex-grow w-full max-w-6xl px-16">
+      <div class="flex-grow w-full max-w-6xl px-16 mt-12">
         <div class="space-y-16">
           <div v-for="slot in store.waitingSlots" :key="slot.id" class="flex items-center">
             <div
@@ -71,7 +72,7 @@
           <!-- Metadata -->
           <div class="text-xs text-gray-500 space-y-0.5">
             <div>Side 1/1</div>
-            <div>Last update: {{ formatLastUpdate() }}</div>
+            <div>Sist oppdatert: {{ formatLastUpdate() }}</div>
           </div>
         </div>
       </div>
@@ -98,13 +99,9 @@ setInterval(() => {
 }, 1000)
 </script>
 
-<style>
-/* Ensure full height and remove any margins */
-html,
-body {
-  height: 100%;
-  margin: 0;
-  background: #0a0a0f;
-  overflow: hidden;
+<style scoped>
+/* Scoped styles only for TV display */
+:deep(body) {
+  background: transparent;
 }
 </style>

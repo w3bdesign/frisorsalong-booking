@@ -1,7 +1,7 @@
 <template>
   <header v-if="!isTVDisplay" class="border-b">
     <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <router-link to="/" class="text-2xl text-primary-600 font-bold">Hair Salon</router-link>
+      <router-link to="/" class="text-2xl text-primary-600 font-bold">Frisørsalong</router-link>
       <WaitingTimeDisplay />
     </div>
   </header>
