@@ -24,6 +24,15 @@ export class OrdersService {
       throw new BadRequestException('Only confirmed bookings can be converted to orders');
     }
 
+    // Check if order already exists for this booking
+    const existingOrder = await this.orderRepository.findOne({
+      where: { booking: { id: bookingId } },
+    });
+
+    if (existingOrder) {
+      throw new BadRequestException(`Order already exists for booking ${bookingId}`);
+    }
+
     const order = this.orderRepository.create({
       booking,
       totalAmount: booking.totalPrice,
@@ -37,17 +46,28 @@ export class OrdersService {
       status: BookingStatus.COMPLETED,
     });
 
-    return order;
+    return this.findOne(order.id); // Return with relations
   }
 
   async findAll(): Promise<Order[]> {
-    return this.orderRepository.find();
+    const orders = await this.orderRepository.find({
+      relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
+      order: {
+        completedAt: 'DESC',
+      },
+    });
+
+    if (!orders.length) {
+      throw new NotFoundException('No completed orders found');
+    }
+
+    return orders;
   }
 
   async findOne(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['booking'],
+      relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
     });
 
     if (!order) {

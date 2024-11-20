@@ -13,6 +13,8 @@ export const createSampleBookings = async (dataSource: DataSource) => {
   const bookingRepository = dataSource.getRepository(Booking);
 
   try {
+    console.log('Starting to create sample bookings...');
+
     // Get the employee
     const employee = await employeeRepository.findOne({
       relations: ['user'],
@@ -29,9 +31,10 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       throw new Error("No services found. Please run initial data seed first.");
     }
 
-    // Create 10 sample customers
+    // Create 20 sample customers
+    console.log('Creating sample customers...');
     const customers = await Promise.all(
-      Array(10).fill(null).map(async () => {
+      Array(20).fill(null).map(async () => {
         const firstName = faker.person.firstName();
         const lastName = faker.person.lastName();
         return userRepository.save({
@@ -40,25 +43,39 @@ export const createSampleBookings = async (dataSource: DataSource) => {
           email: faker.internet.email({ firstName, lastName }),
           password: await bcrypt.hash('password123', 10),
           role: UserRole.CUSTOMER,
-          phoneNumber: '+47' + faker.string.numeric(8), // Norwegian phone number format
+          phoneNumber: '+47' + faker.string.numeric(8),
         });
       })
     );
+    console.log(`Created ${customers.length} sample customers`);
 
     const now = new Date();
-    const bookingStatuses = Object.values(BookingStatus);
+    // Weighted status distribution to ensure more confirmed bookings
+    const statusWeights = [
+      { status: BookingStatus.CONFIRMED, weight: 0.7 },  // 70% confirmed
+      { status: BookingStatus.PENDING, weight: 0.2 },    // 20% pending
+      { status: BookingStatus.CANCELLED, weight: 0.1 },  // 10% cancelled
+    ];
 
-    // Create 20 sample bookings
+    // Create 100 sample bookings
+    console.log('Creating sample bookings...');
     const bookings = await Promise.all(
-      Array(20).fill(null).map(async () => {
+      Array(100).fill(null).map(async (_, index) => {
         const service = faker.helpers.arrayElement(services);
         const customer = faker.helpers.arrayElement(customers);
-        const status = faker.helpers.arrayElement(bookingStatuses);
         
-        // Generate random date within -14 to +14 days from now
+        // Use weighted random status
+        const randomWeight = Math.random();
+        let cumulativeWeight = 0;
+        const status = statusWeights.find(sw => {
+          cumulativeWeight += sw.weight;
+          return randomWeight <= cumulativeWeight;
+        }).status;
+        
+        // Generate dates across a wider range (-30 to +30 days)
         const startTime = faker.date.between({
-          from: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
-          to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+          from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          to: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
         });
         
         const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000);
@@ -77,8 +94,6 @@ export const createSampleBookings = async (dataSource: DataSource) => {
 
         // Add cancellation details if status is cancelled
         if (status === BookingStatus.CANCELLED) {
-          // For past bookings, cancellation date is between start time and now
-          // For future bookings, cancellation date is between now and start time
           const [fromDate, toDate] = startTime < now 
             ? [startTime, now]
             : [now, startTime];
@@ -94,8 +109,16 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       })
     );
 
-    await bookingRepository.save(bookings);
+    const savedBookings = await bookingRepository.save(bookings);
+    const statusDistribution = {
+      total: savedBookings.length,
+      confirmed: savedBookings.filter(b => b.status === BookingStatus.CONFIRMED).length,
+      pending: savedBookings.filter(b => b.status === BookingStatus.PENDING).length,
+      cancelled: savedBookings.filter(b => b.status === BookingStatus.CANCELLED).length,
+    };
+
     console.log("Sample bookings created successfully");
+    console.log("Status distribution:", statusDistribution);
 
   } catch (error) {
     console.error("Error creating sample bookings:", error);

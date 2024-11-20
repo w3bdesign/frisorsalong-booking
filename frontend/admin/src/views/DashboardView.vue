@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useBookingStore } from "../stores/bookings";
+import { RouterLink } from 'vue-router';
 
 const bookingStore = useBookingStore();
 
@@ -27,6 +28,22 @@ onMounted(() => {
 
 <template>
   <div class="p-6" data-test="dashboard-view">
+    <!-- Navigation -->
+    <div class="mb-6 flex space-x-4">
+      <RouterLink
+        to="/bookings"
+        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      >
+        View All Bookings
+      </RouterLink>
+      <RouterLink
+        to="/orders"
+        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      >
+        View Completed Orders
+      </RouterLink>
+    </div>
+
     <!-- Statistics Cards -->
     <div
       class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
