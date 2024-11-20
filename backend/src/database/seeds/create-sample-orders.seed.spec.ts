@@ -29,7 +29,7 @@ describe('createSampleOrders', () => {
   });
 
   it('should create orders for confirmed bookings', async () => {
-    const mockBookings = Array(25).fill(null).map((_, index) => ({
+    const mockBookings = Array(20).fill(null).map((_, index) => ({
       id: `booking-${index}`,
       status: BookingStatus.CONFIRMED,
       totalPrice: 100 + index,
