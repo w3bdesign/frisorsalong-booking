@@ -48,6 +48,11 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
+    const mockRequest = {
+      headers: {
+        authorization: 'Bearer test-token'
+      }
+    };
     const mockPayload = { sub: 'user-123' };
     const mockUser = {
       id: 'user-123',
@@ -60,7 +65,7 @@ describe('JwtStrategy', () => {
     it('should return user when payload is valid', async () => {
       mockUsersRepository.findOne.mockResolvedValue(mockUser);
 
-      const result = await strategy.validate(mockPayload);
+      const result = await strategy.validate(mockRequest, mockPayload);
 
       expect(result).toEqual(mockUser);
       expect(usersRepository.findOne).toHaveBeenCalledWith({
@@ -72,7 +77,7 @@ describe('JwtStrategy', () => {
     it('should throw UnauthorizedException when user is not found', async () => {
       mockUsersRepository.findOne.mockResolvedValue(null);
 
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
+      await expect(strategy.validate(mockRequest, mockPayload)).rejects.toThrow(
         UnauthorizedException,
       );
     });
