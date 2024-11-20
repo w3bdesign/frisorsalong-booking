@@ -178,6 +178,32 @@ describe('BookingsService', () => {
     });
   });
 
+  describe('cancel', () => {
+    const existingBooking = {
+      id: 'booking-id',
+      status: BookingStatus.CONFIRMED,
+    };
+
+    it('should cancel a booking successfully', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(existingBooking);
+      mockBookingRepository.save.mockImplementation(booking => booking);
+
+      const result = await service.cancel('booking-id', 'Customer requested cancellation');
+      
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.cancellationReason).toBe('Customer requested cancellation');
+      expect(result.cancelledAt).toBeInstanceOf(Date);
+    });
+
+    it('should throw NotFoundException when booking not found', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.cancel('booking-id', 'reason')).rejects.toThrow(
+        new NotFoundException('Booking with ID booking-id not found'),
+      );
+    });
+  });
+
   describe('findByCustomer', () => {
     it('should return customer bookings', async () => {
       const mockBookings = [{ id: 'booking-1' }, { id: 'booking-2' }];
@@ -223,6 +249,28 @@ describe('BookingsService', () => {
         relations: ['customer', 'employee', 'employee.user', 'service'],
         order: { startTime: 'ASC' },
       });
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a booking when found', async () => {
+      const mockBooking = { id: 'booking-id' };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+
+      const result = await service.findOne('booking-id');
+      expect(result).toEqual(mockBooking);
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'booking-id' },
+        relations: ['customer', 'employee', 'employee.user', 'service'],
+      });
+    });
+
+    it('should throw NotFoundException when booking not found', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('booking-id')).rejects.toThrow(
+        new NotFoundException('Booking with ID booking-id not found'),
+      );
     });
   });
 });
