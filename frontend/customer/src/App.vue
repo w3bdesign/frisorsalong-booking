@@ -1,8 +1,14 @@
 <template>
   <header v-if="!isTVDisplay" class="border-b">
-    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <router-link to="/" class="text-2xl text-primary-600 font-bold">Frisørsalong</router-link>
-      <WaitingTimeDisplay />
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-8">
+      <router-link to="/" class="text-2xl text-primary-600 font-bold flex-1"
+        >Frisørsalong</router-link
+      >
+      <div class="flex-1 flex justify-end">
+        <div class="w-[250px]">
+          <WaitingTimeDisplay />
+        </div>
+      </div>
     </div>
   </header>
 

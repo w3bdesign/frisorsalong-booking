@@ -41,7 +41,7 @@
               clip-rule="evenodd"
             />
           </svg>
-          <span>Oppdatert {{ new Date(queueStatus.lastUpdated).toLocaleTimeString() }}</span>
+          <span>Oppdatert {{ new Date(queueStatus.lastUpdated).toLocaleTimeString('nb-NO') }}</span>
         </div>
       </template>
 
