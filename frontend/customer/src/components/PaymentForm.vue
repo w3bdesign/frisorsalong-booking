@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center mb-12">Payment Terminal</h2>
+    <h2 class="heading-1 text-gradient text-center py-6">Payment Terminal</h2>
 
     <div v-if="!currentBooking" class="card text-center py-12">
       <p class="text-gray-600 mb-6">No active booking found</p>

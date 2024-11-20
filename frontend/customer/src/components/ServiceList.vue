@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-4xl mx-auto">
-    <h2 class="heading-1 text-gradient text-center mb-12">Velg tjeneste</h2>
+    <h2 class="heading-1 text-gradient text-center py-6">Velg tjeneste</h2>
 
     <div v-if="store.isLoading" class="grid gap-6 md:grid-cols-2">
       <div v-for="n in 4" :key="n" class="animate-pulse">

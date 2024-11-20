@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center mb-12">Book Your Time</h2>
+    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
 
     <div v-if="!selectedService" class="card text-center py-12">
       <p class="text-gray-600 mb-6">Please select a service first</p>
