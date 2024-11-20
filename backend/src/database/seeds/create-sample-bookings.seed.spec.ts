@@ -44,19 +44,23 @@ describe('createSampleBookings', () => {
   beforeEach(() => {
     // Mock repositories
     mockUserRepository = {
-      save: jest.fn() as jest.Mock,
+      save: jest.fn().mockImplementation(data => ({ id: 'user-1', ...data })),
     };
 
     mockEmployeeRepository = {
-      findOne: jest.fn() as jest.Mock,
+      findOne: jest.fn(),
     };
 
     mockServiceRepository = {
-      find: jest.fn() as jest.Mock,
+      find: jest.fn(),
     };
 
     mockBookingRepository = {
-      save: jest.fn() as jest.Mock,
+      save: jest.fn().mockImplementation(bookings => 
+        Array.isArray(bookings) 
+          ? bookings.map((b, i) => ({ id: `booking-${i}`, ...b }))
+          : ({ id: 'booking-1', ...bookings })
+      ),
     };
 
     // Mock DataSource with proper typing

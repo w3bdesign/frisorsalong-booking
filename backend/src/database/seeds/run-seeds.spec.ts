@@ -1,27 +1,40 @@
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { createDataSource, runSeeds } from './run-seeds';
 import { createAdminUser } from './create-admin-user.seed';
 import { createInitialData } from './create-initial-data.seed';
 import { createSampleBookings } from './create-sample-bookings.seed';
+import { createSampleOrders } from './create-sample-orders.seed';
 
 jest.mock('./create-admin-user.seed');
 jest.mock('./create-initial-data.seed');
 jest.mock('./create-sample-bookings.seed');
+jest.mock('./create-sample-orders.seed');
 
 describe('run-seeds', () => {
   let mockDataSource: Partial<DataSource>;
   const originalEnv = process.env;
 
   beforeEach(() => {
-    // Mock DataSource
+    // Create a mock repository with all necessary methods
+    const mockRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue({}),
+      save: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockReturnValue({}),
+      update: jest.fn().mockResolvedValue({}),
+    };
+
+    // Mock DataSource with getRepository method
     mockDataSource = {
       initialize: jest.fn().mockResolvedValue(undefined),
+      getRepository: jest.fn().mockReturnValue(mockRepository),
     };
 
     // Mock seed functions
     (createAdminUser as jest.Mock).mockResolvedValue(undefined);
     (createInitialData as jest.Mock).mockResolvedValue(undefined);
     (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+    (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
 
     // Setup test environment variables
     process.env = {
@@ -73,6 +86,7 @@ describe('run-seeds', () => {
       expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
       expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
       expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
       expect(console.log).toHaveBeenCalledWith('Connected to database');
       expect(console.log).toHaveBeenCalledWith('All seeds completed successfully');
       expect(result).toBe(true);
@@ -88,6 +102,7 @@ describe('run-seeds', () => {
       expect(createAdminUser).not.toHaveBeenCalled();
       expect(createInitialData).not.toHaveBeenCalled();
       expect(createSampleBookings).not.toHaveBeenCalled();
+      expect(createSampleOrders).not.toHaveBeenCalled();
     });
 
     it('should handle admin user creation errors', async () => {
@@ -100,6 +115,7 @@ describe('run-seeds', () => {
       expect(createAdminUser).toHaveBeenCalled();
       expect(createInitialData).not.toHaveBeenCalled();
       expect(createSampleBookings).not.toHaveBeenCalled();
+      expect(createSampleOrders).not.toHaveBeenCalled();
     });
 
     it('should handle initial data creation errors', async () => {
@@ -112,6 +128,7 @@ describe('run-seeds', () => {
       expect(createAdminUser).toHaveBeenCalled();
       expect(createInitialData).toHaveBeenCalled();
       expect(createSampleBookings).not.toHaveBeenCalled();
+      expect(createSampleOrders).not.toHaveBeenCalled();
     });
 
     it('should handle sample bookings creation errors', async () => {
@@ -124,6 +141,7 @@ describe('run-seeds', () => {
       expect(createAdminUser).toHaveBeenCalled();
       expect(createInitialData).toHaveBeenCalled();
       expect(createSampleBookings).toHaveBeenCalled();
+      expect(createSampleOrders).not.toHaveBeenCalled();
     });
   });
 });

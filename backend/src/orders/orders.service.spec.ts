@@ -42,6 +42,9 @@ describe('OrdersService', () => {
     service = module.get<OrdersService>(OrdersService);
     orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
     bookingsService = module.get<BookingsService>(BookingsService);
+
+    // Clear all mocks before each test
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -63,6 +66,11 @@ describe('OrdersService', () => {
         completedAt: expect.any(Date),
       };
 
+      // Mock the initial findOne to return null (no existing order)
+      mockOrderRepository.findOne
+        .mockResolvedValueOnce(null) // First call: check for existing order
+        .mockResolvedValueOnce(mockOrder); // Second call: return created order
+
       mockBookingsService.findOne.mockResolvedValue(mockBooking);
       mockOrderRepository.create.mockReturnValue(mockOrder);
       mockOrderRepository.save.mockResolvedValue(mockOrder);
@@ -75,8 +83,21 @@ describe('OrdersService', () => {
 
       expect(result).toEqual(mockOrder);
       expect(mockBookingsService.findOne).toHaveBeenCalledWith(bookingId);
+      expect(mockOrderRepository.findOne).toHaveBeenNthCalledWith(1, {
+        where: { booking: { id: bookingId } },
+      });
+      expect(mockOrderRepository.create).toHaveBeenCalledWith({
+        booking: mockBooking,
+        totalAmount: mockBooking.totalPrice,
+        completedAt: expect.any(Date),
+      });
+      expect(mockOrderRepository.save).toHaveBeenCalledWith(mockOrder);
       expect(mockBookingsService.update).toHaveBeenCalledWith(bookingId, {
         status: BookingStatus.COMPLETED,
+      });
+      expect(mockOrderRepository.findOne).toHaveBeenNthCalledWith(2, {
+        where: { id: mockOrder.id },
+        relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
       });
     });
 
@@ -100,6 +121,28 @@ describe('OrdersService', () => {
         BadRequestException,
       );
     });
+
+    it('should throw BadRequestException if order already exists', async () => {
+      const bookingId = 'some-uuid';
+      const mockBooking = {
+        id: bookingId,
+        status: BookingStatus.CONFIRMED,
+      };
+      const existingOrder = {
+        id: 'existing-order',
+        booking: mockBooking,
+      };
+
+      mockBookingsService.findOne.mockResolvedValue(mockBooking);
+      mockOrderRepository.findOne.mockResolvedValue(existingOrder);
+
+      await expect(service.createFromBooking(bookingId)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockOrderRepository.findOne).toHaveBeenCalledWith({
+        where: { booking: { id: bookingId } },
+      });
+    });
   });
 
   describe('findAll', () => {
@@ -114,7 +157,12 @@ describe('OrdersService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual(mockOrders);
-      expect(mockOrderRepository.find).toHaveBeenCalled();
+      expect(mockOrderRepository.find).toHaveBeenCalledWith({
+        relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
+        order: {
+          completedAt: 'DESC',
+        },
+      });
     });
   });
 
@@ -129,7 +177,7 @@ describe('OrdersService', () => {
       expect(result).toEqual(mockOrder);
       expect(mockOrderRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
-        relations: ['booking'],
+        relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
       });
     });
 
