@@ -23,6 +23,7 @@ ignore:
   - "backend/coverage/**/*"
   - "backend/**/*.spec.ts"
   - "backend/**/*.test.ts"
+  - "backend/src/config/**/*"
 
 comment:
   layout: "reach, diff, flags, files"
