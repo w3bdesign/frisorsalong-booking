@@ -78,9 +78,10 @@ describe('createInitialData', () => {
 
     // Mock created services
     const mockServices = [
-      { id: '1', name: 'Haircut' },
-      { id: '2', name: 'Hair Coloring' },
-      { id: '3', name: 'Styling' },
+      { id: '1', name: 'Standard Klipp' },
+      { id: '2', name: 'Styling Klipp' },
+      { id: '3', name: 'Skjegg Trim' },
+      { id: '4', name: 'Full Service' },
     ];
     (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
 
@@ -103,9 +104,10 @@ describe('createInitialData', () => {
 
     // Verify services were created
     expect(mockServiceRepository.save).toHaveBeenCalledWith([
-      expect.objectContaining({ name: 'Haircut' }),
-      expect.objectContaining({ name: 'Hair Coloring' }),
-      expect.objectContaining({ name: 'Styling' }),
+      expect.objectContaining({ name: 'Standard Klipp' }),
+      expect.objectContaining({ name: 'Styling Klipp' }),
+      expect.objectContaining({ name: 'Skjegg Trim' }),
+      expect.objectContaining({ name: 'Full Service' }),
     ]);
 
     // Verify employee user was created
@@ -117,7 +119,7 @@ describe('createInitialData', () => {
     // Verify employee was created
     expect(mockEmployeeRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       user: mockEmployeeUser,
-      specializations: ['haircut', 'coloring'],
+      specializations: ['klipp', 'styling', 'skjegg'],
     }));
 
     // Verify services were associated with employee
