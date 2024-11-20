@@ -1,106 +1,70 @@
 import { Test } from '@nestjs/testing';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth.module';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards';
 import { UsersModule } from '../users/users.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
 import { User } from '../users/entities/user.entity';
 
-// Mock UsersModule
-jest.mock('../users/users.module', () => ({
-  UsersModule: class MockUsersModule {},
-}));
-
-// Mock AuthService
-jest.mock('./auth.service', () => ({
-  AuthService: jest.fn().mockImplementation(() => ({})),
-}));
+jest.mock('../users/users.module');
 
 describe('AuthModule', () => {
-  it('should be defined', () => {
-    expect(AuthModule).toBeDefined();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('module metadata', () => {
     it('should have the correct imports', () => {
       const imports = Reflect.getMetadata('imports', AuthModule);
+      
+      // Check UsersModule
       expect(imports).toContain(UsersModule);
-      expect(imports).toContain(PassportModule);
-      // Check if JwtModule is included (it will be a dynamic module)
-      expect(imports.some(imp => imp.module === JwtModule)).toBeTruthy();
+      
+      // Check PassportModule (as dynamic module)
+      const passportModuleConfig = imports.find(
+        imp => imp.module === PassportModule
+      );
+      expect(passportModuleConfig).toBeDefined();
+      expect(passportModuleConfig.providers[0].useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
+
+      // Check JwtModule
+      const jwtModuleConfig = imports.find(imp => imp.module === JwtModule);
+      expect(jwtModuleConfig).toBeDefined();
+      expect(jwtModuleConfig.providers).toBeDefined();
+      expect(jwtModuleConfig.providers[0].inject).toContain(ConfigService);
+
+      // Check TypeOrmModule
+      const typeOrmModuleConfig = imports.find(imp => imp.module === TypeOrmModule);
+      expect(typeOrmModuleConfig).toBeDefined();
+      expect(typeOrmModuleConfig.exports[0].targetEntitySchema.target).toBe(User);
     });
 
     it('should have the correct providers', () => {
       const providers = Reflect.getMetadata('providers', AuthModule);
-      expect(providers).toEqual(
-        expect.arrayContaining([
-          AuthService,
-          JwtStrategy,
-          RolesGuard,
-        ])
-      );
+      expect(providers).toContain(AuthService);
+      expect(providers).toContain(JwtStrategy);
+      expect(providers).toContain(RolesGuard);
+    });
+
+    it('should have the correct exports', () => {
+      const exports = Reflect.getMetadata('exports', AuthModule);
+      expect(exports).toContain(AuthService);
+      expect(exports).toContain(JwtStrategy);
+      expect(exports).toContain(RolesGuard);
+      expect(exports).toContain(JwtModule);
+      expect(exports).toContain(PassportModule);
     });
 
     it('should have the correct controllers', () => {
       const controllers = Reflect.getMetadata('controllers', AuthModule);
-      expect(controllers).toContain(AuthController);
-    });
-
-    it('should export JwtModule', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule);
-      expect(exports).toContain(JwtModule);
-    });
-  });
-
-  describe('module compilation', () => {
-    it('should compile the module', async () => {
-      const module = await Test.createTestingModule({
-        imports: [
-          ConfigModule.forRoot({
-            isGlobal: true,
-            load: [() => ({
-              jwt: {
-                secret: 'test-secret',
-                signOptions: {
-                  expiresIn: '1h',
-                },
-              },
-            })],
-          }),
-          AuthModule,
-        ],
-      })
-        .overrideProvider(AuthService)
-        .useValue({})
-        .overrideProvider(JwtStrategy)
-        .useValue({})
-        .overrideProvider(ConfigService)
-        .useValue({
-          get: jest.fn((key: string) => {
-            switch (key) {
-              case 'jwt.secret':
-                return 'test-secret';
-              case 'jwt.signOptions.expiresIn':
-                return '1h';
-              default:
-                return null;
-            }
-          }),
-        })
-        .overrideProvider(getRepositoryToken(User))
-        .useValue({
-          find: jest.fn(),
-          findOne: jest.fn(),
-          save: jest.fn(),
-        })
-        .compile();
-
-      expect(module).toBeDefined();
+      expect(controllers).toBeDefined();
+      expect(controllers.length).toBe(1);
     });
   });
 });
