@@ -9,6 +9,41 @@ export interface Service {
   price: number
 }
 
+// Mock data
+const mockServices: Service[] = [
+  {
+    id: '1',
+    name: 'Quick Cut',
+    description:
+      'A quick and efficient haircut for those on the go. Perfect for maintaining your current style.',
+    duration: 20,
+    price: 299,
+  },
+  {
+    id: '2',
+    name: 'Style Cut',
+    description:
+      'Complete haircut and styling service. Includes consultation for the perfect look.',
+    duration: 30,
+    price: 399,
+  },
+  {
+    id: '3',
+    name: 'Beard Trim',
+    description: 'Professional beard trimming and shaping to keep your facial hair looking sharp.',
+    duration: 15,
+    price: 199,
+  },
+  {
+    id: '4',
+    name: 'Full Service',
+    description:
+      'Complete package including haircut, beard trim, and styling. Our premium service.',
+    duration: 45,
+    price: 549,
+  },
+]
+
 export const useServicesStore = defineStore('services', () => {
   const services = ref<Service[]>([])
   const isLoading = ref(false)
@@ -20,16 +55,9 @@ export const useServicesStore = defineStore('services', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3000/services', {
-        headers: {
-          accept: '*/*',
-        },
-      })
-      if (!response.ok) {
-        throw new Error('Failed to fetch services')
-      }
-
-      services.value = await response.json()
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      services.value = mockServices
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch services'
       services.value = []

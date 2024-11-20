@@ -1,90 +1,116 @@
 <template>
-  <div class="max-w-lg mx-auto p-4">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Quick Booking</h2>
+  <div class="max-w-lg mx-auto">
+    <h2 class="heading-1 text-gradient text-center mb-12">Book Your Time</h2>
 
-    <div v-if="!selectedService" class="text-center py-8">
-      <p class="text-gray-600">Please select a service first</p>
-      <button
-        @click="$router.push('/')"
-        class="mt-4 px-6 py-2 text-primary-600 hover:text-primary-700"
-      >
-        Browse Services
-      </button>
+    <div v-if="!selectedService" class="card text-center py-12">
+      <p class="text-gray-600 mb-6">Please select a service first</p>
+      <button @click="$router.push('/')" class="btn-secondary">Browse Services</button>
     </div>
 
-    <form v-else @submit.prevent="handleSubmit" class="space-y-6">
-      <div>
-        <h3 class="text-lg font-medium text-gray-800 mb-2">Selected Service</h3>
-        <div class="bg-gray-50 rounded-lg p-4">
-          <div class="flex justify-between items-start">
-            <div>
-              <p class="font-medium text-gray-800">{{ selectedService.name }}</p>
-              <p class="text-sm text-gray-600">Duration: {{ selectedService.duration }} minutes</p>
-            </div>
-            <p class="font-medium text-primary-600">
-              {{
-                new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
-                  selectedService.price,
-                )
-              }}
-            </p>
+    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
+      <!-- Service Summary -->
+      <div class="card bg-gradient-to-br from-white to-gray-50">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Selected Service</h3>
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
+            <p class="text-gray-600 mt-1">Duration: {{ selectedService.duration }} minutes</p>
           </div>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Select Time </label>
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="slot in availableTimeSlots"
-            :key="slot.time"
-            type="button"
-            @click="selectedTimeSlot = slot"
-            class="p-3 text-center border rounded-lg transition-colors"
-            :class="
-              selectedTimeSlot?.time === slot.time
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-gray-300 hover:border-primary-500'
-            "
-          >
-            <div class="font-medium">{{ slot.time }}</div>
-            <div class="text-sm opacity-75">{{ slot.waitTime }}</div>
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Phone Number </label>
-        <input
-          type="tel"
-          v-model="phoneNumber"
-          required
-          placeholder="+46 XXX XXX XXX"
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-        />
-      </div>
-
-      <div class="pt-4">
-        <button
-          type="submit"
-          :disabled="isLoading || !selectedTimeSlot"
-          class="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:bg-gray-400"
-        >
-          <span v-if="isLoading">Processing...</span>
-          <span v-else>
-            Pay
+          <p class="text-xl font-bold text-gradient">
             {{
               new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
                 selectedService.price,
               )
             }}
-          </span>
-        </button>
+          </p>
+        </div>
       </div>
 
-      <div v-if="error" class="text-red-600 text-sm text-center">
-        {{ error }}
+      <!-- Time Slots -->
+      <div class="card">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Choose Your Time</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            class="relative p-4 text-left border rounded-xl transition-all duration-200"
+            :class="
+              selectedTimeSlot?.time === 'now'
+                ? 'border-primary-500 bg-primary-50 text-primary-900'
+                : 'border-gray-200 hover:border-primary-300'
+            "
+            @click="selectedTimeSlot = { time: 'now', waitTime: '5-10 min' }"
+          >
+            <div class="font-bold text-lg mb-1">Right Now</div>
+            <div class="text-sm opacity-75">5-10 min wait</div>
+            <div v-if="selectedTimeSlot?.time === 'now'" class="absolute top-2 right-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-primary-500"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="relative p-4 text-left border rounded-xl transition-all duration-200"
+            :class="
+              selectedTimeSlot?.time === 'next'
+                ? 'border-primary-500 bg-primary-50 text-primary-900'
+                : 'border-gray-200 hover:border-primary-300'
+            "
+            @click="selectedTimeSlot = { time: 'next', waitTime: '15-20 min' }"
+          >
+            <div class="font-bold text-lg mb-1">Next Available</div>
+            <div class="text-sm opacity-75">15-20 min wait</div>
+            <div v-if="selectedTimeSlot?.time === 'next'" class="absolute top-2 right-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-primary-500"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </button>
+        </div>
       </div>
+
+      <!-- Phone Number -->
+      <div class="card">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Your Phone Number</h3>
+        <input
+          type="tel"
+          v-model="phoneNumber"
+          required
+          placeholder="+46 XXX XXX XXX"
+          class="input text-lg"
+          :class="{ 'ring-2 ring-red-500 border-red-500': error }"
+        />
+        <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        :disabled="isLoading || !selectedTimeSlot"
+        class="btn-primary w-full text-lg"
+      >
+        <span v-if="isLoading">Processing...</span>
+        <span v-else> Continue to Payment </span>
+      </button>
     </form>
   </div>
 </template>
@@ -106,16 +132,6 @@ const { isLoading, error } = bookingStore
 const phoneNumber = ref('')
 const selectedTimeSlot = ref<{ time: string; waitTime: string } | null>(null)
 
-// Mock available time slots - this should come from the backend
-const availableTimeSlots = [
-  { time: 'Now', waitTime: '5 min wait' },
-  { time: '10:00', waitTime: '15 min wait' },
-  { time: '10:30', waitTime: '30 min wait' },
-  { time: '11:00', waitTime: '45 min wait' },
-  { time: '11:30', waitTime: '1h wait' },
-  { time: '12:00', waitTime: '1.5h wait' },
-]
-
 const handleSubmit = async () => {
   if (!selectedService || !selectedTimeSlot.value) return
 
@@ -126,7 +142,6 @@ const handleSubmit = async () => {
       phoneNumber: phoneNumber.value,
     })
 
-    // Navigate to payment page after successful booking creation
     router.push('/payment')
   } catch (err) {
     // Error handling is managed by the store
