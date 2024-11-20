@@ -22,26 +22,33 @@ export const createInitialData = async (dataSource: DataSource) => {
     // Create services
     const services = await serviceRepository.save([
       {
-        name: "Haircut",
-        description: "Basic haircut service",
-        price: 30.0,
+        name: "Standard Klipp",
+        description: "En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.",
+        price: 299.0,
+        duration: 20,
+        isActive: true,
+      },
+      {
+        name: "Styling Klipp",
+        description: "Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.",
+        price: 399.0,
         duration: 30,
         isActive: true,
       },
       {
-        name: "Hair Coloring",
-        description: "Professional hair coloring service",
-        price: 80.0,
-        duration: 120,
+        name: "Skjegg Trim",
+        description: "Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.",
+        price: 199.0,
+        duration: 15,
         isActive: true,
       },
       {
-        name: "Styling",
-        description: "Hair styling service",
-        price: 40.0,
+        name: "Full Service",
+        description: "Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.",
+        price: 549.0,
         duration: 45,
         isActive: true,
-      },
+      }
     ]);
 
     // Check if employee user already exists
@@ -64,7 +71,7 @@ export const createInitialData = async (dataSource: DataSource) => {
       // Create employee
       const employee = await employeeRepository.save({
         user: employeeUser,
-        specializations: ["haircut", "coloring"],
+        specializations: ["klipp", "styling", "skjegg"],
         availability: {
           monday: [{ start: "09:00", end: "17:00" }],
           tuesday: [{ start: "09:00", end: "17:00" }],
