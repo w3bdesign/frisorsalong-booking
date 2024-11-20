@@ -1,7 +1,6 @@
 import { DataSource } from "typeorm";
 import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
-import { faker } from '@faker-js/faker';
 
 export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
   const bookingRepository = dataSource.getRepository(Booking);
@@ -18,28 +17,19 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 
     console.log(`Found ${confirmedBookings.length} confirmed bookings`);
 
-    // Take 50 random confirmed bookings
-    const numberOfOrders = Math.min(50, confirmedBookings.length);
-    const selectedBookings = faker.helpers.shuffle([...confirmedBookings]).slice(0, numberOfOrders);
+    // Take first 20 confirmed bookings (or less if fewer exist)
+    const numberOfOrders = Math.min(20, confirmedBookings.length);
+    const selectedBookings = confirmedBookings.slice(0, numberOfOrders);
 
     console.log(`Creating ${numberOfOrders} orders...`);
 
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
     const createdOrders = [];
     for (const booking of selectedBookings) {
-      // Create order with a random completion date in the past 30 days
-      const completedAt = faker.date.between({
-        from: thirtyDaysAgo,
-        to: now,
-      });
-
       const order = orderRepository.create({
         booking: booking,
-        completedAt: completedAt,
+        completedAt: new Date(),
         totalAmount: booking.totalPrice,
-        notes: `Completed service for ${booking.customer.firstName} ${booking.customer.lastName}`,
+        notes: `Order created for booking ${booking.id}`,
       });
 
       const savedOrder = await orderRepository.save(order);
