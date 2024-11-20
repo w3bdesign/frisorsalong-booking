@@ -13,7 +13,7 @@
       </div>
 
       <!-- Waiting List -->
-      <div class="flex-grow w-full max-w-6xl px-16 mt-12">
+      <div class="w-full max-w-6xl px-16 mt-12 py-8">
         <div class="space-y-16">
           <div v-for="slot in store.waitingSlots" :key="slot.id" class="flex items-center">
             <div
@@ -40,7 +40,7 @@
       </div>
 
       <!-- Active Employees -->
-      <div class="w-full bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f] to-transparent pt-24 pb-8">
+      <div class="w-full bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f] to-transparent pt-8 pb-8">
         <div class="max-w-6xl mx-auto px-16">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-8">
