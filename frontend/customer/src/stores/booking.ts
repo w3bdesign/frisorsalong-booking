@@ -3,9 +3,8 @@ import { ref } from 'vue'
 
 export interface Booking {
   serviceId: string
-  date: string
   time: string
-  customerId?: string
+  phoneNumber: string
   status: 'pending' | 'confirmed' | 'cancelled'
 }
 
@@ -19,13 +18,24 @@ export const useBookingStore = defineStore('booking', () => {
     error.value = null
 
     try {
-      // TODO: Implement API call
-      currentBooking.value = {
-        ...booking,
-        status: 'pending',
+      const response = await fetch('http://localhost:3000/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: '*/*',
+        },
+        body: JSON.stringify(booking),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create booking')
       }
+
+      const data = await response.json()
+      currentBooking.value = data
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create booking'
+      throw error.value
     } finally {
       isLoading.value = false
     }
