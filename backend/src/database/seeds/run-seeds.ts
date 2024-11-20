@@ -8,9 +8,22 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 // Load environment variables
 config();
 
-const runSeeds = async (dataSource: DataSource) => {
+export const createDataSource = () => {
+  return new DataSource({
+    type: 'postgres',
+    url: process.env.DATABASE_URL,
+    entities: ['src/**/*.entity{.ts,.js}'],
+    synchronize: false,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+};
+
+export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
   try {
-    console.log('Starting seed process...');
+    await dataSource.initialize();
+    console.log('Connected to database');
 
     // Create admin user first
     console.log('Creating admin user...');
@@ -28,34 +41,24 @@ const runSeeds = async (dataSource: DataSource) => {
     console.log('Creating sample orders...');
     await createSampleOrders(dataSource);
 
-    console.log('Seed process completed successfully');
+    console.log('All seeds completed successfully');
+    return true;
   } catch (error) {
-    console.error('Error during seed process:', error);
+    console.error('Error running seeds:', error);
     throw error;
   }
 };
 
-// Create and initialize DataSource
-const dataSource = new DataSource({
-  type: 'postgres',
-  url: process.env.DATABASE_URL,
-  entities: ['src/**/*.entity{.ts,.js}'],
-  synchronize: false,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-// Run seeds
-dataSource.initialize()
-  .then(async () => {
-    console.log('Data Source has been initialized');
-    await runSeeds(dataSource);
-    await dataSource.destroy();
-  })
-  .catch((err) => {
-    console.error('Error during Data Source initialization:', err);
-    process.exit(1);
-  });
-
-export default runSeeds;
+// Only run seeds if this file is being run directly
+if (require.main === module) {
+  const dataSource = createDataSource();
+  runSeeds(dataSource)
+    .then(async () => {
+      await dataSource.destroy();
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Seed process failed:', error);
+      process.exit(1);
+    });
+}
