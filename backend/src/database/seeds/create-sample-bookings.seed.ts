@@ -31,22 +31,22 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       throw new Error("No services found. Please run initial data seed first.");
     }
 
-    // Create 20 sample customers
+    // Create 10 sample customers
     console.log('Creating sample customers...');
-    const customers = await Promise.all(
-      Array(20).fill(null).map(async () => {
-        const firstName = faker.person.firstName();
-        const lastName = faker.person.lastName();
-        return userRepository.save({
-          firstName,
-          lastName,
-          email: faker.internet.email({ firstName, lastName }),
-          password: await bcrypt.hash('password123', 10),
-          role: UserRole.CUSTOMER,
-          phoneNumber: '+47' + faker.string.numeric(8),
-        });
-      })
-    );
+    const customers = [];
+    for (let i = 0; i < 10; i++) {
+      const firstName = faker.person.firstName();
+      const lastName = faker.person.lastName();
+      const customer = await userRepository.save({
+        firstName,
+        lastName,
+        email: faker.internet.email({ firstName, lastName }),
+        password: await bcrypt.hash('password123', 10),
+        role: UserRole.CUSTOMER,
+        phoneNumber: '+47' + faker.string.numeric(8),
+      });
+      customers.push(customer);
+    }
     console.log(`Created ${customers.length} sample customers`);
 
     const now = new Date();
@@ -57,59 +57,64 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       { status: BookingStatus.CANCELLED, weight: 0.1 },  // 10% cancelled
     ];
 
-    // Create 100 sample bookings
+    // Create 20 sample bookings
     console.log('Creating sample bookings...');
-    const bookings = await Promise.all(
-      Array(100).fill(null).map(async (_, index) => {
-        const service = faker.helpers.arrayElement(services);
-        const customer = faker.helpers.arrayElement(customers);
-        
-        // Use weighted random status
-        const randomWeight = Math.random();
-        let cumulativeWeight = 0;
-        const status = statusWeights.find(sw => {
-          cumulativeWeight += sw.weight;
-          return randomWeight <= cumulativeWeight;
-        }).status;
-        
-        // Generate dates across a wider range (-30 to +30 days)
-        const startTime = faker.date.between({
-          from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-          to: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const bookings: Partial<Booking>[] = [];
+    for (let i = 0; i < 20; i++) {
+      const service = faker.helpers.arrayElement(services);
+      const customer = faker.helpers.arrayElement(customers);
+      
+      // Use weighted random status
+      const randomWeight = Math.random();
+      let cumulativeWeight = 0;
+      const status = statusWeights.find(sw => {
+        cumulativeWeight += sw.weight;
+        return randomWeight <= cumulativeWeight;
+      }).status;
+      
+      // Generate dates across a wider range (-30 to +30 days)
+      const startTime = faker.date.between({
+        from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        to: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+      });
+      
+      const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000);
+
+      const booking: Partial<Booking> = {
+        customer,
+        employee,
+        service,
+        startTime,
+        endTime,
+        status,
+        notes: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.7 }),
+        totalPrice: service.price,
+        reminderSent: startTime < now,
+      };
+
+      // Add cancellation details if status is cancelled
+      if (status === BookingStatus.CANCELLED) {
+        const [fromDate, toDate] = startTime < now 
+          ? [startTime, now]
+          : [now, startTime];
+
+        booking.cancelledAt = faker.date.between({
+          from: fromDate,
+          to: toDate
         });
-        
-        const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000);
+        booking.cancellationReason = faker.lorem.sentence();
+      }
 
-        const booking: Partial<Booking> = {
-          customer,
-          employee,
-          service,
-          startTime,
-          endTime,
-          status,
-          notes: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.7 }),
-          totalPrice: service.price,
-          reminderSent: startTime < now,
-        };
+      bookings.push(booking);
+    }
 
-        // Add cancellation details if status is cancelled
-        if (status === BookingStatus.CANCELLED) {
-          const [fromDate, toDate] = startTime < now 
-            ? [startTime, now]
-            : [now, startTime];
-
-          booking.cancelledAt = faker.date.between({
-            from: fromDate,
-            to: toDate
-          });
-          booking.cancellationReason = faker.lorem.sentence();
-        }
-
-        return booking;
-      })
-    );
-
+    console.log('Saving bookings to database...');
     const savedBookings = await bookingRepository.save(bookings);
+    
+    if (!savedBookings) {
+      throw new Error('Failed to save bookings - no bookings returned from save operation');
+    }
+
     const statusDistribution = {
       total: savedBookings.length,
       confirmed: savedBookings.filter(b => b.status === BookingStatus.CONFIRMED).length,
@@ -119,6 +124,8 @@ export const createSampleBookings = async (dataSource: DataSource) => {
 
     console.log("Sample bookings created successfully");
     console.log("Status distribution:", statusDistribution);
+
+    return statusDistribution;
 
   } catch (error) {
     console.error("Error creating sample bookings:", error);
