@@ -57,6 +57,7 @@ describe('ServicesModule', () => {
     // Set metadata for exports and imports
     Reflect.defineMetadata('exports', [ServicesService, TypeOrmModule], ServicesModule);
     Reflect.defineMetadata('imports', [TypeOrmModule.forFeature([Service])], ServicesModule);
+    Reflect.defineMetadata('controllers', [], ServicesModule);
   });
 
   it('should be defined', () => {
