@@ -4,12 +4,12 @@
       <!-- Status Text -->
       <div class="text-center mt-12 mb-4">
         <h1
-          class="text-9xl font-bold"
+          class="text-8xl font-bold"
           :class="store.hasAvailableSlot ? 'text-[#c2ff00]' : 'text-red-500'"
         >
           {{ store.hasAvailableSlot ? 'Ledig' : 'Opptatt' }}
         </h1>
-        <h2 class="text-3xl text-[#c2ff00] mt-4">Venteliste</h2>
+        <h2 class="text-3xl text-white mt-10">Venteliste</h2>
       </div>
 
       <!-- Waiting List -->
