@@ -65,8 +65,8 @@
               </div>
               <span class="text-xl font-bold text-gradient">
                 {{
-                  new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
-                    service.price,
+                  new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                    parseFloat(service.price),
                   )
                 }}
               </span>
@@ -88,8 +88,8 @@
             <div class="flex items-center space-x-3 mt-1">
               <span class="text-xl font-bold text-gradient">
                 {{
-                  new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(
-                    store.selectedService.price,
+                  new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                    parseFloat(store.selectedService.price),
                   )
                 }}
               </span>
