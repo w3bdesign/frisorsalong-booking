@@ -16,6 +16,33 @@ const getStatusColor = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string =
   }
 };
 
+const getStatusText = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
+  switch (status) {
+    case "CONFIRMED":
+      return "Bekreftet";
+    case "PENDING":
+      return "Venter";
+    case "CANCELLED":
+      return "Kansellert";
+  }
+};
+
+function formatDateTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('nb-NO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Dato ikke tilgjengelig';
+  }
+}
+
 defineEmits<{
   (e: "view-booking", id: number): void;
   (e: "cancel-booking", id: number): void;
@@ -34,13 +61,13 @@ onMounted(() => {
         to="/bookings"
         class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
       >
-        View All Bookings
+        Se alle bestillinger
       </RouterLink>
       <RouterLink
         to="/orders"
         class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
       >
-        View Completed Orders
+        Se fullførte bestillinger
       </RouterLink>
     </div>
 
@@ -50,7 +77,7 @@ onMounted(() => {
       data-test="statistics-cards"
     >
       <div class="bg-white rounded-lg shadow p-6" data-test="total-bookings">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Total Bookings</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Totale bestillinger</h3>
         <p class="text-3xl font-bold text-indigo-600">
           {{ bookingStore.totalBookings }}
         </p>
@@ -58,7 +85,7 @@ onMounted(() => {
 
       <div class="bg-white rounded-lg shadow p-6" data-test="today-bookings">
         <h3 class="text-lg font-semibold text-gray-900 mb-2">
-          Today's Bookings
+          Dagens bestillinger
         </h3>
         <p class="text-3xl font-bold text-indigo-600">
           {{ bookingStore.todayBookings }}
@@ -67,7 +94,7 @@ onMounted(() => {
 
       <div class="bg-white rounded-lg shadow p-6" data-test="upcoming-bookings">
         <h3 class="text-lg font-semibold text-gray-900 mb-2">
-          Upcoming Bookings
+          Kommende bestillinger
         </h3>
         <p class="text-3xl font-bold text-indigo-600">
           {{ bookingStore.upcomingBookings }}
@@ -79,13 +106,13 @@ onMounted(() => {
     <div class="bg-white rounded-lg shadow" data-test="bookings-table">
       <div class="p-6 border-b border-gray-200">
         <div class="flex justify-between items-center">
-          <h2 class="text-xl font-semibold text-gray-900">Recent Bookings</h2>
+          <h2 class="text-xl font-semibold text-gray-900">Nylige bestillinger</h2>
           <button
             @click="bookingStore.fetchDashboardStats"
             class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             data-test="refresh-button"
           >
-            Refresh
+            Oppdater
           </button>
         </div>
       </div>
@@ -96,7 +123,7 @@ onMounted(() => {
           class="p-6 text-center text-gray-500"
           data-test="loading-state"
         >
-          Loading bookings...
+          Laster bestillinger...
         </div>
         <div
           v-else-if="bookingStore.error"
@@ -116,22 +143,22 @@ onMounted(() => {
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Customer
+                Kunde
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Employee
+                Ansatt
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Service
+                Tjeneste
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Date & Time
+                Dato og tid
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -141,7 +168,7 @@ onMounted(() => {
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Actions
+                Handlinger
               </th>
             </tr>
           </thead>
@@ -164,7 +191,7 @@ onMounted(() => {
                 {{ booking.serviceName }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ new Date(booking.startTime).toLocaleString() }}
+                {{ formatDateTime(booking.startTime) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
@@ -173,7 +200,7 @@ onMounted(() => {
                     getStatusColor(booking.status),
                   ]"
                 >
-                  {{ booking.status }}
+                  {{ getStatusText(booking.status) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -182,14 +209,14 @@ onMounted(() => {
                   @click="$emit('view-booking', booking.id)"
                   data-test="view-button"
                 >
-                  View
+                  Se
                 </button>
                 <button
                   class="text-red-600 hover:text-red-900"
                   @click="$emit('cancel-booking', booking.id)"
                   data-test="cancel-button"
                 >
-                  Cancel
+                  Kanseller
                 </button>
               </td>
             </tr>
