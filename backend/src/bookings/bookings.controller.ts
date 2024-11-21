@@ -82,12 +82,10 @@ export class BookingsController {
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async cancel(
     @Param("id") id: string,
-    @Body() cancellationDto: { reason: string },
   ) {
-    if (!cancellationDto?.reason) {
-      throw new BadRequestException("Cancellation reason is required");
-    }
-    const booking = await this.bookingsService.cancel(id, cancellationDto.reason);
+    // For admin cancellations, use a default reason
+    const reason = "Cancelled by administrator";
+    const booking = await this.bookingsService.cancel(id, reason);
     return BookingResponseDto.fromEntity(booking);
   }
 }
