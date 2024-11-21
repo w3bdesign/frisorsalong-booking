@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axios, { AxiosError } from "axios";
 import { useAuthStore } from "./auth";
+import router from "../router";
 
 interface Booking {
   id: number;
@@ -35,7 +36,8 @@ export const useBookingStore = defineStore("bookings", {
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
-          throw new Error("Authentication required");
+          router.push({ name: "Login" });
+          return;
         }
 
         // Ensure the Authorization header is set
@@ -52,6 +54,7 @@ export const useBookingStore = defineStore("bookings", {
           if (error.response?.status === 401) {
             const authStore = useAuthStore();
             authStore.logout();
+            router.push({ name: "Login" });
             this.error = "Session expired. Please login again.";
           } else {
             this.error = error.response?.data?.message || "Failed to fetch bookings";
@@ -70,7 +73,8 @@ export const useBookingStore = defineStore("bookings", {
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
-          throw new Error("Authentication required");
+          router.push({ name: "Login" });
+          return;
         }
 
         // Ensure the Authorization header is set
@@ -86,6 +90,7 @@ export const useBookingStore = defineStore("bookings", {
           if (error.response?.status === 401) {
             const authStore = useAuthStore();
             authStore.logout();
+            router.push({ name: "Login" });
             this.error = "Session expired. Please login again.";
           } else {
             this.error = error.response?.data?.message || "Failed to fetch upcoming bookings";
