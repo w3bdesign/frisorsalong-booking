@@ -1,9 +1,9 @@
 <template>
   <div class="p-4">
-    <h1 class="text-2xl font-bold mb-4">Completed Orders</h1>
+    <h1 class="text-2xl font-bold mb-4">Fullførte bestillinger</h1>
     
     <div v-if="loading" class="text-center py-4">
-      Loading orders...
+      Laster bestillinger...
     </div>
     
     <div v-else-if="error" class="text-red-500 py-4">
@@ -11,7 +11,7 @@
     </div>
     
     <div v-else-if="orders.length === 0" class="text-center py-4">
-      No completed orders found.
+      Ingen fullførte bestillinger funnet.
     </div>
     
     <div v-else class="grid gap-4">
@@ -23,16 +23,16 @@
               {{ order.booking.customer.firstName }} {{ order.booking.customer.lastName }}
             </h3>
             <p class="text-gray-700">{{ order.booking.service.name }}</p>
-            <p class="text-gray-600">Service Duration: {{ order.booking.service.duration }} minutes</p>
+            <p class="text-gray-600">Varighet: {{ order.booking.service.duration }} minutter</p>
           </div>
           <div class="text-right">
             <p class="font-bold">{{ formatPrice(order.totalAmount) }}</p>
             <p class="text-gray-600">{{ formatDate(order.completedAt) }}</p>
-            <p class="text-gray-600">Booking: {{ formatBookingDate(order.booking.startTime) }}</p>
+            <p class="text-gray-600">Bestilling: {{ formatBookingDate(order.booking.startTime) }}</p>
           </div>
         </div>
         <div class="mt-2 text-gray-600" v-if="order.notes">
-          <p>Notes: {{ order.notes }}</p>
+          <p>Notater: {{ order.notes }}</p>
         </div>
       </div>
     </div>
