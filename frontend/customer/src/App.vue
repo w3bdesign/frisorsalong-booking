@@ -4,6 +4,9 @@
       <router-link to="/" class="text-2xl text-primary-600 font-bold flex-1"
         >Frisørsalong</router-link
       >
+      <router-link to="/tv-display" class="text-2xl text-primary-600 font-bold flex-1"
+        >TV Visning</router-link
+      >
       <div class="flex-1 flex justify-end">
         <div class="w-[250px]">
           <WaitingTimeDisplay />
@@ -18,7 +21,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import WaitingTimeDisplay from '@/components/WaitingTimeDisplay.vue'
+import WaitingTimeDisplay from './components/WaitingTimeDisplay.vue'
 
 const route = useRoute()
 const isTVDisplay = computed(() => route.name === 'tv-display')
