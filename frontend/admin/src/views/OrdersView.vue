@@ -18,23 +18,21 @@
       <div v-for="order in orders" :key="order.id" 
            class="bg-white p-4 rounded-lg shadow">
         <div class="flex justify-between items-start">
-          <div>
-            <h3 class="font-semibold">
+          <div class="space-y-1">
+            <h3 class="font-semibold text-lg">
               {{ order.booking.customer.firstName }} {{ order.booking.customer.lastName }}
             </h3>
-            <p class="text-gray-600">{{ order.booking.service.name }}</p>
-            <p class="text-sm text-gray-500">
-              Service Duration: {{ order.booking.service.duration }} minutes
-            </p>
+            <p class="text-gray-700">{{ order.booking.service.name }}</p>
+            <p class="text-gray-600">Service Duration: {{ order.booking.service.duration }} minutes</p>
           </div>
           <div class="text-right">
-            <p class="font-bold">${{ order.totalAmount }}</p>
-            <p class="text-sm text-gray-500">{{ formatDate(order.completedAt) }}</p>
-            <p class="text-sm text-gray-500">Booking: {{ formatDate(order.booking.startTime) }}</p>
+            <p class="font-bold">{{ formatPrice(order.totalAmount) }}</p>
+            <p class="text-gray-600">{{ formatDate(order.completedAt) }}</p>
+            <p class="text-gray-600">Booking: {{ formatBookingDate(order.booking.startTime) }}</p>
           </div>
         </div>
-        <div class="mt-2 text-sm text-gray-600">
-          <p v-if="order.notes">Notes: {{ order.notes }}</p>
+        <div class="mt-2 text-gray-600" v-if="order.notes">
+          <p>Notes: {{ order.notes }}</p>
         </div>
       </div>
     </div>
@@ -56,22 +54,56 @@ function isValidDate(dateString: string): boolean {
 
 function formatDate(dateString: string): string {
   if (!dateString || !isValidDate(dateString)) {
-    return 'Date not available'
+    return 'Dato ikke tilgjengelig'
   }
 
   try {
     const date = new Date(dateString)
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat('nb-NO', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
     }).format(date)
   } catch (error) {
     console.error('Error formatting date:', error)
-    return 'Date not available'
+    return 'Dato ikke tilgjengelig'
+  }
+}
+
+function formatBookingDate(dateString: string): string {
+  if (!dateString || !isValidDate(dateString)) {
+    return 'Dato ikke tilgjengelig'
+  }
+
+  try {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('nb-NO', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date)
+  } catch (error) {
+    console.error('Error formatting date:', error)
+    return 'Dato ikke tilgjengelig'
+  }
+}
+
+function formatPrice(price: string): string {
+  try {
+    const amount = parseFloat(price)
+    return new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount)
+  } catch (error) {
+    console.error('Error formatting price:', error)
+    return 'NOK -'
   }
 }
 
