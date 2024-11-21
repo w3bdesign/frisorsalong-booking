@@ -40,7 +40,8 @@
                   <label class="block text-sm font-medium text-gray-700">Dato og tid</label>
                   <input
                     type="datetime-local"
-                    v-model="editedBooking.startTime"
+                    :value="formatDateForInput(editedBooking.startTime)"
+                    @input="handleDateChange"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                 </div>
@@ -82,25 +83,44 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { Booking } from '../types';
 
 const props = defineProps<{
   isOpen: boolean;
-  booking: Booking | null;
+  booking: any | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'save', booking: Partial<Booking>): void;
+  (e: 'save', booking: any): void;
 }>();
 
-const editedBooking = ref<Partial<Booking>>({});
+const editedBooking = ref<any>({});
 
 watch(() => props.booking, (newBooking) => {
   if (newBooking) {
-    editedBooking.value = { ...newBooking };
+    editedBooking.value = { 
+      ...newBooking,
+      status: newBooking.status.toUpperCase()
+    };
   }
 }, { immediate: true });
+
+const formatDateForInput = (dateString: string | undefined) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    // Format: YYYY-MM-DDThh:mm
+    return date.toISOString().slice(0, 16);
+  } catch (error) {
+    console.error('Error formatting date for input:', error);
+    return '';
+  }
+};
+
+const handleDateChange = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  editedBooking.value.startTime = input.value;
+};
 
 const closeModal = () => {
   emit('close');
