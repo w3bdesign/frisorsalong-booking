@@ -5,7 +5,7 @@
         <div class="flex justify-between h-16">
           <div class="flex">
             <div class="flex-shrink-0 flex items-center">
-              <h1 class="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 class="text-xl font-bold text-gray-900">Admin Kontrollpanel</h1>
             </div>
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
               <router-link
@@ -16,7 +16,7 @@
                     $route.path === '/dashboard',
                 }"
               >
-                Dashboard
+                Kontrollpanel
               </router-link>
               <router-link
                 to="/bookings"
@@ -26,7 +26,7 @@
                     $route.path.startsWith('/bookings'),
                 }"
               >
-                Bookings
+                Bestillinger
               </router-link>
             </div>
           </div>
@@ -35,7 +35,7 @@
               @click="handleLogout"
               class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Logout
+              Logg ut
             </button>
           </div>
         </div>
