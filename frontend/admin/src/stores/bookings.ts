@@ -4,12 +4,13 @@ import { useAuthStore } from "./auth";
 import router from "../router";
 
 interface Booking {
-  id: number | string;  // Updated to accept both number and string
+  id: number | string;
   customerName: string;
   employeeName: string;
   serviceName: string;
   startTime: string;
   status: "CONFIRMED" | "PENDING" | "CANCELLED";
+  notes?: string;
 }
 
 interface BookingsState {
@@ -107,7 +108,7 @@ export const useBookingStore = defineStore("bookings", {
       }
     },
 
-    async cancelBooking(id: number | string) {  // Updated to accept both number and string
+    async cancelBooking(id: number | string) {
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
@@ -138,6 +139,41 @@ export const useBookingStore = defineStore("bookings", {
             error instanceof Error ? error.message : "Kunne ikke kansellere bestilling";
         }
         console.error("Error canceling booking:", error);
+        return false;
+      }
+    },
+
+    async updateBooking(id: number | string, data: Partial<Booking>) {
+      try {
+        const authStore = useAuthStore();
+        if (!authStore.isAuthenticated || !authStore.token) {
+          router.push({ name: "Login" });
+          return false;
+        }
+
+        // Ensure the Authorization header is set
+        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
+
+        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}`, data);
+        
+        // Refresh the bookings list after successful update
+        await this.fetchDashboardStats();
+        return true;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          if (error.response?.status === 401) {
+            const authStore = useAuthStore();
+            authStore.logout();
+            router.push({ name: "Login" });
+            this.error = "Økt utløpt. Vennligst logg inn igjen.";
+          } else {
+            this.error = error.response?.data?.message || "Kunne ikke oppdatere bestilling";
+          }
+        } else {
+          this.error =
+            error instanceof Error ? error.message : "Kunne ikke oppdatere bestilling";
+        }
+        console.error("Error updating booking:", error);
         return false;
       }
     },

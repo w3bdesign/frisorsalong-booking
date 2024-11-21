@@ -95,7 +95,7 @@
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
-                        @click="handleEdit(booking)"
+                        @click="openEditModal(booking)"
                         class="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
                         Rediger
@@ -115,14 +115,26 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Modal -->
+    <BookingEditModal
+      :is-open="isEditModalOpen"
+      :booking="selectedBooking"
+      @close="closeEditModal"
+      @save="handleSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useBookingStore } from "../stores/bookings";
+import BookingEditModal from "../components/BookingEditModal.vue";
+import type { Booking } from '../types';
 
 const bookingStore = useBookingStore();
+const isEditModalOpen = ref(false);
+const selectedBooking = ref<Booking | null>(null);
 
 const formatDateTime = (dateTime: string) => {
   try {
@@ -160,9 +172,23 @@ const getStatusText = (status: string) => {
   return statusMap[status as keyof typeof statusMap] || status;
 };
 
-const handleEdit = (booking: any) => {
-  // TODO: Implement edit functionality
-  console.log("Rediger bestilling:", booking);
+const openEditModal = (booking: Booking) => {
+  selectedBooking.value = booking;
+  isEditModalOpen.value = true;
+};
+
+const closeEditModal = () => {
+  selectedBooking.value = null;
+  isEditModalOpen.value = false;
+};
+
+const handleSave = async (updatedBooking: Partial<Booking>) => {
+  if (!selectedBooking.value?.id) return;
+
+  const success = await bookingStore.updateBooking(selectedBooking.value.id, updatedBooking);
+  if (success) {
+    closeEditModal();
+  }
 };
 
 const handleCancel = async (id: string | number) => {
