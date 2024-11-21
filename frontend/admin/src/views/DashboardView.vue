@@ -143,7 +143,7 @@
                   <span
                     :class="[
                       'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                      getStatusColor(booking.status),
+                      getStatusColor(booking.status)
                     ]"
                   >
                     {{ getStatusText(booking.status) }}
@@ -151,18 +151,11 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
-                    class="text-indigo-600 hover:text-indigo-900 mr-4"
-                    @click="handleView(booking.id)"
+                    class="text-indigo-600 hover:text-indigo-900"
+                    @click="handleView(booking)"
                     data-test="view-button"
                   >
                     Se
-                  </button>
-                  <button
-                    class="text-red-600 hover:text-red-900"
-                    @click="handleCancel(booking.id)"
-                    data-test="cancel-button"
-                  >
-                    Kanseller
                   </button>
                 </td>
               </tr>
@@ -171,35 +164,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Booking Details Modal -->
+    <BookingDetailsModal
+      :is-open="isModalOpen"
+      :booking="selectedBooking"
+      @close="closeModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useBookingStore } from "../stores/bookings";
 import { RouterLink } from 'vue-router';
+import BookingDetailsModal from "../components/BookingDetailsModal.vue";
 
 const bookingStore = useBookingStore();
+const isModalOpen = ref(false);
+const selectedBooking = ref(null);
 
-const getStatusColor = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
-  switch (status) {
+const getStatusColor = (status: string | undefined): string => {
+  switch (status?.toUpperCase()) {
     case "CONFIRMED":
       return "bg-green-100 text-green-800";
     case "PENDING":
       return "bg-yellow-100 text-yellow-800";
     case "CANCELLED":
       return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 };
 
-const getStatusText = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
-  switch (status) {
+const getStatusText = (status: string | undefined): string => {
+  switch (status?.toUpperCase()) {
     case "CONFIRMED":
       return "Bekreftet";
     case "PENDING":
       return "Venter";
     case "CANCELLED":
       return "Kansellert";
+    default:
+      return "Ukjent";
   }
 };
 
@@ -219,20 +226,14 @@ function formatDateTime(dateString: string): string {
   }
 }
 
-const handleView = (id: string | number) => {
-  console.log("Se bestilling:", id);
-  // TODO: Implement view functionality
+const handleView = (booking: any) => {
+  selectedBooking.value = booking;
+  isModalOpen.value = true;
 };
 
-const handleCancel = async (id: string | number) => {
-  if (!confirm("Er du sikker på at du vil kansellere denne bestillingen?")) {
-    return;
-  }
-
-  const success = await bookingStore.cancelBooking(id);
-  if (success) {
-    console.log('Bestilling kansellert');
-  }
+const closeModal = () => {
+  isModalOpen.value = false;
+  selectedBooking.value = null;
 };
 
 onMounted(() => {
