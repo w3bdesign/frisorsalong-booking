@@ -82,9 +82,9 @@ export class BookingsController {
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async cancel(
     @Param("id") id: string,
-    @Body("reason") cancellationDto: { reason: string },
+    @Body() cancellationDto: { reason: string },
   ) {
-    if (!cancellationDto.reason) {
+    if (!cancellationDto?.reason) {
       throw new BadRequestException("Cancellation reason is required");
     }
     const booking = await this.bookingsService.cancel(id, cancellationDto.reason);
