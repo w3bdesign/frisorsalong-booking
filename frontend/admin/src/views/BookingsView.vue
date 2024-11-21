@@ -89,8 +89,8 @@
                       {{ booking.employeeName }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                      <span :class="getStatusClass(booking.status.toUpperCase())">
-                        {{ getStatusText(booking.status.toUpperCase()) }}
+                      <span :class="getStatusClass(booking.status?.toUpperCase() || '')">
+                        {{ getStatusText(booking.status?.toUpperCase() || '') }}
                       </span>
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -130,11 +130,11 @@
 import { onMounted, ref } from "vue";
 import { useBookingStore } from "../stores/bookings";
 import BookingEditModal from "../components/BookingEditModal.vue";
-import type { Booking } from '../types';
+import type { BookingView } from '../types';
 
 const bookingStore = useBookingStore();
 const isEditModalOpen = ref(false);
-const selectedBooking = ref<Booking | null>(null);
+const selectedBooking = ref<BookingView | null>(null);
 
 const formatDateTime = (dateTime: string) => {
   try {
@@ -159,7 +159,7 @@ const getStatusClass = (status: string) => {
     CANCELLED: "bg-red-100 text-red-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-    classes[status as keyof typeof classes]
+    classes[status as keyof typeof classes] || 'bg-gray-100 text-gray-800'
   }`;
 };
 
@@ -169,10 +169,10 @@ const getStatusText = (status: string) => {
     CONFIRMED: "Bekreftet",
     CANCELLED: "Kansellert",
   };
-  return statusMap[status as keyof typeof statusMap] || status;
+  return statusMap[status as keyof typeof statusMap] || "Ukjent";
 };
 
-const openEditModal = (booking: Booking) => {
+const openEditModal = (booking: BookingView) => {
   selectedBooking.value = booking;
   isEditModalOpen.value = true;
 };
@@ -182,7 +182,7 @@ const closeEditModal = () => {
   isEditModalOpen.value = false;
 };
 
-const handleSave = async (updatedBooking: Partial<Booking>) => {
+const handleSave = async (updatedBooking: Partial<BookingView>) => {
   if (!selectedBooking.value?.id) return;
 
   const success = await bookingStore.updateBooking(selectedBooking.value.id, updatedBooking);

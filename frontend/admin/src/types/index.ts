@@ -12,7 +12,7 @@ export interface Booking {
   id: string
   startTime: string
   endTime: string
-  status: 'completed' | 'pending' | 'cancelled'
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED'
   notes: string
   totalPrice: string
   reminderSent: boolean
@@ -23,6 +23,17 @@ export interface Booking {
   customer: Customer
   employee: Employee
   service: Service
+}
+
+// This interface represents the simplified booking data used in views
+export interface BookingView {
+  id: string | number;
+  customerName: string;
+  employeeName: string;
+  serviceName: string;
+  startTime: string;
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  notes?: string;
 }
 
 export interface Customer {

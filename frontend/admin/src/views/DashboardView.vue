@@ -155,7 +155,7 @@
                     @click="handleView(booking)"
                     data-test="view-button"
                   >
-                    Se
+                    Vis
                   </button>
                 </td>
               </tr>
