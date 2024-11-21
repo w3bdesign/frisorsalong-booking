@@ -1,17 +1,13 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="py-6">
-      <h1 class="text-2xl font-semibold text-gray-900">Bookings</h1>
+  <div class="p-6">
+    <div class="max-w-7xl mx-auto">
+      <h1 class="text-2xl font-semibold text-gray-900">Bestillinger</h1>
 
       <!-- Bookings Table -->
       <div class="mt-8 flex flex-col">
-        <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div
-            class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8"
-          >
-            <div
-              class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg"
-            >
+        <div class="-my-2 overflow-x-auto">
+          <div class="inline-block min-w-full py-2 align-middle">
+            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-50">
                   <tr>
@@ -19,25 +15,25 @@
                       scope="col"
                       class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Date & Time
+                      Dato og tid
                     </th>
                     <th
                       scope="col"
                       class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Customer
+                      Kunde
                     </th>
                     <th
                       scope="col"
                       class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Service
+                      Tjeneste
                     </th>
                     <th
                       scope="col"
                       class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Employee
+                      Ansatt
                     </th>
                     <th
                       scope="col"
@@ -46,7 +42,7 @@
                       Status
                     </th>
                     <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span class="sr-only">Actions</span>
+                      <span class="sr-only">Handlinger</span>
                     </th>
                   </tr>
                 </thead>
@@ -56,7 +52,7 @@
                       colspan="6"
                       class="px-3 py-4 text-sm text-gray-500 text-center"
                     >
-                      Loading bookings...
+                      Laster bestillinger...
                     </td>
                   </tr>
                   <tr v-else-if="bookingStore.error">
@@ -72,7 +68,7 @@
                       colspan="6"
                       class="px-3 py-4 text-sm text-gray-500 text-center"
                     >
-                      No bookings found
+                      Ingen bestillinger funnet
                     </td>
                   </tr>
                   <tr
@@ -80,45 +76,35 @@
                     :key="booking.id"
                     class="hover:bg-gray-50"
                   >
-                    <td
-                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
-                    >
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {{ formatDateTime(booking.startTime) }}
                     </td>
-                    <td
-                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
-                    >
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {{ booking.customerName }}
                     </td>
-                    <td
-                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
-                    >
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {{ booking.serviceName }}
                     </td>
-                    <td
-                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
-                    >
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {{ booking.employeeName }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                      <span :class="getStatusClass(booking.status)">
-                        {{ booking.status }}
+                      <span :class="getStatusClass(booking.status.toUpperCase())">
+                        {{ getStatusText(booking.status.toUpperCase()) }}
                       </span>
                     </td>
-                    <td
-                      class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
-                    >
+                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
-                        @click="editBooking(booking)"
+                        @click="openEditModal(booking)"
                         class="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
-                        Edit
+                        Rediger
                       </button>
                       <button
-                        @click="deleteBooking(booking.id)"
+                        @click="handleCancel(booking.id)"
                         class="text-red-600 hover:text-red-900"
                       >
-                        Delete
+                        Kanseller
                       </button>
                     </td>
                   </tr>
@@ -129,18 +115,41 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Modal -->
+    <BookingEditModal
+      :is-open="isEditModalOpen"
+      :booking="selectedBooking"
+      @close="closeEditModal"
+      @save="handleSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useBookingStore } from "../stores/bookings";
-import axios from "axios";
+import BookingEditModal from "../components/BookingEditModal.vue";
+import type { Booking } from '../types';
 
 const bookingStore = useBookingStore();
+const isEditModalOpen = ref(false);
+const selectedBooking = ref<Booking | null>(null);
 
 const formatDateTime = (dateTime: string) => {
-  return new Date(dateTime).toLocaleString();
+  try {
+    const date = new Date(dateTime);
+    return new Intl.DateTimeFormat('nb-NO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Dato ikke tilgjengelig';
+  }
 };
 
 const getStatusClass = (status: string) => {
@@ -154,19 +163,43 @@ const getStatusClass = (status: string) => {
   }`;
 };
 
-const editBooking = (booking: any) => {
-  // TODO: Implement edit functionality
-  console.log("Edit booking:", booking);
+const getStatusText = (status: string) => {
+  const statusMap = {
+    PENDING: "Venter",
+    CONFIRMED: "Bekreftet",
+    CANCELLED: "Kansellert",
+  };
+  return statusMap[status as keyof typeof statusMap] || status;
 };
 
-const deleteBooking = async (id: number) => {
-  if (!confirm("Are you sure you want to delete this booking?")) return;
+const openEditModal = (booking: Booking) => {
+  selectedBooking.value = booking;
+  isEditModalOpen.value = true;
+};
 
-  try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/${id}`);
-    await bookingStore.fetchDashboardStats();
-  } catch (err) {
-    console.error("Error deleting booking:", err);
+const closeEditModal = () => {
+  selectedBooking.value = null;
+  isEditModalOpen.value = false;
+};
+
+const handleSave = async (updatedBooking: Partial<Booking>) => {
+  if (!selectedBooking.value?.id) return;
+
+  const success = await bookingStore.updateBooking(selectedBooking.value.id, updatedBooking);
+  if (success) {
+    closeEditModal();
+  }
+};
+
+const handleCancel = async (id: string | number) => {
+  if (!confirm("Er du sikker på at du vil kansellere denne bestillingen?")) {
+    return;
+  }
+
+  const success = await bookingStore.cancelBooking(id);
+  if (success) {
+    // The store will automatically refresh the bookings list
+    console.log('Bestilling kansellert');
   }
 };
 

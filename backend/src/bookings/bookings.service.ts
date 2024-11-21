@@ -2,9 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { Repository, MoreThan, In } from "typeorm";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
@@ -14,6 +15,8 @@ import { ServicesService } from "../services/services.service";
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -149,14 +152,31 @@ export class BookingsService {
 
   async findUpcoming(): Promise<Booking[]> {
     const now = new Date();
-    return this.bookingRepository.find({
+    this.logger.debug(`Finding upcoming bookings after ${now.toISOString()}`);
+    
+    const bookings = await this.bookingRepository.find({
       where: {
         startTime: MoreThan(now),
-        status: BookingStatus.CONFIRMED,
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
       },
       relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "ASC" },
     });
+
+    this.logger.debug(`Found ${bookings.length} upcoming bookings`);
+    if (bookings.length === 0) {
+      this.logger.debug('No upcoming bookings found. Checking all bookings for debugging...');
+      const allBookings = await this.bookingRepository.find({
+        relations: ["customer", "employee", "employee.user", "service"],
+      });
+      this.logger.debug(`Total bookings in database: ${allBookings.length}`);
+      this.logger.debug('Sample booking dates:');
+      allBookings.slice(0, 3).forEach(booking => {
+        this.logger.debug(`Booking ${booking.id}: startTime=${booking.startTime}, status=${booking.status}`);
+      });
+    }
+
+    return bookings;
   }
 
   async getUpcomingCount(): Promise<number> {
@@ -164,7 +184,7 @@ export class BookingsService {
     return this.bookingRepository.count({
       where: {
         startTime: MoreThan(now),
-        status: BookingStatus.CONFIRMED,
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
       },
     });
   }
