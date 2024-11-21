@@ -19,14 +19,22 @@
            class="bg-white p-4 rounded-lg shadow">
         <div class="flex justify-between items-start">
           <div>
-            <h3 class="font-semibold">{{ order.customerName }}</h3>
-            <p class="text-gray-600">{{ order.service }}</p>
-            <p class="text-sm text-gray-500">Employee: {{ order.employeeName }}</p>
+            <h3 class="font-semibold">
+              {{ order.booking.customer.firstName }} {{ order.booking.customer.lastName }}
+            </h3>
+            <p class="text-gray-600">{{ order.booking.service.name }}</p>
+            <p class="text-sm text-gray-500">
+              Service Duration: {{ order.booking.service.duration }} minutes
+            </p>
           </div>
           <div class="text-right">
-            <p class="font-bold">${{ order.price }}</p>
-            <p class="text-sm text-gray-500">{{ formatDate(order.date) }}</p>
+            <p class="font-bold">${{ order.totalAmount }}</p>
+            <p class="text-sm text-gray-500">{{ formatDate(order.completedAt) }}</p>
+            <p class="text-sm text-gray-500">Booking: {{ formatDate(order.booking.startTime) }}</p>
           </div>
+        </div>
+        <div class="mt-2 text-sm text-gray-600">
+          <p v-if="order.notes">Notes: {{ order.notes }}</p>
         </div>
       </div>
     </div>
@@ -41,14 +49,30 @@ import { storeToRefs } from 'pinia'
 const ordersStore = useOrdersStore()
 const { orders, loading, error } = storeToRefs(ordersStore)
 
+function isValidDate(dateString: string): boolean {
+  const date = new Date(dateString)
+  return date instanceof Date && !isNaN(date.getTime())
+}
+
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  if (!dateString || !isValidDate(dateString)) {
+    return 'Date not available'
+  }
+
+  try {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(date)
+  } catch (error) {
+    console.error('Error formatting date:', error)
+    return 'Date not available'
+  }
 }
 
 onMounted(() => {
