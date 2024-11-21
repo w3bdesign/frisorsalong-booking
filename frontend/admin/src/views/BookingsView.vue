@@ -89,8 +89,8 @@
                       {{ booking.employeeName }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                      <span :class="getStatusClass(booking.status)">
-                        {{ getStatusText(booking.status) }}
+                      <span :class="getStatusClass(booking.status.toUpperCase())">
+                        {{ getStatusText(booking.status.toUpperCase()) }}
                       </span>
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
