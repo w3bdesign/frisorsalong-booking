@@ -4,7 +4,7 @@ import { useAuthStore } from "./auth";
 import router from "../router";
 
 interface Booking {
-  id: number;
+  id: number | string;  // Updated to accept both number and string
   customerName: string;
   employeeName: string;
   serviceName: string;
@@ -55,13 +55,13 @@ export const useBookingStore = defineStore("bookings", {
             const authStore = useAuthStore();
             authStore.logout();
             router.push({ name: "Login" });
-            this.error = "Session expired. Please login again.";
+            this.error = "Økt utløpt. Vennligst logg inn igjen.";
           } else {
-            this.error = error.response?.data?.message || "Failed to fetch bookings";
+            this.error = error.response?.data?.message || "Kunne ikke hente bestillinger";
           }
         } else {
           this.error =
-            error instanceof Error ? error.message : "Failed to fetch bookings";
+            error instanceof Error ? error.message : "Kunne ikke hente bestillinger";
         }
         console.error("Error fetching bookings:", error);
       } finally {
@@ -91,19 +91,54 @@ export const useBookingStore = defineStore("bookings", {
             const authStore = useAuthStore();
             authStore.logout();
             router.push({ name: "Login" });
-            this.error = "Session expired. Please login again.";
+            this.error = "Økt utløpt. Vennligst logg inn igjen.";
           } else {
-            this.error = error.response?.data?.message || "Failed to fetch upcoming bookings";
+            this.error = error.response?.data?.message || "Kunne ikke hente kommende bestillinger";
           }
         } else {
           this.error =
             error instanceof Error
               ? error.message
-              : "Failed to fetch upcoming bookings";
+              : "Kunne ikke hente kommende bestillinger";
         }
         console.error("Error fetching upcoming bookings:", error);
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    async cancelBooking(id: number | string) {  // Updated to accept both number and string
+      try {
+        const authStore = useAuthStore();
+        if (!authStore.isAuthenticated || !authStore.token) {
+          router.push({ name: "Login" });
+          return false;
+        }
+
+        // Ensure the Authorization header is set
+        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
+
+        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/cancel`);
+        
+        // Refresh the bookings list after successful cancellation
+        await this.fetchDashboardStats();
+        return true;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          if (error.response?.status === 401) {
+            const authStore = useAuthStore();
+            authStore.logout();
+            router.push({ name: "Login" });
+            this.error = "Økt utløpt. Vennligst logg inn igjen.";
+          } else {
+            this.error = error.response?.data?.message || "Kunne ikke kansellere bestilling";
+          }
+        } else {
+          this.error =
+            error instanceof Error ? error.message : "Kunne ikke kansellere bestilling";
+        }
+        console.error("Error canceling booking:", error);
+        return false;
       }
     },
 

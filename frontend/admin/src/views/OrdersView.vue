@@ -30,6 +30,12 @@
               <p class="font-bold">{{ formatPrice(order.totalAmount) }}</p>
               <p class="text-gray-600">{{ formatDate(order.completedAt) }}</p>
               <p class="text-gray-600">Bestilling: {{ formatBookingDate(order.booking.startTime) }}</p>
+              <button
+                @click="handleDelete(order.id)"
+                class="mt-2 text-red-600 hover:text-red-900 text-sm font-medium"
+              >
+                Slett bestilling
+              </button>
             </div>
           </div>
           <div class="mt-2 text-gray-600" v-if="order.notes">
@@ -106,6 +112,18 @@ function formatPrice(price: string): string {
   } catch (error) {
     console.error('Error formatting price:', error)
     return 'NOK -'
+  }
+}
+
+async function handleDelete(id: string) {
+  if (!confirm('Er du sikker på at du vil slette denne bestillingen?')) {
+    return
+  }
+
+  const success = await ordersStore.deleteOrder(id)
+  if (success) {
+    // The store will automatically refresh the orders list
+    console.log('Bestilling slettet')
   }
 }
 

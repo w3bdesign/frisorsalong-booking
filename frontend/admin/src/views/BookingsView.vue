@@ -95,16 +95,16 @@
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
-                        @click="editBooking(booking)"
+                        @click="handleEdit(booking)"
                         class="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
                         Rediger
                       </button>
                       <button
-                        @click="deleteBooking(booking.id)"
+                        @click="handleCancel(booking.id)"
                         class="text-red-600 hover:text-red-900"
                       >
-                        Slett
+                        Kanseller
                       </button>
                     </td>
                   </tr>
@@ -121,7 +121,6 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useBookingStore } from "../stores/bookings";
-import axios from "axios";
 
 const bookingStore = useBookingStore();
 
@@ -161,19 +160,20 @@ const getStatusText = (status: string) => {
   return statusMap[status as keyof typeof statusMap] || status;
 };
 
-const editBooking = (booking: any) => {
+const handleEdit = (booking: any) => {
   // TODO: Implement edit functionality
   console.log("Rediger bestilling:", booking);
 };
 
-const deleteBooking = async (id: number) => {
-  if (!confirm("Er du sikker på at du vil slette denne bestillingen?")) return;
+const handleCancel = async (id: string | number) => {
+  if (!confirm("Er du sikker på at du vil kansellere denne bestillingen?")) {
+    return;
+  }
 
-  try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/${id}`);
-    await bookingStore.fetchDashboardStats();
-  } catch (err) {
-    console.error("Feil ved sletting av bestilling:", err);
+  const success = await bookingStore.cancelBooking(id);
+  if (success) {
+    // The store will automatically refresh the bookings list
+    console.log('Bestilling kansellert');
   }
 };
 

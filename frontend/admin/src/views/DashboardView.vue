@@ -152,14 +152,14 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
                     class="text-indigo-600 hover:text-indigo-900 mr-4"
-                    @click="$emit('view-booking', booking.id)"
+                    @click="handleView(booking.id)"
                     data-test="view-button"
                   >
                     Se
                   </button>
                   <button
                     class="text-red-600 hover:text-red-900"
-                    @click="$emit('cancel-booking', booking.id)"
+                    @click="handleCancel(booking.id)"
                     data-test="cancel-button"
                   >
                     Kanseller
@@ -219,10 +219,21 @@ function formatDateTime(dateString: string): string {
   }
 }
 
-defineEmits<{
-  (e: "view-booking", id: number): void;
-  (e: "cancel-booking", id: number): void;
-}>();
+const handleView = (id: string | number) => {
+  console.log("Se bestilling:", id);
+  // TODO: Implement view functionality
+};
+
+const handleCancel = async (id: string | number) => {
+  if (!confirm("Er du sikker på at du vil kansellere denne bestillingen?")) {
+    return;
+  }
+
+  const success = await bookingStore.cancelBooking(id);
+  if (success) {
+    console.log('Bestilling kansellert');
+  }
+};
 
 onMounted(() => {
   bookingStore.fetchDashboardStats();
