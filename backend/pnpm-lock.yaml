@@ -82,7 +82,7 @@ importers:
         specifier: ^9.2.0
         version: 9.2.0
       '@nestjs/cli':
-        specifier: ^10.4.7
+        specifier: ^10.4.8
         version: 10.4.8
       '@nestjs/schematics':
         specifier: ^10.2.3
@@ -103,7 +103,7 @@ importers:
         specifier: ^29.5.14
         version: 29.5.14
       '@types/node':
-        specifier: ^22.9.0
+        specifier: ^22.9.1
         version: 22.9.1
       '@types/passport-jwt':
         specifier: ^4.0.1

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsService } from './bookings.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan, In } from 'typeorm';
 import { Booking, BookingStatus } from './entities/booking.entity';
 import { UsersService } from '../users/users.service';
 import { EmployeesService } from '../employees/employees.service';
@@ -235,7 +235,7 @@ describe('BookingsService', () => {
   });
 
   describe('findUpcoming', () => {
-    it('should return upcoming confirmed bookings', async () => {
+    it('should return upcoming pending and confirmed bookings', async () => {
       const mockBookings = [{ id: 'booking-1' }, { id: 'booking-2' }];
       mockBookingRepository.find.mockResolvedValue(mockBookings);
 
@@ -244,7 +244,7 @@ describe('BookingsService', () => {
       expect(mockBookingRepository.find).toHaveBeenCalledWith({
         where: {
           startTime: expect.any(Object),
-          status: BookingStatus.CONFIRMED,
+          status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         },
         relations: ['customer', 'employee', 'employee.user', 'service'],
         order: { startTime: 'ASC' },

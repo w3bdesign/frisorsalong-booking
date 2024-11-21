@@ -189,15 +189,13 @@ describe("BookingsController", () => {
       startTime: "2024-01-01T10:00:00.000Z",
       status: BookingStatus.CANCELLED,
       cancelledAt: new Date(),
-      cancellationReason: "Customer request",
+      cancellationReason: "Cancelled by administrator",
     };
 
     it("should cancel a booking successfully", async () => {
       mockBookingsService.cancel.mockResolvedValue(mockBooking);
 
-      const result = await controller.cancel("booking-id", {
-        reason: "Customer request",
-      });
+      const result = await controller.cancel("booking-id");
 
       expect(result).toBeDefined();
       expect(result.id).toBe(mockBooking.id);
@@ -206,7 +204,7 @@ describe("BookingsController", () => {
       expect(result.serviceName).toBe(mockService.name);
       expect(service.cancel).toHaveBeenCalledWith(
         "booking-id",
-        "Customer request",
+        "Cancelled by administrator"
       );
     });
 
@@ -215,9 +213,7 @@ describe("BookingsController", () => {
         new NotFoundException("Booking not found"),
       );
 
-      await expect(
-        controller.cancel("non-existent-id", { reason: "Customer request" }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.cancel("non-existent-id")).rejects.toThrow(NotFoundException);
     });
   });
 
