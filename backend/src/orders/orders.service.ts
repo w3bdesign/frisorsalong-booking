@@ -50,18 +50,12 @@ export class OrdersService {
   }
 
   async findAll(): Promise<Order[]> {
-    const orders = await this.orderRepository.find({
+    return this.orderRepository.find({
       relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
       order: {
         completedAt: 'DESC',
       },
     });
-
-    if (!orders.length) {
-      throw new NotFoundException('No completed orders found');
-    }
-
-    return orders;
   }
 
   async findOne(id: string): Promise<Order> {
