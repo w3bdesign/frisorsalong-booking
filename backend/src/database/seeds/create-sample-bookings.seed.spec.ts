@@ -40,6 +40,7 @@ describe('createSampleBookings', () => {
   let mockServiceRepository: Partial<Repository<Service>>;
   let mockBookingRepository: Partial<Repository<Booking>>;
   const originalEnv = process.env;
+  const originalRandom = Math.random;
 
   beforeEach(() => {
     // Mock repositories
@@ -95,6 +96,7 @@ describe('createSampleBookings', () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    Math.random = originalRandom;
     jest.clearAllMocks();
   });
 
@@ -190,11 +192,13 @@ describe('createSampleBookings', () => {
     (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
 
-    // Mock faker to create a cancelled booking
+    // Mock faker to return service and customer
     (faker.helpers.arrayElement as jest.Mock)
       .mockReturnValueOnce(mockServices[0])  // Service
-      .mockReturnValueOnce({ id: 'customer-1' })  // Customer
-      .mockReturnValue(BookingStatus.CANCELLED);  // Status
+      .mockReturnValue({ id: 'customer-1' }); // Customer
+
+    // Mock Math.random to force a cancelled booking
+    Math.random = jest.fn().mockReturnValue(0.95); // This will select CANCELLED status (> 0.9)
 
     const mockStartDate = new Date('2024-01-01T10:00:00Z');
     const mockCancelDate = new Date('2024-01-01T09:00:00Z');
@@ -211,7 +215,7 @@ describe('createSampleBookings', () => {
     expect(cancelledBooking).toEqual(expect.objectContaining({
       status: BookingStatus.CANCELLED,
       cancelledAt: mockCancelDate,
-      cancellationReason: expect.any(String),
+      cancellationReason: 'Sample note',
     }));
   });
 
