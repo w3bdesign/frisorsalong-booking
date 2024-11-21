@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
+defineProps<{
   isOpen: boolean;
   booking: any | null;
 }>();

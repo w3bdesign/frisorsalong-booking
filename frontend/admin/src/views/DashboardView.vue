@@ -143,7 +143,7 @@
                   <span
                     :class="[
                       'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                      getStatusColor(booking.status),
+                      getStatusColor(booking.status)
                     ]"
                   >
                     {{ getStatusText(booking.status) }}
@@ -184,25 +184,29 @@ const bookingStore = useBookingStore();
 const isModalOpen = ref(false);
 const selectedBooking = ref(null);
 
-const getStatusColor = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
-  switch (status) {
+const getStatusColor = (status: string | undefined): string => {
+  switch (status?.toUpperCase()) {
     case "CONFIRMED":
       return "bg-green-100 text-green-800";
     case "PENDING":
       return "bg-yellow-100 text-yellow-800";
     case "CANCELLED":
       return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 };
 
-const getStatusText = (status: "CONFIRMED" | "PENDING" | "CANCELLED"): string => {
-  switch (status) {
+const getStatusText = (status: string | undefined): string => {
+  switch (status?.toUpperCase()) {
     case "CONFIRMED":
       return "Bekreftet";
     case "PENDING":
       return "Venter";
     case "CANCELLED":
       return "Kansellert";
+    default:
+      return "Ukjent";
   }
 };
 
