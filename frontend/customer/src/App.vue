@@ -5,7 +5,7 @@
         >Frisørsalong</router-link
       >
       <router-link to="/tv-display" class="text-2xl text-primary-600 font-bold flex-1"
-        >TV View</router-link
+        >TV Visning</router-link
       >
       <div class="flex-1 flex justify-end">
         <div class="w-[250px]">
