@@ -22,6 +22,7 @@ describe('BookingsService', () => {
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+    count: jest.fn(),
   };
 
   const mockUsersService = {
@@ -250,6 +251,24 @@ describe('BookingsService', () => {
         order: { startTime: 'ASC' },
       });
     });
+
+    it('should handle case when no upcoming bookings are found', async () => {
+      // First find call returns empty array (no upcoming bookings)
+      mockBookingRepository.find.mockResolvedValueOnce([]);
+      
+      // Second find call returns some sample bookings for debug logging
+      const sampleBookings = [
+        { id: 'booking-1', startTime: new Date(), status: BookingStatus.CANCELLED },
+        { id: 'booking-2', startTime: new Date(), status: BookingStatus.COMPLETED },
+        { id: 'booking-3', startTime: new Date(), status: BookingStatus.PENDING },
+      ];
+      mockBookingRepository.find.mockResolvedValueOnce(sampleBookings);
+
+      const result = await service.findUpcoming();
+      
+      expect(result).toEqual([]);
+      expect(mockBookingRepository.find).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('findOne', () => {
@@ -271,6 +290,31 @@ describe('BookingsService', () => {
       await expect(service.findOne('booking-id')).rejects.toThrow(
         new NotFoundException('Booking with ID booking-id not found'),
       );
+    });
+  });
+
+  describe('getUpcomingCount', () => {
+    it('should return count of upcoming bookings', async () => {
+      mockBookingRepository.count.mockResolvedValue(5);
+
+      const result = await service.getUpcomingCount();
+      
+      expect(result).toBe(5);
+      expect(mockBookingRepository.count).toHaveBeenCalledWith({
+        where: {
+          startTime: expect.any(Object),
+          status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+        },
+      });
+    });
+
+    it('should return 0 when no upcoming bookings exist', async () => {
+      mockBookingRepository.count.mockResolvedValue(0);
+
+      const result = await service.getUpcomingCount();
+      
+      expect(result).toBe(0);
+      expect(mockBookingRepository.count).toHaveBeenCalled();
     });
   });
 });
