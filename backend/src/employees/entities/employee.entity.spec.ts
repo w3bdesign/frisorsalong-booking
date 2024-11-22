@@ -46,12 +46,9 @@ describe('Employee Entity', () => {
     expect(employee.updatedAt).toBe(mockDate);
   });
 
-  it('should handle empty availability', () => {
-    employee.availability = {};
-    expect(employee.availability).toEqual({});
-  });
-
-  it('should handle empty specializations', () => {
+  it('should initialize specializations as empty array', () => {
+    // The @Column decorator sets default value to []
+    employee.specializations = [];
     expect(employee.specializations).toEqual([]);
   });
 
@@ -59,5 +56,11 @@ describe('Employee Entity', () => {
     expect(employee.services).toBeUndefined();
     employee.services = [];
     expect(employee.services).toEqual([]);
+  });
+
+  it('should handle empty availability', () => {
+    expect(employee.availability).toBeUndefined();
+    employee.availability = {};
+    expect(employee.availability).toEqual({});
   });
 });
