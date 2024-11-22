@@ -56,6 +56,7 @@
                   v-for="employee in store.activeEmployees"
                   :key="employee.id"
                   class="flex items-center bg-[#1a1a1f] rounded-full px-4 py-2"
+                  data-testid="employee"
                 >
                   <div class="relative">
                     <div :class="employee.color" class="w-6 h-6 rounded-full"></div>
@@ -82,6 +83,7 @@
 
 <script setup lang="ts">
 import { useDisplayStore } from '@/stores/display'
+import { onUnmounted } from 'vue'
 
 const store = useDisplayStore()
 
@@ -94,9 +96,14 @@ const formatLastUpdate = () => {
 }
 
 // Auto refresh last update time
-setInterval(() => {
+const intervalId = setInterval(() => {
   store.updateLastUpdate()
 }, 1000)
+
+// Cleanup interval on unmount
+onUnmounted(() => {
+  clearInterval(intervalId)
+})
 </script>
 
 <style scoped>
