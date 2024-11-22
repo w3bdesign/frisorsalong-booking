@@ -9,14 +9,23 @@ coverage:
         threshold: 1%
         paths:
           - "backend/src"
+      frontend-customer:
+        target: 75%
+        threshold: 1%
+        paths:
+          - "frontend/customer/src"
     patch:
       default:
         target: 75%
         paths:
           - "backend/src"
+      frontend-customer:
+        target: 75%
+        paths:
+          - "frontend/customer/src"
 
 ignore:
-  - "frontend/**/*"
+  - "frontend/admin/**/*"
   - "backend/node_modules/**/*"
   - "backend/dist/**/*"
   - "backend/test/**/*"
@@ -24,6 +33,9 @@ ignore:
   - "backend/**/*.spec.ts"
   - "backend/**/*.test.ts"
   - "backend/src/config/**/*"
+  - "frontend/customer/node_modules/**/*"
+  - "frontend/customer/dist/**/*"
+  - "frontend/customer/coverage/**/*"
 
 comment:
   layout: "reach, diff, flags, files"
