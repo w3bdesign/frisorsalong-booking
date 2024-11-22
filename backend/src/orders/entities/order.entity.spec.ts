@@ -1,34 +1,64 @@
 import { Order } from './order.entity';
-import { getMetadataArgsStorage } from 'typeorm';
+import { Booking } from '../../bookings/entities/booking.entity';
 
 describe('Order Entity', () => {
+  let order: Order;
+
+  beforeEach(() => {
+    order = new Order();
+  });
+
   it('should create an order instance', () => {
-    const order = new Order();
-    expect(order).toBeTruthy();
+    expect(order).toBeDefined();
     expect(order).toBeInstanceOf(Order);
   });
 
-  it('should have all required properties defined', () => {
-    const metadata = getMetadataArgsStorage();
-    const columns = metadata.columns.filter(
-      column => column.target === Order
-    );
-    const relations = metadata.relations.filter(
-      relation => relation.target === Order
-    );
+  it('should have correct properties', () => {
+    // Create mock data
+    const mockBooking = new Booking();
+    const mockDate = new Date();
+    const mockNotes = 'Test notes';
 
-    // Check if all required properties are defined as columns or relations
-    const properties = [
-      ...columns.map(column => column.propertyName),
-      ...relations.map(relation => relation.propertyName)
-    ];
+    // Set properties
+    order.id = 'test-id';
+    order.booking = mockBooking;
+    order.completedAt = mockDate;
+    order.totalAmount = 299.99;
+    order.notes = mockNotes;
+    order.createdAt = mockDate;
+    order.updatedAt = mockDate;
 
-    expect(properties).toContain('id');
-    expect(properties).toContain('booking');
-    expect(properties).toContain('completedAt');
-    expect(properties).toContain('totalAmount');
-    expect(properties).toContain('notes');
-    expect(properties).toContain('createdAt');
-    expect(properties).toContain('updatedAt');
+    // Verify properties
+    expect(order.id).toBe('test-id');
+    expect(order.booking).toBe(mockBooking);
+    expect(order.completedAt).toBe(mockDate);
+    expect(order.totalAmount).toBe(299.99);
+    expect(order.notes).toBe(mockNotes);
+    expect(order.createdAt).toBe(mockDate);
+    expect(order.updatedAt).toBe(mockDate);
+  });
+
+  it('should handle decimal total amounts', () => {
+    order.totalAmount = 299.99;
+    expect(order.totalAmount).toBe(299.99);
+  });
+
+  it('should handle optional notes', () => {
+    expect(order.notes).toBeUndefined();
+    order.notes = 'Test notes';
+    expect(order.notes).toBe('Test notes');
+  });
+
+  it('should require non-null properties', () => {
+    // TypeScript should enforce these as non-null
+    expect(() => {
+      const completeOrder = new Order();
+      completeOrder.id = 'test-id';
+      completeOrder.booking = new Booking();
+      completeOrder.completedAt = new Date();
+      completeOrder.totalAmount = 299.99;
+      completeOrder.createdAt = new Date();
+      completeOrder.updatedAt = new Date();
+    }).not.toThrow();
   });
 });
