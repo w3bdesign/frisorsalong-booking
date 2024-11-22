@@ -228,4 +228,22 @@ describe('createSampleBookings', () => {
     // Verify error was logged
     expect(console.error).toHaveBeenCalledWith('Error creating sample bookings:', dbError);
   });
+
+  it('should throw error when bookings save operation fails', async () => {
+    // Mock employee and services
+    const mockEmployee = {
+      id: 'employee-1',
+      user: { email: 'employee@example.com' },
+    };
+    const mockServices = [{ id: 'service-1', duration: 30, price: 30 }];
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+
+    // Mock bookingRepository.save to return null
+    (mockBookingRepository.save as jest.Mock).mockResolvedValue(null);
+
+    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+      'Failed to save bookings - no bookings returned from save operation'
+    );
+  });
 });
