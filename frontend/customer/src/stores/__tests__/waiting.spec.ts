@@ -65,7 +65,7 @@ describe('Waiting Store', () => {
       expect(store.queueStatus.lastUpdated).toBeDefined()
     })
 
-    it('handles fetch error correctly', async () => {
+    it('handles fetch error correctly with Error instance', async () => {
       const errorMessage = 'Failed to fetch queue status'
       global.fetch = vi.fn().mockRejectedValue(new Error(errorMessage))
 
@@ -74,6 +74,21 @@ describe('Waiting Store', () => {
 
       expect(store.isLoading).toBe(false)
       expect(store.error).toBe(errorMessage)
+      expect(store.queueStatus).toMatchObject({
+        peopleWaiting: 0,
+        estimatedWaitTime: 0,
+      })
+    })
+
+    it('handles fetch error correctly with non-Error instance', async () => {
+      const errorMessage = 'Network error'
+      global.fetch = vi.fn().mockRejectedValue(errorMessage)
+
+      const store = useWaitingStore()
+      await store.fetchQueueStatus()
+
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBe('Failed to fetch queue status')
       expect(store.queueStatus).toMatchObject({
         peopleWaiting: 0,
         estimatedWaitTime: 0,
