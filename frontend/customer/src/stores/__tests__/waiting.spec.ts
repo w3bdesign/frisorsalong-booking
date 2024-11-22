@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useWaitingStore } from '../waiting'
+import { flushPromises } from '@vue/test-utils'
 
 describe('Waiting Store', () => {
   beforeEach(() => {
@@ -94,39 +95,53 @@ describe('Waiting Store', () => {
 
   describe('Polling', () => {
     it('starts polling and fetches initial data', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
+
       const store = useWaitingStore()
-      const fetchSpy = vi.spyOn(store, 'fetchQueueStatus')
-
       store.startPolling(1000)
-      await vi.runAllTimersAsync()
+      await flushPromises()
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
     })
 
     it('continues polling at specified interval', async () => {
-      const store = useWaitingStore()
-      const fetchSpy = vi.spyOn(store, 'fetchQueueStatus')
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
 
+      const store = useWaitingStore()
       store.startPolling(1000) // 1 second interval
-      await vi.runAllTimersAsync()
-      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
 
       // Advance timer by 2 seconds
       await vi.advanceTimersByTimeAsync(2000)
-      expect(fetchSpy).toHaveBeenCalledTimes(3)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(3)
     })
 
     it('returns interval ID that can be cleared', async () => {
-      const store = useWaitingStore()
-      const fetchSpy = vi.spyOn(store, 'fetchQueueStatus')
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
 
+      const store = useWaitingStore()
       const intervalId = store.startPolling(1000)
-      await vi.runAllTimersAsync()
-      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
 
       clearInterval(intervalId)
       await vi.advanceTimersByTimeAsync(2000)
-      expect(fetchSpy).toHaveBeenCalledTimes(1) // No additional calls after clearing
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1) // No additional calls after clearing
     })
   })
 })
