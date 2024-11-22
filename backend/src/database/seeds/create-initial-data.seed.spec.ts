@@ -225,4 +225,38 @@ describe('createInitialData', () => {
     // Verify error was logged
     expect(console.error).toHaveBeenCalledWith('Error creating initial data:', hashError);
   });
+
+  it('should use default phone number when EMPLOYEE_PHONE is not set', async () => {
+    // Remove EMPLOYEE_PHONE from environment
+    delete process.env.EMPLOYEE_PHONE;
+
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+    // Mock created services
+    const mockServices = [{ id: '1', name: 'Standard Klipp' }];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: 'user-1',
+      email: 'employee@example.com',
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+
+    // Mock created employee
+    const mockEmployee = {
+      id: 'employee-1',
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+
+    await createInitialData(mockDataSource as DataSource);
+
+    // Verify employee user was created with default phone number
+    expect(mockUserRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      phoneNumber: '+1234567890', // This is the default value
+    }));
+  });
 });
