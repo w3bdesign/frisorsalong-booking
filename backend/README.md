@@ -10,7 +10,6 @@ A robust backend system for managing hair salon bookings, built with NestJS. Thi
 - 💇‍♀️ Service Management
 - 👨‍💼 Employee Management
 - 🗄️ PostgreSQL Database with TypeORM
-- 🚀 Redis Caching
 - 📚 Swagger API Documentation
 
 ## Tech Stack
