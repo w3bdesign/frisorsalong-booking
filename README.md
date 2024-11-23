@@ -1,14 +1,14 @@
+# Hair Salon Booking System
+
+A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+
+## This is still Work In Progress (WIP)!
+
 ## Test Coverage
 
 | Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
-
-# Hair Salon Booking System
-
-## This is still Work In Progress (WIP)!
-
-A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
 
 ## Frontend
 
@@ -78,7 +78,6 @@ The system follows a modular architecture separating frontend, backend, and data
 - Node.js (v20 or higher)
 - pnpm
 - PostgreSQL
-- Redis
 - Docker
 
 ## Getting Started
