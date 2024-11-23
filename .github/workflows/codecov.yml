@@ -1,10 +1,10 @@
 name: Run tests and upload coverage
 
-on: 
+on:
   push:
     paths:
-      - 'backend/**'
-      - 'frontend/customer/**'
+      - "backend/**"
+      - "frontend/customer/**"
 
 jobs:
   backend-test:
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -74,7 +74,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -99,7 +99,7 @@ jobs:
         run: pnpm install
 
       - name: Run tests
-        run: pnpm test:coverage
+        run: pnpm test:unit --coverage
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
