@@ -5,7 +5,7 @@ on:
     paths:
       - "backend/**"
       - "frontend/customer/**"
-
+      
 jobs:
   backend-test:
     name: Run backend tests and collect coverage
