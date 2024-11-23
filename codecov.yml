@@ -9,7 +9,7 @@ coverage:
         threshold: 1%
         paths:
           - "backend/src"
-      frontend:
+      frontend-customer:
         target: 75%
         threshold: 1%
         paths:
@@ -19,10 +19,20 @@ coverage:
         target: 75%
         paths:
           - "backend/src"
-      frontend:
+      frontend-customer:
         target: 75%
         paths:
           - "frontend/customer/src"
+
+flags:
+  backend:
+    paths:
+      - backend/src
+    carryforward: true
+  frontend-customer:
+    paths:
+      - frontend/customer/src
+    carryforward: true
 
 ignore:
   - "frontend/admin/**/*"
