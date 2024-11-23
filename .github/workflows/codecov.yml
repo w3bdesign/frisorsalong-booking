@@ -1,4 +1,4 @@
-name: Run backend tests and upload coverage
+name: Run backend tests and upload Codecov coverage
 
 on: 
   push:
