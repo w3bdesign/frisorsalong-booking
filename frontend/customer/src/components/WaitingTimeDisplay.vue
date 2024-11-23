@@ -65,12 +65,18 @@ const { queueStatus, isLoading, error, formattedWaitTime } = waitingStore
 let pollingInterval: ReturnType<typeof setInterval>
 
 const formatTime = (dateString: string) => {
-  return new Date(dateString).toLocaleTimeString('nb-NO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
+  const date = new Date(dateString)
+  const utcHours = date.getUTCHours()
+  const minutes = date.getUTCMinutes()
+  const seconds = date.getUTCSeconds()
+
+  // Add 1 hour for Norwegian time (UTC+1)
+  const norwegianHours = (utcHours + 1) % 24
+
+  // Format with leading zeros
+  const formatNumber = (n: number) => n.toString().padStart(2, '0')
+
+  return `${formatNumber(norwegianHours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`
 }
 
 onMounted(() => {
