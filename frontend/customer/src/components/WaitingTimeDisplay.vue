@@ -41,7 +41,7 @@
               clip-rule="evenodd"
             />
           </svg>
-          <span>Oppdatert {{ new Date(queueStatus.lastUpdated).toLocaleTimeString('nb-NO') }}</span>
+          <span>Oppdatert {{ formatTime(queueStatus.lastUpdated) }}</span>
         </div>
       </template>
 
@@ -63,6 +63,15 @@ const waitingStore = useWaitingStore()
 const { queueStatus, isLoading, error, formattedWaitTime } = waitingStore
 
 let pollingInterval: ReturnType<typeof setInterval>
+
+const formatTime = (dateString: string) => {
+  return new Date(dateString).toLocaleTimeString('nb-NO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
 
 onMounted(() => {
   pollingInterval = waitingStore.startPolling(30000) // Update every 30 seconds
