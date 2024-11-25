@@ -1,12 +1,12 @@
 <template>
-  <div class="bg-white p-4 rounded-lg shadow">
+  <div class="bg-white rounded-lg">
     <canvas ref="chartRef"></canvas>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import Chart from 'chart.js/auto';
+import { Chart, type TooltipItem } from 'chart.js/auto';
 import type { Order } from '../types';
 
 const props = defineProps({
@@ -20,23 +20,28 @@ const chartRef = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
 function prepareChartData() {
-  // Group orders by date and calculate total amount for each date
-  const ordersByDate = props.orders.reduce((acc: Record<string, number>, order: Order) => {
-    const date = new Date(order.completedAt).toLocaleDateString('nb-NO');
-    acc[date] = (acc[date] || 0) + parseFloat(order.totalAmount);
+  // Group orders by hour and calculate total amount for each hour
+  const ordersByHour = props.orders.reduce((acc: Record<string, number>, order: Order) => {
+    const date = new Date(order.completedAt);
+    const hour = date.getHours().toString().padStart(2, '0') + ':00';
+    acc[hour] = (acc[hour] || 0) + parseFloat(order.totalAmount);
     return acc;
   }, {});
 
-  // Sort dates
-  const sortedDates = Object.keys(ordersByDate).sort((a, b) => 
-    new Date(a).getTime() - new Date(b).getTime()
+  // Create array of all hours from 00:00 to 23:00
+  const allHours = Array.from({ length: 24 }, (_, i) => 
+    `${i.toString().padStart(2, '0')}:00`
   );
 
+  // Sort hours and ensure all hours are represented
+  const sortedHours = allHours.sort();
+  const data = sortedHours.map(hour => ordersByHour[hour] || 0);
+
   return {
-    labels: sortedDates,
+    labels: sortedHours,
     datasets: [{
-      label: 'Omsetning per dag',
-      data: sortedDates.map(date => ordersByDate[date]),
+      label: 'Omsetning per time',
+      data: data,
       backgroundColor: 'rgba(79, 70, 229, 0.2)',
       borderColor: 'rgb(79, 70, 229)',
       borderWidth: 1
@@ -60,11 +65,13 @@ function createChart(): void {
     data: prepareChartData(),
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           beginAtZero: true,
           ticks: {
-            callback: function(value: number): string {
+            callback: function(tickValue: number | string): string {
+              const value = typeof tickValue === 'string' ? parseFloat(tickValue) : tickValue;
               return new Intl.NumberFormat('nb-NO', {
                 style: 'currency',
                 currency: 'NOK',
@@ -76,15 +83,24 @@ function createChart(): void {
         }
       },
       plugins: {
+        title: {
+          display: true,
+          text: 'Omsetning per time',
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        },
         tooltip: {
           callbacks: {
-            label: function(context: { raw: number }): string {
+            label: function(tooltipItem: TooltipItem<'bar'>): string {
+              const value = typeof tooltipItem.raw === 'number' ? tooltipItem.raw : 0;
               return new Intl.NumberFormat('nb-NO', {
                 style: 'currency',
                 currency: 'NOK',
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
-              }).format(context.raw);
+              }).format(value);
             }
           }
         }
