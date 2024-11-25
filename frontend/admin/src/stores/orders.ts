@@ -11,7 +11,7 @@ interface OrdersState {
   lastFetched: number | null;
 }
 
-const CACHE_DURATION = 60000; // 60 seconds
+const CACHE_DURATION = 300000; // 5 minutes
 
 export const useOrdersStore = defineStore("orders", {
   state: (): OrdersState => ({
