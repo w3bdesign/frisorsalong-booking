@@ -6,23 +6,26 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { Chart, ChartConfiguration, ChartTypeRegistry } from 'chart.js/auto';
+import Chart from 'chart.js/auto';
 import type { Order } from '../types';
 
-const props = defineProps<{
-  orders: Order[];
-}>();
+const props = defineProps({
+  orders: {
+    type: Array as () => Order[],
+    required: true
+  }
+});
 
 const chartRef = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
 function prepareChartData() {
   // Group orders by date and calculate total amount for each date
-  const ordersByDate = props.orders.reduce((acc, order) => {
+  const ordersByDate = props.orders.reduce((acc: Record<string, number>, order: Order) => {
     const date = new Date(order.completedAt).toLocaleDateString('nb-NO');
     acc[date] = (acc[date] || 0) + parseFloat(order.totalAmount);
     return acc;
-  }, {} as { [key: string]: number });
+  }, {});
 
   // Sort dates
   const sortedDates = Object.keys(ordersByDate).sort((a, b) => 
@@ -41,7 +44,7 @@ function prepareChartData() {
   };
 }
 
-function createChart() {
+function createChart(): void {
   if (!chartRef.value) return;
 
   const ctx = chartRef.value.getContext('2d');
@@ -52,7 +55,7 @@ function createChart() {
     chart.destroy();
   }
 
-  const config: ChartConfiguration<keyof ChartTypeRegistry> = {
+  chart = new Chart(ctx, {
     type: 'bar',
     data: prepareChartData(),
     options: {
@@ -61,7 +64,7 @@ function createChart() {
         y: {
           beginAtZero: true,
           ticks: {
-            callback: function(value: number) {
+            callback: function(value: number): string {
               return new Intl.NumberFormat('nb-NO', {
                 style: 'currency',
                 currency: 'NOK',
@@ -75,7 +78,7 @@ function createChart() {
       plugins: {
         tooltip: {
           callbacks: {
-            label: function(context: { raw: number }) {
+            label: function(context: { raw: number }): string {
               return new Intl.NumberFormat('nb-NO', {
                 style: 'currency',
                 currency: 'NOK',
@@ -87,9 +90,7 @@ function createChart() {
         }
       }
     }
-  };
-
-  chart = new Chart(ctx, config);
+  });
 }
 
 watch(() => props.orders, () => {
