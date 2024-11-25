@@ -20,7 +20,10 @@ interface BookingsState {
   upcomingBookings: number;
   isLoading: boolean;
   error: string | null;
+  lastFetched: number | null;
 }
+
+const CACHE_DURATION = 60000; // 60 seconds
 
 export const useBookingStore = defineStore("bookings", {
   state: (): BookingsState => ({
@@ -30,10 +33,21 @@ export const useBookingStore = defineStore("bookings", {
     upcomingBookings: 0,
     isLoading: false,
     error: null,
+    lastFetched: null,
   }),
 
   actions: {
-    async fetchDashboardStats() {
+    shouldRefetch(): boolean {
+      if (!this.lastFetched) return true;
+      return Date.now() - this.lastFetched > CACHE_DURATION;
+    },
+
+    async fetchDashboardStats(forceRefresh = false) {
+      // Return cached data if it's still fresh
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        return;
+      }
+
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
@@ -49,6 +63,7 @@ export const useBookingStore = defineStore("bookings", {
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
         this.bookings = response.data;
+        this.lastFetched = Date.now();
         this.calculateMetrics();
       } catch (error) {
         if (error instanceof AxiosError) {
@@ -70,7 +85,12 @@ export const useBookingStore = defineStore("bookings", {
       }
     },
 
-    async fetchUpcomingBookings() {
+    async fetchUpcomingBookings(forceRefresh = false) {
+      // Return cached data if it's still fresh
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        return;
+      }
+
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
@@ -86,6 +106,7 @@ export const useBookingStore = defineStore("bookings", {
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
         this.bookings = response.data;
+        this.lastFetched = Date.now();
       } catch (error) {
         if (error instanceof AxiosError) {
           if (error.response?.status === 401) {
@@ -121,8 +142,8 @@ export const useBookingStore = defineStore("bookings", {
 
         await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
         
-        // Refresh the bookings list after successful completion
-        await this.fetchDashboardStats();
+        // Force refresh the bookings list after completion
+        await this.fetchDashboardStats(true);
         return true;
       } catch (error) {
         if (error instanceof AxiosError) {
@@ -156,8 +177,8 @@ export const useBookingStore = defineStore("bookings", {
 
         await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/cancel`);
         
-        // Refresh the bookings list after successful cancellation
-        await this.fetchDashboardStats();
+        // Force refresh the bookings list after cancellation
+        await this.fetchDashboardStats(true);
         return true;
       } catch (error) {
         if (error instanceof AxiosError) {
@@ -191,8 +212,8 @@ export const useBookingStore = defineStore("bookings", {
 
         await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}`, data);
         
-        // Refresh the bookings list after successful update
-        await this.fetchDashboardStats();
+        // Force refresh the bookings list after update
+        await this.fetchDashboardStats(true);
         return true;
       } catch (error) {
         if (error instanceof AxiosError) {
