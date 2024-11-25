@@ -56,6 +56,13 @@ export interface Employee {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    role: string
+  }
 }
 
 export interface Service {

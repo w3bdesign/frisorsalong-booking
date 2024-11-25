@@ -3,6 +3,16 @@
     <div class="max-w-7xl mx-auto">
       <h1 class="text-2xl font-semibold text-gray-900">Bestillinger</h1>
 
+      <!-- Debug Info (temporary) -->
+      <div class="mb-4 p-4 bg-gray-100 rounded">
+        <p>Total Bookings: {{ bookingStore.bookings.length }}</p>
+        <p>Active Bookings: {{ activeBookings.length }}</p>
+        <div v-if="bookingStore.bookings.length > 0">
+          <p>First Booking:</p>
+          <pre>{{ JSON.stringify(bookingStore.bookings[0], null, 2) }}</pre>
+        </div>
+      </div>
+
       <!-- Bookings Table -->
       <div class="mt-8 flex flex-col">
         <div class="-my-2 overflow-x-auto">
@@ -72,7 +82,7 @@
                     </td>
                   </tr>
                   <tr
-                    v-for="booking in bookingStore.bookings"
+                    v-for="booking in activeBookings"
                     :key="booking.id"
                     class="hover:bg-gray-50"
                   >
@@ -89,13 +99,20 @@
                       {{ booking.employeeName }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                      <span :class="getStatusClass(booking.status?.toUpperCase() || '')">
-                        {{ getStatusText(booking.status?.toUpperCase() || '') }}
+                      <span :class="getStatusClass(booking.status)">
+                        {{ getStatusText(booking.status) }}
                       </span>
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
-                        v-if="booking.status === 'CONFIRMED'"
+                        v-if="booking.status === 'pending'"
+                        @click="handleConfirm(booking.id)"
+                        class="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        Bekreft
+                      </button>
+                      <button
+                        v-if="booking.status === 'confirmed'"
                         @click="handleComplete(booking.id)"
                         class="text-green-600 hover:text-green-900 mr-4"
                       >
@@ -134,14 +151,23 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useBookingStore } from "../stores/bookings";
+import { useOrdersStore } from "../stores/orders";
 import BookingEditModal from "../components/BookingEditModal.vue";
 import type { BookingView } from '../types';
 
 const bookingStore = useBookingStore();
+const ordersStore = useOrdersStore();
 const isEditModalOpen = ref(false);
 const selectedBooking = ref<BookingView | null>(null);
+
+// Filter to show active bookings (pending or confirmed)
+const activeBookings = computed(() => {
+  return bookingStore.bookings.filter(booking => 
+    booking.status === 'pending' || booking.status === 'confirmed'
+  );
+});
 
 const formatDateTime = (dateTime: string) => {
   try {
@@ -161,10 +187,10 @@ const formatDateTime = (dateTime: string) => {
 
 const getStatusClass = (status: string) => {
   const classes = {
-    PENDING: "bg-yellow-100 text-yellow-800",
-    CONFIRMED: "bg-green-100 text-green-800",
-    CANCELLED: "bg-red-100 text-red-800",
-    COMPLETED: "bg-blue-100 text-blue-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    confirmed: "bg-green-100 text-green-800",
+    cancelled: "bg-red-100 text-red-800",
+    completed: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
     classes[status as keyof typeof classes] || 'bg-gray-100 text-gray-800'
@@ -173,10 +199,10 @@ const getStatusClass = (status: string) => {
 
 const getStatusText = (status: string) => {
   const statusMap = {
-    PENDING: "Venter",
-    CONFIRMED: "Bekreftet",
-    CANCELLED: "Kansellert",
-    COMPLETED: "Fullført",
+    pending: "Venter",
+    confirmed: "Bekreftet",
+    cancelled: "Kansellert",
+    completed: "Fullført",
   };
   return statusMap[status as keyof typeof statusMap] || "Ukjent";
 };
@@ -200,15 +226,31 @@ const handleSave = async (updatedBooking: Partial<BookingView>) => {
   }
 };
 
+const handleConfirm = async (id: string | number) => {
+  const success = await bookingStore.updateBooking(id, { status: 'confirmed' });
+  if (success) {
+    console.log('Booking confirmed');
+  }
+};
+
 const handleComplete = async (id: string | number) => {
   if (!confirm("Er du sikker på at du vil markere denne bestillingen som fullført?")) {
     return;
   }
 
+  console.log('Starting completion for booking:', id);
   const success = await bookingStore.completeBooking(id);
   if (success) {
-    // The store will automatically refresh the bookings list
-    console.log('Bestilling fullført');
+    console.log('Booking completed successfully');
+    // Force refresh both bookings and orders
+    console.log('Refreshing bookings and orders...');
+    await Promise.all([
+      bookingStore.fetchDashboardStats(true),
+      ordersStore.fetchOrders(true)
+    ]);
+    console.log('Refresh complete');
+  } else {
+    console.error('Failed to complete booking');
   }
 };
 
@@ -219,7 +261,6 @@ const handleCancel = async (id: string | number) => {
 
   const success = await bookingStore.cancelBooking(id);
   if (success) {
-    // The store will automatically refresh the bookings list
     console.log('Bestilling kansellert');
   }
 };

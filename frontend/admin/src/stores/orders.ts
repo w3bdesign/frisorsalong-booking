@@ -47,12 +47,21 @@ export const useOrdersStore = defineStore("orders", {
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
+        console.log('Fetching orders from API...');
         const response = await axios.get<Order[]>(
           `${import.meta.env.VITE_API_URL}/orders`
         );
+        console.log('Orders received:', response.data);
+        
         this.orders = response.data;
         this.lastFetched = Date.now();
+
+        // Log the first order's date if available
+        if (this.orders.length > 0) {
+          console.log('First order completed at:', new Date(this.orders[0].completedAt).toISOString());
+        }
       } catch (error) {
+        console.error('Error details:', error);
         if (error instanceof AxiosError) {
           if (error.response?.status === 401) {
             const authStore = useAuthStore();

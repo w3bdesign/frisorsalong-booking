@@ -1,20 +1,12 @@
 import { defineStore } from "pinia";
 import axios, { AxiosError } from "axios";
 import { useAuthStore } from "./auth";
+import { useOrdersStore } from "./orders";
 import router from "../router";
-
-interface Booking {
-  id: number | string;
-  customerName: string;
-  employeeName: string;
-  serviceName: string;
-  startTime: string;
-  status: "CONFIRMED" | "PENDING" | "CANCELLED" | "COMPLETED";
-  notes?: string;
-}
+import type { BookingView } from "../types";
 
 interface BookingsState {
-  bookings: Booking[];
+  bookings: BookingView[];
   totalBookings: number;
   todayBookings: number;
   upcomingBookings: number;
@@ -62,12 +54,16 @@ export const useBookingStore = defineStore("bookings", {
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        const response = await axios.get<Booking[]>(
+        const response = await axios.get<BookingView[]>(
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
+        
+        // Store the bookings directly
         this.bookings = response.data;
         this.lastFetched = Date.now();
         this.calculateMetrics();
+
+        console.log('Fetched bookings:', this.bookings);
       } catch (error) {
         if (error instanceof AxiosError) {
           if (error.response?.status === 401) {
@@ -108,11 +104,15 @@ export const useBookingStore = defineStore("bookings", {
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        const response = await axios.get<Booking[]>(
+        const response = await axios.get<BookingView[]>(
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
+        
+        // Store the bookings directly
         this.bookings = response.data;
         this.lastFetched = Date.now();
+
+        console.log('Fetched upcoming bookings:', this.bookings);
       } catch (error) {
         if (error instanceof AxiosError) {
           if (error.response?.status === 401) {
@@ -138,6 +138,8 @@ export const useBookingStore = defineStore("bookings", {
     async completeBooking(id: number | string) {
       try {
         const authStore = useAuthStore();
+        const ordersStore = useOrdersStore();
+        
         if (!authStore.isAuthenticated || !authStore.token) {
           router.push({ name: "Login" });
           return false;
@@ -146,12 +148,19 @@ export const useBookingStore = defineStore("bookings", {
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
+        console.log('Completing booking:', id);
+        const response = await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
+        console.log('Complete booking response:', response.data);
         
-        // Force refresh the bookings list after completion
-        await this.fetchDashboardStats(true);
+        // Force refresh both bookings and orders
+        await Promise.all([
+          this.fetchDashboardStats(true),
+          ordersStore.fetchOrders(true)
+        ]);
+        
         return true;
       } catch (error) {
+        console.error('Error details:', error);
         if (error instanceof AxiosError) {
           if (error.response?.status === 401) {
             const authStore = useAuthStore();
@@ -205,7 +214,7 @@ export const useBookingStore = defineStore("bookings", {
       }
     },
 
-    async updateBooking(id: number | string, data: Partial<Booking>) {
+    async updateBooking(id: number | string, data: Partial<BookingView>) {
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {

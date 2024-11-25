@@ -5,7 +5,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In } from "typeorm";
+import { Repository, MoreThan, In, LessThanOrEqual } from "typeorm";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
@@ -152,20 +152,21 @@ export class BookingsService {
 
   async findUpcoming(): Promise<Booking[]> {
     const now = new Date();
-    this.logger.debug(`Finding upcoming bookings after ${now.toISOString()}`);
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
     
     const bookings = await this.bookingRepository.find({
       where: {
-        startTime: MoreThan(now),
+        startTime: MoreThan(startOfDay),
         status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
       },
       relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "ASC" },
     });
 
-    this.logger.debug(`Found ${bookings.length} upcoming bookings`);
+    this.logger.debug(`Found ${bookings.length} bookings`);
     if (bookings.length === 0) {
-      this.logger.debug('No upcoming bookings found. Checking all bookings for debugging...');
+      this.logger.debug('No bookings found. Checking all bookings for debugging...');
       const allBookings = await this.bookingRepository.find({
         relations: ["customer", "employee", "employee.user", "service"],
       });
@@ -181,9 +182,10 @@ export class BookingsService {
 
   async getUpcomingCount(): Promise<number> {
     const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return this.bookingRepository.count({
       where: {
-        startTime: MoreThan(now),
+        startTime: MoreThan(startOfDay),
         status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
       },
     });
