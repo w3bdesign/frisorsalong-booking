@@ -27,12 +27,9 @@ import cacheConfig from './config/cache.config';
       }),
       inject: [ConfigService],
     }),
-    CacheModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        ...configService.get('cache'),
-      }),
-      inject: [ConfigService],
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 300, // 5 minutes
     }),
     AuthModule,
     UsersModule,
