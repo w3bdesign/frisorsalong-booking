@@ -3,6 +3,12 @@
     <div class="max-w-7xl mx-auto">
       <h1 class="text-2xl font-bold mb-4">Fullførte bestillinger</h1>
       
+      <!-- Orders Chart -->
+      <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-4">Omsetning oversikt</h2>
+        <OrdersChart :orders="orders" />
+      </div>
+      
       <div v-if="loading" class="text-center py-4">
         Laster bestillinger...
       </div>
@@ -45,6 +51,7 @@
 import { onMounted } from 'vue'
 import { useOrdersStore } from '../stores/orders'
 import { storeToRefs } from 'pinia'
+import OrdersChart from '../components/OrdersChart.vue'
 
 const ordersStore = useOrdersStore()
 const { orders, loading, error } = storeToRefs(ordersStore)
