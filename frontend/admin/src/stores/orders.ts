@@ -30,6 +30,7 @@ export const useOrdersStore = defineStore("orders", {
     async fetchOrders(forceRefresh = false) {
       // Return cached data if it's still fresh
       if (!forceRefresh && !this.shouldRefetch() && this.orders.length > 0) {
+        this.loading = false; // Ensure loading is false when using cache
         return;
       }
 
@@ -40,10 +41,12 @@ export const useOrdersStore = defineStore("orders", {
           return;
         }
 
+        // Only set loading to true if we're actually fetching
+        this.loading = true;
+        
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        this.loading = true;
         const response = await axios.get<Order[]>(
           `${import.meta.env.VITE_API_URL}/orders`
         );

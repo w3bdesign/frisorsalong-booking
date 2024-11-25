@@ -45,6 +45,7 @@ export const useBookingStore = defineStore("bookings", {
     async fetchDashboardStats(forceRefresh = false) {
       // Return cached data if it's still fresh
       if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false; // Ensure loading is false when using cache
         return;
       }
 
@@ -55,10 +56,12 @@ export const useBookingStore = defineStore("bookings", {
           return;
         }
 
+        // Only set loading to true if we're actually fetching
+        this.isLoading = true;
+
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        this.isLoading = true;
         const response = await axios.get<Booking[]>(
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
@@ -88,6 +91,7 @@ export const useBookingStore = defineStore("bookings", {
     async fetchUpcomingBookings(forceRefresh = false) {
       // Return cached data if it's still fresh
       if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false; // Ensure loading is false when using cache
         return;
       }
 
@@ -98,10 +102,12 @@ export const useBookingStore = defineStore("bookings", {
           return;
         }
 
+        // Only set loading to true if we're actually fetching
+        this.isLoading = true;
+
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        this.isLoading = true;
         const response = await axios.get<Booking[]>(
           `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
         );
