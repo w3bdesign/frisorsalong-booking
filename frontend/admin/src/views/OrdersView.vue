@@ -23,19 +23,6 @@
         />
       </div>
 
-      <!-- Debug Info (temporary) -->
-      <div class="mb-4 p-4 bg-gray-100 rounded">
-        <p>Selected Date: {{ selectedDate }}</p>
-        <p>Total Orders: {{ orders.length }}</p>
-        <p>Filtered Orders: {{ filteredOrders.length }}</p>
-        <div v-if="orders.length > 0">
-          <p>
-            First Order Date:
-            {{ new Date(orders[0].completedAt).toISOString() }}
-          </p>
-        </div>
-      </div>
-
       <!-- Chart -->
       <div class="mb-8 bg-white p-4 rounded-lg shadow">
         <OrdersChart :orders="filteredOrders" />

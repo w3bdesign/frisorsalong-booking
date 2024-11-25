@@ -5,19 +5,17 @@
 
       <!-- Debug Info (temporary) -->
       <div class="mb-4 p-4 bg-gray-100 rounded">
-        <p>Total Bookings: {{ bookingStore.bookings.length }}</p>
-        <p>Active Bookings: {{ activeBookings.length }}</p>
-        <div v-if="bookingStore.bookings.length > 0">
-          <p>First Booking:</p>
-          <pre>{{ JSON.stringify(bookingStore.bookings[0], null, 2) }}</pre>
-        </div>
+        <p>Totalt antall bestillinger: {{ bookingStore.bookings.length }}</p>
+        <p>Aktive bestillinger: {{ activeBookings.length }}</p>
       </div>
 
       <!-- Bookings Table -->
       <div class="mt-8 flex flex-col">
         <div class="-my-2 overflow-x-auto">
           <div class="inline-block min-w-full py-2 align-middle">
-            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <div
+              class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg"
+            >
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-50">
                   <tr>
@@ -86,16 +84,24 @@
                     :key="booking.id"
                     class="hover:bg-gray-50"
                   >
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <td
+                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
+                    >
                       {{ formatDateTime(booking.startTime) }}
                     </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <td
+                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
+                    >
                       {{ booking.customerName }}
                     </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <td
+                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
+                    >
                       {{ booking.serviceName }}
                     </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <td
+                      class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"
+                    >
                       {{ booking.employeeName }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
@@ -103,7 +109,9 @@
                         {{ getStatusText(booking.status) }}
                       </span>
                     </td>
-                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                    <td
+                      class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
+                    >
                       <button
                         v-if="booking.status === 'pending'"
                         @click="handleConfirm(booking.id)"
@@ -155,7 +163,7 @@ import { onMounted, ref, computed } from "vue";
 import { useBookingStore } from "../stores/bookings";
 import { useOrdersStore } from "../stores/orders";
 import BookingEditModal from "../components/BookingEditModal.vue";
-import type { BookingView } from '../types';
+import type { BookingView } from "../types";
 
 const bookingStore = useBookingStore();
 const ordersStore = useOrdersStore();
@@ -164,24 +172,24 @@ const selectedBooking = ref<BookingView | null>(null);
 
 // Filter to show active bookings (pending or confirmed)
 const activeBookings = computed(() => {
-  return bookingStore.bookings.filter(booking => 
-    booking.status === 'pending' || booking.status === 'confirmed'
+  return bookingStore.bookings.filter(
+    (booking) => booking.status === "pending" || booking.status === "confirmed"
   );
 });
 
 const formatDateTime = (dateTime: string) => {
   try {
     const date = new Date(dateTime);
-    return new Intl.DateTimeFormat('nb-NO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Intl.DateTimeFormat("nb-NO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     }).format(date);
   } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Dato ikke tilgjengelig';
+    console.error("Error formatting date:", error);
+    return "Dato ikke tilgjengelig";
   }
 };
 
@@ -193,7 +201,7 @@ const getStatusClass = (status: string) => {
     completed: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-    classes[status as keyof typeof classes] || 'bg-gray-100 text-gray-800'
+    classes[status as keyof typeof classes] || "bg-gray-100 text-gray-800"
   }`;
 };
 
@@ -220,37 +228,44 @@ const closeEditModal = () => {
 const handleSave = async (updatedBooking: Partial<BookingView>) => {
   if (!selectedBooking.value?.id) return;
 
-  const success = await bookingStore.updateBooking(selectedBooking.value.id, updatedBooking);
+  const success = await bookingStore.updateBooking(
+    selectedBooking.value.id,
+    updatedBooking
+  );
   if (success) {
     closeEditModal();
   }
 };
 
 const handleConfirm = async (id: string | number) => {
-  const success = await bookingStore.updateBooking(id, { status: 'confirmed' });
+  const success = await bookingStore.updateBooking(id, { status: "confirmed" });
   if (success) {
-    console.log('Booking confirmed');
+    console.log("Booking confirmed");
   }
 };
 
 const handleComplete = async (id: string | number) => {
-  if (!confirm("Er du sikker på at du vil markere denne bestillingen som fullført?")) {
+  if (
+    !confirm(
+      "Er du sikker på at du vil markere denne bestillingen som fullført?"
+    )
+  ) {
     return;
   }
 
-  console.log('Starting completion for booking:', id);
+  console.log("Starting completion for booking:", id);
   const success = await bookingStore.completeBooking(id);
   if (success) {
-    console.log('Booking completed successfully');
+    console.log("Booking completed successfully");
     // Force refresh both bookings and orders
-    console.log('Refreshing bookings and orders...');
+    console.log("Refreshing bookings and orders...");
     await Promise.all([
       bookingStore.fetchDashboardStats(true),
-      ordersStore.fetchOrders(true)
+      ordersStore.fetchOrders(true),
     ]);
-    console.log('Refresh complete');
+    console.log("Refresh complete");
   } else {
-    console.error('Failed to complete booking');
+    console.error("Failed to complete booking");
   }
 };
 
@@ -261,7 +276,7 @@ const handleCancel = async (id: string | number) => {
 
   const success = await bookingStore.cancelBooking(id);
   if (success) {
-    console.log('Bestilling kansellert');
+    console.log("Bestilling kansellert");
   }
 };
 
