@@ -3,7 +3,6 @@
     <div class="max-w-7xl mx-auto">
       <h1 class="text-2xl font-semibold text-gray-900">Bestillinger</h1>
 
-      <!-- Debug Info (temporary) -->
       <div class="mb-4 p-4 bg-gray-100 rounded">
         <p>Totalt antall bestillinger: {{ bookingStore.bookings.length }}</p>
         <p>Aktive bestillinger: {{ activeBookings.length }}</p>
