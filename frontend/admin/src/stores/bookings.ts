@@ -9,7 +9,7 @@ interface Booking {
   employeeName: string;
   serviceName: string;
   startTime: string;
-  status: "CONFIRMED" | "PENDING" | "CANCELLED";
+  status: "CONFIRMED" | "PENDING" | "CANCELLED" | "COMPLETED";
   notes?: string;
 }
 
@@ -105,6 +105,41 @@ export const useBookingStore = defineStore("bookings", {
         console.error("Error fetching upcoming bookings:", error);
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    async completeBooking(id: number | string) {
+      try {
+        const authStore = useAuthStore();
+        if (!authStore.isAuthenticated || !authStore.token) {
+          router.push({ name: "Login" });
+          return false;
+        }
+
+        // Ensure the Authorization header is set
+        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
+
+        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
+        
+        // Refresh the bookings list after successful completion
+        await this.fetchDashboardStats();
+        return true;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          if (error.response?.status === 401) {
+            const authStore = useAuthStore();
+            authStore.logout();
+            router.push({ name: "Login" });
+            this.error = "Økt utløpt. Vennligst logg inn igjen.";
+          } else {
+            this.error = error.response?.data?.message || "Kunne ikke fullføre bestilling";
+          }
+        } else {
+          this.error =
+            error instanceof Error ? error.message : "Kunne ikke fullføre bestilling";
+        }
+        console.error("Error completing booking:", error);
+        return false;
       }
     },
 

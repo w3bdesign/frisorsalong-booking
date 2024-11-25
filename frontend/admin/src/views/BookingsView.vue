@@ -95,6 +95,13 @@
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
+                        v-if="booking.status === 'CONFIRMED'"
+                        @click="handleComplete(booking.id)"
+                        class="text-green-600 hover:text-green-900 mr-4"
+                      >
+                        Fullfør
+                      </button>
+                      <button
                         @click="openEditModal(booking)"
                         class="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
@@ -157,6 +164,7 @@ const getStatusClass = (status: string) => {
     PENDING: "bg-yellow-100 text-yellow-800",
     CONFIRMED: "bg-green-100 text-green-800",
     CANCELLED: "bg-red-100 text-red-800",
+    COMPLETED: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
     classes[status as keyof typeof classes] || 'bg-gray-100 text-gray-800'
@@ -168,6 +176,7 @@ const getStatusText = (status: string) => {
     PENDING: "Venter",
     CONFIRMED: "Bekreftet",
     CANCELLED: "Kansellert",
+    COMPLETED: "Fullført",
   };
   return statusMap[status as keyof typeof statusMap] || "Ukjent";
 };
@@ -188,6 +197,18 @@ const handleSave = async (updatedBooking: Partial<BookingView>) => {
   const success = await bookingStore.updateBooking(selectedBooking.value.id, updatedBooking);
   if (success) {
     closeEditModal();
+  }
+};
+
+const handleComplete = async (id: string | number) => {
+  if (!confirm("Er du sikker på at du vil markere denne bestillingen som fullført?")) {
+    return;
+  }
+
+  const success = await bookingStore.completeBooking(id);
+  if (success) {
+    // The store will automatically refresh the bookings list
+    console.log('Bestilling fullført');
   }
 };
 
