@@ -7,10 +7,6 @@
   - Develop the appointment booking interface.
   - Implement logic to prevent double-booking conflicts.
 
-- Service Selection
-
-  - Create a service catalog for customers to view and select services.
-
 - Booking Management
 
   - Allow customers to view, modify, or cancel their bookings.
@@ -41,7 +37,7 @@
 - Service Management
   - Develop functionality to add or update services, including pricing and duration.
 
-## Non-Functional Requirements (can be implemented in the future)
+## Non-Functional Requirements (can be implemented in the future, not important)
 
 - Scalability
 

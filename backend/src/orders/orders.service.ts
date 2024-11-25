@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
@@ -10,6 +10,7 @@ export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    @Inject(forwardRef(() => BookingsService))
     private readonly bookingsService: BookingsService,
   ) {}
 
@@ -33,20 +34,26 @@ export class OrdersService {
       throw new BadRequestException(`Order already exists for booking ${bookingId}`);
     }
 
+    // Create new order with current timestamp
+    const now = new Date();
     const order = this.orderRepository.create({
       booking,
       totalAmount: booking.totalPrice,
-      completedAt: new Date(),
+      completedAt: now,
+      notes: `Order created for booking ${bookingId}`,
     });
 
-    await this.orderRepository.save(order);
+    // Save the order first
+    const savedOrder = await this.orderRepository.save(order);
 
     // Update booking status to completed
     await this.bookingsService.update(bookingId, {
-      status: BookingStatus.COMPLETED,
+      status: BookingStatus.COMPLETED, // Using the enum value directly
+      notes: `Completed at ${now.toISOString()}`
     });
 
-    return this.findOne(order.id); // Return with relations
+    // Return the order with relations
+    return this.findOne(savedOrder.id);
   }
 
   async findAll(): Promise<Order[]> {

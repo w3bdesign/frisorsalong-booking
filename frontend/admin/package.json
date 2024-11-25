@@ -14,14 +14,16 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@types/chart.js": "^2.9.41",
+    "autoprefixer": "^10.4.20",
     "axios": "^1.7.7",
+    "chart.js": "^4.4.6",
     "element-plus": "^2.8.8",
     "pinia": "^2.2.6",
-    "vue": "^3.5.13",
-    "vue-router": "^4.4.5",
-    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15"
+    "tailwindcss": "^3.4.15",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.4",

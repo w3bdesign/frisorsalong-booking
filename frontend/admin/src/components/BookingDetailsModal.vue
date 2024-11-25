@@ -86,9 +86,11 @@
 </template>
 
 <script setup lang="ts">
+import type { BookingView } from '../types';
+
 defineProps<{
   isOpen: boolean;
-  booking: any | null;
+  booking: BookingView | null;
 }>();
 
 const emit = defineEmits<{
@@ -103,6 +105,8 @@ const getStatusColor = (status: string | undefined): string => {
       return "bg-yellow-100 text-yellow-800";
     case "CANCELLED":
       return "bg-red-100 text-red-800";
+    case "COMPLETED":
+      return "bg-blue-100 text-blue-800";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -116,6 +120,8 @@ const getStatusText = (status: string | undefined): string => {
       return "Venter";
     case "CANCELLED":
       return "Kansellert";
+    case "COMPLETED":
+      return "Fullført";
     default:
       return "Ukjent";
   }

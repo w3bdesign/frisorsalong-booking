@@ -12,7 +12,7 @@ export interface Booking {
   id: string
   startTime: string
   endTime: string
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED'
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED'
   notes: string
   totalPrice: string
   reminderSent: boolean
@@ -32,7 +32,7 @@ export interface BookingView {
   employeeName: string;
   serviceName: string;
   startTime: string;
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED';
   notes?: string;
 }
 
@@ -56,6 +56,13 @@ export interface Employee {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    role: string
+  }
 }
 
 export interface Service {

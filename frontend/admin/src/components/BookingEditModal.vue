@@ -32,6 +32,7 @@
                     <option value="PENDING">Venter</option>
                     <option value="CONFIRMED">Bekreftet</option>
                     <option value="CANCELLED">Kansellert</option>
+                    <option value="COMPLETED">Fullført</option>
                   </select>
                 </div>
 
@@ -83,24 +84,39 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import type { BookingView } from '../types';
 
-const props = defineProps<{
-  isOpen: boolean;
-  booking: any | null;
-}>();
+const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    required: true
+  },
+  booking: {
+    type: Object as () => BookingView | null,
+    required: true
+  }
+});
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'save', booking: any): void;
+  (e: 'save', booking: BookingView): void;
 }>();
 
-const editedBooking = ref<any>({});
+const editedBooking = ref<BookingView>({
+  id: '',
+  customerName: '',
+  employeeName: '',
+  serviceName: '',
+  startTime: '',
+  status: 'PENDING',
+  notes: ''
+});
 
 watch(() => props.booking, (newBooking) => {
   if (newBooking) {
     editedBooking.value = { 
       ...newBooking,
-      status: newBooking.status.toUpperCase()
+      status: newBooking.status.toUpperCase() as BookingView['status']
     };
   }
 }, { immediate: true });

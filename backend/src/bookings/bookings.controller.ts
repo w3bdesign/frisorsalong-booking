@@ -9,6 +9,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
+import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { BookingResponseDto } from "./dto/booking-response.dto";
@@ -19,7 +20,10 @@ import { UserRole } from "../users/entities/user.entity";
 
 @Controller("bookings")
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly ordersService: OrdersService,
+  ) {}
 
   @Get("upcoming/count")
   async getUpcomingCount() {
@@ -87,5 +91,14 @@ export class BookingsController {
     const reason = "Cancelled by administrator";
     const booking = await this.bookingsService.cancel(id, reason);
     return BookingResponseDto.fromEntity(booking);
+  }
+
+  @Put(":id/complete")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async complete(@Param("id") id: string) {
+    // Create an order for the booking
+    const order = await this.ordersService.createFromBooking(id);
+    return order;
   }
 }
