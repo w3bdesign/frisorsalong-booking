@@ -64,6 +64,7 @@ describe('OrdersService', () => {
         booking: mockBooking,
         totalAmount: 100,
         completedAt: expect.any(Date),
+        notes: `Order created for booking ${bookingId}`,
       };
 
       // Mock the initial findOne to return null (no existing order)
@@ -90,10 +91,12 @@ describe('OrdersService', () => {
         booking: mockBooking,
         totalAmount: mockBooking.totalPrice,
         completedAt: expect.any(Date),
+        notes: `Order created for booking ${bookingId}`,
       });
       expect(mockOrderRepository.save).toHaveBeenCalledWith(mockOrder);
       expect(mockBookingsService.update).toHaveBeenCalledWith(bookingId, {
         status: BookingStatus.COMPLETED,
+        notes: expect.stringContaining('Completed at'),
       });
       expect(mockOrderRepository.findOne).toHaveBeenNthCalledWith(2, {
         where: { id: mockOrder.id },

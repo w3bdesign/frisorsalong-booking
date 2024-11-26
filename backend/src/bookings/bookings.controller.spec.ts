@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { BookingsController } from "./bookings.controller";
 import { BookingsService } from "./bookings.service";
+import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { BookingStatus } from "./entities/booking.entity";
@@ -9,6 +10,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 describe("BookingsController", () => {
   let controller: BookingsController;
   let service: BookingsService;
+  let ordersService: OrdersService;
 
   const mockBookingsService = {
     create: jest.fn(),
@@ -18,6 +20,11 @@ describe("BookingsController", () => {
     findUpcoming: jest.fn(),
     update: jest.fn(),
     cancel: jest.fn(),
+    getUpcomingCount: jest.fn(),
+  };
+
+  const mockOrdersService = {
+    createFromBooking: jest.fn(),
   };
 
   const mockCustomer = {
@@ -47,11 +54,16 @@ describe("BookingsController", () => {
           provide: BookingsService,
           useValue: mockBookingsService,
         },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
       ],
     }).compile();
 
     controller = module.get<BookingsController>(BookingsController);
     service = module.get<BookingsService>(BookingsService);
+    ordersService = module.get<OrdersService>(OrdersService);
   });
 
   it("should be defined", () => {
@@ -217,6 +229,40 @@ describe("BookingsController", () => {
     });
   });
 
+  describe("complete", () => {
+    const mockOrder = {
+      id: "order-id",
+      booking: {
+        id: "booking-id",
+        customer: mockCustomer,
+        employee: mockEmployee,
+        service: mockService,
+      },
+      totalAmount: 100,
+      completedAt: new Date(),
+    };
+
+    it("should complete a booking and create an order", async () => {
+      mockOrdersService.createFromBooking.mockResolvedValue(mockOrder);
+
+      const result = await controller.complete("booking-id");
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockOrder.id);
+      expect(ordersService.createFromBooking).toHaveBeenCalledWith("booking-id");
+    });
+
+    it("should throw NotFoundException when booking is not found", async () => {
+      mockOrdersService.createFromBooking.mockRejectedValue(
+        new NotFoundException("Booking not found"),
+      );
+
+      await expect(controller.complete("non-existent-id")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
   describe("findByCustomer", () => {
     const mockBookings = [
       {
@@ -325,6 +371,19 @@ describe("BookingsController", () => {
         expect(booking.serviceName).toBe(mockService.name);
       });
       expect(service.findUpcoming).toHaveBeenCalled();
+    });
+  });
+
+  describe("getUpcomingCount", () => {
+    it("should return the count of upcoming bookings", async () => {
+      const mockCount = 5;
+      mockBookingsService.getUpcomingCount.mockResolvedValue(mockCount);
+
+      const result = await controller.getUpcomingCount();
+
+      expect(result).toBeDefined();
+      expect(result.count).toBe(mockCount);
+      expect(service.getUpcomingCount).toHaveBeenCalled();
     });
   });
 });

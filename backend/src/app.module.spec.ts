@@ -104,6 +104,9 @@ jest.mock('./orders/entities/order.entity', () => ({
 // Mock CacheModule
 jest.mock('@nestjs/cache-manager', () => ({
   CacheModule: {
+    register: jest.fn().mockReturnValue({
+      module: class MockCacheModule {},
+    }),
     registerAsync: jest.fn().mockReturnValue({
       module: class MockCacheModule {},
     }),
@@ -142,5 +145,12 @@ describe('AppModule', () => {
     expect(cacheConfig.ttl).toBe(300);
     expect(cacheConfig.host).toBe('localhost');
     expect(cacheConfig.port).toBe(6379);
+  });
+
+  it('should configure CacheModule with register method', () => {
+    expect(CacheModule.register).toHaveBeenCalledWith({
+      isGlobal: true,
+      ttl: 300,
+    });
   });
 });

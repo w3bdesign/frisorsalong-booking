@@ -2,8 +2,6 @@
 
 A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
 
-## This is still Work In Progress (WIP)!
-
 ## Test Coverage
 
 | Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
@@ -25,13 +23,28 @@ A full-stack booking system for hair salons built with NestJS (backend) and Vue 
 - 🔐 Secure JWT-based Authentication & Authorization
 - 👥 Role-based User Management (Admin, Employee, Customer)
 - 📅 Advanced Booking System
+  - ⏰ Smart scheduling with service duration-based time slots
+  - 🕒 Automatic end time calculation based on service duration
+  - ✅ Real-time employee availability checking
+  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
+  - ❌ Booking cancellation with reason tracking
+  - 📈 Upcoming bookings dashboard
 - 💇‍♀️ Service Management
+  - ⏱️ Service duration and pricing
+  - 🔄 Employee-service relationship mapping
+  - 📋 Service availability per employee
 - 👨‍💼 Employee Management & Scheduling
+  - 📆 Advanced availability tracking
+  - 🎯 Service specialization assignment
+  - 📊 Workload management
 - 🗄️ PostgreSQL Database with TypeORM
 - 🚀 Redis Caching for Performance
 - 📚 Swagger API Documentation
 - 🎨 Modern Admin Dashboard with Vue 3
 - 📱 Responsive Design with Tailwind CSS
+- 🧪 Comprehensive Test Coverage
+  - ✅ Unit tests with Jest and Vitest
+  - 📊 Continuous coverage reporting
 
 ## System Architecture
 
@@ -250,14 +263,14 @@ CACHE_TTL=300
 
 ## Security
 
-- All endpoints are protected with JWT authentication
-- Role-based access control (RBAC) implementation
-- Input validation using class-validator
-- Rate limiting for API endpoints
-- CORS configuration
-- Secure password hashing with bcrypt
-- Environment variable protection
-- SQL injection prevention through TypeORM
+- 🔒 All endpoints are protected with JWT authentication
+- 👮 Role-based access control (RBAC) implementation
+- ✅ Input validation using class-validator
+- 🚦 Rate limiting for API endpoints
+- 🌐 CORS configuration
+- 🔑 Secure password hashing with bcrypt
+- 🔐 Environment variable protection
+- 🛡️ SQL injection prevention through TypeORM
 
 ## Contributing
 
