@@ -10,6 +10,11 @@ interface EmployeeState {
   error: string | null
 }
 
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+
 export const useEmployeesStore = defineStore('employees', {
   state: (): EmployeeState => ({
     employees: [],
@@ -58,22 +63,31 @@ export const useEmployeesStore = defineStore('employees', {
       }
     },
 
-    async createEmployee(employeeData: Partial<Employee>) {
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
       this.loading = true
       this.error = null
       try {
         const authStore = useAuthStore();
         if (!authStore.isAuthenticated || !authStore.token) {
           router.push({ name: "Login" });
-          return;
+          throw new Error("Ikke autentisert");
         }
 
         // Ensure the Authorization header is set
         axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
 
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/employees`, employeeData)
-        this.employees.push(response.data)
-        return response.data
+        const response = await axios.post<CreateEmployeeResponse>(`${import.meta.env.VITE_API_URL}/employees`, employeeData)
+        console.log('Create employee response:', {
+          ...response.data,
+          temporaryPassword: response.data.temporaryPassword ? '[HIDDEN]' : undefined
+        }); // Debug log without exposing password
+        
+        // Add the employee to the store's state
+        if (response.data.employee) {
+          this.employees.push(response.data.employee);
+        }
+        
+        return response.data;
       } catch (error) {
         console.error('Error details:', error);
         if (error instanceof AxiosError) {

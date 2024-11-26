@@ -18,6 +18,11 @@ interface CreateEmployeeDto {
 
 interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+
 @Injectable()
 export class EmployeesService {
   constructor(
@@ -29,15 +34,39 @@ export class EmployeesService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<Employee> {
+  private generateTemporaryPassword(): string {
+    // Generate a random password with at least one uppercase, one lowercase, one number
+    const length = 10;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let password = "";
+    
+    // Ensure at least one uppercase
+    password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+    // Ensure at least one lowercase
+    password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
+    // Ensure at least one number
+    password += "0123456789"[Math.floor(Math.random() * 10)];
+    
+    // Fill the rest with random characters
+    for (let i = password.length; i < length; i++) {
+      password += charset[Math.floor(Math.random() * charset.length)];
+    }
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  }
+
+  async create(createEmployeeDto: CreateEmployeeDto): Promise<CreateEmployeeResponse> {
     // Check if employee with email already exists
     const existingUser = await this.userRepository.findOne({
       where: { email: createEmployeeDto.email }
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('En bruker med denne e-postadressen eksisterer allerede');
     }
+
+    const temporaryPassword = this.generateTemporaryPassword();
 
     // Create new user
     const user = this.userRepository.create({
@@ -45,8 +74,7 @@ export class EmployeesService {
       lastName: createEmployeeDto.lastName,
       email: createEmployeeDto.email,
       role: UserRole.EMPLOYEE,
-      // Generate a random temporary password that will be changed on first login
-      password: Math.random().toString(36).slice(-8)
+      password: temporaryPassword
     });
 
     await this.userRepository.save(user);
@@ -59,7 +87,12 @@ export class EmployeesService {
       availability: createEmployeeDto.availability ?? {}
     });
 
-    return this.employeeRepository.save(employee);
+    const savedEmployee = await this.employeeRepository.save(employee);
+
+    return {
+      employee: savedEmployee,
+      temporaryPassword
+    };
   }
 
   async findOne(id: string): Promise<Employee> {
@@ -69,7 +102,7 @@ export class EmployeesService {
     });
 
     if (!employee) {
-      throw new NotFoundException(`Employee with ID ${id} not found`);
+      throw new NotFoundException(`Fant ikke ansatt med ID ${id}`);
     }
 
     return employee;
@@ -122,7 +155,7 @@ export class EmployeesService {
       });
 
       if (existingUser && existingUser.id !== employee.user.id) {
-        throw new ConflictException('User with this email already exists');
+        throw new ConflictException('En bruker med denne e-postadressen eksisterer allerede');
       }
     }
 
@@ -170,7 +203,7 @@ export class EmployeesService {
     });
 
     if (futureBookings > 0) {
-      throw new ConflictException('Cannot delete employee with future bookings');
+      throw new ConflictException('Kan ikke slette ansatt med fremtidige bestillinger');
     }
 
     // Instead of deleting, mark as inactive and archive

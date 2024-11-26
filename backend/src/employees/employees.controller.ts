@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
 
 interface CreateEmployeeDto {
   firstName: string;
@@ -18,6 +19,11 @@ interface CreateEmployeeDto {
 
 interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+
 @Controller('employees')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -25,9 +31,14 @@ export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
   @Post()
-  async create(@Body() createEmployeeDto: CreateEmployeeDto) {
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<CreateEmployeeResponse> {
     try {
-      return await this.employeesService.create(createEmployeeDto);
+      const result = await this.employeesService.create(createEmployeeDto);
+      console.log('Create employee result:', {
+        ...result,
+        temporaryPassword: result.temporaryPassword ? '[HIDDEN]' : undefined
+      }); // Debug log without exposing password
+      return result;
     } catch (error) {
       if (error.message === 'User with this email already exists') {
         error.message = 'En bruker med denne e-postadressen eksisterer allerede';
