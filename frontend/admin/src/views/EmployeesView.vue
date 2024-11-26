@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
+  <div class="p-6">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold">Ansatte</h1>
       <button
@@ -171,6 +171,31 @@
         </div>
       </div>
     </div>
+
+    <!-- Password Modal -->
+    <div v-if="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Midlertidig passord</h2>
+        <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
+          <p class="text-yellow-800 mb-2">
+            Dette er det midlertidige passordet for den nye ansatte. 
+            Vennligst del dette med den ansatte på en sikker måte.
+            Passordet vil kun vises denne ene gangen.
+          </p>
+          <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center">
+            {{ temporaryPassword }}
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button
+            @click="closePasswordModal"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Lukk
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -184,8 +209,10 @@ const employeesStore = useEmployeesStore()
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
+const showPasswordModal = ref(false)
 const selectedEmployee = ref<Employee | null>(null)
 const specializationsInput = ref('')
+const temporaryPassword = ref('')
 
 const employeeForm = ref({
   firstName: '',
@@ -239,6 +266,11 @@ const closeModal = () => {
   specializationsInput.value = ''
 }
 
+const closePasswordModal = () => {
+  showPasswordModal.value = false
+  temporaryPassword.value = ''
+}
+
 const handleSubmit = async () => {
   const employeeData = {
     ...employeeForm.value,
@@ -248,10 +280,15 @@ const handleSubmit = async () => {
   try {
     if (showEditModal.value && selectedEmployee.value) {
       await employeesStore.updateEmployee(selectedEmployee.value.id, employeeData)
+      closeModal()
     } else {
-      await employeesStore.createEmployee(employeeData)
+      const result = await employeesStore.createEmployee(employeeData)
+      if (result.temporaryPassword) {
+        temporaryPassword.value = result.temporaryPassword
+        closeModal()
+        showPasswordModal.value = true
+      }
     }
-    closeModal()
   } catch (error) {
     console.error('Kunne ikke lagre ansatt:', error)
   }
