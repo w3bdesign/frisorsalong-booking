@@ -95,6 +95,18 @@ export class EmployeesService {
     };
   }
 
+  async resetPassword(id: string): Promise<string> {
+    const employee = await this.findOne(id);
+    
+    const temporaryPassword = this.generateTemporaryPassword();
+    
+    // Update user's password
+    employee.user.password = temporaryPassword;
+    await this.userRepository.save(employee.user);
+    
+    return temporaryPassword;
+  }
+
   async findOne(id: string): Promise<Employee> {
     const employee = await this.employeeRepository.findOne({
       where: { id },

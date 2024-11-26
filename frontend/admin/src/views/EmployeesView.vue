@@ -66,12 +66,18 @@
                 {{ employee.isActive ? 'Aktiv' : 'Inaktiv' }}
               </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
               <button
                 @click="editEmployee(employee)"
-                class="text-indigo-600 hover:text-indigo-900 mr-4"
+                class="text-indigo-600 hover:text-indigo-900"
               >
                 Rediger
+              </button>
+              <button
+                @click="resetEmployeePassword(employee)"
+                class="text-blue-600 hover:text-blue-900"
+              >
+                Tilbakestill passord
               </button>
               <button
                 @click="confirmDelete(employee)"
@@ -194,8 +200,8 @@
       </div>
     </div>
 
-    <!-- Success Modal with Password -->
-    <div v-if="showSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <!-- Password Modal -->
+    <div v-if="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
         <div class="flex items-center mb-4">
           <div class="bg-green-100 rounded-full p-2 mr-3">
@@ -203,23 +209,41 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h2 class="text-xl font-bold">Ansatt opprettet</h2>
+          <h2 class="text-xl font-bold">{{ isPasswordReset ? 'Nytt passord generert' : 'Ansatt opprettet' }}</h2>
         </div>
         
         <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
           <p class="text-yellow-800 mb-2">
-            Dette er det midlertidige passordet for den nye ansatte. 
+            {{ isPasswordReset 
+              ? 'Dette er det nye midlertidige passordet for den ansatte.'
+              : 'Dette er det midlertidige passordet for den nye ansatte.' 
+            }}
             Vennligst del dette med den ansatte på en sikker måte.
             Passordet vil kun vises denne ene gangen.
           </p>
-          <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center select-all">
-            {{ temporaryPassword }}
+          <div class="relative">
+            <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center select-all">
+              {{ temporaryPassword }}
+            </div>
+            <button
+              @click="copyPassword"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              title="Kopier passord"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+              </svg>
+            </button>
           </div>
+          <p v-if="showCopiedMessage" class="text-green-600 text-sm mt-2 text-center">
+            Passord kopiert!
+          </p>
         </div>
 
         <div class="mt-6 flex justify-end">
           <button
-            @click="closeSuccessModal"
+            @click="closePasswordModal"
             class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             OK
@@ -240,13 +264,15 @@ const employeesStore = useEmployeesStore()
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
-const showSuccessModal = ref(false)
+const showPasswordModal = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const selectedEmployee = ref<Employee | null>(null)
 const specializationsInput = ref('')
 const temporaryPassword = ref('')
 const isSubmitting = ref(false)
+const isPasswordReset = ref(false)
+const showCopiedMessage = ref(false)
 
 const employeeForm = ref({
   firstName: '',
@@ -281,6 +307,33 @@ const editEmployee = (employee: Employee) => {
   showEditModal.value = true
 }
 
+const resetEmployeePassword = async (employee: Employee) => {
+  try {
+    const result = await employeesStore.resetPassword(employee.id)
+    temporaryPassword.value = result.temporaryPassword
+    isPasswordReset.value = true
+    showPasswordModal.value = true
+  } catch (error) {
+    if (error instanceof Error) {
+      showToastMessage(error.message)
+    } else {
+      showToastMessage('Kunne ikke tilbakestille passord')
+    }
+  }
+}
+
+const copyPassword = async () => {
+  try {
+    await navigator.clipboard.writeText(temporaryPassword.value)
+    showCopiedMessage.value = true
+    setTimeout(() => {
+      showCopiedMessage.value = false
+    }, 2000)
+  } catch (err) {
+    showToastMessage('Kunne ikke kopiere passord')
+  }
+}
+
 const confirmDelete = (employee: Employee) => {
   selectedEmployee.value = employee
   showDeleteModal.value = true
@@ -311,10 +364,11 @@ const closeModal = () => {
   }
 }
 
-const closeSuccessModal = () => {
-  showSuccessModal.value = false
+const closePasswordModal = () => {
+  showPasswordModal.value = false
   temporaryPassword.value = ''
-  showToastMessage('Ansatt opprettet')
+  isPasswordReset.value = false
+  showToastMessage(isPasswordReset.value ? 'Passord tilbakestilt' : 'Ansatt opprettet')
 }
 
 const handleSubmit = async () => {
@@ -336,7 +390,8 @@ const handleSubmit = async () => {
       const result = await employeesStore.createEmployee(employeeData)
       if (result.temporaryPassword) {
         temporaryPassword.value = result.temporaryPassword
-        showSuccessModal.value = true
+        isPasswordReset.value = false
+        showPasswordModal.value = true
       }
     }
   } catch (error) {

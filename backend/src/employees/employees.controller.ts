@@ -24,6 +24,10 @@ interface CreateEmployeeResponse {
   temporaryPassword: string;
 }
 
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+
 @Controller('employees')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -42,6 +46,19 @@ export class EmployeesController {
     } catch (error) {
       if (error.message === 'User with this email already exists') {
         error.message = 'En bruker med denne e-postadressen eksisterer allerede';
+      }
+      throw error;
+    }
+  }
+
+  @Post(':id/reset-password')
+  async resetPassword(@Param('id') id: string): Promise<ResetPasswordResponse> {
+    try {
+      const result = await this.employeesService.resetPassword(id);
+      return { temporaryPassword: result };
+    } catch (error) {
+      if (error.message.includes('not found')) {
+        error.message = `Fant ikke ansatt med ID ${id}`;
       }
       throw error;
     }
