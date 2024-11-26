@@ -24,9 +24,6 @@ interface QueueResponse {
   }>
 }
 
-// Inject for easier testing
-const getCurrentTime = () => Date.now()
-
 export const useDisplayStore = defineStore('display', () => {
   const employees = ref<Employee[]>([
     {
@@ -44,18 +41,9 @@ export const useDisplayStore = defineStore('display', () => {
   ])
 
   const waitingSlots = ref<WaitingSlot[]>([])
-  const lastUpdate = ref(getCurrentTime())
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const lastFetched = ref<number | null>(null)
   const waitingCount = ref(0)
-
-  const CACHE_DURATION = 30000 // 30 seconds
-
-  const shouldRefetch = computed(() => {
-    if (!lastFetched.value) return true
-    return getCurrentTime() - lastFetched.value > CACHE_DURATION
-  })
 
   const activeEmployees = computed(() => {
     return employees.value.filter((emp) => emp.isActive)
@@ -64,10 +52,6 @@ export const useDisplayStore = defineStore('display', () => {
   const hasAvailableSlot = computed(() => {
     return waitingCount.value < activeEmployees.value.length
   })
-
-  const updateLastUpdate = () => {
-    lastUpdate.value = getCurrentTime()
-  }
 
   const generateWaitingSlots = (
     count: number,
@@ -82,10 +66,6 @@ export const useDisplayStore = defineStore('display', () => {
   }
 
   const fetchWaitingSlots = async (forceRefresh = false) => {
-    if (!forceRefresh && !shouldRefetch.value && waitingSlots.value.length > 0) {
-      return
-    }
-
     try {
       isLoading.value = true
       error.value = null
@@ -96,8 +76,6 @@ export const useDisplayStore = defineStore('display', () => {
 
       waitingCount.value = response.data.count
       waitingSlots.value = generateWaitingSlots(response.data.count, response.data.customers)
-      lastFetched.value = getCurrentTime()
-      updateLastUpdate()
     } catch (err) {
       error.value = 'Kunne ikke hente venteliste'
       waitingSlots.value = []
@@ -110,14 +88,11 @@ export const useDisplayStore = defineStore('display', () => {
   return {
     employees,
     waitingSlots,
-    lastUpdate,
     activeEmployees,
     hasAvailableSlot,
     isLoading,
     error,
     waitingCount,
-    shouldRefetch,
     fetchWaitingSlots,
-    updateLastUpdate,
   }
 })
