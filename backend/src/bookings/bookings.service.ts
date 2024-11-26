@@ -5,10 +5,11 @@ import {
   Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In, LessThanOrEqual } from "typeorm";
+import { Repository, MoreThan, In, LessThanOrEqual, Between } from "typeorm";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { UpcomingCountResponseDto, UpcomingCustomerDto } from "./dto/upcoming-count-response.dto";
 import { UsersService } from "../users/users.service";
 import { EmployeesService } from "../employees/employees.service";
 import { ServicesService } from "../services/services.service";
@@ -180,14 +181,36 @@ export class BookingsService {
     return bookings;
   }
 
-  async getUpcomingCount(): Promise<number> {
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return this.bookingRepository.count({
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const bookings = await this.bookingRepository.find({
       where: {
-        startTime: MoreThan(startOfDay),
+        startTime: Between(startOfDay, endOfDay),
         status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
       },
+      relations: ["customer", "service"],
+      order: { startTime: "ASC" },
     });
+
+    const customers: UpcomingCustomerDto[] = bookings.map((booking, index) => {
+      // Calculate waiting time based on previous bookings' service durations
+      const waitingTime = bookings
+        .slice(0, index)
+        .reduce((total, prev) => total + prev.service.duration, 0);
+
+      return {
+        firstName: booking.customer.firstName,
+        estimatedWaitingTime: waitingTime,
+      };
+    });
+
+    return {
+      count: bookings.length,
+      customers,
+    };
   }
 }

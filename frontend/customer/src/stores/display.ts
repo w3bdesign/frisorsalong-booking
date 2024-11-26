@@ -1,11 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
 
 export interface Employee {
   id: string
   name: string
   color: string
   isActive: boolean
+}
+
+export interface Customer {
+  firstName: string
+  estimatedWaitingTime: number
 }
 
 export interface WaitingSlot {
@@ -15,7 +21,13 @@ export interface WaitingSlot {
   assignedTo?: string
 }
 
+interface QueueResponse {
+  count: number
+  customers: Customer[]
+}
+
 export const useDisplayStore = defineStore('display', () => {
+  // Keep employees hardcoded as per requirements
   const employees = ref<Employee[]>([
     {
       id: '1',
@@ -31,95 +43,132 @@ export const useDisplayStore = defineStore('display', () => {
     },
   ])
 
-  const waitingSlots = ref<WaitingSlot[]>([
-    {
-      id: '1',
-      customerName: 'Anders',
-      estimatedTime: 30,
-      assignedTo: '1',
-    },
-    {
-      id: '2',
-      customerName: 'Maria',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-    {
-      id: '3',
-      customerName: 'Erik',
-      estimatedTime: 30,
-      assignedTo: '1',
-    },
-    {
-      id: '4',
-      customerName: 'Sofia',
-      estimatedTime: 60,
-      assignedTo: '2',
-    },
-    {
-      id: '5', // Keep one slot empty to show availability
-    },
-  ])
-
+  const waitingSlots = ref<WaitingSlot[]>([])
   const lastUpdate = ref(new Date())
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const lastFetched = ref<number | null>(null)
+  const waitingCount = ref(0)
+
+  const CACHE_DURATION = 30000 // 30 seconds
+
+  const shouldRefetch = computed(() => {
+    if (!lastFetched.value) return true
+    return Date.now() - lastFetched.value > CACHE_DURATION
+  })
 
   const activeEmployees = computed(() => {
     return employees.value.filter((emp) => emp.isActive)
   })
 
-  // Check if any hairdresser has no assigned customers
+  // Check if any slots are available based on waiting count
   const hasAvailableSlot = computed(() => {
-    const employeeAssignments = new Map<string, number>()
-
-    // Count assignments for each employee
-    waitingSlots.value.forEach((slot) => {
-      if (slot.assignedTo) {
-        employeeAssignments.set(
-          slot.assignedTo,
-          (employeeAssignments.get(slot.assignedTo) || 0) + 1,
-        )
-      }
-    })
-
-    // Check if any active employee has no assignments
-    return activeEmployees.value.some((emp) => !employeeAssignments.has(emp.id))
+    // If we have fewer waiting customers than active employees, there's availability
+    return waitingCount.value < activeEmployees.value.length
   })
 
   const updateLastUpdate = () => {
     lastUpdate.value = new Date()
   }
 
-  const assignSlot = (
-    slotId: string,
-    customerName: string,
-    employeeId: string,
-    estimatedTime: number,
-  ) => {
-    const slot = waitingSlots.value.find((slot) => slot.id === slotId)
-    if (slot) {
-      slot.customerName = customerName
-      slot.assignedTo = employeeId
-      slot.estimatedTime = estimatedTime
+  const generateWaitingSlots = (count: number, customers: Customer[]) => {
+    const slots: WaitingSlot[] = []
+    const totalSlots = Math.max(count, activeEmployees.value.length)
+
+    for (let i = 0; i < totalSlots; i++) {
+      if (i < count) {
+        // For occupied slots, assign to employees in a round-robin fashion and include customer data
+        const employeeIndex = i % activeEmployees.value.length
+        const customer = customers[i]
+        slots.push({
+          id: `slot-${i}`,
+          assignedTo: activeEmployees.value[employeeIndex].id,
+          customerName: customer.firstName,
+          estimatedTime: customer.estimatedWaitingTime,
+        })
+      } else {
+        // For remaining slots (if any), leave them unassigned
+        slots.push({
+          id: `slot-${i}`,
+        })
+      }
+    }
+
+    return slots
+  }
+
+  const fetchWaitingSlots = async (forceRefresh = false) => {
+    console.log('Fetching waiting slots...')
+    // Return cached data if it's still fresh
+    if (!forceRefresh && !shouldRefetch.value && waitingSlots.value.length > 0) {
+      console.log('Using cached data')
+      return
+    }
+
+    try {
+      isLoading.value = true
+      error.value = null
+
+      console.log('Fetching from API...')
+      const response = await axios.get<QueueResponse>(
+        'http://localhost:3000/bookings/upcoming/count'
+      )
+      console.log('API response:', response.data)
+
+      // Update the waiting count
+      waitingCount.value = response.data.count
+
+      // Generate slots based on count and customer data
+      waitingSlots.value = generateWaitingSlots(
+        waitingCount.value,
+        response.data.customers
+      )
+      
+      lastFetched.value = Date.now()
       updateLastUpdate()
+      console.log('Updated waiting slots:', waitingSlots.value)
+    } catch (err) {
+      console.error('Error fetching waiting slots:', err)
+      error.value = 'Kunne ikke hente venteliste'
+      // Ensure waitingSlots is always an array even on error
+      waitingSlots.value = []
+      waitingCount.value = 0
+    } finally {
+      isLoading.value = false
     }
   }
 
-  const clearSlot = (slotId: string) => {
-    const slot = waitingSlots.value.find((slot) => slot.id === slotId)
-    if (slot) {
-      slot.customerName = undefined
-      slot.assignedTo = undefined
-      slot.estimatedTime = undefined
-      updateLastUpdate()
+  // Start polling for updates
+  let pollInterval: number | null = null
+
+  const startPolling = () => {
+    console.log('Starting polling...')
+    if (pollInterval) {
+      console.log('Polling already active')
+      return
+    }
+    
+    // Initial fetch
+    fetchWaitingSlots()
+    
+    // Then poll every 30 seconds
+    pollInterval = window.setInterval(() => {
+      console.log('Polling interval triggered')
+      fetchWaitingSlots()
+    }, CACHE_DURATION)
+  }
+
+  const stopPolling = () => {
+    console.log('Stopping polling...')
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      pollInterval = null
     }
   }
 
-  const toggleEmployeeActive = (employeeId: string) => {
-    const employee = employees.value.find((emp) => emp.id === employeeId)
-    if (employee) {
-      employee.isActive = !employee.isActive
-      updateLastUpdate()
-    }
+  // Cleanup function to be called when component unmounts
+  const cleanup = () => {
+    stopPolling()
   }
 
   return {
@@ -128,9 +177,13 @@ export const useDisplayStore = defineStore('display', () => {
     lastUpdate,
     activeEmployees,
     hasAvailableSlot,
-    assignSlot,
-    clearSlot,
-    toggleEmployeeActive,
+    isLoading,
+    error,
+    waitingCount,
+    fetchWaitingSlots,
     updateLastUpdate,
+    startPolling,
+    stopPolling,
+    cleanup,
   }
 })
