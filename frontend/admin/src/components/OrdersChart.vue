@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { Chart, type TooltipItem } from 'chart.js/auto';
 import type { Order } from '../types';
 
@@ -18,6 +18,21 @@ const props = defineProps({
 
 const chartRef = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
+
+const chartTitle = computed(() => {
+  if (props.orders.length === 0) return 'Omsetning per time';
+  
+  // Check if all orders are from the same employee
+  const firstEmployeeId = props.orders[0].booking.employee.id;
+  const allSameEmployee = props.orders.every(order => order.booking.employee.id === firstEmployeeId);
+  
+  if (allSameEmployee) {
+    const employeeName = `${props.orders[0].booking.employee.user.firstName} ${props.orders[0].booking.employee.user.lastName}`;
+    return `Omsetning per time - ${employeeName}`;
+  }
+  
+  return 'Omsetning per time';
+});
 
 function prepareChartData() {
   // Group orders by hour and calculate total amount for each hour
@@ -85,7 +100,7 @@ function createChart(): void {
       plugins: {
         title: {
           display: true,
-          text: 'Omsetning per time',
+          text: chartTitle.value,
           font: {
             size: 16,
             weight: 'bold'
@@ -109,7 +124,7 @@ function createChart(): void {
   });
 }
 
-watch(() => props.orders, () => {
+watch([() => props.orders, chartTitle], () => {
   createChart();
 }, { deep: true });
 
