@@ -96,6 +96,38 @@ export const useOrdersStore = defineStore("orders", {
       };
     },
 
+    getOrdersByEmployee: (state) => {
+      return (employeeId: string | null) => {
+        if (!employeeId) return state.orders;
+        return state.orders.filter(order => 
+          order.booking.employee.id === employeeId
+        );
+      };
+    },
+
+    getEmployeeStats: (state) => {
+      const stats = new Map<string, { count: number; revenue: number; employeeName: string }>();
+      
+      state.orders.forEach(order => {
+        const employee = order.booking.employee;
+        const employeeId = employee.id;
+        const currentStats = stats.get(employeeId) || {
+          count: 0,
+          revenue: 0,
+          employeeName: `${employee.user.firstName} ${employee.user.lastName}`
+        };
+
+        currentStats.count += 1;
+        currentStats.revenue += parseFloat(order.totalAmount);
+        stats.set(employeeId, currentStats);
+      });
+
+      return Array.from(stats.entries()).map(([id, data]) => ({
+        id,
+        ...data
+      }));
+    },
+
     getTotalRevenue: (state) => {
       return state.orders.reduce((total, order) => {
         return total + parseFloat(order.totalAmount);

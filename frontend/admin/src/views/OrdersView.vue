@@ -11,16 +11,33 @@
         </button>
       </div>
 
-      <!-- Date Picker -->
-      <div class="mb-6 bg-white p-4 rounded-lg shadow">
-        <label class="block text-sm font-medium text-gray-700 mb-2"
-          >Velg dato</label
-        >
-        <input
-          type="date"
-          v-model="selectedDate"
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
+      <!-- Filters -->
+      <div class="mb-6 bg-white p-4 rounded-lg shadow space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Velg dato</label
+          >
+          <input
+            type="date"
+            v-model="selectedDate"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Filtrer etter ansatt</label
+          >
+          <select
+            v-model="selectedEmployeeId"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Alle ansatte</option>
+            <option v-for="stat in employeeStats" :key="stat.id" :value="stat.id">
+              {{ stat.employeeName }} ({{ stat.count }} ordrer - {{ formatPrice(stat.revenue) }})
+            </option>
+          </select>
+        </div>
       </div>
 
       <!-- Chart -->
@@ -36,7 +53,7 @@
       </div>
 
       <div v-else-if="filteredOrders.length === 0" class="text-center py-4">
-        Ingen fullførte bestillinger funnet for valgt dato.
+        Ingen fullførte bestillinger funnet for valgte filtre.
       </div>
 
       <!-- Orders Table -->
@@ -49,6 +66,12 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 Kunde
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Ansatt
               </th>
               <th
                 scope="col"
@@ -89,6 +112,10 @@
                 {{ order.booking.customer.lastName }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ order.booking.employee.user.firstName }}
+                {{ order.booking.employee.user.lastName }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {{ order.booking.service.name }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -107,7 +134,7 @@
             <!-- Total Row -->
             <tr class="bg-gray-50">
               <td
-                colspan="3"
+                colspan="4"
                 class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
               >
                 Total
@@ -141,31 +168,45 @@ let refreshInterval: number | null = null;
 // Date handling - initialize with today's date in local timezone
 const today = new Date();
 const selectedDate = ref(today.toISOString().split("T")[0]);
+const selectedEmployeeId = ref("");
+
+const employeeStats = computed(() => {
+  return ordersStore.getEmployeeStats;
+});
 
 const filteredOrders = computed(() => {
-  if (!selectedDate.value) return orders.value;
+  let filtered = orders.value;
 
-  // Convert selected date to start and end of day in local timezone
-  const selectedDateObj = new Date(selectedDate.value);
-  const startOfDay = new Date(
-    selectedDateObj.getFullYear(),
-    selectedDateObj.getMonth(),
-    selectedDateObj.getDate()
-  );
-  const endOfDay = new Date(
-    selectedDateObj.getFullYear(),
-    selectedDateObj.getMonth(),
-    selectedDateObj.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+  // Filter by employee if selected
+  if (selectedEmployeeId.value) {
+    filtered = ordersStore.getOrdersByEmployee(selectedEmployeeId.value);
+  }
 
-  return orders.value.filter((order) => {
-    const orderDate = new Date(order.completedAt);
-    return orderDate >= startOfDay && orderDate <= endOfDay;
-  });
+  // Filter by date
+  if (selectedDate.value) {
+    const selectedDateObj = new Date(selectedDate.value);
+    const startOfDay = new Date(
+      selectedDateObj.getFullYear(),
+      selectedDateObj.getMonth(),
+      selectedDateObj.getDate()
+    );
+    const endOfDay = new Date(
+      selectedDateObj.getFullYear(),
+      selectedDateObj.getMonth(),
+      selectedDateObj.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    filtered = filtered.filter((order) => {
+      const orderDate = new Date(order.completedAt);
+      return orderDate >= startOfDay && orderDate <= endOfDay;
+    });
+  }
+
+  return filtered;
 });
 
 const totalAmount = computed(() => {
@@ -207,21 +248,11 @@ function refreshData() {
   ordersStore.fetchOrders(true);
 }
 
-// Watch for date changes to log filtering info
-watch([selectedDate, orders], () => {
-  console.log("Date filtering debug:");
+// Watch for filter changes to log filtering info
+watch([selectedDate, selectedEmployeeId, orders], () => {
+  console.log("Filtering debug:");
   console.log("Selected date:", selectedDate.value);
-  if (orders.value.length > 0) {
-    const firstOrder = orders.value[0];
-    console.log(
-      "Sample order date:",
-      new Date(firstOrder.completedAt).toISOString()
-    );
-    console.log(
-      "Sample order local:",
-      new Date(firstOrder.completedAt).toLocaleString()
-    );
-  }
+  console.log("Selected employee:", selectedEmployeeId.value);
   console.log("Total orders:", orders.value.length);
   console.log("Filtered orders:", filteredOrders.value.length);
 });
