@@ -1,15 +1,13 @@
-import { Test } from '@nestjs/testing';
-import { BookingsModule } from './bookings.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking } from './entities/booking.entity';
-import { BookingsService } from './bookings.service';
-import { BookingsController } from './bookings.controller';
-import { UsersModule } from '../users/users.module';
-import { EmployeesModule } from '../employees/employees.module';
-import { ServicesModule } from '../services/services.module';
-import { OrdersModule } from '../orders/orders.module';
-import { OrdersService } from '../orders/orders.service';
-import { forwardRef } from '@nestjs/common';
+import { Test } from "@nestjs/testing";
+import { BookingsModule } from "./bookings.module";
+import { BookingsService } from "./bookings.service";
+import { BookingsController } from "./bookings.controller";
+import { UsersModule } from "../users/users.module";
+import { EmployeesModule } from "../employees/employees.module";
+import { ServicesModule } from "../services/services.module";
+import { OrdersModule } from "../orders/orders.module";
+import { OrdersService } from "../orders/orders.service";
+import { forwardRef } from "@nestjs/common";
 
 // Mock BookingsService
 const mockBookingsService = {
@@ -45,23 +43,23 @@ const MockTypeOrmModule = {
 };
 
 // Mock feature modules
-jest.mock('../users/users.module', () => ({
+jest.mock("../users/users.module", () => ({
   UsersModule: class MockUsersModule {},
 }));
 
-jest.mock('../employees/employees.module', () => ({
+jest.mock("../employees/employees.module", () => ({
   EmployeesModule: class MockEmployeesModule {},
 }));
 
-jest.mock('../services/services.module', () => ({
+jest.mock("../services/services.module", () => ({
   ServicesModule: class MockServicesModule {},
 }));
 
-jest.mock('../orders/orders.module', () => ({
+jest.mock("../orders/orders.module", () => ({
   OrdersModule: class MockOrdersModule {},
 }));
 
-describe('BookingsModule', () => {
+describe("BookingsModule", () => {
   let moduleRef;
   let bookingsService;
   let ordersService;
@@ -73,7 +71,7 @@ describe('BookingsModule', () => {
           module: class MockTypeOrmFeatureModule {},
           providers: [
             {
-              provide: 'BookingRepository',
+              provide: "BookingRepository",
               useValue: mockRepository,
             },
           ],
@@ -100,22 +98,22 @@ describe('BookingsModule', () => {
     ordersService = moduleRef.get(OrdersService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('should have required dependencies', () => {
+  it("should have required dependencies", () => {
     expect(bookingsService).toBeDefined();
     expect(ordersService).toBeDefined();
   });
 
-  it('should have BookingsController', () => {
+  it("should have BookingsController", () => {
     const controller = moduleRef.get(BookingsController);
     expect(controller).toBeDefined();
   });
 
-  it('should export BookingsService', () => {
-    const exports = Reflect.getMetadata('exports', BookingsModule);
+  it("should export BookingsService", () => {
+    const exports = Reflect.getMetadata("exports", BookingsModule);
     expect(exports).toContain(BookingsService);
   });
 });
