@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6">
+  <div class="p-6 max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold">Ansatte</h1>
       <button
@@ -23,11 +23,31 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Navn</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-post</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spesialiseringer</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Handlinger</th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Navn
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              E-post
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Spesialiseringer
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Status
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Handlinger
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -39,8 +59,8 @@
               {{ employee.user.email }}
             </td>
             <td class="px-6 py-4">
-              <span 
-                v-for="spec in employee.specializations" 
+              <span
+                v-for="spec in employee.specializations"
                 :key="spec"
                 class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2"
               >
@@ -51,10 +71,12 @@
               <span
                 :class="[
                   'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                  employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  employee.isActive
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800',
                 ]"
               >
-                {{ employee.isActive ? 'Aktiv' : 'Inaktiv' }}
+                {{ employee.isActive ? "Aktiv" : "Inaktiv" }}
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -77,15 +99,20 @@
     </div>
 
     <!-- Add/Edit Employee Modal -->
-    <div v-if="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div
+      v-if="showAddModal || showEditModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+    >
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">
-          {{ showEditModal ? 'Rediger ansatt' : 'Legg til ny ansatt' }}
+          {{ showEditModal ? "Rediger ansatt" : "Legg til ny ansatt" }}
         </h2>
         <form @submit.prevent="handleSubmit">
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">Fornavn</label>
+              <label class="block text-sm font-medium text-gray-700"
+                >Fornavn</label
+              >
               <input
                 v-model="employeeForm.firstName"
                 type="text"
@@ -94,7 +121,9 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Etternavn</label>
+              <label class="block text-sm font-medium text-gray-700"
+                >Etternavn</label
+              >
               <input
                 v-model="employeeForm.lastName"
                 type="text"
@@ -103,7 +132,9 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">E-post</label>
+              <label class="block text-sm font-medium text-gray-700"
+                >E-post</label
+              >
               <input
                 v-model="employeeForm.email"
                 type="email"
@@ -112,7 +143,9 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Spesialiseringer</label>
+              <label class="block text-sm font-medium text-gray-700"
+                >Spesialiseringer</label
+              >
               <input
                 v-model="specializationsInput"
                 type="text"
@@ -121,7 +154,9 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Status</label>
+              <label class="block text-sm font-medium text-gray-700"
+                >Status</label
+              >
               <select
                 v-model="employeeForm.isActive"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -143,7 +178,7 @@
               type="submit"
               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              {{ showEditModal ? 'Oppdater' : 'Legg til' }}
+              {{ showEditModal ? "Oppdater" : "Legg til" }}
             </button>
           </div>
         </form>
@@ -151,7 +186,10 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div
+      v-if="showDeleteModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+    >
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">Bekreft sletting</h2>
         <p>Er du sikker på at du vil slette denne ansatte?</p>
@@ -173,16 +211,21 @@
     </div>
 
     <!-- Password Modal -->
-    <div v-if="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div
+      v-if="showPasswordModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+    >
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">Midlertidig passord</h2>
         <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
           <p class="text-yellow-800 mb-2">
-            Dette er det midlertidige passordet for den nye ansatte. 
-            Vennligst del dette med den ansatte på en sikker måte.
-            Passordet vil kun vises denne ene gangen.
+            Dette er det midlertidige passordet for den nye ansatte. Vennligst
+            del dette med den ansatte på en sikker måte. Passordet vil kun vises
+            denne ene gangen.
           </p>
-          <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center">
+          <div
+            class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center"
+          >
             {{ temporaryPassword }}
           </div>
         </div>
@@ -200,97 +243,103 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useEmployeesStore } from '@/stores/employees'
-import type { Employee } from '@/types'
+import { ref, onMounted } from "vue";
+import { useEmployeesStore } from "@/stores/employees";
+import type { Employee } from "@/types";
 
-const employeesStore = useEmployeesStore()
+const employeesStore = useEmployeesStore();
 
-const showAddModal = ref(false)
-const showEditModal = ref(false)
-const showDeleteModal = ref(false)
-const showPasswordModal = ref(false)
-const selectedEmployee = ref<Employee | null>(null)
-const specializationsInput = ref('')
-const temporaryPassword = ref('')
+const showAddModal = ref(false);
+const showEditModal = ref(false);
+const showDeleteModal = ref(false);
+const showPasswordModal = ref(false);
+const selectedEmployee = ref<Employee | null>(null);
+const specializationsInput = ref("");
+const temporaryPassword = ref("");
 
 const employeeForm = ref({
-  firstName: '',
-  lastName: '',
-  email: '',
+  firstName: "",
+  lastName: "",
+  email: "",
   isActive: true,
-  specializations: [] as string[]
-})
+  specializations: [] as string[],
+});
 
 onMounted(async () => {
-  await employeesStore.fetchEmployees()
-})
+  await employeesStore.fetchEmployees();
+});
 
 const editEmployee = (employee: Employee) => {
-  selectedEmployee.value = employee
+  selectedEmployee.value = employee;
   employeeForm.value = {
     firstName: employee.user.firstName,
     lastName: employee.user.lastName,
     email: employee.user.email,
     isActive: employee.isActive,
-    specializations: [...employee.specializations]
-  }
-  specializationsInput.value = employee.specializations.join(', ')
-  showEditModal.value = true
-}
+    specializations: [...employee.specializations],
+  };
+  specializationsInput.value = employee.specializations.join(", ");
+  showEditModal.value = true;
+};
 
 const confirmDelete = (employee: Employee) => {
-  selectedEmployee.value = employee
-  showDeleteModal.value = true
-}
+  selectedEmployee.value = employee;
+  showDeleteModal.value = true;
+};
 
 const deleteSelectedEmployee = async () => {
   if (selectedEmployee.value) {
-    await employeesStore.deleteEmployee(selectedEmployee.value.id)
-    showDeleteModal.value = false
-    selectedEmployee.value = null
+    await employeesStore.deleteEmployee(selectedEmployee.value.id);
+    showDeleteModal.value = false;
+    selectedEmployee.value = null;
   }
-}
+};
 
 const closeModal = () => {
-  showAddModal.value = false
-  showEditModal.value = false
-  selectedEmployee.value = null
+  showAddModal.value = false;
+  showEditModal.value = false;
+  selectedEmployee.value = null;
   employeeForm.value = {
-    firstName: '',
-    lastName: '',
-    email: '',
+    firstName: "",
+    lastName: "",
+    email: "",
     isActive: true,
-    specializations: []
-  }
-  specializationsInput.value = ''
-}
+    specializations: [],
+  };
+  specializationsInput.value = "";
+};
 
 const closePasswordModal = () => {
-  showPasswordModal.value = false
-  temporaryPassword.value = ''
-}
+  showPasswordModal.value = false;
+  temporaryPassword.value = "";
+};
 
 const handleSubmit = async () => {
   const employeeData = {
     ...employeeForm.value,
-    specializations: specializationsInput.value.split(',').map(s => s.trim()).filter(Boolean)
-  }
+    specializations: specializationsInput.value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  };
 
   try {
     if (showEditModal.value && selectedEmployee.value) {
-      await employeesStore.updateEmployee(selectedEmployee.value.id, employeeData)
-      closeModal()
+      await employeesStore.updateEmployee(
+        selectedEmployee.value.id,
+        employeeData
+      );
+      closeModal();
     } else {
-      const result = await employeesStore.createEmployee(employeeData)
+      const result = await employeesStore.createEmployee(employeeData);
       if (result.temporaryPassword) {
-        temporaryPassword.value = result.temporaryPassword
-        closeModal()
-        showPasswordModal.value = true
+        temporaryPassword.value = result.temporaryPassword;
+        closeModal();
+        showPasswordModal.value = true;
       }
     }
   } catch (error) {
-    console.error('Kunne ikke lagre ansatt:', error)
+    console.error("Kunne ikke lagre ansatt:", error);
   }
-}
+};
 </script>
