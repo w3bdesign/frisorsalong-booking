@@ -36,7 +36,8 @@ describe('Display Store', () => {
 
     // Check initial state
     expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBe(0)
+    expect(store.waitingCount).toBeNull() // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
 
     // Fetch data
     await store.fetchWaitingSlots()
@@ -58,6 +59,8 @@ describe('Display Store', () => {
 
     expect(store.error).toBe('Kunne ikke hente venteliste')
     expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull()
+    expect(store.hasAvailableSlot).toBeNull()
   })
 
   it('calculates slot availability', async () => {
@@ -74,11 +77,23 @@ describe('Display Store', () => {
 
     const store = useDisplayStore()
 
-    // Initially available (no customers)
-    expect(store.hasAvailableSlot).toBe(true)
+    // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull()
 
     // After fetching (more customers than employees)
     await store.fetchWaitingSlots()
     expect(store.hasAvailableSlot).toBe(false)
+
+    // Mock fewer customers
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
+      },
+    })
+
+    // After fetching (fewer customers than employees)
+    await store.fetchWaitingSlots(true)
+    expect(store.hasAvailableSlot).toBe(true)
   })
 })

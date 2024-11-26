@@ -46,7 +46,7 @@ export const useDisplayStore = defineStore('display', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const lastFetched = ref<number | null>(null)
-  const waitingCount = ref(0)
+  const waitingCount = ref<number | null>(null)
 
   const CACHE_DURATION = 30000 // 30 seconds
 
@@ -61,6 +61,8 @@ export const useDisplayStore = defineStore('display', () => {
 
   // Check if any slots are available based on waiting count
   const hasAvailableSlot = computed(() => {
+    // If we're loading or don't have a count yet, return null
+    if (isLoading.value || waitingCount.value === null) return null
     return waitingCount.value < activeEmployees.value.length
   })
 
@@ -112,7 +114,7 @@ export const useDisplayStore = defineStore('display', () => {
       error.value = 'Kunne ikke hente venteliste'
       // Ensure waitingSlots is always an array even on error
       waitingSlots.value = []
-      waitingCount.value = 0
+      waitingCount.value = null
     } finally {
       isLoading.value = false
     }
