@@ -42,16 +42,12 @@ export const useDisplayStore = defineStore('display', () => {
   ])
 
   const waitingSlots = ref<WaitingSlot[]>([])
-<<<<<<< HEAD
-=======
   const lastUpdate = ref(new Date())
->>>>>>> parent of b011190 (Update display.ts)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const lastFetched = ref<number | null>(null)
   const waitingCount = ref(0)
 
-<<<<<<< HEAD
-=======
   const CACHE_DURATION = 30000 // 30 seconds
 
   const shouldRefetch = computed(() => {
@@ -59,7 +55,6 @@ export const useDisplayStore = defineStore('display', () => {
     return Date.now() - lastFetched.value > CACHE_DURATION
   })
 
->>>>>>> parent of b011190 (Update display.ts)
   const activeEmployees = computed(() => {
     return employees.value.filter((emp) => emp.isActive)
   })
@@ -69,18 +64,14 @@ export const useDisplayStore = defineStore('display', () => {
     return waitingCount.value < activeEmployees.value.length
   })
 
-<<<<<<< HEAD
-  const generateWaitingSlots = (
-    count: number,
-    customers: Array<{ firstName: string; estimatedWaitingTime: number }>,
-  ) => {
-=======
   const updateLastUpdate = () => {
     lastUpdate.value = new Date()
   }
 
-  const generateWaitingSlots = (count: number, customers: Array<{ firstName: string, estimatedWaitingTime: number }>) => {
->>>>>>> parent of b011190 (Update display.ts)
+  const generateWaitingSlots = (
+    count: number,
+    customers: Array<{ firstName: string; estimatedWaitingTime: number }>,
+  ) => {
     return customers.map((customer, index) => ({
       id: `slot-${index + 1}`,
       customerName: customer.firstName,
@@ -90,8 +81,6 @@ export const useDisplayStore = defineStore('display', () => {
   }
 
   const fetchWaitingSlots = async (forceRefresh = false) => {
-<<<<<<< HEAD
-=======
     console.log('Fetching waiting slots...')
     // Return cached data if it's still fresh
     if (!forceRefresh && !shouldRefetch.value && waitingSlots.value.length > 0) {
@@ -99,33 +88,25 @@ export const useDisplayStore = defineStore('display', () => {
       return
     }
 
->>>>>>> parent of b011190 (Update display.ts)
     try {
       isLoading.value = true
       error.value = null
 
       console.log('Fetching from API...')
       const response = await axios.get<QueueResponse>(
-        'http://localhost:3000/bookings/upcoming/count'
+        'http://localhost:3000/bookings/upcoming/count',
       )
       console.log('API response:', response.data)
 
       // Update the waiting count
       waitingCount.value = response.data.count
-<<<<<<< HEAD
-      waitingSlots.value = generateWaitingSlots(response.data.count, response.data.customers)
-=======
 
       // Generate slots based on actual customers
-      waitingSlots.value = generateWaitingSlots(
-        response.data.count,
-        response.data.customers
-      )
-      
+      waitingSlots.value = generateWaitingSlots(response.data.count, response.data.customers)
+
       lastFetched.value = Date.now()
       updateLastUpdate()
       console.log('Updated waiting slots:', waitingSlots.value)
->>>>>>> parent of b011190 (Update display.ts)
     } catch (err) {
       console.error('Error fetching waiting slots:', err)
       error.value = 'Kunne ikke hente venteliste'
@@ -146,10 +127,10 @@ export const useDisplayStore = defineStore('display', () => {
       console.log('Polling already active')
       return
     }
-    
+
     // Initial fetch
     fetchWaitingSlots()
-    
+
     // Then poll every 30 seconds
     pollInterval = window.setInterval(() => {
       console.log('Polling interval triggered')
@@ -173,18 +154,17 @@ export const useDisplayStore = defineStore('display', () => {
   return {
     employees,
     waitingSlots,
+    lastUpdate,
     activeEmployees,
     hasAvailableSlot,
     isLoading,
     error,
     waitingCount,
+    shouldRefetch,
     fetchWaitingSlots,
-<<<<<<< HEAD
-=======
     updateLastUpdate,
     startPolling,
     stopPolling,
     cleanup,
->>>>>>> parent of b011190 (Update display.ts)
   }
 })
