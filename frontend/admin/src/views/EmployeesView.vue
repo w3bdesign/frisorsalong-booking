@@ -1,18 +1,18 @@
 <template>
-  <div class="p-6">
+  <div class="p-6 max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">Employees Management</h1>
+      <h1 class="text-2xl font-bold">Ansatte</h1>
       <button
         @click="showAddModal = true"
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
       >
-        Add Employee
+        Legg til ansatt
       </button>
     </div>
 
     <!-- Loading and Error States -->
     <div v-if="employeesStore.loading" class="text-center py-4">
-      Loading employees...
+      Laster ansatte...
     </div>
     <div v-else-if="employeesStore.error" class="text-red-500 py-4">
       {{ employeesStore.error }}
@@ -23,11 +23,11 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specializations</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Navn</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-post</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spesialiseringer</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Handlinger</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -54,7 +54,7 @@
                   employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 ]"
               >
-                {{ employee.isActive ? 'Active' : 'Inactive' }}
+                {{ employee.isActive ? 'Aktiv' : 'Inaktiv' }}
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -62,13 +62,13 @@
                 @click="editEmployee(employee)"
                 class="text-indigo-600 hover:text-indigo-900 mr-4"
               >
-                Edit
+                Rediger
               </button>
               <button
                 @click="confirmDelete(employee)"
                 class="text-red-600 hover:text-red-900"
               >
-                Delete
+                Slett
               </button>
             </td>
           </tr>
@@ -80,12 +80,12 @@
     <div v-if="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">
-          {{ showEditModal ? 'Edit Employee' : 'Add New Employee' }}
+          {{ showEditModal ? 'Rediger ansatt' : 'Legg til ny ansatt' }}
         </h2>
         <form @submit.prevent="handleSubmit">
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">First Name</label>
+              <label class="block text-sm font-medium text-gray-700">Fornavn</label>
               <input
                 v-model="employeeForm.firstName"
                 type="text"
@@ -94,7 +94,7 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Last Name</label>
+              <label class="block text-sm font-medium text-gray-700">Etternavn</label>
               <input
                 v-model="employeeForm.lastName"
                 type="text"
@@ -103,7 +103,7 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Email</label>
+              <label class="block text-sm font-medium text-gray-700">E-post</label>
               <input
                 v-model="employeeForm.email"
                 type="email"
@@ -112,11 +112,11 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Specializations</label>
+              <label class="block text-sm font-medium text-gray-700">Spesialiseringer</label>
               <input
                 v-model="specializationsInput"
                 type="text"
-                placeholder="Enter specializations separated by commas"
+                placeholder="Skriv inn spesialiseringer adskilt med komma"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
             </div>
@@ -126,8 +126,8 @@
                 v-model="employeeForm.isActive"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
-                <option :value="true">Active</option>
-                <option :value="false">Inactive</option>
+                <option :value="true">Aktiv</option>
+                <option :value="false">Inaktiv</option>
               </select>
             </div>
           </div>
@@ -137,13 +137,13 @@
               @click="closeModal"
               class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
             >
-              Cancel
+              Avbryt
             </button>
             <button
               type="submit"
               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              {{ showEditModal ? 'Update' : 'Add' }}
+              {{ showEditModal ? 'Oppdater' : 'Legg til' }}
             </button>
           </div>
         </form>
@@ -153,20 +153,20 @@
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div class="bg-white p-6 rounded-lg w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Confirm Delete</h2>
-        <p>Are you sure you want to delete this employee?</p>
+        <h2 class="text-xl font-bold mb-4">Bekreft sletting</h2>
+        <p>Er du sikker på at du vil slette denne ansatte?</p>
         <div class="mt-6 flex justify-end space-x-3">
           <button
             @click="showDeleteModal = false"
             class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
           >
-            Cancel
+            Avbryt
           </button>
           <button
             @click="deleteSelectedEmployee"
             class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
           >
-            Delete
+            Slett
           </button>
         </div>
       </div>
@@ -253,7 +253,7 @@ const handleSubmit = async () => {
     }
     closeModal()
   } catch (error) {
-    console.error('Failed to save employee:', error)
+    console.error('Kunne ikke lagre ansatt:', error)
   }
 }
 </script>

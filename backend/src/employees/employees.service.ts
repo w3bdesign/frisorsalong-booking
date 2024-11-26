@@ -3,9 +3,20 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, LessThanOrEqual, MoreThanOrEqual, Not, FindOptionsWhere } from "typeorm";
 import { Employee } from "./entities/employee.entity";
 import { Booking, BookingStatus } from "../bookings/entities/booking.entity";
-import { CreateEmployeeDto } from "./dto/create-employee.dto";
-import { UpdateEmployeeDto } from "./dto/update-employee.dto";
 import { UserRole, User } from "../users/entities/user.entity";
+
+interface CreateEmployeeDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  specializations: string[];
+  isActive?: boolean;
+  availability?: {
+    [key: string]: Array<{ start: string; end: string }>;
+  };
+}
+
+interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 
 @Injectable()
 export class EmployeesService {

@@ -4,8 +4,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
+
+interface CreateEmployeeDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  specializations: string[];
+  isActive?: boolean;
+  availability?: {
+    [key: string]: Array<{ start: string; end: string }>;
+  };
+}
+
+interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard, RolesGuard)
