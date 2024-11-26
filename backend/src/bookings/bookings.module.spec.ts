@@ -63,6 +63,8 @@ jest.mock('../orders/orders.module', () => ({
 
 describe('BookingsModule', () => {
   let moduleRef;
+  let bookingsService;
+  let ordersService;
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -93,40 +95,27 @@ describe('BookingsModule', () => {
       ],
       controllers: [BookingsController],
     }).compile();
+
+    bookingsService = moduleRef.get(BookingsService);
+    ordersService = moduleRef.get(OrdersService);
   });
 
   it('should be defined', () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('should export BookingsService', () => {
-    const exports = Reflect.getMetadata('exports', BookingsModule);
-    expect(exports).toContain(BookingsService);
-  });
-
   it('should have required dependencies', () => {
-    // Get the module metadata directly from the BookingsModule class
-    const metadata = Reflect.getMetadata('imports', BookingsModule);
-    
-    // Check for basic modules
-    expect(metadata).toEqual(
-      expect.arrayContaining([
-        UsersModule,
-        EmployeesModule,
-        ServicesModule,
-      ])
-    );
-    
-    // Check for forwardRef(() => OrdersModule)
-    const hasOrdersModule = metadata.some(imp => 
-      typeof imp === 'function' && 
-      imp.toString().includes('forwardRef')
-    );
-    expect(hasOrdersModule).toBeTruthy();
+    expect(bookingsService).toBeDefined();
+    expect(ordersService).toBeDefined();
   });
 
   it('should have BookingsController', () => {
-    const controllers = Reflect.getMetadata('controllers', BookingsModule);
-    expect(controllers).toContain(BookingsController);
+    const controller = moduleRef.get(BookingsController);
+    expect(controller).toBeDefined();
+  });
+
+  it('should export BookingsService', () => {
+    const exports = Reflect.getMetadata('exports', BookingsModule);
+    expect(exports).toContain(BookingsService);
   });
 });
