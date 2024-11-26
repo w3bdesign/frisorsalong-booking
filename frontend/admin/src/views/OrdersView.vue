@@ -33,8 +33,12 @@
             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           >
             <option value="">Alle ansatte</option>
-            <option v-for="stat in employeeStats" :key="stat.id" :value="stat.id">
-              {{ stat.employeeName }} ({{ stat.count }} ordrer - {{ formatPrice(stat.revenue) }})
+            <option v-for="employee in employeesStore.getActiveEmployees" :key="employee.id" :value="employee.id">
+              {{ employee.user.firstName }} {{ employee.user.lastName }}
+              <template v-if="employeeStats.find(stat => stat.id === employee.id)">
+                ({{ employeeStats.find(stat => stat.id === employee.id)?.count }} ordrer - 
+                {{ formatPrice(employeeStats.find(stat => stat.id === employee.id)?.revenue || 0) }})
+              </template>
             </option>
           </select>
         </div>
@@ -46,10 +50,12 @@
       </div>
 
       <!-- Loading and Error States -->
-      <div v-if="loading" class="text-center py-4">Laster bestillinger...</div>
+      <div v-if="loading || employeesStore.loading" class="text-center py-4">
+        Laster data...
+      </div>
 
-      <div v-else-if="error" class="text-red-500 py-4">
-        {{ error }}
+      <div v-else-if="error || employeesStore.error" class="text-red-500 py-4">
+        {{ error || employeesStore.error }}
       </div>
 
       <div v-else-if="filteredOrders.length === 0" class="text-center py-4">
@@ -156,10 +162,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useOrdersStore } from "../stores/orders";
+import { useEmployeesStore } from "../stores/employees";
 import { storeToRefs } from "pinia";
 import OrdersChart from "../components/OrdersChart.vue";
 
 const ordersStore = useOrdersStore();
+const employeesStore = useEmployeesStore();
 const { orders, loading, error } = storeToRefs(ordersStore);
 
 // Set up periodic refresh
@@ -246,6 +254,7 @@ function formatPrice(price: string | number): string {
 
 function refreshData() {
   ordersStore.fetchOrders(true);
+  employeesStore.fetchEmployees();
 }
 
 // Watch for filter changes to log filtering info
@@ -257,11 +266,16 @@ watch([selectedDate, selectedEmployeeId, orders], () => {
   console.log("Filtered orders:", filteredOrders.value.length);
 });
 
-onMounted(() => {
-  ordersStore.fetchOrders();
+onMounted(async () => {
+  await Promise.all([
+    ordersStore.fetchOrders(),
+    employeesStore.fetchEmployees()
+  ]);
+  
   // Set up periodic refresh every 5 minutes
   refreshInterval = window.setInterval(() => {
     ordersStore.fetchOrders();
+    employeesStore.fetchEmployees();
   }, 300000); // 5 minutes in milliseconds
 });
 
