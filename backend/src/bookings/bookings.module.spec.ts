@@ -93,17 +93,6 @@ describe('BookingsModule', () => {
       ],
       controllers: [BookingsController],
     }).compile();
-
-    // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [BookingsService], BookingsModule);
-    Reflect.defineMetadata('imports', [
-      TypeOrmModule.forFeature([Booking]),
-      UsersModule,
-      EmployeesModule,
-      ServicesModule,
-      forwardRef(() => OrdersModule),
-    ], BookingsModule);
-    Reflect.defineMetadata('controllers', [BookingsController], BookingsModule);
   });
 
   it('should be defined', () => {
@@ -120,10 +109,16 @@ describe('BookingsModule', () => {
     expect(imports).toContain(UsersModule);
     expect(imports).toContain(EmployeesModule);
     expect(imports).toContain(ServicesModule);
-    expect(imports.some(imp => 
-      imp.toString().includes('forwardRef') && 
-      imp.toString().includes('OrdersModule')
-    )).toBeTruthy();
+    
+    // Check for forwardRef(() => OrdersModule)
+    const hasOrdersModule = imports.some(imp => {
+      if (typeof imp === 'function') {
+        const result = imp();
+        return result && result.name === 'OrdersModule';
+      }
+      return false;
+    });
+    expect(hasOrdersModule).toBeTruthy();
   });
 
   it('should have BookingsController', () => {
