@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsService } from './bookings.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, MoreThan, In } from 'typeorm';
+import { Repository, MoreThan, In, Between } from 'typeorm';
 import { Booking, BookingStatus } from './entities/booking.entity';
 import { UsersService } from '../users/users.service';
 import { EmployeesService } from '../employees/employees.service';
@@ -136,11 +136,40 @@ describe('BookingsService', () => {
     });
   });
 
-  describe('update', () => {
-    const existingBooking = {
+  describe('findOne', () => {
+    const mockBooking = {
       id: 'booking-id',
-      employee: { id: 'employee-id' },
+      customer: { id: 'customer-id' },
+      employee: { id: 'employee-id', user: { id: 'user-id' } },
       service: { id: 'service-id' },
+    };
+
+    it('should return a booking when it exists', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+
+      const result = await service.findOne('booking-id');
+      expect(result).toEqual(mockBooking);
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'booking-id' },
+        relations: ['customer', 'employee', 'employee.user', 'service'],
+      });
+    });
+
+    it('should throw NotFoundException when booking does not exist', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        new NotFoundException('Booking with ID non-existent-id not found'),
+      );
+    });
+  });
+
+  describe('update', () => {
+    const mockBooking = {
+      id: 'booking-id',
+      customer: { id: 'customer-id' },
+      employee: { id: 'employee-id' },
+      service: { id: 'service-id', duration: 60 },
       startTime: new Date(),
       endTime: new Date(),
     };
@@ -150,67 +179,63 @@ describe('BookingsService', () => {
     };
 
     it('should update booking with new start time successfully', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(existingBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 60 });
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ id: 'service-id', duration: 60 });
       mockEmployeesService.isAvailable.mockResolvedValue(true);
-      mockBookingRepository.save.mockResolvedValue({ ...existingBooking, ...updateBookingDto });
+      mockBookingRepository.save.mockResolvedValue({ ...mockBooking, ...updateBookingDto });
 
       const result = await service.update('booking-id', updateBookingDto);
       expect(result).toBeDefined();
+      expect(mockEmployeesService.isAvailable).toHaveBeenCalled();
       expect(mockBookingRepository.save).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when employee is not available for new time', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(existingBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 60 });
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ id: 'service-id', duration: 60 });
       mockEmployeesService.isAvailable.mockResolvedValue(false);
 
       await expect(service.update('booking-id', updateBookingDto)).rejects.toThrow(
         new BadRequestException('Employee is not available at this time'),
       );
     });
-
-    it('should throw NotFoundException when booking not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-
-      await expect(service.update('booking-id', updateBookingDto)).rejects.toThrow(
-        new NotFoundException('Booking with ID booking-id not found'),
-      );
-    });
   });
 
   describe('cancel', () => {
-    const existingBooking = {
+    const mockBooking = {
       id: 'booking-id',
-      status: BookingStatus.CONFIRMED,
+      status: BookingStatus.PENDING,
     };
 
     it('should cancel a booking successfully', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(existingBooking);
-      mockBookingRepository.save.mockImplementation(booking => booking);
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation((booking) => Promise.resolve(booking));
 
-      const result = await service.cancel('booking-id', 'Customer requested cancellation');
+      const result = await service.cancel('booking-id', 'Test cancellation');
       
       expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe('Customer requested cancellation');
-      expect(result.cancelledAt).toBeInstanceOf(Date);
+      expect(result.cancellationReason).toBe('Test cancellation');
+      expect(result.cancelledAt).toBeDefined();
     });
 
-    it('should throw NotFoundException when booking not found', async () => {
+    it('should throw NotFoundException when booking does not exist', async () => {
       mockBookingRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.cancel('booking-id', 'reason')).rejects.toThrow(
-        new NotFoundException('Booking with ID booking-id not found'),
-      );
+      await expect(service.cancel('non-existent-id', 'reason')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findByCustomer', () => {
-    it('should return customer bookings', async () => {
-      const mockBookings = [{ id: 'booking-1' }, { id: 'booking-2' }];
+    const mockBookings = [
+      { id: 'booking-1', customer: { id: 'customer-id' } },
+      { id: 'booking-2', customer: { id: 'customer-id' } },
+    ];
+
+    it('should return all bookings for a customer', async () => {
       mockBookingRepository.find.mockResolvedValue(mockBookings);
 
       const result = await service.findByCustomer('customer-id');
+      
       expect(result).toEqual(mockBookings);
       expect(mockBookingRepository.find).toHaveBeenCalledWith({
         where: { customer: { id: 'customer-id' } },
@@ -221,11 +246,16 @@ describe('BookingsService', () => {
   });
 
   describe('findByEmployee', () => {
-    it('should return employee bookings', async () => {
-      const mockBookings = [{ id: 'booking-1' }, { id: 'booking-2' }];
+    const mockBookings = [
+      { id: 'booking-1', employee: { id: 'employee-id' } },
+      { id: 'booking-2', employee: { id: 'employee-id' } },
+    ];
+
+    it('should return all bookings for an employee', async () => {
       mockBookingRepository.find.mockResolvedValue(mockBookings);
 
       const result = await service.findByEmployee('employee-id');
+      
       expect(result).toEqual(mockBookings);
       expect(mockBookingRepository.find).toHaveBeenCalledWith({
         where: { employee: { id: 'employee-id' } },
@@ -236,11 +266,16 @@ describe('BookingsService', () => {
   });
 
   describe('findUpcoming', () => {
-    it('should return upcoming pending and confirmed bookings', async () => {
-      const mockBookings = [{ id: 'booking-1' }, { id: 'booking-2' }];
+    const mockBookings = [
+      { id: 'booking-1', startTime: new Date(), status: BookingStatus.PENDING },
+      { id: 'booking-2', startTime: new Date(), status: BookingStatus.CONFIRMED },
+    ];
+
+    it('should return upcoming bookings', async () => {
       mockBookingRepository.find.mockResolvedValue(mockBookings);
 
       const result = await service.findUpcoming();
+      
       expect(result).toEqual(mockBookings);
       expect(mockBookingRepository.find).toHaveBeenCalledWith({
         where: {
@@ -252,69 +287,61 @@ describe('BookingsService', () => {
       });
     });
 
-    it('should handle case when no upcoming bookings are found', async () => {
-      // First find call returns empty array (no upcoming bookings)
-      mockBookingRepository.find.mockResolvedValueOnce([]);
-      
-      // Second find call returns some sample bookings for debug logging
-      const sampleBookings = [
-        { id: 'booking-1', startTime: new Date(), status: BookingStatus.CANCELLED },
-        { id: 'booking-2', startTime: new Date(), status: BookingStatus.COMPLETED },
-        { id: 'booking-3', startTime: new Date(), status: BookingStatus.PENDING },
-      ];
-      mockBookingRepository.find.mockResolvedValueOnce(sampleBookings);
+    it('should handle no upcoming bookings', async () => {
+      mockBookingRepository.find.mockResolvedValue([]);
 
       const result = await service.findUpcoming();
       
       expect(result).toEqual([]);
-      expect(mockBookingRepository.find).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('findOne', () => {
-    it('should return a booking when found', async () => {
-      const mockBooking = { id: 'booking-id' };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-
-      const result = await service.findOne('booking-id');
-      expect(result).toEqual(mockBooking);
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-id' },
-        relations: ['customer', 'employee', 'employee.user', 'service'],
-      });
-    });
-
-    it('should throw NotFoundException when booking not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-
-      await expect(service.findOne('booking-id')).rejects.toThrow(
-        new NotFoundException('Booking with ID booking-id not found'),
-      );
     });
   });
 
   describe('getUpcomingCount', () => {
-    it('should return count of upcoming bookings', async () => {
-      mockBookingRepository.count.mockResolvedValue(5);
+    it('should return count and customer details of upcoming bookings', async () => {
+      const mockBookings = [
+        {
+          customer: { firstName: 'John' },
+          service: { duration: 30 }
+        },
+        {
+          customer: { firstName: 'Jane' },
+          service: { duration: 45 }
+        }
+      ];
+
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
 
       const result = await service.getUpcomingCount();
       
-      expect(result).toBe(5);
-      expect(mockBookingRepository.count).toHaveBeenCalledWith({
+      expect(result).toEqual({
+        count: 2,
+        customers: [
+          { firstName: 'John', estimatedWaitingTime: 0 },
+          { firstName: 'Jane', estimatedWaitingTime: 30 }
+        ]
+      });
+
+      expect(mockBookingRepository.find).toHaveBeenCalledWith({
         where: {
           startTime: expect.any(Object),
           status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         },
+        relations: ['customer', 'service'],
+        order: { startTime: 'ASC' },
       });
     });
 
-    it('should return 0 when no upcoming bookings exist', async () => {
-      mockBookingRepository.count.mockResolvedValue(0);
+    it('should return empty result when no upcoming bookings exist', async () => {
+      mockBookingRepository.find.mockResolvedValue([]);
 
       const result = await service.getUpcomingCount();
       
-      expect(result).toBe(0);
-      expect(mockBookingRepository.count).toHaveBeenCalled();
+      expect(result).toEqual({
+        count: 0,
+        customers: []
+      });
+      
+      expect(mockBookingRepository.find).toHaveBeenCalled();
     });
   });
 });

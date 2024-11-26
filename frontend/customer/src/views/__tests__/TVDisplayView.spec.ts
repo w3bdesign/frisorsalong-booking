@@ -1,48 +1,60 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
 import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '@/stores/display'
+import { useDisplayStore } from '../../stores/display'
+import axios from 'axios'
 
-vi.mock('@/stores/display', () => ({
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
   useDisplayStore: vi.fn(),
 }))
 
 describe('TVDisplayView', () => {
   const mockEmployees = [
-    { id: '1', name: 'John', color: 'bg-blue-500', active: true },
-    { id: '2', name: 'Jane', color: 'bg-green-500', active: true },
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
   ]
 
   const mockWaitingSlots = [
     {
-      id: '1',
-      customerName: 'Customer 1',
-      estimatedTime: 30,
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
       assignedTo: '1',
     },
     {
-      id: '2',
-      customerName: 'Customer 2',
+      id: 'slot-2',
+      customerName: 'Lavinia',
       estimatedTime: 45,
-      assignedTo: null,
+      assignedTo: '2',
     },
   ]
+
+  const createMockStore = (overrides = {}) => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  })
 
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
 
     // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue({
-      hasAvailableSlot: true,
-      activeEmployees: mockEmployees,
-      waitingSlots: mockWaitingSlots,
-      lastUpdate: new Date('2024-01-01T12:00:00'),
-      updateLastUpdate: vi.fn(),
-      employees: mockEmployees,
-    } as any)
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
   })
 
   afterEach(() => {
@@ -51,20 +63,19 @@ describe('TVDisplayView', () => {
   })
 
   it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+
     const wrapper = mount(TVDisplayView)
     expect(wrapper.find('h1').text()).toBe('Ledig')
     expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
   })
 
   it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue({
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
       hasAvailableSlot: false,
-      activeEmployees: mockEmployees,
-      waitingSlots: mockWaitingSlots,
-      lastUpdate: new Date('2024-01-01T12:00:00'),
-      updateLastUpdate: vi.fn(),
-      employees: mockEmployees,
-    } as any)
+    }))
 
     const wrapper = mount(TVDisplayView)
     expect(wrapper.find('h1').text()).toBe('Opptatt')
@@ -77,17 +88,17 @@ describe('TVDisplayView', () => {
 
     expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
 
-    // Check first slot (assigned)
+    // Check first slot (Vada)
     const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Customer 1')
-    expect(firstSlot.text()).toContain('30 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-blue-500')
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
 
-    // Check second slot (unassigned)
+    // Check second slot (Lavinia)
     const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Customer 2')
+    expect(secondSlot.text()).toContain('Lavinia')
     expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-[#c2ff00]')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
   })
 
   it('displays active employees correctly', () => {
@@ -109,38 +120,18 @@ describe('TVDisplayView', () => {
     expect(wrapper.text()).toContain('12:00:00')
   })
 
-  it('updates time automatically', async () => {
-    const mockUpdateLastUpdate = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue({
-      hasAvailableSlot: true,
-      activeEmployees: mockEmployees,
-      waitingSlots: mockWaitingSlots,
-      lastUpdate: new Date('2024-01-01T12:00:00'),
-      updateLastUpdate: mockUpdateLastUpdate,
-      employees: mockEmployees,
-    } as any)
-
-    mount(TVDisplayView)
-
-    // Fast forward 1 second
-    await vi.advanceTimersByTime(1000)
-    expect(mockUpdateLastUpdate).toHaveBeenCalled()
-
-    // Fast forward another second
-    await vi.advanceTimersByTime(1000)
-    expect(mockUpdateLastUpdate).toHaveBeenCalledTimes(2)
-  })
-
-  it('cleans up interval on unmount', () => {
-    const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
-    const setIntervalSpy = vi.spyOn(window, 'setInterval')
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
 
     const wrapper = mount(TVDisplayView)
-    expect(setIntervalSpy).toHaveBeenCalled()
+    expect(mockStartPolling).toHaveBeenCalled()
 
-    const intervalId = setIntervalSpy.mock.results[0].value
     wrapper.unmount()
-
-    expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId)
+    expect(mockCleanup).toHaveBeenCalled()
   })
 })

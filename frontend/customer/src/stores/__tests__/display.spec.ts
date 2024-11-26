@@ -1,135 +1,84 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDisplayStore } from '../display'
+import axios from 'axios'
+
+vi.mock('axios')
 
 describe('Display Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    // Setup fake timers
-    vi.useFakeTimers()
+    vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
+  it('manages employees', () => {
+    const store = useDisplayStore()
+
+    // Check initial state
+    expect(store.employees).toHaveLength(2)
+    expect(store.activeEmployees).toHaveLength(2)
+
+    // Test employee deactivation
+    store.employees[0].isActive = false
+    expect(store.activeEmployees).toHaveLength(1)
   })
 
-  describe('Initial State', () => {
-    it('initializes with correct employees', () => {
-      const store = useDisplayStore()
-      expect(store.employees).toHaveLength(2)
-      expect(store.employees[0]).toMatchObject({
-        id: '1',
-        name: 'Gladys',
-        color: 'bg-sky-400',
-        isActive: true,
-      })
-      expect(store.employees[1]).toMatchObject({
-        id: '2',
-        name: 'Veronika',
-        color: 'bg-fuchsia-400',
-        isActive: true,
-      })
+  it('manages waiting slots', async () => {
+    // Setup mock API response
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
+      },
     })
 
-    it('initializes with correct waiting slots', () => {
-      const store = useDisplayStore()
-      expect(store.waitingSlots).toHaveLength(5)
-      expect(store.waitingSlots[0]).toMatchObject({
-        id: '1',
-        customerName: 'Anders',
-        estimatedTime: 30,
-        assignedTo: '1',
-      })
-    })
-  })
+    const store = useDisplayStore()
 
-  describe('Computed Properties', () => {
-    it('returns active employees correctly', () => {
-      const store = useDisplayStore()
-      expect(store.activeEmployees).toHaveLength(2)
+    // Check initial state
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBe(0)
 
-      // Toggle one employee to inactive
-      store.toggleEmployeeActive('1')
-      expect(store.activeEmployees).toHaveLength(1)
-      expect(store.activeEmployees[0].id).toBe('2')
-    })
+    // Fetch data
+    await store.fetchWaitingSlots()
 
-    it('correctly determines if slots are available', () => {
-      const store = useDisplayStore()
-      // Initially all active employees have assignments
-      expect(store.hasAvailableSlot).toBe(false)
-
-      // Clear all slots for employee 1 to make them available
-      store.clearSlot('1')
-      store.clearSlot('3')
-      expect(store.hasAvailableSlot).toBe(true)
+    // Check updated state
+    expect(store.waitingSlots).toHaveLength(1)
+    expect(store.waitingCount).toBe(1)
+    expect(store.waitingSlots[0]).toMatchObject({
+      customerName: 'Test',
+      estimatedTime: 15,
     })
   })
 
-  describe('Methods', () => {
-    it('assigns a slot correctly', () => {
-      const store = useDisplayStore()
-      store.assignSlot('5', 'John', '1', 45)
+  it('handles API errors', async () => {
+    vi.mocked(axios.get).mockRejectedValue(new Error('API Error'))
+    const store = useDisplayStore()
 
-      const slot = store.waitingSlots.find((s) => s.id === '5')
-      expect(slot).toMatchObject({
-        id: '5',
-        customerName: 'John',
-        assignedTo: '1',
-        estimatedTime: 45,
-      })
+    await store.fetchWaitingSlots()
+
+    expect(store.error).toBe('Kunne ikke hente venteliste')
+    expect(store.waitingSlots).toHaveLength(0)
+  })
+
+  it('calculates slot availability', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        count: 3, // More customers than employees
+        customers: [
+          { firstName: 'Test1', estimatedWaitingTime: 10 },
+          { firstName: 'Test2', estimatedWaitingTime: 20 },
+          { firstName: 'Test3', estimatedWaitingTime: 30 },
+        ],
+      },
     })
 
-    it('clears a slot correctly', () => {
-      const store = useDisplayStore()
-      store.clearSlot('1')
+    const store = useDisplayStore()
 
-      const slot = store.waitingSlots.find((s) => s.id === '1')
-      expect(slot).toMatchObject({
-        id: '1',
-        customerName: undefined,
-        assignedTo: undefined,
-        estimatedTime: undefined,
-      })
-    })
+    // Initially available (no customers)
+    expect(store.hasAvailableSlot).toBe(true)
 
-    it('toggles employee active status', () => {
-      const store = useDisplayStore()
-      const initialStatus = store.employees[0].isActive
-
-      store.toggleEmployeeActive('1')
-      expect(store.employees[0].isActive).toBe(!initialStatus)
-
-      store.toggleEmployeeActive('1')
-      expect(store.employees[0].isActive).toBe(initialStatus)
-    })
-
-    it('updates lastUpdate timestamp', () => {
-      const store = useDisplayStore()
-      const initialTimestamp = store.lastUpdate.getTime()
-
-      vi.advanceTimersByTime(1000) // Advance time by 1 second
-      store.updateLastUpdate()
-      expect(store.lastUpdate.getTime()).toBeGreaterThan(initialTimestamp)
-    })
-
-    it('updates lastUpdate when modifying slots or employees', () => {
-      const store = useDisplayStore()
-      const initialTimestamp = store.lastUpdate.getTime()
-
-      vi.advanceTimersByTime(1000) // Advance time by 1 second
-      store.assignSlot('5', 'John', '1', 45)
-      expect(store.lastUpdate.getTime()).toBeGreaterThan(initialTimestamp)
-
-      vi.advanceTimersByTime(1000) // Advance time by another second
-      const secondTimestamp = store.lastUpdate.getTime()
-      store.clearSlot('1')
-      expect(store.lastUpdate.getTime()).toBeGreaterThan(secondTimestamp)
-
-      vi.advanceTimersByTime(1000) // Advance time by another second
-      const thirdTimestamp = store.lastUpdate.getTime()
-      store.toggleEmployeeActive('1')
-      expect(store.lastUpdate.getTime()).toBeGreaterThan(thirdTimestamp)
-    })
+    // After fetching (more customers than employees)
+    await store.fetchWaitingSlots()
+    expect(store.hasAvailableSlot).toBe(false)
   })
 })

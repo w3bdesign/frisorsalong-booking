@@ -13,6 +13,7 @@ import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { BookingResponseDto } from "./dto/booking-response.dto";
+import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -26,8 +27,8 @@ export class BookingsController {
   ) {}
 
   @Get("upcoming/count")
-  async getUpcomingCount() {
-    return { count: await this.bookingsService.getUpcomingCount() };
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
+    return this.bookingsService.getUpcomingCount();
   }
 
   @Post()

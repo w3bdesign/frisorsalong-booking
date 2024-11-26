@@ -14,7 +14,13 @@
 
       <!-- Waiting List -->
       <div class="w-full max-w-6xl px-16 mt-12 py-8">
-        <div class="space-y-16">
+        <div v-if="store.isLoading && !store.waitingSlots.length" class="text-center text-gray-400">
+          Laster...
+        </div>
+        <div v-else-if="store.error" class="text-center text-red-500">
+          {{ store.error }}
+        </div>
+        <div v-else class="space-y-16">
           <div v-for="slot in store.waitingSlots" :key="slot.id" class="flex items-center">
             <div
               class="w-8 h-8 rounded-full mr-8 flex-shrink-0 border-2"
@@ -30,7 +36,7 @@
             >
               <div v-if="slot.customerName" class="absolute -top-4 left-0 bg-[#0a0a0f] pr-6">
                 <span class="text-xl font-medium">{{ slot.customerName }}</span>
-                <span v-if="slot.estimatedTime" class="text-gray-400 ml-4 text-lg">
+                <span v-if="slot.estimatedTime !== undefined" class="text-gray-400 ml-4 text-lg">
                   {{ slot.estimatedTime }} min
                 </span>
               </div>
@@ -82,9 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { useDisplayStore } from '@/stores/display'
-import { onUnmounted } from 'vue'
+import { useDisplayStore } from '../stores/display'
+import { onMounted, onUnmounted } from 'vue'
 
+console.log('TVDisplayView script setup start')
 const store = useDisplayStore()
 
 const formatLastUpdate = () => {
@@ -95,14 +102,16 @@ const formatLastUpdate = () => {
   })
 }
 
-// Auto refresh last update time
-const intervalId = setInterval(() => {
-  store.updateLastUpdate()
-}, 1000)
+// Start polling when component mounts
+onMounted(() => {
+  console.log('TVDisplayView mounted, starting polling')
+  store.startPolling()
+})
 
-// Cleanup interval on unmount
+// Clean up when component unmounts
 onUnmounted(() => {
-  clearInterval(intervalId)
+  console.log('TVDisplayView unmounted, cleaning up')
+  store.cleanup()
 })
 </script>
 
