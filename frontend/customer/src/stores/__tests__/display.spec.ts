@@ -123,37 +123,5 @@ describe('Display Store', () => {
       store.updateLastUpdate()
       expect(store.lastUpdate.getTime()).toBeGreaterThan(initialTimestamp)
     })
-
-    /*
-    it('handles polling correctly', async () => {
-      const store = useDisplayStore()
-      
-      store.startPolling()
-      expect(store.waitingSlots).toHaveLength(0)
-
-      // Wait for initial fetch
-      await vi.runAllTimersAsync()
-      expect(store.waitingSlots).toHaveLength(2)
-
-      // Update mock data
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: {
-          count: 1,
-          customers: [
-            {
-              firstName: 'Vada',
-              estimatedWaitingTime: 0,
-            },
-          ],
-        },
-      })
-
-      // Wait for next poll
-      await vi.advanceTimersByTimeAsync(30000)
-      expect(store.waitingSlots).toHaveLength(1)
-
-      store.stopPolling()
-    })
-    */
   })
 })
