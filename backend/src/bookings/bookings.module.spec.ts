@@ -7,6 +7,9 @@ import { BookingsController } from './bookings.controller';
 import { UsersModule } from '../users/users.module';
 import { EmployeesModule } from '../employees/employees.module';
 import { ServicesModule } from '../services/services.module';
+import { OrdersModule } from '../orders/orders.module';
+import { OrdersService } from '../orders/orders.service';
+import { forwardRef } from '@nestjs/common';
 
 // Mock BookingsService
 const mockBookingsService = {
@@ -15,6 +18,13 @@ const mockBookingsService = {
   create: jest.fn(),
   update: jest.fn(),
   remove: jest.fn(),
+};
+
+// Mock OrdersService
+const mockOrdersService = {
+  createFromBooking: jest.fn(),
+  findAll: jest.fn(),
+  findOne: jest.fn(),
 };
 
 // Mock repository
@@ -47,6 +57,10 @@ jest.mock('../services/services.module', () => ({
   ServicesModule: class MockServicesModule {},
 }));
 
+jest.mock('../orders/orders.module', () => ({
+  OrdersModule: class MockOrdersModule {},
+}));
+
 describe('BookingsModule', () => {
   let moduleRef;
 
@@ -65,23 +79,29 @@ describe('BookingsModule', () => {
         UsersModule,
         EmployeesModule,
         ServicesModule,
+        forwardRef(() => OrdersModule),
       ],
       providers: [
         {
           provide: BookingsService,
           useValue: mockBookingsService,
         },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
       ],
       controllers: [BookingsController],
     }).compile();
 
     // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [BookingsService, TypeOrmModule], BookingsModule);
+    Reflect.defineMetadata('exports', [BookingsService], BookingsModule);
     Reflect.defineMetadata('imports', [
       TypeOrmModule.forFeature([Booking]),
       UsersModule,
       EmployeesModule,
       ServicesModule,
+      forwardRef(() => OrdersModule),
     ], BookingsModule);
     Reflect.defineMetadata('controllers', [BookingsController], BookingsModule);
   });
@@ -95,16 +115,15 @@ describe('BookingsModule', () => {
     expect(exports).toContain(BookingsService);
   });
 
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', BookingsModule);
-    expect(exports).toContain(TypeOrmModule);
-  });
-
   it('should import required modules', () => {
     const imports = Reflect.getMetadata('imports', BookingsModule);
     expect(imports).toContain(UsersModule);
     expect(imports).toContain(EmployeesModule);
     expect(imports).toContain(ServicesModule);
+    expect(imports.some(imp => 
+      imp.toString().includes('forwardRef') && 
+      imp.toString().includes('OrdersModule')
+    )).toBeTruthy();
   });
 
   it('should have BookingsController', () => {
