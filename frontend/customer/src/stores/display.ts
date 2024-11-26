@@ -9,11 +9,6 @@ export interface Employee {
   isActive: boolean
 }
 
-export interface Customer {
-  firstName: string
-  estimatedWaitingTime: number
-}
-
 export interface WaitingSlot {
   id: string
   customerName?: string
@@ -23,7 +18,10 @@ export interface WaitingSlot {
 
 interface QueueResponse {
   count: number
-  customers: Customer[]
+  customers: Array<{
+    firstName: string
+    estimatedWaitingTime: number
+  }>
 }
 
 export const useDisplayStore = defineStore('display', () => {
@@ -63,7 +61,6 @@ export const useDisplayStore = defineStore('display', () => {
 
   // Check if any slots are available based on waiting count
   const hasAvailableSlot = computed(() => {
-    // If we have fewer waiting customers than active employees, there's availability
     return waitingCount.value < activeEmployees.value.length
   })
 
@@ -71,30 +68,13 @@ export const useDisplayStore = defineStore('display', () => {
     lastUpdate.value = new Date()
   }
 
-  const generateWaitingSlots = (count: number, customers: Customer[]) => {
-    const slots: WaitingSlot[] = []
-    const totalSlots = Math.max(count, activeEmployees.value.length)
-
-    for (let i = 0; i < totalSlots; i++) {
-      if (i < count) {
-        // For occupied slots, assign to employees in a round-robin fashion and include customer data
-        const employeeIndex = i % activeEmployees.value.length
-        const customer = customers[i]
-        slots.push({
-          id: `slot-${i}`,
-          assignedTo: activeEmployees.value[employeeIndex].id,
-          customerName: customer.firstName,
-          estimatedTime: customer.estimatedWaitingTime,
-        })
-      } else {
-        // For remaining slots (if any), leave them unassigned
-        slots.push({
-          id: `slot-${i}`,
-        })
-      }
-    }
-
-    return slots
+  const generateWaitingSlots = (count: number, customers: Array<{ firstName: string, estimatedWaitingTime: number }>) => {
+    return customers.map((customer, index) => ({
+      id: `slot-${index + 1}`,
+      customerName: customer.firstName,
+      estimatedTime: customer.estimatedWaitingTime,
+      assignedTo: employees.value[index % employees.value.length].id,
+    }))
   }
 
   const fetchWaitingSlots = async (forceRefresh = false) => {
@@ -118,9 +98,9 @@ export const useDisplayStore = defineStore('display', () => {
       // Update the waiting count
       waitingCount.value = response.data.count
 
-      // Generate slots based on count and customer data
+      // Generate slots based on actual customers
       waitingSlots.value = generateWaitingSlots(
-        waitingCount.value,
+        response.data.count,
         response.data.customers
       )
       
