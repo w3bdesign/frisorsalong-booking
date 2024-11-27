@@ -2,35 +2,25 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleAsyncOptions } from '@nestjs/typeorm';
-import { CacheModule } from '@nestjs/cache-manager';
 import { DynamicModule } from '@nestjs/common';
+import { ShopCode } from './shops/entities/shop-code.entity';
+import { join } from 'path';
 
 // Mock the ConfigService
 const mockConfigService = {
   get: jest.fn((key) => {
-    if (key === 'cache') {
-      return {
-        host: 'localhost',
-        port: 6379,
-        ttl: 300,
-      };
+    switch (key) {
+      case 'DATABASE_URL':
+        return 'postgres://test:test@localhost:5432/test';
+      case 'NODE_ENV':
+        return 'test';
+      default:
+        return null;
     }
-    if (key === 'database') {
-      return {
-        type: 'postgres',
-        host: 'localhost',
-        port: 5432,
-        username: 'test',
-        password: 'test',
-        database: 'test',
-        synchronize: false,
-      };
-    }
-    return null;
   }),
 };
 
-// Create mock repository before using it
+// Create mock repositories
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -40,21 +30,12 @@ const mockRepository = {
   delete: jest.fn(),
 };
 
-// Mock @nestjs/cache-manager first
-jest.mock('@nestjs/cache-manager', () => {
-  return {
-    CacheModule: {
-      register: jest.fn().mockReturnValue({
-        module: class MockCacheModule {},
-      }),
-      registerAsync: jest.fn().mockReturnValue({
-        module: class MockCacheModule {},
-      }),
-    },
-  };
-});
+const mockShopCodeRepository = {
+  ...mockRepository,
+  findOne: jest.fn().mockResolvedValue({ code: 'TEST123' }),
+};
 
-// Then mock @nestjs/typeorm
+// Mock @nestjs/typeorm
 jest.mock('@nestjs/typeorm', () => {
   return {
     TypeOrmModule: {
@@ -65,7 +46,12 @@ jest.mock('@nestjs/typeorm', () => {
         module: class MockTypeOrmFeatureModule {},
       }),
     },
-    getRepositoryToken: jest.fn().mockReturnValue('MockRepository'),
+    getRepositoryToken: jest.fn((entity) => {
+      if (entity === ShopCode) {
+        return 'SHOP_CODE_REPOSITORY';
+      }
+      return 'MockRepository';
+    }),
     InjectRepository: jest.fn().mockReturnValue(() => mockRepository),
   };
 });
@@ -95,6 +81,10 @@ jest.mock('./orders/orders.module', () => ({
   OrdersModule: class MockOrdersModule {},
 }));
 
+jest.mock('./shops/shops.module', () => ({
+  ShopsModule: class MockShopsModule {},
+}));
+
 // Mock entities
 jest.mock('./users/entities/user.entity', () => ({
   User: class MockUser {},
@@ -116,11 +106,14 @@ jest.mock('./orders/entities/order.entity', () => ({
   Order: class MockOrder {},
 }));
 
+jest.mock('./shops/entities/shop-code.entity', () => ({
+  ShopCode: class MockShopCode {},
+}));
+
 describe('AppModule', () => {
   let app;
   let configService;
   let typeOrmModule;
-  let cacheModule;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -128,41 +121,28 @@ describe('AppModule', () => {
     })
     .overrideProvider(ConfigService)
     .useValue(mockConfigService)
+    .overrideProvider('SHOP_CODE_REPOSITORY')
+    .useValue(mockShopCodeRepository)
     .compile();
 
-    app = moduleRef.createNestApplication();
+    app = await moduleRef.createNestApplication();
     await app.init();
     
     configService = moduleRef.get<ConfigService>(ConfigService);
     typeOrmModule = require('@nestjs/typeorm').TypeOrmModule;
-    cacheModule = require('@nestjs/cache-manager').CacheModule;
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('should be defined', () => {
     expect(app).toBeDefined();
   });
 
-  it('should configure cache with correct default values', () => {
-    const cacheConfig = configService.get('cache');
-    expect(cacheConfig).toBeDefined();
-    expect(cacheConfig.ttl).toBe(300);
-    expect(cacheConfig.host).toBe('localhost');
-    expect(cacheConfig.port).toBe(6379);
-  });
-
-  it('should configure CacheModule with register method', () => {
-    expect(cacheModule.register).toHaveBeenCalledWith({
-      isGlobal: true,
-      ttl: 300,
-    });
-  });
-
   it('should configure TypeOrmModule with correct database settings', () => {
-    const dbConfig = configService.get('database');
     expect(typeOrmModule.forRootAsync).toHaveBeenCalled();
     
     // Get the factory function from the forRootAsync call
@@ -175,12 +155,13 @@ describe('AppModule', () => {
     // Verify the configuration matches what's in app.module.ts
     expect(config).toEqual({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'test',
-      password: 'test',
-      database: 'test',
+      url: 'postgres://test:test@localhost:5432/test',
+      entities: [join(__dirname, '**', '*.entity{.ts,.js}')],
       synchronize: false,
+      logging: false,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
   });
 
