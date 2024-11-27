@@ -2,12 +2,12 @@
   <div class="p-6 max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold">Ansatte</h1>
-      <button
+      <Button
         @click="showAddModal = true"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        variant="primary"
       >
         Legg til ansatt
-      </button>
+      </Button>
     </div>
 
     <!-- Toast Notification -->
@@ -67,24 +67,27 @@
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-              <button
+              <Button
                 @click="editEmployee(employee)"
-                class="text-indigo-600 hover:text-indigo-900"
+                variant="secondary"
+                size="sm"
               >
                 Rediger
-              </button>
-              <button
+              </Button>
+              <Button
                 @click="resetEmployeePassword(employee)"
-                class="text-blue-600 hover:text-blue-900"
+                variant="secondary"
+                size="sm"
               >
                 Tilbakestill passord
-              </button>
-              <button
+              </Button>
+              <Button
                 @click="confirmDelete(employee)"
-                class="text-red-600 hover:text-red-900"
+                variant="danger"
+                size="sm"
               >
                 Slett
-              </button>
+              </Button>
             </td>
           </tr>
         </tbody>
@@ -152,27 +155,22 @@
             </div>
           </div>
           <div class="mt-6 flex justify-end space-x-3">
-            <button
+            <Button
               type="button"
               @click="closeModal"
               :disabled="isSubmitting"
-              class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50"
+              variant="secondary"
             >
               Avbryt
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               :disabled="isSubmitting"
-              class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 flex items-center"
+              :loading="isSubmitting"
+              variant="primary"
             >
-              <span v-if="isSubmitting" class="mr-2">
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </span>
               {{ showEditModal ? 'Oppdater' : 'Legg til' }}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -184,18 +182,18 @@
         <h2 class="text-xl font-bold mb-4">Bekreft sletting</h2>
         <p>Er du sikker på at du vil slette denne ansatte?</p>
         <div class="mt-6 flex justify-end space-x-3">
-          <button
+          <Button
             @click="showDeleteModal = false"
-            class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+            variant="secondary"
           >
             Avbryt
-          </button>
-          <button
+          </Button>
+          <Button
             @click="deleteSelectedEmployee"
-            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            variant="danger"
           >
             Slett
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -225,16 +223,18 @@
             <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center select-all">
               {{ temporaryPassword }}
             </div>
-            <button
+            <Button
               @click="copyPassword"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              variant="secondary"
+              size="sm"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2"
               title="Kopier passord"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
                 <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
               </svg>
-            </button>
+            </Button>
           </div>
           <p v-if="showCopiedMessage" class="text-green-600 text-sm mt-2 text-center">
             Passord kopiert!
@@ -242,12 +242,12 @@
         </div>
 
         <div class="mt-6 flex justify-end">
-          <button
+          <Button
             @click="closePasswordModal"
-            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            variant="primary"
           >
             OK
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -258,6 +258,7 @@
 import { ref, onMounted } from 'vue'
 import { useEmployeesStore } from '../stores/employees'
 import type { Employee } from '../types'
+import Button from '../components/base/Button.vue'
 
 const employeesStore = useEmployeesStore()
 

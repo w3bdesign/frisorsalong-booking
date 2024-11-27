@@ -111,32 +111,38 @@
                     <td
                       class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
                     >
-                      <button
-                        v-if="booking.status === 'pending'"
-                        @click="handleConfirm(booking.id)"
-                        class="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Bekreft
-                      </button>
-                      <button
-                        v-if="booking.status === 'confirmed'"
-                        @click="handleComplete(booking.id)"
-                        class="text-green-600 hover:text-green-900 mr-4"
-                      >
-                        Fullfør
-                      </button>
-                      <button
-                        @click="openEditModal(booking)"
-                        class="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Rediger
-                      </button>
-                      <button
-                        @click="handleCancel(booking.id)"
-                        class="text-red-600 hover:text-red-900"
-                      >
-                        Kanseller
-                      </button>
+                      <div class="flex justify-end space-x-2">
+                        <Button
+                          v-if="booking.status === 'PENDING'"
+                          @click="handleConfirm(booking.id)"
+                          variant="primary"
+                          size="sm"
+                        >
+                          Bekreft
+                        </Button>
+                        <Button
+                          v-if="booking.status === 'CONFIRMED'"
+                          @click="handleComplete(booking.id)"
+                          variant="primary"
+                          size="sm"
+                        >
+                          Fullfør
+                        </Button>
+                        <Button
+                          @click="openEditModal(booking)"
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Rediger
+                        </Button>
+                        <Button
+                          @click="handleCancel(booking.id)"
+                          variant="danger"
+                          size="sm"
+                        >
+                          Kanseller
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -162,6 +168,7 @@ import { onMounted, ref, computed } from "vue";
 import { useBookingStore } from "../stores/bookings";
 import { useOrdersStore } from "../stores/orders";
 import BookingEditModal from "../components/BookingEditModal.vue";
+import Button from "../components/base/Button.vue";
 import type { BookingView } from "../types";
 
 const bookingStore = useBookingStore();
@@ -172,7 +179,7 @@ const selectedBooking = ref<BookingView | null>(null);
 // Filter to show active bookings (pending or confirmed)
 const activeBookings = computed(() => {
   return bookingStore.bookings.filter(
-    (booking) => booking.status === "pending" || booking.status === "confirmed"
+    (booking) => booking.status === "PENDING" || booking.status === "CONFIRMED"
   );
 });
 
@@ -194,10 +201,10 @@ const formatDateTime = (dateTime: string) => {
 
 const getStatusClass = (status: string) => {
   const classes = {
-    pending: "bg-yellow-100 text-yellow-800",
-    confirmed: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-    completed: "bg-blue-100 text-blue-800",
+    PENDING: "bg-yellow-100 text-yellow-800",
+    CONFIRMED: "bg-green-100 text-green-800",
+    CANCELLED: "bg-red-100 text-red-800",
+    COMPLETED: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
     classes[status as keyof typeof classes] || "bg-gray-100 text-gray-800"
@@ -206,10 +213,10 @@ const getStatusClass = (status: string) => {
 
 const getStatusText = (status: string) => {
   const statusMap = {
-    pending: "Venter",
-    confirmed: "Bekreftet",
-    cancelled: "Kansellert",
-    completed: "Fullført",
+    PENDING: "Venter",
+    CONFIRMED: "Bekreftet",
+    CANCELLED: "Kansellert",
+    COMPLETED: "Fullført",
   };
   return statusMap[status as keyof typeof statusMap] || "Ukjent";
 };
@@ -237,7 +244,7 @@ const handleSave = async (updatedBooking: Partial<BookingView>) => {
 };
 
 const handleConfirm = async (id: string | number) => {
-  const success = await bookingStore.updateBooking(id, { status: "confirmed" });
+  const success = await bookingStore.updateBooking(id, { status: "CONFIRMED" });
   if (success) {
     console.log("Booking confirmed");
   }

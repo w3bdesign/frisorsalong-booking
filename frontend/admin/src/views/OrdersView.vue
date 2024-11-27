@@ -3,12 +3,13 @@
     <div class="max-w-7xl mx-auto">
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold">Fullførte bestillinger</h1>
-        <button
+        <Button
           @click="refreshData"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          variant="primary"
+          :loading="loading"
         >
           Oppdater
-        </button>
+        </Button>
       </div>
 
       <!-- Filters -->
@@ -165,6 +166,7 @@ import { useOrdersStore } from "../stores/orders";
 import { useEmployeesStore } from "../stores/employees";
 import { storeToRefs } from "pinia";
 import OrdersChart from "../components/OrdersChart.vue";
+import Button from "../components/base/Button.vue";
 
 const ordersStore = useOrdersStore();
 const employeesStore = useEmployeesStore();

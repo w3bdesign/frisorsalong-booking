@@ -51,12 +51,13 @@
             </div>
           </div>
           <div class="flex items-center">
-            <button
+            <Button
               @click="handleLogout"
-              class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              variant="primary"
+              className="ml-3"
             >
               Logg ut
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -76,6 +77,7 @@
 import { useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { storeToRefs } from "pinia";
+import Button from "./components/base/Button.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();

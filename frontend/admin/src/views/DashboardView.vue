@@ -3,18 +3,18 @@
     <div class="max-w-7xl mx-auto">
       <!-- Navigation -->
       <div class="mb-6 flex space-x-4">
-        <RouterLink
-          to="/bookings"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        <Button
+          variant="primary"
+          @click="navigateToBookings"
         >
           Se alle bestillinger
-        </RouterLink>
-        <RouterLink
-          to="/orders"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        </Button>
+        <Button
+          variant="primary"
+          @click="navigateToOrders"
         >
           Se fullførte bestillinger
-        </RouterLink>
+        </Button>
       </div>
 
       <!-- Statistics Cards -->
@@ -179,14 +179,23 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { useBookingStore } from "../stores/bookings";
-import { RouterLink } from 'vue-router';
 import BookingDetailsModal from "../components/BookingDetailsModal.vue";
 import Button from "../components/base/Button.vue";
 
+const router = useRouter();
 const bookingStore = useBookingStore();
 const isModalOpen = ref(false);
 const selectedBooking = ref(null);
+
+const navigateToBookings = () => {
+  router.push('/bookings');
+};
+
+const navigateToOrders = () => {
+  router.push('/orders');
+};
 
 const getStatusColor = (status: string | undefined): string => {
   switch (status?.toUpperCase()) {
