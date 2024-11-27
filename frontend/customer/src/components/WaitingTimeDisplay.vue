@@ -3,7 +3,7 @@
     <div class="text-center">
       <h2 class="text-2xl font-bold text-gradient mb-6">Estimert ventetid</h2>
 
-      <div v-if="isLoading" class="animate-pulse space-y-4">
+      <div v-if="store.isLoading" class="animate-pulse space-y-4">
         <div class="h-12 bg-gray-200 rounded-lg w-32 mx-auto"></div>
         <div class="h-6 bg-gray-200 rounded-lg w-24 mx-auto"></div>
       </div>
@@ -11,7 +11,7 @@
       <template v-else>
         <div class="mb-4">
           <div class="text-5xl font-bold text-gradient mb-2">
-            {{ formattedWaitTime }}
+            {{ calculateEstimatedWaitTime }}min
           </div>
           <div class="flex items-center justify-center space-x-2 text-gray-600">
             <svg
@@ -24,7 +24,7 @@
                 d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"
               />
             </svg>
-            <span class="text-lg">{{ queueStatus.peopleWaiting }} venter</span>
+            <span class="text-lg">{{ store.waitingCount ?? 0 }} venter</span>
           </div>
         </div>
 
@@ -41,51 +41,58 @@
               clip-rule="evenodd"
             />
           </svg>
-          <span>Oppdatert {{ formatTime(queueStatus.lastUpdated) }}</span>
+          <span>Oppdatert {{ formatTime(store.lastUpdate) }}</span>
         </div>
       </template>
 
       <div
-        v-if="error"
+        v-if="store.error"
         class="mt-4 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg p-2"
       >
-        {{ error }}
+        {{ store.error }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
-import { useWaitingStore } from '@/stores/waiting'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useDisplayStore } from '../stores/display'
 
-const waitingStore = useWaitingStore()
-const { queueStatus, isLoading, error, formattedWaitTime } = waitingStore
-
-let pollingInterval: ReturnType<typeof setInterval>
-
-const formatTime = (dateString: string) => {
-  const date = new Date(dateString)
-  const utcHours = date.getUTCHours()
-  const minutes = date.getUTCMinutes()
-  const seconds = date.getUTCSeconds()
-
-  // Add 1 hour for Norwegian time (UTC+1)
-  const norwegianHours = (utcHours + 1) % 24
-
-  // Format with leading zeros
-  const formatNumber = (n: number) => n.toString().padStart(2, '0')
-
-  return `${formatNumber(norwegianHours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`
+interface WaitingSlot {
+  estimatedTime?: number;
 }
 
-onMounted(() => {
-  pollingInterval = waitingStore.startPolling(30000) // Update every 30 seconds
+const store = useDisplayStore()
+
+const calculateEstimatedWaitTime = computed(() => {
+  if (!store.waitingSlots.length) return 0
+
+  // Calculate average waiting time from all slots with estimatedTime
+  const slotsWithTime = store.waitingSlots.filter((slot: WaitingSlot) => slot.estimatedTime !== undefined)
+  if (!slotsWithTime.length) return 0
+
+  const totalTime = slotsWithTime.reduce((sum: number, slot: WaitingSlot) => sum + (slot.estimatedTime || 0), 0)
+  return Math.round(totalTime / slotsWithTime.length)
 })
 
+const formatTime = (date: Date) => {
+  return new Intl.DateTimeFormat('nb-NO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'Europe/Oslo',
+    hourCycle: 'h23'
+  }).format(date)
+}
+
+// Start polling when component mounts
+onMounted(() => {
+  store.startPolling()
+})
+
+// Clean up when component unmounts
 onUnmounted(() => {
-  if (pollingInterval) {
-    clearInterval(pollingInterval)
-  }
+  store.cleanup()
 })
 </script>

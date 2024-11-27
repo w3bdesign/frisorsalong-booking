@@ -13,30 +13,20 @@ import { User } from "../users/entities/user.entity";
 @Module({
   imports: [
     UsersModule,
-    PassportModule.register({ defaultStrategy: 'jwt' }), // Configure PassportModule with JWT
+    PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get("jwt.secret"),
+        secret: configService.get("JWT_SECRET"),
         signOptions: {
-          expiresIn: configService.get("jwt.signOptions.expiresIn"),
+          expiresIn: configService.get("JWT_EXPIRATION") || "1h",
         },
       }),
     }),
     TypeOrmModule.forFeature([User]),
   ],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    RolesGuard,
-  ],
+  providers: [AuthService, JwtStrategy, RolesGuard],
   controllers: [AuthController],
-  exports: [
-    AuthService,
-    JwtStrategy,
-    RolesGuard,
-    JwtModule,
-    PassportModule, // Export PassportModule
-  ],
+  exports: [AuthService, JwtStrategy, RolesGuard, JwtModule, PassportModule],
 })
 export class AuthModule {}

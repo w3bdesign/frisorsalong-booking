@@ -3,18 +3,18 @@
     <div class="max-w-7xl mx-auto">
       <!-- Navigation -->
       <div class="mb-6 flex space-x-4">
-        <RouterLink
-          to="/bookings"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        <Button
+          variant="primary"
+          @click="navigateToBookings"
         >
           Se alle bestillinger
-        </RouterLink>
-        <RouterLink
-          to="/orders"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        </Button>
+        <Button
+          variant="primary"
+          @click="navigateToOrders"
         >
           Se fullførte bestillinger
-        </RouterLink>
+        </Button>
       </div>
 
       <!-- Statistics Cards -->
@@ -53,13 +53,14 @@
         <div class="p-6 border-b border-gray-200">
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-semibold text-gray-900">Nylige bestillinger</h2>
-            <button
-              @click="bookingStore.fetchDashboardStats"
-              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            <Button
+              @click="handleRefresh"
               data-test="refresh-button"
+              variant="primary"
+              :loading="bookingStore.isLoading"
             >
               Oppdater
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -150,13 +151,15 @@
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    class="text-indigo-600 hover:text-indigo-900"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     @click="handleView(booking)"
                     data-test="view-button"
+                    className="text-indigo-600 hover:text-indigo-900"
                   >
                     Vis
-                  </button>
+                  </Button>
                 </td>
               </tr>
             </tbody>
@@ -176,13 +179,23 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { useBookingStore } from "../stores/bookings";
-import { RouterLink } from 'vue-router';
 import BookingDetailsModal from "../components/BookingDetailsModal.vue";
+import Button from "../components/base/Button.vue";
 
+const router = useRouter();
 const bookingStore = useBookingStore();
 const isModalOpen = ref(false);
 const selectedBooking = ref(null);
+
+const navigateToBookings = () => {
+  router.push('/bookings');
+};
+
+const navigateToOrders = () => {
+  router.push('/orders');
+};
 
 const getStatusColor = (status: string | undefined): string => {
   switch (status?.toUpperCase()) {
@@ -225,6 +238,10 @@ function formatDateTime(dateString: string): string {
     return 'Dato ikke tilgjengelig';
   }
 }
+
+const handleRefresh = () => {
+  bookingStore.fetchDashboardStats(true);
+};
 
 const handleView = (booking: any) => {
   selectedBooking.value = booking;

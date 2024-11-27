@@ -27,6 +27,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: "/employees",
+    name: "Employees",
+    component: () => import("../views/EmployeesView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/",
     redirect: "/dashboard",
   },

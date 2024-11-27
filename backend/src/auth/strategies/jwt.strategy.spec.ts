@@ -44,7 +44,7 @@ describe('JwtStrategy', () => {
   });
 
   it('should use the secret from config service', () => {
-    expect(configService.get).toHaveBeenCalledWith('jwt.secret');
+    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
   });
 
   describe('validate', () => {
@@ -67,7 +67,13 @@ describe('JwtStrategy', () => {
 
       const result = await strategy.validate(mockRequest, mockPayload);
 
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        role: mockUser.role,
+      });
       expect(usersRepository.findOne).toHaveBeenCalledWith({
         where: { id: mockPayload.sub },
         select: ['id', 'email', 'firstName', 'lastName', 'role'],
@@ -78,6 +84,12 @@ describe('JwtStrategy', () => {
       mockUsersRepository.findOne.mockResolvedValue(null);
 
       await expect(strategy.validate(mockRequest, mockPayload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException when payload is invalid', async () => {
+      await expect(strategy.validate(mockRequest, {})).rejects.toThrow(
         UnauthorizedException,
       );
     });

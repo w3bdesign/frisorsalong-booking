@@ -1,11 +1,33 @@
 <template>
   <div class="p-6">
     <div class="max-w-7xl mx-auto">
-      <h1 class="text-2xl font-semibold text-gray-900">Bestillinger</h1>
+      <h1 class="text-2xl font-bold text-gray-900 mb-6">Bestillinger</h1>
 
-      <div class="mb-4 p-4 bg-gray-100 rounded">
-        <p>Totalt antall bestillinger: {{ bookingStore.bookings.length }}</p>
-        <p>Aktive bestillinger: {{ activeBookings.length }}</p>
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card
+          title="Totalt antall bestillinger"
+          :value="bookingStore.bookings.length"
+          color="indigo"
+        >
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </template>
+        </Card>
+
+        <Card
+          title="Aktive bestillinger"
+          :value="activeBookings.length"
+          color="green"
+        >
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </template>
+        </Card>
       </div>
 
       <!-- Bookings Table -->
@@ -111,32 +133,38 @@
                     <td
                       class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
                     >
-                      <button
-                        v-if="booking.status === 'pending'"
-                        @click="handleConfirm(booking.id)"
-                        class="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Bekreft
-                      </button>
-                      <button
-                        v-if="booking.status === 'confirmed'"
-                        @click="handleComplete(booking.id)"
-                        class="text-green-600 hover:text-green-900 mr-4"
-                      >
-                        Fullfør
-                      </button>
-                      <button
-                        @click="openEditModal(booking)"
-                        class="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Rediger
-                      </button>
-                      <button
-                        @click="handleCancel(booking.id)"
-                        class="text-red-600 hover:text-red-900"
-                      >
-                        Kanseller
-                      </button>
+                      <div class="flex justify-end space-x-2">
+                        <Button
+                          v-if="booking.status.toUpperCase() === 'PENDING'"
+                          @click="handleConfirm(booking.id)"
+                          variant="primary"
+                          size="sm"
+                        >
+                          Bekreft
+                        </Button>
+                        <Button
+                          v-if="booking.status.toUpperCase() === 'CONFIRMED'"
+                          @click="handleComplete(booking.id)"
+                          variant="primary"
+                          size="sm"
+                        >
+                          Fullfør
+                        </Button>
+                        <Button
+                          @click="openEditModal(booking)"
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Rediger
+                        </Button>
+                        <Button
+                          @click="handleCancel(booking.id)"
+                          variant="danger"
+                          size="sm"
+                        >
+                          Kanseller
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -162,6 +190,8 @@ import { onMounted, ref, computed } from "vue";
 import { useBookingStore } from "../stores/bookings";
 import { useOrdersStore } from "../stores/orders";
 import BookingEditModal from "../components/BookingEditModal.vue";
+import Button from "../components/base/Button.vue";
+import Card from "../components/base/Card.vue";
 import type { BookingView } from "../types";
 
 const bookingStore = useBookingStore();
@@ -172,7 +202,9 @@ const selectedBooking = ref<BookingView | null>(null);
 // Filter to show active bookings (pending or confirmed)
 const activeBookings = computed(() => {
   return bookingStore.bookings.filter(
-    (booking) => booking.status === "pending" || booking.status === "confirmed"
+    (booking) => 
+      booking.status.toUpperCase() === "PENDING" || 
+      booking.status.toUpperCase() === "CONFIRMED"
   );
 });
 
@@ -193,25 +225,27 @@ const formatDateTime = (dateTime: string) => {
 };
 
 const getStatusClass = (status: string) => {
+  const upperStatus = status.toUpperCase();
   const classes = {
-    pending: "bg-yellow-100 text-yellow-800",
-    confirmed: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-    completed: "bg-blue-100 text-blue-800",
+    PENDING: "bg-yellow-100 text-yellow-800",
+    CONFIRMED: "bg-green-100 text-green-800",
+    CANCELLED: "bg-red-100 text-red-800",
+    COMPLETED: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-    classes[status as keyof typeof classes] || "bg-gray-100 text-gray-800"
+    classes[upperStatus as keyof typeof classes] || "bg-gray-100 text-gray-800"
   }`;
 };
 
 const getStatusText = (status: string) => {
+  const upperStatus = status.toUpperCase();
   const statusMap = {
-    pending: "Venter",
-    confirmed: "Bekreftet",
-    cancelled: "Kansellert",
-    completed: "Fullført",
+    PENDING: "Venter",
+    CONFIRMED: "Bekreftet",
+    CANCELLED: "Kansellert",
+    COMPLETED: "Fullført",
   };
-  return statusMap[status as keyof typeof statusMap] || "Ukjent";
+  return statusMap[upperStatus as keyof typeof statusMap] || "Ukjent";
 };
 
 const openEditModal = (booking: BookingView) => {
@@ -237,7 +271,7 @@ const handleSave = async (updatedBooking: Partial<BookingView>) => {
 };
 
 const handleConfirm = async (id: string | number) => {
-  const success = await bookingStore.updateBooking(id, { status: "confirmed" });
+  const success = await bookingStore.updateBooking(id, { status: "CONFIRMED" });
   if (success) {
     console.log("Booking confirmed");
   }
@@ -259,7 +293,7 @@ const handleComplete = async (id: string | number) => {
     // Force refresh both bookings and orders
     console.log("Refreshing bookings and orders...");
     await Promise.all([
-      bookingStore.fetchDashboardStats(true),
+      bookingStore.fetchUpcomingBookings(true),
       ordersStore.fetchOrders(true),
     ]);
     console.log("Refresh complete");
@@ -280,6 +314,6 @@ const handleCancel = async (id: string | number) => {
 };
 
 onMounted(() => {
-  bookingStore.fetchDashboardStats();
+  bookingStore.fetchUpcomingBookings();
 });
 </script>

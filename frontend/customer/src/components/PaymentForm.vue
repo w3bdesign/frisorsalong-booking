@@ -2,7 +2,7 @@
   <div class="max-w-lg mx-auto">
     <h2 class="heading-1 text-gradient text-center py-6">Betaling</h2>
 
-    <div v-if="!currentBooking" class="card text-center py-12">
+    <div v-if="!pendingBooking" class="card text-center py-12">
       <p class="text-gray-600 mb-6">Ingen aktiv bestilling funnet</p>
       <button @click="$router.push('/')" class="btn-secondary">Tilbake til tjenester</button>
     </div>
@@ -44,10 +44,10 @@
         <div class="pt-4">
           <button
             @click="handlePayment"
-            :disabled="isLoading"
+            :disabled="isLoading || isProcessing"
             class="w-full btn-primary text-lg py-6"
           >
-            <span v-if="isLoading" class="flex items-center justify-center">
+            <span v-if="isLoading || isProcessing" class="flex items-center justify-center">
               <svg
                 class="animate-spin h-5 w-5 mr-3"
                 xmlns="http://www.w3.org/2000/svg"
@@ -100,9 +100,9 @@
 
         <div>
           <h3 class="text-2xl font-bold text-gray-900 mb-2">Betaling vellykket!</h3>
-          <p class="text-gray-600">Din time er bekreftet for:</p>
+          <p class="text-gray-600">Din bestilling er bekreftet</p>
           <p class="text-xl font-medium text-primary-600 mt-2">
-            {{ currentBooking.time }}
+            {{ pendingBooking.firstName }}
           </p>
         </div>
 
@@ -124,28 +124,39 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useBookingStore } from '@/stores/booking'
-import { useServicesStore } from '@/stores/services'
+import { useBookingStore } from '../stores/booking'
+import { useServicesStore } from '../stores/services'
 
 const router = useRouter()
 const bookingStore = useBookingStore()
 const servicesStore = useServicesStore()
 
-const { currentBooking, isLoading, error } = bookingStore
+const { pendingBooking, isLoading, error } = bookingStore
 const { selectedService } = servicesStore
 
 const isPaid = ref(false)
+const isProcessing = ref(false)
 
-// Simulate payment processing
+// Simulate payment processing and create booking
 const handlePayment = async () => {
-  if (!currentBooking) return
+  if (!pendingBooking || isProcessing.value) return
 
   try {
+    isProcessing.value = true
     // Simulate payment processing delay
     await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Create booking with payment confirmation
+    await bookingStore.createWalkInBooking({
+      ...pendingBooking,
+      isPaid: true,
+    })
+
     isPaid.value = true
   } catch (err) {
     console.error('Payment failed:', err)
+  } finally {
+    isProcessing.value = false
   }
 }
 </script>

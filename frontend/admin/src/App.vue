@@ -38,15 +38,26 @@
               >
                 Ordre
               </router-link>
+              <router-link
+                to="/employees"
+                class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                :class="{
+                  'border-indigo-500 text-gray-900':
+                    $route.path.startsWith('/employees'),
+                }"
+              >
+                Ansatte
+              </router-link>
             </div>
           </div>
           <div class="flex items-center">
-            <button
+            <Button
               @click="handleLogout"
-              class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              variant="primary"
+              className="ml-3"
             >
               Logg ut
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -66,6 +77,7 @@
 import { useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { storeToRefs } from "pinia";
+import Button from "./components/base/Button.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();

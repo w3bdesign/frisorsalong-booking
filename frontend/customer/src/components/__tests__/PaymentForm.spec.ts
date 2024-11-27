@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
 import PaymentForm from '../PaymentForm.vue'
-import { useBookingStore } from '@/stores/booking'
-import { useServicesStore } from '@/stores/services'
-import { useRouter } from 'vue-router'
+import { useBookingStore } from '../../stores/booking'
+import { useServicesStore } from '../../stores/services'
 
 // Mock vue-router
 const mockRouter = {
@@ -16,19 +14,18 @@ vi.mock('vue-router', () => ({
 }))
 
 // Mock the stores
-vi.mock('@/stores/booking', () => ({
+vi.mock('../../stores/booking', () => ({
   useBookingStore: vi.fn(),
 }))
 
-vi.mock('@/stores/services', () => ({
+vi.mock('../../stores/services', () => ({
   useServicesStore: vi.fn(),
 }))
 
 describe('PaymentForm', () => {
-  const mockBooking = {
-    id: '1',
-    time: 'now',
+  const mockPendingBooking = {
     serviceId: '1',
+    firstName: 'Test Customer',
     phoneNumber: '+4712345678',
   }
 
@@ -46,9 +43,10 @@ describe('PaymentForm', () => {
 
     // Setup default store mocks
     vi.mocked(useBookingStore).mockReturnValue({
-      currentBooking: mockBooking,
+      pendingBooking: mockPendingBooking,
       isLoading: false,
       error: null,
+      createWalkInBooking: vi.fn().mockResolvedValue({}),
     } as any)
 
     vi.mocked(useServicesStore).mockReturnValue({
@@ -66,6 +64,9 @@ describe('PaymentForm', () => {
   const mountComponent = () => {
     return mount(PaymentForm, {
       global: {
+        provide: {
+          router: mockRouter,
+        },
         mocks: {
           $router: mockRouter,
         },
@@ -75,9 +76,10 @@ describe('PaymentForm', () => {
 
   it('shows message when no booking is found', () => {
     vi.mocked(useBookingStore).mockReturnValue({
-      currentBooking: null,
+      pendingBooking: null,
       isLoading: false,
       error: null,
+      createWalkInBooking: vi.fn(),
     } as any)
 
     const wrapper = mountComponent()
@@ -96,15 +98,13 @@ describe('PaymentForm', () => {
   })
 
   it('shows loading state during payment processing', async () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      currentBooking: mockBooking,
-      isLoading: true,
-      error: null,
-    } as any)
-
     const wrapper = mountComponent()
-    const payButton = wrapper.find('button.btn-primary')
-    expect(payButton.attributes('disabled')).toBeDefined()
+
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
     expect(wrapper.text()).toContain('Behandler...')
   })
@@ -112,26 +112,38 @@ describe('PaymentForm', () => {
   it('shows success message after payment', async () => {
     const wrapper = mountComponent()
 
-    // Trigger payment
+    // Start payment
     await wrapper.find('button.btn-primary').trigger('click')
 
-    // Fast-forward through the payment delay
+    // Wait for payment delay
     await vi.advanceTimersByTime(1500)
     await wrapper.vm.$nextTick()
 
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
     expect(wrapper.text()).toContain('Betaling vellykket!')
-    expect(wrapper.text()).toContain(mockBooking.time)
+    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
   })
 
-  it('displays error message when payment fails', () => {
+  it('displays error message when payment fails', async () => {
+    const mockError = 'Payment failed'
     vi.mocked(useBookingStore).mockReturnValue({
-      currentBooking: mockBooking,
+      pendingBooking: mockPendingBooking,
       isLoading: false,
-      error: 'Payment failed',
+      error: mockError,
+      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
     } as any)
 
     const wrapper = mountComponent()
-    expect(wrapper.find('.text-red-600').text()).toBe('Payment failed')
+
+    // Attempt payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
   })
 
   it('navigates back to home after successful payment', async () => {
@@ -141,10 +153,10 @@ describe('PaymentForm', () => {
     await wrapper.find('button.btn-primary').trigger('click')
     await vi.advanceTimersByTime(1500)
     await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
 
     // Click return button
-    const homeButton = wrapper.find('button.btn-secondary')
-    await homeButton.trigger('click')
+    await wrapper.find('button.btn-secondary').trigger('click')
     expect(mockRouter.push).toHaveBeenCalledWith('/')
   })
 
@@ -170,12 +182,14 @@ describe('PaymentForm', () => {
     // During payment
     await wrapper.find('button.btn-primary').trigger('click')
     await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
 
     // After payment
     await vi.advanceTimersByTime(1500)
     await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
 
-    // Success state
+    // Success state should show secondary button
     expect(wrapper.find('button.btn-primary').exists()).toBe(false)
     expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
   })

@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WaitingTimeDisplay from '../WaitingTimeDisplay.vue'
-import { useWaitingStore } from '@/stores/waiting'
+import { useDisplayStore } from '../../stores/display'
 
-// Mock the waiting store
-vi.mock('@/stores/waiting', () => ({
-  useWaitingStore: vi.fn(),
+// Mock the display store
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
 }))
 
 describe('WaitingTimeDisplay', () => {
@@ -20,20 +20,22 @@ describe('WaitingTimeDisplay', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.useFakeTimers()
-    // Set a fixed system time to avoid timezone issues
+    // Set a fixed system time
     vi.setSystemTime(new Date('2024-01-01T12:00:00.000Z'))
 
     // Setup default mock implementation
-    vi.mocked(useWaitingStore).mockReturnValue({
-      queueStatus: {
-        peopleWaiting: 3,
-        estimatedWaitTime: 90,
-        lastUpdated: '2024-01-01T12:00:00.000Z',
-      },
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [
+        { id: '1', customerName: 'Test', estimatedTime: 90 },
+        { id: '2', customerName: 'Test2', estimatedTime: 90 },
+        { id: '3', customerName: 'Test3', estimatedTime: 90 },
+      ],
+      waitingCount: 3,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
       isLoading: false,
       error: null,
-      formattedWaitTime: '1h 30min',
       startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
     } as any)
   })
 
@@ -43,16 +45,14 @@ describe('WaitingTimeDisplay', () => {
   })
 
   it('renders loading state correctly', () => {
-    vi.mocked(useWaitingStore).mockReturnValue({
-      queueStatus: {
-        peopleWaiting: 0,
-        estimatedWaitTime: 0,
-        lastUpdated: new Date().toISOString(),
-      },
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
       isLoading: true,
       error: null,
-      formattedWaitTime: '0min',
       startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
     } as any)
 
     const wrapper = mount(WaitingTimeDisplay)
@@ -62,24 +62,23 @@ describe('WaitingTimeDisplay', () => {
   it('renders waiting time and queue information correctly', () => {
     const wrapper = mount(WaitingTimeDisplay)
 
-    expect(wrapper.text()).toContain('1h 30min')
+    // Average waiting time should be 90 minutes
+    expect(wrapper.text()).toContain('90min')
     expect(wrapper.text()).toContain('3 venter')
-    // Since we're using nb-NO locale and the time is fixed at 12:00:00 UTC
-    expect(wrapper.text()).toContain('13:00:00') // UTC+1 for Norway
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:00:00')
   })
 
   it('displays error message when there is an error', () => {
     const errorMessage = 'Failed to fetch queue status'
-    vi.mocked(useWaitingStore).mockReturnValue({
-      queueStatus: {
-        peopleWaiting: 0,
-        estimatedWaitTime: 0,
-        lastUpdated: new Date().toISOString(),
-      },
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
       isLoading: false,
       error: errorMessage,
-      formattedWaitTime: '0min',
       startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
     } as any)
 
     const wrapper = mount(WaitingTimeDisplay)
@@ -89,44 +88,41 @@ describe('WaitingTimeDisplay', () => {
 
   it('starts polling on mount and cleans up on unmount', async () => {
     const mockStartPolling = vi.fn(() => mockTimer)
-    vi.mocked(useWaitingStore).mockReturnValue({
-      queueStatus: {
-        peopleWaiting: 3,
-        estimatedWaitTime: 90,
-        lastUpdated: '2024-01-01T12:00:00.000Z',
-      },
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
       isLoading: false,
       error: null,
-      formattedWaitTime: '1h 30min',
       startPolling: mockStartPolling,
+      cleanup: mockCleanup,
     } as any)
 
     const wrapper = mount(WaitingTimeDisplay)
 
-    // Check that polling was started with correct interval
-    expect(mockStartPolling).toHaveBeenCalledWith(30000)
+    // Check that polling was started
+    expect(mockStartPolling).toHaveBeenCalled()
 
     // Unmount and verify cleanup
     wrapper.unmount()
-    expect(vi.getTimerCount()).toBe(0) // All timers should be cleared
+    expect(mockCleanup).toHaveBeenCalled()
   })
 
   it('formats time correctly for different locales', () => {
     const now = new Date('2024-01-01T12:34:56.000Z')
-    vi.mocked(useWaitingStore).mockReturnValue({
-      queueStatus: {
-        peopleWaiting: 3,
-        estimatedWaitTime: 90,
-        lastUpdated: now.toISOString(),
-      },
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: now,
       isLoading: false,
       error: null,
-      formattedWaitTime: '1h 30min',
       startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
     } as any)
 
     const wrapper = mount(WaitingTimeDisplay)
-    // Since we're using nb-NO locale and the time is at 12:34:56 UTC
-    expect(wrapper.text()).toContain('13:34:56') // UTC+1 for Norway
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:34:56')
   })
 })

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 interface AuthState {
   token: string | null;
@@ -10,6 +10,7 @@ interface AuthState {
 }
 
 interface User {
+  id: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -22,8 +23,8 @@ interface LoginCredentials {
 }
 
 interface AuthResponse {
-  user: User;
   token: string;
+  user: User;
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -36,9 +37,9 @@ if (token) {
 
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
-    token: token,
+    token: localStorage.getItem("admin_token"),
     user: null,
-    isAuthenticated: !!token,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
     error: null,
     isLoading: false,
   }),
@@ -72,15 +73,26 @@ export const useAuthStore = defineStore("auth", {
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
         return true;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Login error:", error);
-        if (error instanceof AxiosError) {
-          this.error = error.response?.data?.message || "Invalid credentials";
-        } else if (error instanceof Error) {
-          this.error = error.message;
-        } else {
+
+        // Handle unauthorized specifically for invalid credentials
+        if (error?.response?.status === 401) {
+          this.error = "Invalid credentials";
+        }
+        // Handle connection errors
+        else if (error?.code === "ECONNREFUSED") {
           this.error = "An error occurred during login";
         }
+        // Handle other errors
+        else if (error instanceof Error) {
+          this.error = error.message;
+        }
+        // Fallback error message
+        else {
+          this.error = "An error occurred during login";
+        }
+
         return false;
       } finally {
         this.isLoading = false;
@@ -110,6 +122,9 @@ export const useAuthStore = defineStore("auth", {
 
       // Set the Authorization header
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // If we have a token, consider the user authenticated
+      // The token will be validated on API requests
       this.token = token;
       this.isAuthenticated = true;
 

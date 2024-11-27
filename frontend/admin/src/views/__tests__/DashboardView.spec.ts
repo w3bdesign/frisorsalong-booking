@@ -1,31 +1,61 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
+import { createRouter, createWebHistory } from 'vue-router';
 import DashboardView from "../DashboardView.vue";
 
+// Create mock router
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/',
+      component: DashboardView
+    }
+  ]
+});
+
 // Mock the store
-const mockStore = {
+const createMockStore = () => ({
   bookings: [],
   totalBookings: 0,
   todayBookings: 0,
   upcomingBookings: 0,
   isLoading: false,
-  fetchDashboardStats: vi.fn(),
-  fetchUpcomingBookings: vi.fn(),
-};
+  error: null,
+  fetchDashboardStats: vi.fn().mockResolvedValue(undefined),
+  fetchUpcomingBookings: vi.fn().mockResolvedValue(undefined),
+});
 
+let mockStore = createMockStore();
+
+// Mock the store module with the correct path
 vi.mock("@/stores/bookings", () => ({
-  useBookingStore: () => mockStore,
+  useBookingStore: () => mockStore
 }));
 
 describe("DashboardView", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    mockStore = createMockStore();
     vi.clearAllMocks();
   });
 
-  it("should render statistics cards", () => {
-    const wrapper = mount(DashboardView);
+  const mountComponent = async () => {
+    const wrapper = mount(DashboardView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          RouterLink: true
+        }
+      }
+    });
+    await flushPromises();
+    return wrapper;
+  };
+
+  it("should render statistics cards", async () => {
+    const wrapper = await mountComponent();
 
     // Test statistics section exists
     const statsSection = wrapper.find('[data-test="statistics-cards"]');
@@ -37,8 +67,8 @@ describe("DashboardView", () => {
     expect(wrapper.find('[data-test="upcoming-bookings"]').exists()).toBe(true);
   });
 
-  it("should display bookings table", () => {
-    const wrapper = mount(DashboardView);
+  it("should display bookings table", async () => {
+    const wrapper = await mountComponent();
 
     // Test bookings table exists
     const bookingsTable = wrapper.find('[data-test="bookings-table"]');
@@ -47,51 +77,58 @@ describe("DashboardView", () => {
     // Test table headers
     const headers = wrapper.findAll("th");
     expect(headers.length).toBeGreaterThan(0);
-    expect(headers.some((header) => header.text().includes("Customer"))).toBe(
+    expect(headers.some((header) => header.text().includes("Kunde"))).toBe(
       true,
     );
-    expect(headers.some((header) => header.text().includes("Service"))).toBe(
+    expect(headers.some((header) => header.text().includes("Tjeneste"))).toBe(
       true,
     );
-    expect(headers.some((header) => header.text().includes("Date"))).toBe(true);
+    expect(headers.some((header) => header.text().includes("Dato"))).toBe(true);
   });
 
   it("should load dashboard data on mount", async () => {
-    mount(DashboardView);
+    await mountComponent();
+    await flushPromises();
 
     // Verify store actions were called
-    expect(mockStore.fetchDashboardStats).toHaveBeenCalled();
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
   });
 
   it("should show loading state while fetching data", async () => {
+    // Set loading state before mounting
     mockStore.isLoading = true;
-    const wrapper = mount(DashboardView);
+    const wrapper = await mountComponent();
 
     // Test loading state is shown
     const loadingState = wrapper.find('[data-test="loading-state"]');
     expect(loadingState.exists()).toBe(true);
-    expect(loadingState.text()).toContain("Loading");
+    expect(loadingState.text()).toContain("Laster bestillinger");
 
     mockStore.isLoading = false;
   });
 
-  it("should display refresh button", () => {
-    const wrapper = mount(DashboardView);
+  it("should display refresh button", async () => {
+    const wrapper = await mountComponent();
 
     // Test refresh button exists
     const refreshButton = wrapper.find('[data-test="refresh-button"]');
     expect(refreshButton.exists()).toBe(true);
-    expect(refreshButton.text()).toBe("Refresh");
+    expect(refreshButton.text()).toBe("Oppdater");
   });
 
   it("should handle refresh click", async () => {
-    const wrapper = mount(DashboardView);
+    const wrapper = await mountComponent();
+    
+    // Clear mock calls from mounting
+    mockStore.fetchDashboardStats.mockClear();
 
     // Click refresh button
     const refreshButton = wrapper.find('[data-test="refresh-button"]');
     await refreshButton.trigger("click");
+    await flushPromises();
 
-    // Verify store action was called
-    expect(mockStore.fetchDashboardStats).toHaveBeenCalled();
+    // Verify store action was called with forceRefresh=true
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledWith(true);
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
   });
 });

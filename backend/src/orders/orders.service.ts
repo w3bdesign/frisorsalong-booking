@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { BookingsService } from '../bookings/bookings.service';
-import { BookingStatus } from '../bookings/entities/booking.entity';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Order } from "./entities/order.entity";
+import { BookingsService } from "../bookings/bookings.service";
+import { BookingStatus } from "../bookings/entities/booking.entity";
 
 @Injectable()
 export class OrdersService {
@@ -11,18 +17,20 @@ export class OrdersService {
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     @Inject(forwardRef(() => BookingsService))
-    private readonly bookingsService: BookingsService,
+    private readonly bookingsService: BookingsService
   ) {}
 
   async createFromBooking(bookingId: string): Promise<Order> {
     const booking = await this.bookingsService.findOne(bookingId);
-    
+
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${bookingId} not found`);
     }
 
     if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException('Only confirmed bookings can be converted to orders');
+      throw new BadRequestException(
+        "Only confirmed bookings can be converted to orders"
+      );
     }
 
     // Check if order already exists for this booking
@@ -31,7 +39,9 @@ export class OrdersService {
     });
 
     if (existingOrder) {
-      throw new BadRequestException(`Order already exists for booking ${bookingId}`);
+      throw new BadRequestException(
+        `Order already exists for booking ${bookingId}`
+      );
     }
 
     // Create new order with current timestamp
@@ -48,8 +58,8 @@ export class OrdersService {
 
     // Update booking status to completed
     await this.bookingsService.update(bookingId, {
-      status: BookingStatus.COMPLETED, // Using the enum value directly
-      notes: `Completed at ${now.toISOString()}`
+      status: BookingStatus.COMPLETED,
+      notes: `Completed at ${now.toISOString()}`,
     });
 
     // Return the order with relations
@@ -58,9 +68,14 @@ export class OrdersService {
 
   async findAll(): Promise<Order[]> {
     return this.orderRepository.find({
-      relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
+      relations: [
+        "booking",
+        "booking.customer",
+        "booking.employee",
+        "booking.service",
+      ],
       order: {
-        completedAt: 'DESC',
+        completedAt: "DESC",
       },
     });
   }
@@ -68,7 +83,12 @@ export class OrdersService {
   async findOne(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['booking', 'booking.customer', 'booking.employee', 'booking.service'],
+      relations: [
+        "booking",
+        "booking.customer",
+        "booking.employee",
+        "booking.service",
+      ],
     });
 
     if (!order) {

@@ -7,15 +7,18 @@ import {
   Put,
   UseGuards,
   BadRequestException,
+  Req,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { BookingResponseDto } from "./dto/booking-response.dto";
 import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
+import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/entities/user.entity";
 
@@ -23,12 +26,28 @@ import { UserRole } from "../users/entities/user.entity";
 export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
-    private readonly ordersService: OrdersService,
+    private readonly ordersService: OrdersService
   ) {}
 
   @Get("upcoming/count")
   async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
     return this.bookingsService.getUpcomingCount();
+  }
+
+  @Post("walk-in")
+  @UseGuards(ShopCodeGuard)
+  async createWalkIn(
+    @Body() createWalkInBookingDto: CreateWalkInBookingDto,
+    @Req() request: any
+  ) {
+    // Get shop from request (added by ShopCodeGuard)
+    const shop = request.shop;
+
+    const booking = await this.bookingsService.createWalkIn(
+      createWalkInBookingDto,
+      shop
+    );
+    return BookingResponseDto.fromEntity(booking);
   }
 
   @Post()
@@ -76,7 +95,7 @@ export class BookingsController {
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async update(
     @Param("id") id: string,
-    @Body() updateBookingDto: UpdateBookingDto,
+    @Body() updateBookingDto: UpdateBookingDto
   ) {
     const booking = await this.bookingsService.update(id, updateBookingDto);
     return BookingResponseDto.fromEntity(booking);
@@ -85,9 +104,7 @@ export class BookingsController {
   @Put(":id/cancel")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async cancel(
-    @Param("id") id: string,
-  ) {
+  async cancel(@Param("id") id: string) {
     // For admin cancellations, use a default reason
     const reason = "Cancelled by administrator";
     const booking = await this.bookingsService.cancel(id, reason);
