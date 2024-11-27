@@ -10,3 +10,11 @@ export interface ButtonProps {
   loading?: boolean;
   className?: string;
 }
+
+export type CardColor = 'indigo' | 'green' | 'blue' | 'red' | 'yellow';
+
+export interface CardProps {
+  title: string;
+  value: string | number;
+  color?: CardColor;
+}
