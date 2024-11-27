@@ -101,23 +101,17 @@ describe('PaymentForm', () => {
   })
 
   it('shows success message after payment', async () => {
-    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      return {}
-    })
-
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: null,
-      createWalkInBooking: mockCreateWalkInBooking,
-    } as any)
-
     const wrapper = mountComponent()
 
     // Start payment
     await wrapper.find('button.btn-primary').trigger('click')
+
+    // Wait for payment delay
     await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('Betaling vellykket!')
@@ -144,23 +138,12 @@ describe('PaymentForm', () => {
   })
 
   it('navigates back to home after successful payment', async () => {
-    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      return {}
-    })
-
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: null,
-      createWalkInBooking: mockCreateWalkInBooking,
-    } as any)
-
     const wrapper = mountComponent()
 
     // Complete payment
     await wrapper.find('button.btn-primary').trigger('click')
     await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
     // Click return button
@@ -182,18 +165,6 @@ describe('PaymentForm', () => {
   })
 
   it('shows payment button in correct states', async () => {
-    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      return {}
-    })
-
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: null,
-      createWalkInBooking: mockCreateWalkInBooking,
-    } as any)
-
     const wrapper = mountComponent()
 
     // Initial state
@@ -207,6 +178,9 @@ describe('PaymentForm', () => {
     // After payment
     await vi.advanceTimersByTime(1500)
     await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    // Success state should show secondary button
     expect(wrapper.find('button.btn-primary').exists()).toBe(false)
     expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
   })
