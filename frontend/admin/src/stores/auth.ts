@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 interface AuthState {
   token: string | null;
@@ -10,6 +10,7 @@ interface AuthState {
 }
 
 interface User {
+  id: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -74,7 +75,7 @@ export const useAuthStore = defineStore("auth", {
         return true;
       } catch (error: any) {
         console.error("Login error:", error);
-        
+
         // Handle unauthorized specifically for invalid credentials
         if (error?.response?.status === 401) {
           this.error = "Invalid credentials";
@@ -91,7 +92,7 @@ export const useAuthStore = defineStore("auth", {
         else {
           this.error = "An error occurred during login";
         }
-        
+
         return false;
       } finally {
         this.isLoading = false;
@@ -121,7 +122,7 @@ export const useAuthStore = defineStore("auth", {
 
       // Set the Authorization header
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      
+
       // If we have a token, consider the user authenticated
       // The token will be validated on API requests
       this.token = token;
