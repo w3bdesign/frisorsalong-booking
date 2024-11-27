@@ -4,18 +4,18 @@
       <div 
         :class="[
           'p-3 rounded-full',
-          `bg-${color}-100 text-${color}-600`
+          `bg-${props.color}-100 text-${props.color}-600`
         ]"
       >
         <slot name="icon"></slot>
       </div>
       <div class="ml-4">
-        <h3 class="text-lg font-medium text-gray-900">{{ title }}</h3>
+        <h3 class="text-lg font-medium text-gray-900">{{ props.title }}</h3>
         <p 
           class="mt-1 text-3xl font-semibold"
-          :class="`text-${color}-600`"
+          :class="`text-${props.color}-600`"
         >
-          {{ value }}
+          {{ props.value }}
         </p>
       </div>
     </div>
@@ -23,13 +23,9 @@
 </template>
 
 <script setup lang="ts">
-interface Props {
-  title: string;
-  value: string | number;
-  color?: 'indigo' | 'green' | 'blue' | 'red' | 'yellow';
-}
+import type { CardProps } from '@/types/components';
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<CardProps>(), {
   color: 'indigo'
 });
 </script>
