@@ -7,6 +7,8 @@ import { EmployeesModule } from "../employees/employees.module";
 import { ServicesModule } from "../services/services.module";
 import { OrdersModule } from "../orders/orders.module";
 import { OrdersService } from "../orders/orders.service";
+import { ShopsModule } from "../shops/shops.module";
+import { ShopsService } from "../shops/shops.service";
 import { forwardRef } from "@nestjs/common";
 
 // Mock BookingsService
@@ -23,6 +25,11 @@ const mockOrdersService = {
   createFromBooking: jest.fn(),
   findAll: jest.fn(),
   findOne: jest.fn(),
+};
+
+// Mock ShopsService
+const mockShopsService = {
+  validateShopCode: jest.fn().mockResolvedValue(true),
 };
 
 // Mock repository
@@ -59,10 +66,15 @@ jest.mock("../orders/orders.module", () => ({
   OrdersModule: class MockOrdersModule {},
 }));
 
+jest.mock("../shops/shops.module", () => ({
+  ShopsModule: class MockShopsModule {},
+}));
+
 describe("BookingsModule", () => {
   let moduleRef;
   let bookingsService;
   let ordersService;
+  let shopsService;
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -80,6 +92,7 @@ describe("BookingsModule", () => {
         EmployeesModule,
         ServicesModule,
         forwardRef(() => OrdersModule),
+        ShopsModule,
       ],
       providers: [
         {
@@ -90,12 +103,17 @@ describe("BookingsModule", () => {
           provide: OrdersService,
           useValue: mockOrdersService,
         },
+        {
+          provide: ShopsService,
+          useValue: mockShopsService,
+        },
       ],
       controllers: [BookingsController],
     }).compile();
 
     bookingsService = moduleRef.get(BookingsService);
     ordersService = moduleRef.get(OrdersService);
+    shopsService = moduleRef.get(ShopsService);
   });
 
   it("should be defined", () => {
@@ -105,6 +123,7 @@ describe("BookingsModule", () => {
   it("should have required dependencies", () => {
     expect(bookingsService).toBeDefined();
     expect(ordersService).toBeDefined();
+    expect(shopsService).toBeDefined();
   });
 
   it("should have BookingsController", () => {
