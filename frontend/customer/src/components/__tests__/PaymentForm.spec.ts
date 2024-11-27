@@ -62,7 +62,16 @@ describe('PaymentForm', () => {
   })
 
   const mountComponent = () => {
-    return mount(PaymentForm)
+    return mount(PaymentForm, {
+      global: {
+        provide: {
+          router: mockRouter,
+        },
+        mocks: {
+          $router: mockRouter,
+        },
+      },
+    })
   }
 
   it('shows message when no booking is found', () => {
