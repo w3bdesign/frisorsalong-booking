@@ -54,7 +54,7 @@
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-semibold text-gray-900">Nylige bestillinger</h2>
             <Button
-              @click="bookingStore.fetchDashboardStats"
+              @click="handleRefresh"
               data-test="refresh-button"
               variant="primary"
               :loading="bookingStore.isLoading"
@@ -229,6 +229,10 @@ function formatDateTime(dateString: string): string {
     return 'Dato ikke tilgjengelig';
   }
 }
+
+const handleRefresh = () => {
+  bookingStore.fetchDashboardStats(true);
+};
 
 const handleView = (booking: any) => {
   selectedBooking.value = booking;
