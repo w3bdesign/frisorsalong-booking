@@ -4,12 +4,14 @@ import { Repository, Not, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { EmployeesService } from './employees.service';
 import { Employee } from './entities/employee.entity';
 import { Booking } from '../bookings/entities/booking.entity';
+import { User } from '../users/entities/user.entity';
 import { NotFoundException } from '@nestjs/common';
 
 describe('EmployeesService', () => {
   let service: EmployeesService;
   let employeeRepository: Repository<Employee>;
   let bookingRepository: Repository<Booking>;
+  let userRepository: Repository<User>;
 
   const mockEmployee = {
     id: 'employee-1',
@@ -28,6 +30,11 @@ describe('EmployeesService', () => {
     count: jest.fn(),
   };
 
+  const mockUserRepository = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,12 +47,17 @@ describe('EmployeesService', () => {
           provide: getRepositoryToken(Booking),
           useValue: mockBookingRepository,
         },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
       ],
     }).compile();
 
     service = module.get<EmployeesService>(EmployeesService);
     employeeRepository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
     bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
+    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
   });
 
   it('should be defined', () => {
@@ -125,6 +137,12 @@ describe('EmployeesService', () => {
       expect(result).toEqual(mockEmployees);
       expect(employeeRepository.find).toHaveBeenCalledWith({
         relations: ['user'],
+        order: {
+          user: {
+            firstName: 'ASC',
+            lastName: 'ASC'
+          }
+        }
       });
     });
   });
@@ -155,6 +173,7 @@ describe('EmployeesService', () => {
           services: {
             id: 'service-1',
           },
+          isActive: true
         },
       });
     });
