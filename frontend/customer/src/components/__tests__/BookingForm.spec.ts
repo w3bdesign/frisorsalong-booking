@@ -3,9 +3,8 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import BookingForm from '../BookingForm.vue'
-import { useServicesStore } from '@/stores/services'
-import { useBookingStore } from '@/stores/booking'
-import { useRouter } from 'vue-router'
+import { useServicesStore } from '../../stores/services'
+import { useBookingStore } from '../../stores/booking'
 
 // Mock vue-router
 const mockRouter = {
@@ -16,12 +15,20 @@ vi.mock('vue-router', () => ({
 }))
 
 // Mock the stores
-vi.mock('@/stores/services', () => ({
+vi.mock('../../stores/services', () => ({
   useServicesStore: vi.fn(),
 }))
 
-vi.mock('@/stores/booking', () => ({
+vi.mock('../../stores/booking', () => ({
   useBookingStore: vi.fn(),
+}))
+
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(() => ({
+    waitingSlots: [],
+    waitingCount: 0,
+    activeEmployees: [{ id: '1', name: 'Employee 1' }],
+  })),
 }))
 
 describe('BookingForm', () => {
@@ -47,7 +54,7 @@ describe('BookingForm', () => {
     vi.mocked(useBookingStore).mockReturnValue({
       isLoading: false,
       error: ref(null),
-      createBooking: vi.fn().mockResolvedValue(undefined),
+      setPendingBooking: vi.fn(),
     } as any)
   })
 
@@ -74,38 +81,28 @@ describe('BookingForm', () => {
     expect(wrapper.text()).toContain(formattedPrice)
   })
 
-  it('allows selecting time slots', async () => {
-    const wrapper = mount(BookingForm)
-
-    // Select "Now" time slot
-    const timeSlotButton = wrapper.find('button[type="button"]')
-    await timeSlotButton.trigger('click')
-
-    // Check if the correct class is applied
-    expect(timeSlotButton.classes()).toContain('border-primary-500')
-  })
-
   it('handles form submission correctly', async () => {
-    const mockCreateBooking = vi.fn().mockResolvedValue(undefined)
+    const mockSetPendingBooking = vi.fn()
     vi.mocked(useBookingStore).mockReturnValue({
       isLoading: false,
       error: ref(null),
-      createBooking: mockCreateBooking,
+      setPendingBooking: mockSetPendingBooking,
     } as any)
 
     const wrapper = mount(BookingForm)
 
     // Fill in form data
-    await wrapper.find('button[type="button"]').trigger('click') // Select time slot
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
     await wrapper.find('input[type="tel"]').setValue('+4712345678')
 
     // Submit form
     await wrapper.find('form').trigger('submit')
 
-    expect(mockCreateBooking).toHaveBeenCalledWith({
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
       serviceId: mockService.id,
-      time: 'now',
+      firstName: 'Test Customer',
       phoneNumber: '+4712345678',
+      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })
@@ -114,75 +111,55 @@ describe('BookingForm', () => {
     vi.mocked(useBookingStore).mockReturnValue({
       isLoading: true,
       error: ref(null),
-      createBooking: vi.fn().mockResolvedValue(undefined),
+      setPendingBooking: vi.fn(),
     } as any)
 
     const wrapper = mount(BookingForm)
     expect(wrapper.find('button[type="submit"]').text()).toBe('Behandler...')
   })
 
-  it('displays error message when submission fails', async () => {
-    const mockCreateBooking = vi.fn().mockRejectedValue(new Error('Failed to create booking'))
-    const error = ref<string | null>(null)
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
-      error,
-      createBooking: mockCreateBooking,
-    } as any)
-
-    const wrapper = mount(BookingForm)
-
-    // Fill in form data
-    await wrapper.find('button[type="button"]').trigger('click') // Select time slot
-    await wrapper.find('input[type="tel"]').setValue('+4712345678')
-
-    // Submit form and update store error state
-    await wrapper.find('form').trigger('submit')
-    error.value = 'Failed to create booking'
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('.text-red-600').exists()).toBe(true)
-    expect(wrapper.find('.text-red-600').text()).toBe('Failed to create booking')
-  })
-
-  it('disables submit button when no time slot is selected', () => {
+  it('disables submit button when no name is entered', () => {
     const wrapper = mount(BookingForm)
     const submitButton = wrapper.find('button[type="submit"]')
     expect(submitButton.attributes('disabled')).toBeDefined()
   })
 
   it('validates phone number format', async () => {
-    const mockCreateBooking = vi.fn()
-    const error = ref<string | null>(null)
+    const mockSetPendingBooking = vi.fn()
     vi.mocked(useBookingStore).mockReturnValue({
       isLoading: false,
-      error,
-      createBooking: mockCreateBooking,
+      error: ref(null),
+      setPendingBooking: mockSetPendingBooking,
     } as any)
 
     const wrapper = mount(BookingForm)
 
-    // Select time slot first
-    await wrapper.find('button[type="button"]').trigger('click')
+    // Fill in name first
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
 
     // Test invalid phone number
-    mockCreateBooking.mockRejectedValueOnce(new Error('Invalid phone number'))
     const input = wrapper.find('input[type="tel"]')
     await input.setValue('invalid')
     await wrapper.find('form').trigger('submit')
-    error.value = 'Invalid phone number'
-    await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.text-red-600').exists()).toBe(true)
-    expect(wrapper.find('.text-red-600').text()).toBe('Invalid phone number')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: 'invalid',
+      startTime: expect.any(String),
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
 
     // Test valid phone number
-    mockCreateBooking.mockResolvedValueOnce(undefined)
-    error.value = null
     await input.setValue('+4712345678')
     await wrapper.find('form').trigger('submit')
-    await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.text-red-600').exists()).toBe(false)
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: '+4712345678',
+      startTime: expect.any(String),
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })
 })
