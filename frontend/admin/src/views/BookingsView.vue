@@ -113,7 +113,7 @@
                     >
                       <div class="flex justify-end space-x-2">
                         <Button
-                          v-if="booking.status === 'PENDING'"
+                          v-if="booking.status.toUpperCase() === 'PENDING'"
                           @click="handleConfirm(booking.id)"
                           variant="primary"
                           size="sm"
@@ -121,7 +121,7 @@
                           Bekreft
                         </Button>
                         <Button
-                          v-if="booking.status === 'CONFIRMED'"
+                          v-if="booking.status.toUpperCase() === 'CONFIRMED'"
                           @click="handleComplete(booking.id)"
                           variant="primary"
                           size="sm"
@@ -179,7 +179,9 @@ const selectedBooking = ref<BookingView | null>(null);
 // Filter to show active bookings (pending or confirmed)
 const activeBookings = computed(() => {
   return bookingStore.bookings.filter(
-    (booking) => booking.status === "PENDING" || booking.status === "CONFIRMED"
+    (booking) => 
+      booking.status.toUpperCase() === "PENDING" || 
+      booking.status.toUpperCase() === "CONFIRMED"
   );
 });
 
@@ -200,6 +202,7 @@ const formatDateTime = (dateTime: string) => {
 };
 
 const getStatusClass = (status: string) => {
+  const upperStatus = status.toUpperCase();
   const classes = {
     PENDING: "bg-yellow-100 text-yellow-800",
     CONFIRMED: "bg-green-100 text-green-800",
@@ -207,18 +210,19 @@ const getStatusClass = (status: string) => {
     COMPLETED: "bg-blue-100 text-blue-800",
   };
   return `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-    classes[status as keyof typeof classes] || "bg-gray-100 text-gray-800"
+    classes[upperStatus as keyof typeof classes] || "bg-gray-100 text-gray-800"
   }`;
 };
 
 const getStatusText = (status: string) => {
+  const upperStatus = status.toUpperCase();
   const statusMap = {
     PENDING: "Venter",
     CONFIRMED: "Bekreftet",
     CANCELLED: "Kansellert",
     COMPLETED: "Fullført",
   };
-  return statusMap[status as keyof typeof statusMap] || "Ukjent";
+  return statusMap[upperStatus as keyof typeof statusMap] || "Ukjent";
 };
 
 const openEditModal = (booking: BookingView) => {
@@ -266,7 +270,7 @@ const handleComplete = async (id: string | number) => {
     // Force refresh both bookings and orders
     console.log("Refreshing bookings and orders...");
     await Promise.all([
-      bookingStore.fetchDashboardStats(true),
+      bookingStore.fetchUpcomingBookings(true),
       ordersStore.fetchOrders(true),
     ]);
     console.log("Refresh complete");
@@ -287,6 +291,6 @@ const handleCancel = async (id: string | number) => {
 };
 
 onMounted(() => {
-  bookingStore.fetchDashboardStats();
+  bookingStore.fetchUpcomingBookings();
 });
 </script>
