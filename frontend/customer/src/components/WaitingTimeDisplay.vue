@@ -59,25 +59,31 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useDisplayStore } from '../stores/display'
 
+interface WaitingSlot {
+  estimatedTime?: number;
+}
+
 const store = useDisplayStore()
 
 const calculateEstimatedWaitTime = computed(() => {
   if (!store.waitingSlots.length) return 0
 
   // Calculate average waiting time from all slots with estimatedTime
-  const slotsWithTime = store.waitingSlots.filter((slot) => slot.estimatedTime !== undefined)
+  const slotsWithTime = store.waitingSlots.filter((slot: WaitingSlot) => slot.estimatedTime !== undefined)
   if (!slotsWithTime.length) return 0
 
-  const totalTime = slotsWithTime.reduce((sum, slot) => sum + (slot.estimatedTime || 0), 0)
+  const totalTime = slotsWithTime.reduce((sum: number, slot: WaitingSlot) => sum + (slot.estimatedTime || 0), 0)
   return Math.round(totalTime / slotsWithTime.length)
 })
 
 const formatTime = (date: Date) => {
-  return date.toLocaleTimeString('nb-NO', {
+  return new Intl.DateTimeFormat('nb-NO', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  })
+    timeZone: 'Europe/Oslo',
+    hourCycle: 'h23'
+  }).format(date)
 }
 
 // Start polling when component mounts
