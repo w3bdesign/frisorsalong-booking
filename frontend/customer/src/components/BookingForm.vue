@@ -26,88 +26,50 @@
         </div>
       </div>
 
-      <!-- Time Slots -->
+      <!-- Queue Status -->
       <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Velg tidspunkt</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            class="relative p-4 text-left border rounded-xl transition-all duration-200"
-            :class="
-              selectedTimeSlot?.time === 'now'
-                ? 'border-primary-500 bg-primary-50 text-primary-900'
-                : 'border-gray-200 hover:border-primary-300'
-            "
-            @click="selectedTimeSlot = { time: 'now', waitTime: '5-10 min' }"
-          >
-            <div class="font-bold text-lg mb-1">Nå</div>
-            <div class="text-sm opacity-75">5-10 min ventetid</div>
-            <div v-if="selectedTimeSlot?.time === 'now'" class="absolute top-2 right-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5 text-primary-500"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
+              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
             </div>
-          </button>
-
-          <button
-            type="button"
-            class="relative p-4 text-left border rounded-xl transition-all duration-200"
-            :class="
-              selectedTimeSlot?.time === 'next'
-                ? 'border-primary-500 bg-primary-50 text-primary-900'
-                : 'border-gray-200 hover:border-primary-300'
-            "
-            @click="selectedTimeSlot = { time: 'next', waitTime: '15-20 min' }"
-          >
-            <div class="font-bold text-lg mb-1">Neste ledige</div>
-            <div class="text-sm opacity-75">15-20 min ventetid</div>
-            <div v-if="selectedTimeSlot?.time === 'next'" class="absolute top-2 right-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5 text-primary-500"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+            <div class="text-sm text-gray-500">
+              {{ displayStore.activeEmployees.length }} frisører på jobb
             </div>
-          </button>
+          </div>
         </div>
       </div>
 
-      <!-- Phone Number -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer</h3>
-        <input
-          type="tel"
-          v-model="phoneNumber"
-          required
-          placeholder="+47 XXX XX XXX"
-          class="input text-lg"
-          :class="{ 'ring-2 ring-red-500 border-red-500': error }"
-        />
-        <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+      <!-- Customer Info -->
+      <div class="card space-y-6">
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
+          <input
+            type="text"
+            v-model="firstName"
+            required
+            placeholder="Fornavn"
+            class="input text-lg"
+          />
+        </div>
+
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
+          <input
+            type="tel"
+            v-model="phoneNumber"
+            placeholder="+47 XXX XX XXX"
+            class="input text-lg"
+            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
+          />
+          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+        </div>
       </div>
 
       <!-- Submit Button -->
-      <button
-        type="submit"
-        :disabled="isLoading || !selectedTimeSlot"
-        class="btn-primary w-full text-lg"
-      >
+      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
         <span v-if="isLoading">Behandler...</span>
         <span v-else>Fortsett til betaling</span>
       </button>
@@ -116,35 +78,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useServicesStore } from '@/stores/services'
-import { useBookingStore } from '@/stores/booking'
+import { useServicesStore } from '../stores/services'
+import { useBookingStore } from '../stores/booking'
+import { useDisplayStore } from '../stores/display'
 
 const router = useRouter()
 const servicesStore = useServicesStore()
 const bookingStore = useBookingStore()
+const displayStore = useDisplayStore()
 
 const { selectedService } = servicesStore
 const { isLoading, error } = bookingStore
 
 // Form data
+const firstName = ref('')
 const phoneNumber = ref('')
-const selectedTimeSlot = ref<{ time: string; waitTime: string } | null>(null)
+
+// Calculate wait time based on queue and selected service
+const calculateWaitTime = computed(() => {
+  if (!selectedService || !displayStore.waitingSlots.length) return 0
+
+  // Base wait time from current queue
+  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
+    return total + (slot.estimatedTime || 0)
+  }, 0)
+
+  // Add selected service duration
+  return queueWaitTime + selectedService.duration
+})
 
 const handleSubmit = async () => {
-  if (!selectedService || !selectedTimeSlot.value) return
+  if (!selectedService || !firstName.value) return
 
-  try {
-    await bookingStore.createBooking({
-      serviceId: selectedService.id,
-      time: selectedTimeSlot.value.time,
-      phoneNumber: phoneNumber.value,
-    })
+  // Set pending booking and navigate to payment
+  bookingStore.setPendingBooking({
+    serviceId: selectedService.id,
+    firstName: firstName.value,
+    phoneNumber: phoneNumber.value || undefined,
+    startTime: new Date().toISOString(),
+  })
 
-    router.push('/payment')
-  } catch (err) {
-    // Error handling is managed by the store
-  }
+  // Navigate to payment page
+  router.push('/payment')
 }
 </script>

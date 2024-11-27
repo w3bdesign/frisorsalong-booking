@@ -8,11 +8,18 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, MoreThan, In, LessThanOrEqual, Between } from "typeorm";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { UpcomingCountResponseDto, UpcomingCustomerDto } from "./dto/upcoming-count-response.dto";
+import {
+  UpcomingCountResponseDto,
+  UpcomingCustomerDto,
+} from "./dto/upcoming-count-response.dto";
 import { UsersService } from "../users/users.service";
 import { EmployeesService } from "../employees/employees.service";
 import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { ShopCode } from "../shops/entities/shop-code.entity";
+import { UserRole } from "../users/entities/user.entity";
 
 @Injectable()
 export class BookingsService {
@@ -24,7 +31,85 @@ export class BookingsService {
     private readonly usersService: UsersService,
     private readonly employeesService: EmployeesService,
     private readonly servicesService: ServicesService,
+    private readonly ordersService: OrdersService
   ) {}
+
+  async createWalkIn(
+    createWalkInBookingDto: CreateWalkInBookingDto,
+    shop: ShopCode
+  ): Promise<Booking> {
+    const { serviceId, firstName, phoneNumber, isPaid } =
+      createWalkInBookingDto;
+
+    // Create temporary customer for walk-in
+    const customer = await this.usersService.create({
+      firstName,
+      lastName: "Walk-in",
+      email: `walkin_${Date.now()}@temp.com`,
+      password: Math.random().toString(36),
+      phoneNumber,
+      role: UserRole.CUSTOMER,
+    });
+
+    // Verify service exists
+    const service = await this.servicesService.findOne(serviceId);
+    if (!service) {
+      throw new NotFoundException("Service not found");
+    }
+
+    // Get all employees and filter active ones
+    const allEmployees = await this.employeesService.findAll();
+    const activeEmployees = allEmployees.filter((emp) => emp.isActive);
+
+    if (activeEmployees.length === 0) {
+      throw new BadRequestException("No employees available");
+    }
+
+    // Find the employee with the least pending bookings
+    const employeeBookings = await Promise.all(
+      activeEmployees.map(async (emp) => ({
+        employee: emp,
+        bookingCount: (await this.findByEmployee(emp.id)).length,
+      }))
+    );
+
+    const selectedEmployee = employeeBookings.sort(
+      (a, b) => a.bookingCount - b.bookingCount
+    )[0].employee;
+
+    // Calculate start and end times
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
+
+    // Create and save the booking
+    const booking = this.bookingRepository.create({
+      customer,
+      employee: selectedEmployee,
+      service,
+      startTime: startDate,
+      endTime: endDate,
+      notes: `Walk-in booking from ${shop.shopName}`,
+      totalPrice: service.price,
+      status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
+    });
+
+    const savedBooking = await this.bookingRepository.save(booking);
+
+    // If paid, create order immediately
+    if (isPaid) {
+      try {
+        await this.ordersService.createFromBooking(savedBooking.id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to create order for booking ${savedBooking.id}:`,
+          error
+        );
+        // Don't throw error as booking is still valid
+      }
+    }
+
+    return savedBooking;
+  }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     const { customerId, employeeId, serviceId, startTime, notes } =
@@ -50,13 +135,13 @@ export class BookingsService {
 
     // Calculate end time based on service duration
     const startDate = new Date(startTime);
-    const endDate = new Date(startDate.getTime() + service.duration * 60000); // Convert minutes to milliseconds
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
 
     // Check if employee is available
     const isAvailable = await this.employeesService.isAvailable(
       employeeId,
       startDate,
-      endDate,
+      endDate
     );
 
     if (!isAvailable) {
@@ -93,7 +178,7 @@ export class BookingsService {
 
   async update(
     id: string,
-    updateBookingDto: UpdateBookingDto,
+    updateBookingDto: UpdateBookingDto
   ): Promise<Booking> {
     const booking = await this.findOne(id);
 
@@ -108,7 +193,7 @@ export class BookingsService {
         booking.employee.id,
         startDate,
         endDate,
-        id, // Exclude current booking from availability check
+        id // Exclude current booking from availability check
       );
 
       if (!isAvailable) {
@@ -153,9 +238,13 @@ export class BookingsService {
 
   async findUpcoming(): Promise<Booking[]> {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
-    
+
     const bookings = await this.bookingRepository.find({
       where: {
         startTime: MoreThan(startOfDay),
@@ -167,14 +256,18 @@ export class BookingsService {
 
     this.logger.debug(`Found ${bookings.length} bookings`);
     if (bookings.length === 0) {
-      this.logger.debug('No bookings found. Checking all bookings for debugging...');
+      this.logger.debug(
+        "No bookings found. Checking all bookings for debugging..."
+      );
       const allBookings = await this.bookingRepository.find({
         relations: ["customer", "employee", "employee.user", "service"],
       });
       this.logger.debug(`Total bookings in database: ${allBookings.length}`);
-      this.logger.debug('Sample booking dates:');
-      allBookings.slice(0, 3).forEach(booking => {
-        this.logger.debug(`Booking ${booking.id}: startTime=${booking.startTime}, status=${booking.status}`);
+      this.logger.debug("Sample booking dates:");
+      allBookings.slice(0, 3).forEach((booking) => {
+        this.logger.debug(
+          `Booking ${booking.id}: startTime=${booking.startTime}, status=${booking.status}`
+        );
       });
     }
 
@@ -183,7 +276,11 @@ export class BookingsService {
 
   async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
