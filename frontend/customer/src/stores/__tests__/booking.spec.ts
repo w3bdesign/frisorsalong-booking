@@ -5,13 +5,17 @@ import { useBookingStore } from '../booking'
 // Mock booking data
 const mockBooking = {
   serviceId: '1',
-  time: '2023-12-24T10:00:00',
+  firstName: 'Test',
   phoneNumber: '12345678',
+  isPaid: true,
 }
 
 const mockBookingResponse = {
-  ...mockBooking,
-  status: 'pending' as const,
+  id: '1',
+  serviceId: '1',
+  firstName: 'Test',
+  phoneNumber: '12345678',
+  status: 'confirmed' as const,
 }
 
 describe('Booking Store', () => {
@@ -32,13 +36,14 @@ describe('Booking Store', () => {
       const store = useBookingStore()
 
       expect(store.currentBooking).toBe(null)
+      expect(store.pendingBooking).toBe(null)
       expect(store.isLoading).toBe(false)
       expect(store.error).toBe(null)
     })
   })
 
-  describe('createBooking', () => {
-    it('should create booking successfully', async () => {
+  describe('createWalkInBooking', () => {
+    it('should create walk-in booking successfully', async () => {
       // Mock successful fetch response
       global.fetch = vi.fn().mockImplementation(() =>
         Promise.resolve({
@@ -48,15 +53,21 @@ describe('Booking Store', () => {
       )
 
       const store = useBookingStore()
-      await store.createBooking(mockBooking)
+      await store.createWalkInBooking(mockBooking)
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/bookings', {
+      expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/bookings/walk-in', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Shop-Code': 'SHOP123',
           accept: '*/*',
         },
-        body: JSON.stringify(mockBooking),
+        body: JSON.stringify({
+          serviceId: mockBooking.serviceId,
+          firstName: mockBooking.firstName,
+          phoneNumber: mockBooking.phoneNumber,
+          isPaid: mockBooking.isPaid,
+        }),
       })
       expect(store.currentBooking).toEqual(mockBookingResponse)
       expect(store.isLoading).toBe(false)
@@ -68,12 +79,15 @@ describe('Booking Store', () => {
       global.fetch = vi.fn().mockImplementation(() =>
         Promise.resolve({
           ok: false,
+          json: () => Promise.resolve({ message: 'Failed to create booking' }),
         }),
       )
 
       const store = useBookingStore()
 
-      await expect(store.createBooking(mockBooking)).rejects.toThrow('Failed to create booking')
+      await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(
+        'Failed to create booking',
+      )
 
       expect(store.currentBooking).toBe(null)
       expect(store.isLoading).toBe(false)
@@ -86,11 +100,25 @@ describe('Booking Store', () => {
 
       const store = useBookingStore()
 
-      await expect(store.createBooking(mockBooking)).rejects.toThrow('Network error')
+      await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow('Network error')
 
       expect(store.currentBooking).toBe(null)
       expect(store.isLoading).toBe(false)
       expect(store.error).toBe('Network error')
+    })
+  })
+
+  describe('setPendingBooking', () => {
+    it('should set pending booking', () => {
+      const store = useBookingStore()
+      const pendingBooking = {
+        serviceId: '1',
+        firstName: 'Test',
+        phoneNumber: '12345678',
+      }
+
+      store.setPendingBooking(pendingBooking)
+      expect(store.pendingBooking).toEqual(pendingBooking)
     })
   })
 
@@ -105,7 +133,7 @@ describe('Booking Store', () => {
       )
 
       const store = useBookingStore()
-      await store.createBooking(mockBooking)
+      await store.createWalkInBooking(mockBooking)
 
       // Verify booking was created
       expect(store.currentBooking).toEqual(mockBookingResponse)
@@ -115,6 +143,7 @@ describe('Booking Store', () => {
 
       // Verify state is cleared
       expect(store.currentBooking).toBe(null)
+      expect(store.pendingBooking).toBe(null)
       expect(store.error).toBe(null)
     })
   })
