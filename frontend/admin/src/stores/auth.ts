@@ -22,7 +22,7 @@ interface LoginCredentials {
 }
 
 interface AuthResponse {
-  access_token: string;
+  token: string;
   user: User;
 }
 
@@ -54,7 +54,7 @@ export const useAuthStore = defineStore("auth", {
           credentials
         );
 
-        const { access_token: token, user } = response.data;
+        const { token, user } = response.data;
 
         // Only allow admin users to login
         if (user.role !== "admin") {
@@ -75,8 +75,8 @@ export const useAuthStore = defineStore("auth", {
       } catch (error: any) {
         console.error("Login error:", error);
         
-        // Handle 400 status specifically for invalid credentials
-        if (error?.response?.status === 400) {
+        // Handle unauthorized specifically for invalid credentials
+        if (error?.response?.status === 401) {
           this.error = "Invalid credentials";
         }
         // Handle connection errors
@@ -113,37 +113,21 @@ export const useAuthStore = defineStore("auth", {
     },
 
     async checkAuth(): Promise<boolean> {
-      try {
-        const token = localStorage.getItem("admin_token");
-        if (!token) {
-          this.logout();
-          return false;
-        }
-
-        // Set the Authorization header
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // Verify token with backend
-        const response = await axios.get<{ user: User }>(`${API_URL}/auth/verify`);
-        
-        // Update store with user data
-        this.token = token;
-        this.user = response.data.user;
-        this.isAuthenticated = true;
-
-        return true;
-      } catch (error) {
-        // Clear everything on any error (including 401)
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
         this.logout();
-        
-        if (error instanceof AxiosError) {
-          console.error("Auth verification error:", error.response?.status);
-        } else {
-          console.error("Error verifying auth:", error);
-        }
-        
         return false;
       }
+
+      // Set the Authorization header
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      
+      // If we have a token, consider the user authenticated
+      // The token will be validated on API requests
+      this.token = token;
+      this.isAuthenticated = true;
+
+      return true;
     },
 
     clearError() {
