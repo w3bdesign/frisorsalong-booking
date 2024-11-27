@@ -4,7 +4,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import PaymentForm from '../PaymentForm.vue'
 import { useBookingStore } from '../../stores/booking'
 import { useServicesStore } from '../../stores/services'
-import { useRouter } from 'vue-router'
 
 // Mock vue-router
 const mockRouter = {
@@ -102,9 +101,21 @@ describe('PaymentForm', () => {
   })
 
   it('shows success message after payment', async () => {
+    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      return {}
+    })
+
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: mockPendingBooking,
+      isLoading: false,
+      error: null,
+      createWalkInBooking: mockCreateWalkInBooking,
+    } as any)
+
     const wrapper = mountComponent()
 
-    // Trigger payment
+    // Start payment
     await wrapper.find('button.btn-primary').trigger('click')
     await vi.advanceTimersByTime(1500)
     await wrapper.vm.$nextTick()
@@ -133,6 +144,18 @@ describe('PaymentForm', () => {
   })
 
   it('navigates back to home after successful payment', async () => {
+    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      return {}
+    })
+
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: mockPendingBooking,
+      isLoading: false,
+      error: null,
+      createWalkInBooking: mockCreateWalkInBooking,
+    } as any)
+
     const wrapper = mountComponent()
 
     // Complete payment
@@ -159,6 +182,18 @@ describe('PaymentForm', () => {
   })
 
   it('shows payment button in correct states', async () => {
+    const mockCreateWalkInBooking = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      return {}
+    })
+
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: mockPendingBooking,
+      isLoading: false,
+      error: null,
+      createWalkInBooking: mockCreateWalkInBooking,
+    } as any)
+
     const wrapper = mountComponent()
 
     // Initial state

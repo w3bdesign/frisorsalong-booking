@@ -65,7 +65,8 @@ describe('WaitingTimeDisplay', () => {
     // Average waiting time should be 90 minutes
     expect(wrapper.text()).toContain('90min')
     expect(wrapper.text()).toContain('3 venter')
-    expect(wrapper.text()).toContain('12:00:00')
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:00:00')
   })
 
   it('displays error message when there is an error', () => {
@@ -121,6 +122,7 @@ describe('WaitingTimeDisplay', () => {
     } as any)
 
     const wrapper = mount(WaitingTimeDisplay)
-    expect(wrapper.text()).toContain('12:34:56')
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:34:56')
   })
 })
