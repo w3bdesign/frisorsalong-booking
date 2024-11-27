@@ -93,22 +93,7 @@ export class BookingsService {
       status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
     });
 
-    const savedBooking = await this.bookingRepository.save(booking);
-
-    // If paid, create order immediately
-    if (isPaid) {
-      try {
-        await this.ordersService.createFromBooking(savedBooking.id);
-      } catch (error) {
-        this.logger.error(
-          `Failed to create order for booking ${savedBooking.id}:`,
-          error
-        );
-        // Don't throw error as booking is still valid
-      }
-    }
-
-    return savedBooking;
+    return this.bookingRepository.save(booking);
   }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
