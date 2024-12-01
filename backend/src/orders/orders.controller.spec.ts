@@ -4,28 +4,49 @@ import { OrdersService } from './orders.service';
 import { Order } from './entities/order.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
   let service: OrdersService;
 
-  const mockAdminUser: User = {
+  const createMockUser = (data: Partial<User>): User => ({
+    id: 'default-id',
+    firstName: 'Default',
+    lastName: 'User',
+    email: 'default@example.com',
+    password: 'password',
+    role: UserRole.CUSTOMER,
+    phoneNumber: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    hashPassword: async function() {
+      if (this.password) {
+        const salt = await bcrypt.genSalt();
+        this.password = await bcrypt.hash(this.password, salt);
+      }
+    },
+    validatePassword: async function(password: string) {
+      return bcrypt.compare(password, this.password);
+    },
+    ...data
+  });
+
+  const mockAdminUser = createMockUser({
     id: 'admin-id',
     email: 'admin@example.com',
     firstName: 'Admin',
     lastName: 'User',
     role: UserRole.ADMIN,
-    password: 'password',
-  } as User;
+  });
 
-  const mockEmployeeUser: User = {
+  const mockEmployeeUser = createMockUser({
     id: 'employee-id',
     email: 'employee@example.com',
     firstName: 'Employee',
     lastName: 'User',
     role: UserRole.EMPLOYEE,
-    password: 'password',
-  } as User;
+  });
 
   const mockOrdersService = {
     createFromBooking: jest.fn(),
@@ -48,6 +69,9 @@ describe('OrdersController', () => {
 
     controller = module.get<OrdersController>(OrdersController);
     service = module.get<OrdersService>(OrdersService);
+
+    // Reset all mocks before each test
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
