@@ -50,6 +50,11 @@ export const useAuthStore = defineStore("auth", {
         this.isLoading = true;
         this.error = null;
 
+        // Validate API_URL
+        if (!API_URL) {
+          throw new Error("API addresse er ikke satt, vennligst kontakt systemadministrator");
+        }
+
         const response = await axios.post<AuthResponse>(
           `${API_URL}/auth/login`,
           credentials
@@ -59,7 +64,7 @@ export const useAuthStore = defineStore("auth", {
 
         // Only allow admin users to login
         if (user.role !== "admin") {
-          throw new Error("Unauthorized: Admin access required");
+          throw new Error("Ingen tilgang: Krever administratortilgang");
         }
 
         this.token = token;
@@ -76,21 +81,40 @@ export const useAuthStore = defineStore("auth", {
       } catch (error: any) {
         console.error("Login error:", error);
 
-        // Handle unauthorized specifically for invalid credentials
-        if (error?.response?.status === 401) {
-          this.error = "Invalid credentials";
+        // Handle specific HTTP status codes
+        if (error?.response?.status) {
+          switch (error.response.status) {
+            case 401:
+              this.error = "Feil e-postadresse eller passord";
+              break;
+            case 403:
+              this.error = "Ingen tilgang: Krever administratortilgang";
+              break;
+            case 404:
+              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+              break;
+            case 500:
+              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
+              break;
+            default:
+              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
+          }
         }
-        // Handle connection errors
-        else if (error?.code === "ECONNREFUSED") {
-          this.error = "An error occurred during login";
+        // Handle network/connection errors
+        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
+          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+        }
+        // Handle API_URL configuration error
+        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
+          this.error = error.message;
         }
         // Handle other errors
         else if (error instanceof Error) {
-          this.error = error.message;
+          this.error = "En uventet feil oppstod. Vennligst prøv igjen senere";
         }
         // Fallback error message
         else {
-          this.error = "An error occurred during login";
+          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
         }
 
         return false;
