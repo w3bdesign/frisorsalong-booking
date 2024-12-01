@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ValidationPipe, INestApplication } from '@nestjs/common';
+import { ValidationPipe, INestApplication, LoggerService } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
@@ -74,7 +74,8 @@ describe('Bootstrap', () => {
     // Reset modules before each test
     jest.resetModules();
 
-    app = {
+    // Create a more complete mock implementation of INestApplication
+    const mockApp = {
       enableCors: jest.fn(),
       useGlobalPipes: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
@@ -86,7 +87,28 @@ describe('Bootstrap', () => {
       useGlobalInterceptors: jest.fn(),
       useGlobalGuards: jest.fn(),
       use: jest.fn(),
-    } as any;
+      setGlobalPrefix: jest.fn(),
+      enableVersioning: jest.fn(),
+      getUrl: jest.fn(),
+      useWebSocketAdapter: jest.fn(),
+      connectMicroservice: jest.fn(),
+      getMicroservices: jest.fn(),
+      getHttpServer: jest.fn(),
+      startAllMicroservices: jest.fn(),
+      stopAllMicroservices: jest.fn(),
+      createNestApplication: jest.fn(),
+      registerRequestByName: jest.fn(),
+      registerRequestById: jest.fn(),
+      flushLogs: jest.fn(),
+      getHttpAdapter: jest.fn(),
+      resolve: jest.fn(),
+      registerRequestByContextId: jest.fn(),
+      useLogger: jest.fn(),
+      enableShutdownHooks: jest.fn()
+    };
+
+    // Cast the mock to INestApplication
+    app = mockApp as unknown as INestApplication;
 
     jest.spyOn(NestFactory, 'create').mockResolvedValue(app);
     jest.spyOn(SwaggerModule, 'createDocument').mockReturnValue({} as any);
@@ -112,6 +134,7 @@ describe('Bootstrap', () => {
 
   it('should enable CORS with correct configuration', async () => {
     await bootstrap();
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith('api');
     expect(app.enableCors).toHaveBeenCalledWith({
       origin: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -146,7 +169,7 @@ describe('Bootstrap', () => {
     );
     expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    expect(SwaggerModule.setup).toHaveBeenCalledWith('api', app, expect.any(Object), {
+    expect(SwaggerModule.setup).toHaveBeenCalledWith('api-docs', app, expect.any(Object), {
       swaggerOptions: {
         persistAuthorization: true,
         docExpansion: 'none',
