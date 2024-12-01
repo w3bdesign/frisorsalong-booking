@@ -14,7 +14,7 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: "customer" | "admin";
+  role: "user" | "admin" | "employee";
 }
 
 interface LoginCredentials {
@@ -44,6 +44,12 @@ export const useAuthStore = defineStore("auth", {
     isLoading: false,
   }),
 
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
+  },
+
   actions: {
     async login(credentials: LoginCredentials): Promise<boolean> {
       try {
@@ -52,7 +58,7 @@ export const useAuthStore = defineStore("auth", {
 
         // Validate API_URL
         if (!API_URL) {
-          throw new Error("API addresse er ikke satt, vennligst kontakt systemadministrator");
+          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
         }
 
         const response = await axios.post<AuthResponse>(
@@ -62,9 +68,9 @@ export const useAuthStore = defineStore("auth", {
 
         const { token, user } = response.data;
 
-        // Only allow admin users to login
-        if (user.role !== "admin") {
-          throw new Error("Ingen tilgang: Krever administratortilgang");
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
         }
 
         this.token = token;
@@ -88,7 +94,7 @@ export const useAuthStore = defineStore("auth", {
               this.error = "Feil e-postadresse eller passord";
               break;
             case 403:
-              this.error = "Ingen tilgang: Krever administratortilgang";
+              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
               break;
             case 404:
               this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
@@ -110,7 +116,7 @@ export const useAuthStore = defineStore("auth", {
         }
         // Handle other errors
         else if (error instanceof Error) {
-          this.error = "En uventet feil oppstod. Vennligst prøv igjen senere";
+          this.error = error.message;
         }
         // Fallback error message
         else {
