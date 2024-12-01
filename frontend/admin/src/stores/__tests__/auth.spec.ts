@@ -79,7 +79,7 @@ describe("Auth Store", () => {
       const success = await store.login(mockCredentials);
 
       expect(success).toBeFalsy();
-      expect(store.error).toBe("Invalid credentials");
+      expect(store.error).toBe("Feil e-postadresse eller passord");
       expect(store.isAuthenticated).toBeFalsy();
       expect(localStorage.getItem("admin_token")).toBeNull();
     });
@@ -94,7 +94,7 @@ describe("Auth Store", () => {
       const success = await store.login(mockCredentials);
 
       expect(success).toBeFalsy();
-      expect(store.error).toBe("An error occurred during login");
+      expect(store.error).toBe("Kunne ikke koble til serveren. Sjekk internettforbindelsen din");
       expect(store.isAuthenticated).toBeFalsy();
     });
   });
