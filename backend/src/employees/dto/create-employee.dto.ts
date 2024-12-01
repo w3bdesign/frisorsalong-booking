@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject, IsBoolean, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsBoolean, IsEmail, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmployeeDto {
@@ -21,6 +21,7 @@ export class CreateEmployeeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsArray()
   @IsString({ each: true })
   specializations?: string[];
 
