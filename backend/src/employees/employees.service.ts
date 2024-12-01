@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, MoreThan, LessThan } from 'typeorm';
 import { Employee } from './entities/employee.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 
 @Injectable()
@@ -20,9 +20,39 @@ export class EmployeesService {
   ) {}
 
   async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    const employee = this.employeeRepository.create(createEmployeeDto);
-    const savedEmployee = await this.employeeRepository.save(employee);
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createEmployeeDto.email }
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Generate temporary password
     const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+
+    // Create user
+    const user = this.userRepository.create({
+      email: createEmployeeDto.email,
+      firstName: createEmployeeDto.firstName,
+      lastName: createEmployeeDto.lastName,
+      password: hashedPassword,
+      role: UserRole.EMPLOYEE
+    });
+
+    const savedUser = await this.userRepository.save(user);
+
+    // Create employee
+    const employee = this.employeeRepository.create({
+      user: savedUser,
+      specializations: createEmployeeDto.specializations,
+      isActive: true,
+      availability: {}
+    });
+
+    const savedEmployee = await this.employeeRepository.save(employee);
     
     return {
       employee: savedEmployee,

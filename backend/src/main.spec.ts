@@ -1,12 +1,11 @@
-import { Test } from '@nestjs/testing';
-import { ValidationPipe, INestApplication, LoggerService } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { NestFactory } from '@nestjs/core';
-import { bootstrap } from './main';
+import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
+import { bootstrap } from "./main";
 
 // Mock all external modules
-jest.mock('@nestjs/typeorm', () => ({
+jest.mock("@nestjs/typeorm", () => ({
   TypeOrmModule: {
     forRoot: jest.fn().mockReturnValue({}),
     forRootAsync: jest.fn().mockReturnValue({}),
@@ -16,22 +15,22 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => jest.fn(),
 }));
 
-jest.mock('@nestjs/cache-manager', () => ({
+jest.mock("@nestjs/cache-manager", () => ({
   CacheModule: {
     register: jest.fn().mockReturnValue({}),
     registerAsync: jest.fn().mockReturnValue({}),
   },
 }));
 
-jest.mock('@nestjs/config', () => ({
+jest.mock("@nestjs/config", () => ({
   ConfigModule: {
     forRoot: jest.fn().mockReturnValue({}),
   },
   ConfigService: jest.fn().mockImplementation(() => ({
     get: jest.fn().mockImplementation((key) => {
-      if (key === 'cache') {
+      if (key === "cache") {
         return {
-          host: 'localhost',
+          host: "localhost",
           port: 6379,
           ttl: 300,
         };
@@ -42,32 +41,32 @@ jest.mock('@nestjs/config', () => ({
 }));
 
 // Mock feature modules
-jest.mock('./auth/auth.module', () => ({
+jest.mock("./auth/auth.module", () => ({
   AuthModule: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('./users/users.module', () => ({
+jest.mock("./users/users.module", () => ({
   UsersModule: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('./employees/employees.module', () => ({
+jest.mock("./employees/employees.module", () => ({
   EmployeesModule: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('./services/services.module', () => ({
+jest.mock("./services/services.module", () => ({
   ServicesModule: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('./bookings/bookings.module', () => ({
+jest.mock("./bookings/bookings.module", () => ({
   BookingsModule: jest.fn().mockReturnValue({}),
 }));
 
 // Mock app module
-jest.mock('./app.module', () => ({
+jest.mock("./app.module", () => ({
   AppModule: jest.fn().mockReturnValue({}),
 }));
 
-describe('Bootstrap', () => {
+describe("Bootstrap", () => {
   let app: INestApplication;
 
   beforeEach(async () => {
@@ -104,92 +103,101 @@ describe('Bootstrap', () => {
       resolve: jest.fn(),
       registerRequestByContextId: jest.fn(),
       useLogger: jest.fn(),
-      enableShutdownHooks: jest.fn()
+      enableShutdownHooks: jest.fn(),
     };
 
     // Cast the mock to INestApplication
     app = mockApp as unknown as INestApplication;
 
-    jest.spyOn(NestFactory, 'create').mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, 'createDocument').mockReturnValue({} as any);
-    jest.spyOn(SwaggerModule, 'setup').mockReturnValue(undefined);
-    jest.spyOn(DocumentBuilder.prototype, 'setTitle').mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, 'setDescription').mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, 'setVersion').mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, 'addBearerAuth').mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, 'build').mockReturnThis();
+    jest.spyOn(NestFactory, "create").mockResolvedValue(app);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue({} as any);
+    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
+    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
 
     // Mock console.log to reduce noise in tests
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(async () => {
     jest.clearAllMocks();
   });
 
-  it('should create NestJS application', async () => {
+  it("should create NestJS application", async () => {
     await bootstrap();
     expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
   });
 
-  it('should enable CORS with correct configuration', async () => {
+  it("should enable CORS with correct configuration", async () => {
     await bootstrap();
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith('api');
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
     expect(app.enableCors).toHaveBeenCalledWith({
       origin: true,
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
       credentials: true,
     });
   });
 
-  it('should set up global validation pipe', async () => {
+  it("should set up global validation pipe", async () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
-    
+
     const validationPipe = (app.useGlobalPipes as jest.Mock).mock.calls[0][0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 
-  it('should set up Swagger documentation', async () => {
+  it("should set up Swagger documentation", async () => {
     await bootstrap();
-    
-    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith('Hair Salon Booking API');
-    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith('API documentation for the Hair Salon Booking System');
-    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith('1.0');
+
+    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
+      "Hair Salon Booking API"
+    );
+    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
+      "API documentation for the Hair Salon Booking System"
+    );
+    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
     expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
       {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
       },
-      'JWT-auth'
+      "JWT-auth"
     );
     expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    expect(SwaggerModule.setup).toHaveBeenCalledWith('api-docs', app, expect.any(Object), {
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: 'none',
-        filter: true,
-        showRequestDuration: true,
-      },
-    });
+    expect(SwaggerModule.setup).toHaveBeenCalledWith(
+      "api-docs",
+      app,
+      expect.any(Object),
+      {
+        swaggerOptions: {
+          persistAuthorization: true,
+          docExpansion: "none",
+          filter: true,
+          showRequestDuration: true,
+        },
+      }
+    );
   });
 
-  it('should listen on the configured port', async () => {
+  it("should listen on the configured port", async () => {
     const originalEnv = process.env.PORT;
-    process.env.PORT = '4000';
+    process.env.PORT = "4000";
 
     await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith('4000');
+    expect(app.listen).toHaveBeenCalledWith("4000");
 
     process.env.PORT = originalEnv;
   });
 
-  it('should use default port 3000 when PORT env is not set', async () => {
+  it("should use default port 3000 when PORT env is not set", async () => {
     const originalEnv = process.env.PORT;
     delete process.env.PORT;
 
