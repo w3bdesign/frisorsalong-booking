@@ -1,13 +1,15 @@
-import { IsString, IsOptional, IsObject, IsBoolean, IsEmail, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsBoolean, IsEmail, IsArray, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmployeeDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   firstName: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   lastName: string;
 
   @ApiProperty()
@@ -19,11 +21,10 @@ export class CreateEmployeeDto {
   @IsString()
   phoneNumber?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsArray()
   @IsString({ each: true })
-  specializations?: string[];
+  specializations: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
