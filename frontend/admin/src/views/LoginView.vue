@@ -5,10 +5,10 @@
     <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
       <div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Admin Dashboard
+          Admin Kontrollpanel
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
-          Sign in to manage your salon
+          Logg inn for å administrere salongen din
         </p>
       </div>
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
@@ -17,7 +17,7 @@
             <label
               for="email"
               class="block text-sm font-medium text-gray-700 mb-1"
-              >Email address</label
+              >E-postadresse</label
             >
             <input
               id="email"
@@ -33,7 +33,7 @@
             <label
               for="password"
               class="block text-sm font-medium text-gray-700 mb-1"
-              >Password</label
+              >Passord</label
             >
             <input
               id="password"
@@ -78,7 +78,7 @@
                 />
               </svg>
             </span>
-            {{ isLoading ? "Signing in..." : "Sign in" }}
+            {{ isLoading ? "Logger inn..." : "Logg inn" }}
           </button>
         </div>
       </form>
