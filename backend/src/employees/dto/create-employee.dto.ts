@@ -1,30 +1,50 @@
-import { IsArray, IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-
-export type AvailabilitySchedule = {
-  [key: string]: Array<{ start: string; end: string }>;
-};
+import { IsString, IsOptional, IsObject, IsBoolean, IsEmail } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmployeeDto {
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
   firstName: string;
 
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
   lastName: string;
 
+  @ApiProperty()
   @IsEmail()
-  @IsNotEmpty()
   email: string;
 
-  @IsArray()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString({ each: true })
-  specializations: string[];
+  specializations?: string[];
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  availability?: Record<string, any>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
-  @IsOptional()
-  isActive?: boolean = true;
+  isActive?: boolean;
+}
 
-  @IsOptional()
-  availability?: AvailabilitySchedule;
+export interface CreateEmployeeResponse {
+  employee: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+    specializations: string[];
+    availability?: Record<string, any>;
+    isActive: boolean;
+  };
+  temporaryPassword?: string;
 }

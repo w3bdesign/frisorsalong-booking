@@ -30,7 +30,7 @@ const routes = [
     path: "/employees",
     name: "Employees",
     component: () => import("../views/EmployeesView.vue"),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/",
@@ -47,11 +47,18 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.meta.requiresAuth !== false;
+  const requiresAdmin = to.meta.requiresAdmin === true;
 
   if (requiresAuth) {
     const isAuthenticated = await authStore.checkAuth();
     if (!isAuthenticated && to.name !== "Login") {
       next({ name: "Login" });
+      return;
+    }
+
+    // Check admin access
+    if (requiresAdmin && !authStore.isAdmin) {
+      next({ name: "Dashboard" });
       return;
     }
   }

@@ -39,6 +39,7 @@
                 Ordre
               </router-link>
               <router-link
+                v-if="isAdmin"
                 to="/employees"
                 class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 :class="{
@@ -81,7 +82,7 @@ import Button from "./components/base/Button.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, isAdmin } = storeToRefs(authStore);
 
 const handleLogout = () => {
   authStore.logout();

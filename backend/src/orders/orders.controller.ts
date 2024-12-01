@@ -1,9 +1,17 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('orders')
@@ -20,14 +28,30 @@ export class OrdersController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll() {
-    return this.ordersService.findAll();
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findAll(@GetUser() user: User) {
+    if (user.role === UserRole.ADMIN) {
+      return this.ordersService.findAll();
+    }
+    return this.ordersService.findAllByEmployee(user.id);
+  }
+
+  @Get('employee/:userId')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findAllByEmployee(@Param('userId') userId: string, @GetUser() user: User) {
+    // Only allow admin or the employee themselves to access their orders
+    if (user.role !== UserRole.ADMIN && user.id !== userId) {
+      throw new UnauthorizedException('Du har ikke tilgang til å se disse ordrene');
+    }
+    return this.ordersService.findAllByEmployee(userId);
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN)
-  async findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User) {
+    if (user.role === UserRole.ADMIN) {
+      return this.ordersService.findOne(id);
+    }
+    return this.ordersService.findOneByEmployee(id, user.id);
   }
 }

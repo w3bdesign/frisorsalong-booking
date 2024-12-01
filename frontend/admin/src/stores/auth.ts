@@ -29,6 +29,17 @@ interface AuthResponse {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// Set up axios interceptor for error handling
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 403) {
+      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Initialize axios headers if token exists
 const token = localStorage.getItem("admin_token");
 if (token) {
