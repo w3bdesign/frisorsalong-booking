@@ -10,6 +10,9 @@ import { OrdersService } from '../orders/orders.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { CreateWalkInBookingDto } from './dto/create-walk-in-booking.dto';
+import { UserRole } from '../users/entities/user.entity';
+import { ShopCode } from '../shops/entities/shop-code.entity';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -29,10 +32,12 @@ describe('BookingsService', () => {
 
   const mockUsersService = {
     findOne: jest.fn(),
+    create: jest.fn(),
   };
 
   const mockEmployeesService = {
     findOne: jest.fn(),
+    findAll: jest.fn(),
     isAvailable: jest.fn(),
   };
 
@@ -81,6 +86,100 @@ describe('BookingsService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('createWalkIn', () => {
+    const createWalkInDto: CreateWalkInBookingDto = {
+      serviceId: 'service-id',
+      firstName: 'John',
+      phoneNumber: '1234567890',
+      isPaid: true,
+    };
+
+    const mockShop: ShopCode = {
+      id: 'shop-id',
+      code: 'SHOP1',
+      shopName: 'Test Shop',
+      isActive: true,
+      dailyBookingLimit: 100,
+      lastBookingTime: new Date(),
+      todayBookingCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const mockService = { id: 'service-id', duration: 60, price: 100 };
+    const mockEmployee = { id: 'employee-id', isActive: true };
+    const mockCustomer = { 
+      id: 'customer-id',
+      firstName: 'John',
+      lastName: 'Walk-in',
+      email: expect.stringMatching(/^walkin_\d+@temp.com$/),
+      phoneNumber: '1234567890',
+      role: UserRole.CUSTOMER
+    };
+
+    it('should create a walk-in booking successfully', async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      mockBookingRepository.find.mockResolvedValue([]); // No existing bookings
+      mockBookingRepository.create.mockReturnValue({ id: 'booking-id' });
+      mockBookingRepository.save.mockResolvedValue({ id: 'booking-id' });
+
+      const result = await service.createWalkIn(createWalkInDto, mockShop);
+
+      expect(result).toHaveProperty('id', 'booking-id');
+      expect(mockUsersService.create).toHaveBeenCalledWith(expect.objectContaining({
+        firstName: 'John',
+        lastName: 'Walk-in',
+        phoneNumber: '1234567890',
+        role: UserRole.CUSTOMER
+      }));
+    });
+
+    it('should throw NotFoundException when service not found', async () => {
+      mockServicesService.findOne.mockResolvedValue(null);
+
+      await expect(service.createWalkIn(createWalkInDto, mockShop))
+        .rejects.toThrow(new NotFoundException('Service not found'));
+    });
+
+    it('should throw BadRequestException when no active employees available', async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([{ ...mockEmployee, isActive: false }]);
+
+      await expect(service.createWalkIn(createWalkInDto, mockShop))
+        .rejects.toThrow(new BadRequestException('No employees available'));
+    });
+
+    it('should assign booking to employee with least pending bookings', async () => {
+      const mockEmployees = [
+        { id: 'emp1', isActive: true },
+        { id: 'emp2', isActive: true }
+      ];
+      
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue(mockEmployees);
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      
+      // Mock emp1 having 2 bookings and emp2 having 1 booking
+      mockBookingRepository.find
+        .mockResolvedValueOnce([{}, {}]) // emp1's bookings
+        .mockResolvedValueOnce([{}]); // emp2's bookings
+      
+      mockBookingRepository.create.mockReturnValue({ id: 'booking-id' });
+      mockBookingRepository.save.mockResolvedValue({ id: 'booking-id' });
+
+      await service.createWalkIn(createWalkInDto, mockShop);
+
+      // Verify the booking was created with emp2 (who had fewer bookings)
+      expect(mockBookingRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employee: mockEmployees[1]
+        })
+      );
+    });
   });
 
   describe('create', () => {
@@ -298,12 +397,23 @@ describe('BookingsService', () => {
       });
     });
 
-    it('should handle no upcoming bookings', async () => {
-      mockBookingRepository.find.mockResolvedValue([]);
+    it('should handle no upcoming bookings and log debug info', async () => {
+      const allBookings = [
+        { 
+          id: 'past-booking',
+          startTime: new Date('2023-01-01'),
+          status: BookingStatus.COMPLETED
+        }
+      ];
+      
+      mockBookingRepository.find
+        .mockResolvedValueOnce([]) // First call for upcoming bookings
+        .mockResolvedValueOnce(allBookings); // Second call for all bookings (debug)
 
       const result = await service.findUpcoming();
       
       expect(result).toEqual([]);
+      expect(mockBookingRepository.find).toHaveBeenCalledTimes(2);
     });
   });
 
