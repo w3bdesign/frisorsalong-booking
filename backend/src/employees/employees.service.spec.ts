@@ -8,6 +8,10 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
+jest.mock('bcrypt', () => ({
+  hash: jest.fn().mockResolvedValue('hashed_password'),
+}));
+
 describe('EmployeesService', () => {
   let service: EmployeesService;
   let employeeRepository: Repository<Employee>;
@@ -99,7 +103,7 @@ describe('EmployeesService', () => {
       // Mock user creation
       const mockCreatedUser = {
         ...mockUser,
-        password: expect.any(String),
+        password: 'hashed_password',
       };
       mockUserRepository.create.mockReturnValue(mockCreatedUser);
       mockUserRepository.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
@@ -119,6 +123,7 @@ describe('EmployeesService', () => {
       expect(result.employee).toBeDefined();
       expect(result.temporaryPassword).toBeDefined();
       expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { email: createEmployeeDto.email }
       });
@@ -127,6 +132,7 @@ describe('EmployeesService', () => {
         firstName: createEmployeeDto.firstName,
         lastName: createEmployeeDto.lastName,
         role: UserRole.EMPLOYEE,
+        password: 'hashed_password',
       }));
       expect(userRepository.save).toHaveBeenCalled();
       expect(employeeRepository.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -148,6 +154,28 @@ describe('EmployeesService', () => {
     });
   });
 
+  describe('findByUserId', () => {
+    it('should return employee when found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+
+      const result = await service.findByUserId('user-1');
+
+      expect(result).toEqual(mockEmployee);
+      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+        where: { user: { id: 'user-1' } },
+        relations: ['user', 'services'],
+      });
+    });
+
+    it('should throw NotFoundException when employee not found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findByUserId('non-existent')).rejects.toThrow(
+        new NotFoundException('Employee with user ID non-existent not found')
+      );
+    });
+  });
+
   describe('resetPassword', () => {
     it('should reset password successfully', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
@@ -158,10 +186,11 @@ describe('EmployeesService', () => {
       expect(result).toBeDefined();
       expect(result.temporaryPassword).toBeDefined();
       expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
       expect(userRepository.update).toHaveBeenCalledWith(
         mockEmployee.user.id,
         expect.objectContaining({
-          password: expect.any(String),
+          password: 'hashed_password',
         })
       );
     });
@@ -258,6 +287,30 @@ describe('EmployeesService', () => {
       const endTimeOutside = new Date('2024-01-01T08:00:00Z'); // 8 AM UTC (outside 9-17)
 
       const result = await service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no availability for the day', async () => {
+      const employeeNoAvailability = {
+        ...mockEmployee,
+        availability: {},
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeNoAvailability);
+
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when empty availability slots for the day', async () => {
+      const employeeEmptySlots = {
+        ...mockEmployee,
+        availability: { monday: [] },
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeEmptySlots);
+
+      const result = await service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(false);
     });

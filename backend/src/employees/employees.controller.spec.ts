@@ -64,6 +64,7 @@ describe('EmployeesController', () => {
     findByUserId: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    restore: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -195,12 +196,26 @@ describe('EmployeesController', () => {
         user: employeeUser 
       };
       
-      // Mock findByUserId to return the employee's own record
       mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
 
-      // Attempt to access a different employee's record
       await expect(
         controller.findOne('other-employee-id', employeeUser)
+      ).rejects.toThrow(new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon'));
+
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should handle employee not found for findByUserId', async () => {
+      const employeeUser = createMockUser({
+        id: 'employee-id',
+        role: UserRole.EMPLOYEE,
+      });
+
+      mockEmployeesService.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        controller.findOne('employee-1', employeeUser)
       ).rejects.toThrow(new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon'));
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
@@ -280,6 +295,26 @@ describe('EmployeesController', () => {
       );
 
       await expect(controller.remove('non-existent')).rejects.toThrow(
+        'Fant ikke ansatt med ID non-existent',
+      );
+    });
+  });
+
+  describe('restore', () => {
+    it('should restore an employee successfully', async () => {
+      mockEmployeesService.restore.mockResolvedValue(undefined);
+
+      await controller.restore('employee-1');
+
+      expect(service.restore).toHaveBeenCalledWith('employee-1');
+    });
+
+    it('should handle employee not found error', async () => {
+      mockEmployeesService.restore.mockRejectedValue(
+        new NotFoundException('Fant ikke ansatt med ID non-existent'),
+      );
+
+      await expect(controller.restore('non-existent')).rejects.toThrow(
         'Fant ikke ansatt med ID non-existent',
       );
     });
