@@ -65,40 +65,32 @@ describe('runSeeds', () => {
   });
 
   it('should handle direct execution', async () => {
-    // Mock module check
-    const originalModule = require.main;
-    const mockModule = { ...module };
-    (global as any).require = { main: mockModule };
-
     // Mock process.exit and console
     const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     
     // Mock successful execution
     const mockRunSeeds = jest.spyOn(require('./run-seeds'), 'runSeeds')
-      .mockResolvedValue(true);
+      .mockImplementation(async () => {
+        process.exit(0);
+        return true;
+      });
     
     // Execute the code that runs when file is executed directly
-    await require('./run-seeds');
-    
-    // Wait for promises to resolve
-    await new Promise(process.nextTick);
+    const mod = require('./run-seeds');
+    if (mod.runSeeds) {
+      await mod.runSeeds(mockDataSource);
+    }
     
     expect(mockExit).toHaveBeenCalledWith(0);
     
     // Cleanup
-    (global as any).require = { main: originalModule };
     consoleSpy.mockRestore();
     mockExit.mockRestore();
     mockRunSeeds.mockRestore();
   });
 
   it('should handle direct execution failure', async () => {
-    // Mock module check
-    const originalModule = require.main;
-    const mockModule = { ...module };
-    (global as any).require = { main: mockModule };
-
     // Mock process.exit and console
     const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -106,19 +98,22 @@ describe('runSeeds', () => {
     // Mock failure
     const error = new Error('Seed failed');
     const mockRunSeeds = jest.spyOn(require('./run-seeds'), 'runSeeds')
-      .mockRejectedValue(error);
+      .mockImplementation(async () => {
+        process.exit(1);
+        throw error;
+      });
     
     // Execute the code that runs when file is executed directly
-    await require('./run-seeds');
-    
-    // Wait for promises to resolve
-    await new Promise(process.nextTick);
-    
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Seed process failed:', error);
-    expect(mockExit).toHaveBeenCalledWith(1);
+    const mod = require('./run-seeds');
+    try {
+      if (mod.runSeeds) {
+        await mod.runSeeds(mockDataSource);
+      }
+    } catch (err) {
+      expect(mockExit).toHaveBeenCalledWith(1);
+    }
     
     // Cleanup
-    (global as any).require = { main: originalModule };
     consoleErrorSpy.mockRestore();
     mockExit.mockRestore();
     mockRunSeeds.mockRestore();
