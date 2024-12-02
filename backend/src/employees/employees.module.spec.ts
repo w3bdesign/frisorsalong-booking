@@ -1,79 +1,77 @@
 import { Test } from '@nestjs/testing';
 import { EmployeesModule } from './employees.module';
+import { EmployeesService } from './employees.service';
+import { EmployeesController } from './employees.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Employee } from './entities/employee.entity';
+import { User } from '../users/entities/user.entity';
 import { Booking } from '../bookings/entities/booking.entity';
-import { EmployeesService } from './employees.service';
+import { UsersModule } from '../users/users.module';
+import { BookingsModule } from '../bookings/bookings.module';
+import { OrdersModule } from '../orders/orders.module';
+import { AuthModule } from '../auth/auth.module';
 
-// Mock EmployeesService
-const mockEmployeesService = {
-  findAll: jest.fn(),
-  findOne: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  remove: jest.fn(),
-};
-
-// Mock repository
-const mockRepository = {
-  find: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
-
-// Mock TypeOrmModule
-const MockTypeOrmModule = {
-  forFeature: jest.fn().mockReturnValue({
-    module: class MockTypeOrmFeatureModule {},
-  }),
-};
+jest.mock('@nestjs/typeorm', () => ({
+  TypeOrmModule: {
+    forFeature: jest.fn().mockReturnValue({
+      module: class MockTypeOrmModule {},
+      providers: [],
+    }),
+  },
+}));
 
 describe('EmployeesModule', () => {
-  let moduleRef;
+  let module: EmployeesModule;
 
   beforeEach(async () => {
-    moduleRef = await Test.createTestingModule({
+    const moduleRef = await Test.createTestingModule({
       imports: [
-        {
-          module: class MockTypeOrmFeatureModule {},
-          providers: [
-            {
-              provide: 'EmployeeRepository',
-              useValue: mockRepository,
-            },
-            {
-              provide: 'BookingRepository',
-              useValue: mockRepository,
-            },
-          ],
-        },
+        TypeOrmModule.forFeature([Employee, User, Booking]),
+        UsersModule,
+        BookingsModule,
+        OrdersModule,
+        AuthModule,
       ],
-      providers: [
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-      ],
+      controllers: [EmployeesController],
+      providers: [EmployeesService],
+      exports: [EmployeesService],
     }).compile();
 
-    // Set metadata for exports
-    Reflect.defineMetadata('exports', [EmployeesService, TypeOrmModule], EmployeesModule);
+    module = moduleRef.get<EmployeesModule>(EmployeesModule);
   });
 
   it('should be defined', () => {
-    expect(moduleRef).toBeDefined();
+    expect(module).toBeDefined();
   });
 
-  it('should export EmployeesService', () => {
-    const exports = Reflect.getMetadata('exports', EmployeesModule);
-    expect(exports).toContain(EmployeesService);
+  it('should have correct imports', () => {
+    const metadata = Reflect.getMetadata('imports', EmployeesModule);
+    expect(metadata).toBeDefined();
+    expect(metadata).toContain(UsersModule);
+    expect(metadata).toContain(AuthModule);
+    
+    // Verify TypeOrmModule.forFeature was called with all required entities
+    expect(TypeOrmModule.forFeature).toHaveBeenCalledWith([Employee, User, Booking]);
   });
 
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', EmployeesModule);
-    expect(exports).toContain(TypeOrmModule);
+  it('should handle circular dependencies correctly', () => {
+    const metadata = Reflect.getMetadata('imports', EmployeesModule);
+    const forwardRefs = metadata.filter(imp => typeof imp === 'function');
+    expect(forwardRefs).toHaveLength(2); // BookingsModule and OrdersModule
+  });
+
+  it('should have correct providers', () => {
+    const metadata = Reflect.getMetadata('providers', EmployeesModule);
+    expect(metadata).toContain(EmployeesService);
+  });
+
+  it('should have correct exports', () => {
+    const metadata = Reflect.getMetadata('exports', EmployeesModule);
+    expect(metadata).toContain(EmployeesService);
+  });
+
+  it('should have correct controllers', () => {
+    const metadata = Reflect.getMetadata('controllers', EmployeesModule);
+    expect(metadata).toContain(EmployeesController);
   });
 });

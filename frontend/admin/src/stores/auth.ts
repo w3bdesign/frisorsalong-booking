@@ -14,7 +14,7 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: "customer" | "admin";
+  role: "user" | "admin" | "employee";
 }
 
 interface LoginCredentials {
@@ -28,6 +28,17 @@ interface AuthResponse {
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+// Set up axios interceptor for error handling
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 403) {
+      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Initialize axios headers if token exists
 const token = localStorage.getItem("admin_token");
@@ -44,11 +55,22 @@ export const useAuthStore = defineStore("auth", {
     isLoading: false,
   }),
 
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
+  },
+
   actions: {
     async login(credentials: LoginCredentials): Promise<boolean> {
       try {
         this.isLoading = true;
         this.error = null;
+
+        // Validate API_URL
+        if (!API_URL) {
+          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
+        }
 
         const response = await axios.post<AuthResponse>(
           `${API_URL}/auth/login`,
@@ -57,9 +79,9 @@ export const useAuthStore = defineStore("auth", {
 
         const { token, user } = response.data;
 
-        // Only allow admin users to login
-        if (user.role !== "admin") {
-          throw new Error("Unauthorized: Admin access required");
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
         }
 
         this.token = token;
@@ -76,13 +98,32 @@ export const useAuthStore = defineStore("auth", {
       } catch (error: any) {
         console.error("Login error:", error);
 
-        // Handle unauthorized specifically for invalid credentials
-        if (error?.response?.status === 401) {
-          this.error = "Invalid credentials";
+        // Handle specific HTTP status codes
+        if (error?.response?.status) {
+          switch (error.response.status) {
+            case 401:
+              this.error = "Feil e-postadresse eller passord";
+              break;
+            case 403:
+              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
+              break;
+            case 404:
+              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+              break;
+            case 500:
+              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
+              break;
+            default:
+              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
+          }
         }
-        // Handle connection errors
-        else if (error?.code === "ECONNREFUSED") {
-          this.error = "An error occurred during login";
+        // Handle network/connection errors
+        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
+          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+        }
+        // Handle API_URL configuration error
+        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
+          this.error = error.message;
         }
         // Handle other errors
         else if (error instanceof Error) {
@@ -90,7 +131,7 @@ export const useAuthStore = defineStore("auth", {
         }
         // Fallback error message
         else {
-          this.error = "An error occurred during login";
+          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
         }
 
         return false;

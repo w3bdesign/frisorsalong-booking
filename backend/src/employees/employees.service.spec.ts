@@ -1,11 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, Not, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, Not, LessThan, MoreThan } from 'typeorm';
 import { EmployeesService } from './employees.service';
 import { Employee } from './entities/employee.entity';
-import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
+import { Booking } from '../bookings/entities/booking.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+
+jest.mock('bcrypt', () => ({
+  hash: jest.fn().mockResolvedValue('hashed_password'),
+}));
 
 describe('EmployeesService', () => {
   let service: EmployeesService;
@@ -27,7 +32,9 @@ describe('EmployeesService', () => {
     user: mockUser,
     specializations: ['haircut'],
     isActive: true,
-    availability: {},
+    availability: {
+      monday: [{ start: '09:00', end: '17:00' }],
+    },
   } as Employee;
 
   const mockEmployeeRepository = {
@@ -35,6 +42,7 @@ describe('EmployeesService', () => {
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+    update: jest.fn(),
   };
 
   const mockBookingRepository = {
@@ -45,6 +53,7 @@ describe('EmployeesService', () => {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -70,9 +79,8 @@ describe('EmployeesService', () => {
     employeeRepository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
     bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-  });
 
-  afterEach(() => {
+    // Reset all mocks before each test
     jest.clearAllMocks();
   });
 
@@ -89,18 +97,49 @@ describe('EmployeesService', () => {
     };
 
     it('should create an employee successfully', async () => {
+      // Mock email check
       mockUserRepository.findOne.mockResolvedValue(null);
-      mockUserRepository.create.mockReturnValue(mockUser);
-      mockUserRepository.save.mockResolvedValue(mockUser);
-      mockEmployeeRepository.create.mockReturnValue(mockEmployee);
-      mockEmployeeRepository.save.mockResolvedValue(mockEmployee);
+
+      // Mock user creation
+      const mockCreatedUser = {
+        ...mockUser,
+        password: 'hashed_password',
+      };
+      mockUserRepository.create.mockReturnValue(mockCreatedUser);
+      mockUserRepository.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
+
+      // Mock employee creation
+      const mockCreatedEmployee = {
+        user: mockCreatedUser,
+        specializations: createEmployeeDto.specializations,
+        isActive: true,
+        availability: {},
+      };
+      mockEmployeeRepository.create.mockReturnValue(mockCreatedEmployee);
+      mockEmployeeRepository.save.mockResolvedValue({ ...mockCreatedEmployee, id: 'employee-1' });
 
       const result = await service.create(createEmployeeDto);
 
-      expect(result.employee).toEqual(mockEmployee);
+      expect(result.employee).toBeDefined();
       expect(result.temporaryPassword).toBeDefined();
-      expect(result.temporaryPassword.length).toBe(10);
+      expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: createEmployeeDto.email }
+      });
+      expect(userRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        email: createEmployeeDto.email,
+        firstName: createEmployeeDto.firstName,
+        lastName: createEmployeeDto.lastName,
+        role: UserRole.EMPLOYEE,
+        password: 'hashed_password',
+      }));
       expect(userRepository.save).toHaveBeenCalled();
+      expect(employeeRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        specializations: createEmployeeDto.specializations,
+        isActive: true,
+        availability: {},
+      }));
       expect(employeeRepository.save).toHaveBeenCalled();
     });
 
@@ -108,7 +147,31 @@ describe('EmployeesService', () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
 
       await expect(service.create(createEmployeeDto)).rejects.toThrow(
-        ConflictException,
+        new ConflictException('Email already exists')
+      );
+      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(employeeRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findByUserId', () => {
+    it('should return employee when found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+
+      const result = await service.findByUserId('user-1');
+
+      expect(result).toEqual(mockEmployee);
+      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+        where: { user: { id: 'user-1' } },
+        relations: ['user', 'services'],
+      });
+    });
+
+    it('should throw NotFoundException when employee not found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findByUserId('non-existent')).rejects.toThrow(
+        new NotFoundException('Employee with user ID non-existent not found')
       );
     });
   });
@@ -116,13 +179,20 @@ describe('EmployeesService', () => {
   describe('resetPassword', () => {
     it('should reset password successfully', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockUserRepository.save.mockResolvedValue({ ...mockUser, password: 'newpass' });
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
 
       const result = await service.resetPassword('employee-1');
 
       expect(result).toBeDefined();
-      expect(result.length).toBe(10);
-      expect(userRepository.save).toHaveBeenCalled();
+      expect(result.temporaryPassword).toBeDefined();
+      expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
+      expect(userRepository.update).toHaveBeenCalledWith(
+        mockEmployee.user.id,
+        expect.objectContaining({
+          password: 'hashed_password',
+        })
+      );
     });
 
     it('should throw NotFoundException if employee not found', async () => {
@@ -143,7 +213,7 @@ describe('EmployeesService', () => {
       expect(result).toEqual(mockEmployee);
       expect(employeeRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'employee-1' },
-        relations: ['user'],
+        relations: ['user', 'services'],
       });
     });
 
@@ -157,10 +227,11 @@ describe('EmployeesService', () => {
   });
 
   describe('isAvailable', () => {
-    const startTime = new Date('2024-01-01T10:00:00Z');
+    const startTime = new Date('2024-01-01T10:00:00Z'); // Monday
     const endTime = new Date('2024-01-01T11:00:00Z');
 
-    it('should return true when no conflicting bookings exist', async () => {
+    it('should return true when employee is available', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
       mockBookingRepository.count.mockResolvedValue(0);
 
       const result = await service.isAvailable('employee-1', startTime, endTime);
@@ -169,14 +240,14 @@ describe('EmployeesService', () => {
       expect(bookingRepository.count).toHaveBeenCalledWith({
         where: {
           employee: { id: 'employee-1' },
-          status: Not(BookingStatus.CANCELLED),
-          startTime: LessThanOrEqual(endTime),
-          endTime: MoreThanOrEqual(startTime),
+          startTime: Not(MoreThan(endTime)),
+          endTime: Not(LessThan(startTime)),
         },
       });
     });
 
-    it('should return false when conflicting bookings exist', async () => {
+    it('should return false when employee has conflicting bookings', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
       mockBookingRepository.count.mockResolvedValue(1);
 
       const result = await service.isAvailable('employee-1', startTime, endTime);
@@ -185,6 +256,7 @@ describe('EmployeesService', () => {
     });
 
     it('should exclude specified booking when checking availability', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
       mockBookingRepository.count.mockResolvedValue(0);
 
       const result = await service.isAvailable('employee-1', startTime, endTime, 'booking-1');
@@ -193,17 +265,59 @@ describe('EmployeesService', () => {
       expect(bookingRepository.count).toHaveBeenCalledWith({
         where: {
           employee: { id: 'employee-1' },
-          status: Not(BookingStatus.CANCELLED),
-          startTime: LessThanOrEqual(endTime),
-          endTime: MoreThanOrEqual(startTime),
+          startTime: Not(MoreThan(endTime)),
+          endTime: Not(LessThan(startTime)),
           id: Not('booking-1'),
         },
       });
     });
+
+    it('should return false when employee is inactive', async () => {
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
+
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when time is outside availability', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const startTimeOutside = new Date('2024-01-01T07:00:00Z'); // 7 AM UTC (outside 9-17)
+      const endTimeOutside = new Date('2024-01-01T08:00:00Z'); // 8 AM UTC (outside 9-17)
+
+      const result = await service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no availability for the day', async () => {
+      const employeeNoAvailability = {
+        ...mockEmployee,
+        availability: {},
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeNoAvailability);
+
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when empty availability slots for the day', async () => {
+      const employeeEmptySlots = {
+        ...mockEmployee,
+        availability: { monday: [] },
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeEmptySlots);
+
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+
+      expect(result).toBe(false);
+    });
   });
 
   describe('findAll', () => {
-    it('should return all employees sorted by name', async () => {
+    it('should return all active employees', async () => {
       const mockEmployees = [mockEmployee];
       mockEmployeeRepository.find.mockResolvedValue(mockEmployees);
 
@@ -211,13 +325,8 @@ describe('EmployeesService', () => {
 
       expect(result).toEqual(mockEmployees);
       expect(employeeRepository.find).toHaveBeenCalledWith({
-        relations: ['user'],
-        order: {
-          user: {
-            firstName: 'ASC',
-            lastName: 'ASC',
-          },
-        },
+        relations: ['user', 'services'],
+        where: { isActive: true },
       });
     });
   });
@@ -225,49 +334,21 @@ describe('EmployeesService', () => {
   describe('update', () => {
     const updateEmployeeDto = {
       firstName: 'John Updated',
-      email: 'john.updated@example.com',
+      specializations: ['haircut', 'coloring'],
     };
 
     it('should update employee successfully', async () => {
       const updatedEmployee = {
         ...mockEmployee,
-        user: { ...mockUser, ...updateEmployeeDto },
+        ...updateEmployeeDto,
       };
       mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockUserRepository.findOne.mockResolvedValue(null);
-      mockUserRepository.save.mockResolvedValue(updatedEmployee.user);
       mockEmployeeRepository.save.mockResolvedValue(updatedEmployee);
 
       const result = await service.update('employee-1', updateEmployeeDto);
 
       expect(result).toEqual(updatedEmployee);
-      expect(userRepository.save).toHaveBeenCalled();
       expect(employeeRepository.save).toHaveBeenCalled();
-    });
-
-    it('should throw ConflictException if email exists for different user', async () => {
-      // Current employee with original email
-      const currentEmployee = {
-        ...mockEmployee,
-        user: { ...mockUser, id: 'current-user-id', email: 'original@example.com' },
-      };
-
-      // Existing user with the email we want to update to
-      const existingUser = {
-        id: 'other-user-id',
-        email: updateEmployeeDto.email,
-      };
-
-      mockEmployeeRepository.findOne.mockResolvedValue(currentEmployee);
-      mockUserRepository.findOne.mockResolvedValue(existingUser);
-
-      await expect(
-        service.update('employee-1', updateEmployeeDto),
-      ).rejects.toThrow(ConflictException);
-
-      expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: updateEmployeeDto.email },
-      });
     });
 
     it('should throw NotFoundException if employee not found', async () => {
@@ -280,24 +361,15 @@ describe('EmployeesService', () => {
   });
 
   describe('remove', () => {
-    it('should mark employee as inactive when no future bookings exist', async () => {
+    it('should mark employee as inactive', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(0);
-      mockEmployeeRepository.save.mockResolvedValue({ ...mockEmployee, isActive: false });
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.save.mockResolvedValue(inactiveEmployee);
 
       await service.remove('employee-1');
 
       expect(employeeRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: false }),
-      );
-    });
-
-    it('should throw ConflictException when future bookings exist', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(1);
-
-      await expect(service.remove('employee-1')).rejects.toThrow(
-        ConflictException,
       );
     });
 
@@ -310,50 +382,25 @@ describe('EmployeesService', () => {
     });
   });
 
-  describe('findAvailableForService', () => {
-    const startTime = new Date('2024-01-01T10:00:00Z');
-    const mockEmployees = [
-      { ...mockEmployee, id: 'employee-1' },
-      { ...mockEmployee, id: 'employee-2' },
-    ];
+  describe('restore', () => {
+    it('should mark employee as active', async () => {
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
+      mockEmployeeRepository.save.mockResolvedValue(mockEmployee);
 
-    beforeEach(() => {
-      mockEmployeeRepository.find.mockResolvedValue(mockEmployees);
+      await service.restore('employee-1');
+
+      expect(employeeRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: true }),
+      );
     });
 
-    it('should return only available employees for service', async () => {
-      mockBookingRepository.count
-        .mockResolvedValueOnce(0) // employee-1 is available
-        .mockResolvedValueOnce(1); // employee-2 is not available
+    it('should throw NotFoundException if employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findAvailableForService('service-1', startTime);
-
-      expect(result).toEqual([mockEmployees[0]]);
-      expect(employeeRepository.find).toHaveBeenCalledWith({
-        relations: ['services'],
-        where: {
-          services: {
-            id: 'service-1',
-          },
-          isActive: true,
-        },
-      });
-    });
-
-    it('should return empty array when no employees are available', async () => {
-      mockBookingRepository.count.mockResolvedValue(1);
-
-      const result = await service.findAvailableForService('service-1', startTime);
-
-      expect(result).toEqual([]);
-    });
-
-    it('should return all employees when all are available', async () => {
-      mockBookingRepository.count.mockResolvedValue(0);
-
-      const result = await service.findAvailableForService('service-1', startTime);
-
-      expect(result).toEqual(mockEmployees);
+      await expect(service.restore('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

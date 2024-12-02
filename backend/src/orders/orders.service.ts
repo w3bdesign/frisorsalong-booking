@@ -1,82 +1,78 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-  forwardRef,
-} from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Order } from "./entities/order.entity";
-import { BookingsService } from "../bookings/bookings.service";
-import { BookingStatus } from "../bookings/entities/booking.entity";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
-    @Inject(forwardRef(() => BookingsService))
-    private readonly bookingsService: BookingsService
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
   ) {}
 
   async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingsService.findOne(bookingId);
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
 
     if (!booking) {
-      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+      throw new NotFoundException(`Booking #${bookingId} not found`);
     }
-
-    if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException(
-        "Only confirmed bookings can be converted to orders"
-      );
-    }
-
-    // Check if order already exists for this booking
-    const existingOrder = await this.orderRepository.findOne({
-      where: { booking: { id: bookingId } },
-    });
-
-    if (existingOrder) {
-      throw new BadRequestException(
-        `Order already exists for booking ${bookingId}`
-      );
-    }
-
-    // Create new order with current timestamp
-    const now = new Date();
-    const order = this.orderRepository.create({
-      booking,
-      totalAmount: booking.totalPrice,
-      completedAt: now,
-      notes: `Order created for booking ${bookingId}`,
-    });
-
-    // Save the order first
-    const savedOrder = await this.orderRepository.save(order);
 
     // Update booking status to completed
-    await this.bookingsService.update(bookingId, {
-      status: BookingStatus.COMPLETED,
-      notes: `Completed at ${now.toISOString()}`,
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
     });
 
-    // Return the order with relations
-    return this.findOne(savedOrder.id);
+    return this.orderRepository.save(order);
   }
 
   async findAll(): Promise<Order[]> {
     return this.orderRepository.find({
       relations: [
-        "booking",
-        "booking.customer",
-        "booking.employee",
-        "booking.service",
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
       ],
-      order: {
-        completedAt: "DESC",
+      order: { completedAt: 'DESC' },
+    });
+  }
+
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+
+    return this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
       },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
     });
   }
 
@@ -84,15 +80,45 @@ export class OrdersService {
     const order = await this.orderRepository.findOne({
       where: { id },
       relations: [
-        "booking",
-        "booking.customer",
-        "booking.employee",
-        "booking.service",
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
       ],
     });
 
     if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+
+    return order;
+  }
+
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
     }
 
     return order;

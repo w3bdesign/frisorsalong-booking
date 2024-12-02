@@ -12,6 +12,11 @@
         </Button>
       </div>
 
+      <!-- Error Display -->
+      <div v-if="error" class="mb-4 bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <span class="block sm:inline">{{ error }}</span>
+      </div>
+
       <!-- Filters -->
       <div class="mb-6 bg-white p-4 rounded-lg shadow space-y-4">
         <div>
@@ -24,25 +29,6 @@
             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Filtrer etter ansatt</label
-          >
-          <select
-            v-model="selectedEmployeeId"
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          >
-            <option value="">Alle ansatte</option>
-            <option v-for="employee in employeesStore.getActiveEmployees" :key="employee.id" :value="employee.id">
-              {{ employee.user.firstName }} {{ employee.user.lastName }}
-              <template v-if="employeeStats.find(stat => stat.id === employee.id)">
-                ({{ employeeStats.find(stat => stat.id === employee.id)?.count }} ordrer - 
-                {{ formatPrice(employeeStats.find(stat => stat.id === employee.id)?.revenue || 0) }})
-              </template>
-            </option>
-          </select>
-        </div>
       </div>
 
       <!-- Chart -->
@@ -51,12 +37,12 @@
       </div>
 
       <!-- Loading and Error States -->
-      <div v-if="loading || employeesStore.loading" class="text-center py-4">
+      <div v-if="loading" class="text-center py-4">
         Laster data...
       </div>
 
-      <div v-else-if="error || employeesStore.error" class="text-red-500 py-4">
-        {{ error || employeesStore.error }}
+      <div v-else-if="error" class="text-red-500 py-4">
+        {{ error }}
       </div>
 
       <div v-else-if="filteredOrders.length === 0" class="text-center py-4">
@@ -163,13 +149,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useOrdersStore } from "../stores/orders";
-import { useEmployeesStore } from "../stores/employees";
+import { useAuthStore } from "../stores/auth";
 import { storeToRefs } from "pinia";
 import OrdersChart from "../components/OrdersChart.vue";
 import Button from "../components/base/Button.vue";
 
 const ordersStore = useOrdersStore();
-const employeesStore = useEmployeesStore();
+const authStore = useAuthStore();
 const { orders, loading, error } = storeToRefs(ordersStore);
 
 // Set up periodic refresh
@@ -178,19 +164,9 @@ let refreshInterval: number | null = null;
 // Date handling - initialize with today's date in local timezone
 const today = new Date();
 const selectedDate = ref(today.toISOString().split("T")[0]);
-const selectedEmployeeId = ref("");
-
-const employeeStats = computed(() => {
-  return ordersStore.getEmployeeStats;
-});
 
 const filteredOrders = computed(() => {
   let filtered = orders.value;
-
-  // Filter by employee if selected
-  if (selectedEmployeeId.value) {
-    filtered = ordersStore.getOrdersByEmployee(selectedEmployeeId.value);
-  }
 
   // Filter by date
   if (selectedDate.value) {
@@ -256,28 +232,22 @@ function formatPrice(price: string | number): string {
 
 function refreshData() {
   ordersStore.fetchOrders(true);
-  employeesStore.fetchEmployees();
 }
 
 // Watch for filter changes to log filtering info
-watch([selectedDate, selectedEmployeeId, orders], () => {
+watch([selectedDate, orders], () => {
   console.log("Filtering debug:");
   console.log("Selected date:", selectedDate.value);
-  console.log("Selected employee:", selectedEmployeeId.value);
   console.log("Total orders:", orders.value.length);
   console.log("Filtered orders:", filteredOrders.value.length);
 });
 
 onMounted(async () => {
-  await Promise.all([
-    ordersStore.fetchOrders(),
-    employeesStore.fetchEmployees()
-  ]);
+  await ordersStore.fetchOrders();
   
   // Set up periodic refresh every 5 minutes
   refreshInterval = window.setInterval(() => {
     ordersStore.fetchOrders();
-    employeesStore.fetchEmployees();
   }, 300000); // 5 minutes in milliseconds
 });
 
