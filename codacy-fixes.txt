@@ -1,0 +1,119 @@
+diff --git a/frontend/customer/docs/README.md b/frontend/customer/docs/README.md
+--- a/frontend/customer/docs/README.md
++++ b/frontend/customer/docs/README.md
+@@ -18,1 +18,1 @@
+-### Backend
++### Backend
+
+@@ -19,1 +19,1 @@
+-- NestJS (TypeScript)
++
+- NestJS (TypeScript)
+@@ -25,1 +25,1 @@
+-### Frontend
++### Frontend
+
+@@ -26,1 +26,1 @@
+-- Vue 3
++
+- Vue 3
+@@ -205,1 +205,1 @@
+-1. Check the existing documentation
++
+1. Check the existing documentation
+diff --git a/backend/docs/README.md b/backend/docs/README.md
+--- a/backend/docs/README.md
++++ b/backend/docs/README.md
+@@ -18,1 +18,1 @@
+-### Backend
++### Backend
+
+@@ -19,1 +19,1 @@
+-- NestJS (TypeScript)
++
+- NestJS (TypeScript)
+@@ -25,1 +25,1 @@
+-### Frontend
++### Frontend
+
+@@ -26,1 +26,1 @@
+-- Vue 3
++
+- Vue 3
+@@ -205,1 +205,1 @@
+-1. Check the existing documentation
++
+1. Check the existing documentation
+diff --git a/backend/src/database/seeds/update-admin-password.seed.spec.ts b/backend/src/database/seeds/update-admin-password.seed.spec.ts
+--- a/backend/src/database/seeds/update-admin-password.seed.spec.ts
++++ b/backend/src/database/seeds/update-admin-password.seed.spec.ts
+@@ -29,1 +29,1 @@
+-      findOne: jest.fn() as jest.Mock,
++      findOne: jest.fn(),
+diff --git a/docs/README.md b/docs/README.md
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -18,1 +18,1 @@
+-### Backend
++### Backend
+
+@@ -19,1 +19,1 @@
+-- NestJS (TypeScript)
++
+- NestJS (TypeScript)
+@@ -25,1 +25,1 @@
+-### Frontend
++### Frontend
+
+@@ -26,1 +26,1 @@
+-- Vue 3
++
+- Vue 3
+@@ -205,1 +205,1 @@
+-1. Check the existing documentation
++
+1. Check the existing documentation
+diff --git a/frontend/admin/docs/README.md b/frontend/admin/docs/README.md
+--- a/frontend/admin/docs/README.md
++++ b/frontend/admin/docs/README.md
+@@ -18,1 +18,1 @@
+-### Backend
++### Backend
+
+@@ -19,1 +19,1 @@
+-- NestJS (TypeScript)
++
+- NestJS (TypeScript)
+@@ -25,1 +25,1 @@
+-### Frontend
++### Frontend
+
+@@ -26,1 +26,1 @@
+-- Vue 3
++
+- Vue 3
+@@ -205,1 +205,1 @@
+-1. Check the existing documentation
++
+1. Check the existing documentation
+diff --git a/backend/README.md b/backend/README.md
+--- a/backend/README.md
++++ b/backend/README.md
+@@ -34,1 +34,1 @@
+-1. Install dependencies:
++1. Install dependencies:
+
+@@ -45,1 +45,1 @@
+-1. Run migrations:
++1. Run migrations:
+
+@@ -50,1 +50,1 @@
+-2. Seed initial data:
++2. Seed initial data:
+
+diff --git a/frontend/admin/README.md b/frontend/admin/README.md
+--- a/frontend/admin/README.md
++++ b/frontend/admin/README.md
+@@ -30,1 +30,1 @@
+-1. Install dependencies:
++1. Install dependencies:

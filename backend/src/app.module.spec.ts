@@ -39,10 +39,14 @@ jest.mock("@nestjs/typeorm", () => {
   return {
     TypeOrmModule: {
       forRootAsync: jest.fn().mockReturnValue({
-        module: class MockTypeOrmModule {},
+        module: class MockTypeOrmModule {
+          static forRoot() { return {}; }
+        },
       }),
       forFeature: jest.fn().mockReturnValue({
-        module: class MockTypeOrmFeatureModule {},
+        module: class MockTypeOrmFeatureModule {
+          static forFeature() { return {}; }
+        },
       }),
     },
     getRepositoryToken: jest.fn((entity) => {
@@ -55,63 +59,88 @@ jest.mock("@nestjs/typeorm", () => {
   };
 });
 
-// Mock feature modules
+// Mock feature modules with basic implementations
 jest.mock("./auth/auth.module", () => ({
-  AuthModule: class MockAuthModule {},
+  AuthModule: class MockAuthModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./users/users.module", () => ({
-  UsersModule: class MockUsersModule {},
+  UsersModule: class MockUsersModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: class MockEmployeesModule {},
+  EmployeesModule: class MockEmployeesModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./services/services.module", () => ({
-  ServicesModule: class MockServicesModule {},
+  ServicesModule: class MockServicesModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: class MockBookingsModule {},
+  BookingsModule: class MockBookingsModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./orders/orders.module", () => ({
-  OrdersModule: class MockOrdersModule {},
+  OrdersModule: class MockOrdersModule {
+    static register() { return {}; }
+  },
 }));
 
 jest.mock("./shops/shops.module", () => ({
-  ShopsModule: class MockShopsModule {},
+  ShopsModule: class MockShopsModule {
+    static register() { return {}; }
+  },
 }));
 
 // Mock entities
 jest.mock("./users/entities/user.entity", () => ({
-  User: class MockUser {},
+  User: class MockUser {
+    constructor() {}
+  },
 }));
 
 jest.mock("./employees/entities/employee.entity", () => ({
-  Employee: class MockEmployee {},
+  Employee: class MockEmployee {
+    constructor() {}
+  },
 }));
 
 jest.mock("./services/entities/service.entity", () => ({
-  Service: class MockService {},
+  Service: class MockService {
+    constructor() {}
+  },
 }));
 
 jest.mock("./bookings/entities/booking.entity", () => ({
-  Booking: class MockBooking {},
+  Booking: class MockBooking {
+    constructor() {}
+  },
 }));
 
 jest.mock("./orders/entities/order.entity", () => ({
-  Order: class MockOrder {},
+  Order: class MockOrder {
+    constructor() {}
+  },
 }));
 
 jest.mock("./shops/entities/shop-code.entity", () => ({
-  ShopCode: class MockShopCode {},
+  ShopCode: class MockShopCode {
+    constructor() {}
+  },
 }));
 
 describe("AppModule", () => {
   let app;
-  let configService;
   let typeOrmModule;
 
   beforeEach(async () => {
@@ -127,7 +156,6 @@ describe("AppModule", () => {
     app = await moduleRef.createNestApplication();
     await app.init();
 
-    configService = moduleRef.get<ConfigService>(ConfigService);
     typeOrmModule = require("@nestjs/typeorm").TypeOrmModule;
   });
 
