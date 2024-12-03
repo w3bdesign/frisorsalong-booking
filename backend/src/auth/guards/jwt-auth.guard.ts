@@ -1,5 +1,6 @@
 import { Injectable, ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { User } from "../users/entities/user.entity";
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
@@ -12,11 +13,20 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
       throw new UnauthorizedException('Missing Authorization header');
     }
 
+    if (typeof authHeader !== 'string') {
+      throw new UnauthorizedException('Invalid Authorization header format');
+    }
+
     if (!authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('Authorization header must start with "Bearer "');
     }
 
-    const token = authHeader.split(' ')[1];
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2) {
+      throw new UnauthorizedException('Invalid Authorization header format');
+    }
+
+    const token = parts[1];
     if (!token) {
       throw new UnauthorizedException('Token not provided');
     }
@@ -27,11 +37,12 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest(err: Error | null, user: User | null, info: Error | unknown): User {
     // Add debug logging
-    console.log('JWT Auth Guard - Error:', err?.message || err);
+    const errorMessage = err instanceof Error ? err.message : err;
+    console.log('JWT Auth Guard - Error:', errorMessage);
     console.log('JWT Auth Guard - User:', user);
-    console.log('JWT Auth Guard - Info:', info?.message || info);
+    console.log('JWT Auth Guard - Info:', info instanceof Error ? info.message : info);
 
     // Handle specific JWT errors
     if (info instanceof Error) {
@@ -43,8 +54,12 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
       }
     }
 
-    if (err || !user) {
-      throw err || new UnauthorizedException('User not authenticated');
+    if (err) {
+      throw err;
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return user;
