@@ -16,6 +16,7 @@ This is a full-stack booking system for hair salons built using NestJS (backend)
 ## Technology Stack
 
 ### Backend
+
 - NestJS (TypeScript)
 - PostgreSQL (Database)
 - Redis (Caching)
@@ -23,6 +24,7 @@ This is a full-stack booking system for hair salons built using NestJS (backend)
 - Swagger (API Documentation)
 
 ### Frontend
+
 - Vue 3
 - Pinia (State Management)
 - Vue Router
@@ -201,7 +203,6 @@ npm run test:cov
 
 ## Support
 
-For any questions or issues:
 1. Check the existing documentation
 2. Review the codebase and tests
 3. Contact the development team
