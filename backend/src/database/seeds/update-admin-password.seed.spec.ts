@@ -26,8 +26,8 @@ describe('updateAdminPassword', () => {
   beforeEach(() => {
     // Mock repository
     mockUserRepository = {
-      findOne: jest.fn() as jest.Mock,
-      save: jest.fn() as jest.Mock,
+      findOne: jest.fn(),
+      save: jest.fn(),
     };
 
     // Mock DataSource
