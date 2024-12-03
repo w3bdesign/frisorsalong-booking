@@ -49,7 +49,7 @@ dependencies:
     version: 0.14.1
   dotenv:
     specifier: ^16.4.5
-    version: 16.4.5
+    version: 16.4.6
   passport:
     specifier: ^0.7.0
     version: 0.7.0
@@ -2568,6 +2568,11 @@ packages:
 
   /dotenv@16.4.5:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
+    engines: {node: '>=12'}
+    dev: false
+
+  /dotenv@16.4.6:
+    resolution: {integrity: sha512-JhcR/+KIjkkjiU8yEpaB/USlzVi3i5whwOjpIRNGi9svKEXZSe+Qp6IWAjFjv+2GViAoDRCUv/QLNziQxsLqDg==}
     engines: {node: '>=12'}
     dev: false
 
@@ -5548,7 +5553,7 @@ packages:
       cli-highlight: 2.1.11
       dayjs: 1.11.13
       debug: 4.3.7
-      dotenv: 16.4.5
+      dotenv: 16.4.6
       glob: 10.4.5
       mkdirp: 2.1.6
       pg: 8.13.1
