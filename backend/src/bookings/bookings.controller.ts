@@ -22,11 +22,11 @@ import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/entities/user.entity";
 import { Request } from "express";
-import { Shop } from "../shops/entities/shop.entity";
+import { ShopCode } from "../shops/entities/shop-code.entity";
 
 // Extend Express Request to include shop property
 interface RequestWithShop extends Request {
-  shop: Shop;
+  shop: ShopCode;
 }
 
 @Controller("bookings")
