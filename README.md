@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/38eb1dc9bda34d7f9fbc49cda667c3c0)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking?utm_source=github.com&utm_medium=referral&utm_content=w3bdesign/frisorsalong-booking&utm_campaign=Badge_Grade)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
 
 # Hair Salon Booking System
