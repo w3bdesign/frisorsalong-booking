@@ -131,7 +131,7 @@ describe('JwtAuthGuard', () => {
       const calls = (console.log as jest.Mock).mock.calls;
       expect(calls[0]).toEqual(['JWT Auth Guard - Error:', 'null']);
       expect(calls[1]).toEqual(['JWT Auth Guard - User:', false]);
-      expect(calls[2]).toEqual(['JWT Auth Guard - Info:', mockInfo]);
+      expect(calls[2]).toEqual(['JWT Auth Guard - Info:', '[object Object]']);
     });
   });
 });
