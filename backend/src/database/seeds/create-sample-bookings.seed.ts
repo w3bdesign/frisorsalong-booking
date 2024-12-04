@@ -1,4 +1,4 @@
-import { DataSource } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { User, UserRole } from "../../users/entities/user.entity";
 import { Employee } from "../../employees/entities/employee.entity";
 import { Service } from "../../services/entities/service.entity";
@@ -6,16 +6,22 @@ import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 import * as bcrypt from "bcrypt";
 import { faker } from '@faker-js/faker';
 
-export const createSampleBookings = async (dataSource: DataSource) => {
-  const userRepository = dataSource.getRepository(User);
-  const employeeRepository = dataSource.getRepository(Employee);
-  const serviceRepository = dataSource.getRepository(Service);
-  const bookingRepository = dataSource.getRepository(Booking);
+export const createSampleBookings = async (dataSource: DataSource): Promise<{
+  total: number;
+  confirmed: number;
+  pending: number;
+  cancelled: number;
+}> => {
+  // Initialize repositories with proper typing
+  const userRepository: Repository<User> = dataSource.getRepository(User);
+  const employeeRepository: Repository<Employee> = dataSource.getRepository(Employee);
+  const serviceRepository: Repository<Service> = dataSource.getRepository(Service);
+  const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
 
   try {
     console.log('Starting to create sample bookings...');
 
-    // Get the employee
+    // Get the employee with proper type assertion
     const employee = await employeeRepository.findOne({
       relations: ['user'],
       where: { user: { email: process.env.EMPLOYEE_EMAIL } }
@@ -25,27 +31,35 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       throw new Error("Employee not found. Please run initial data seed first.");
     }
 
-    // Get all services
+    // Get all services with proper type assertion
     const services = await serviceRepository.find();
-    if (services.length === 0) {
+    if (!services || services.length === 0) {
       throw new Error("No services found. Please run initial data seed first.");
     }
 
     // Create 10 sample customers
     console.log('Creating sample customers...');
-    const customers = [];
+    const customers: User[] = [];
     for (let i = 0; i < 10; i++) {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
-      const customer = await userRepository.save({
-        firstName,
-        lastName,
-        email: faker.internet.email({ firstName, lastName }),
-        password: await bcrypt.hash('password123', 10),
-        role: UserRole.CUSTOMER,
-        phoneNumber: '+47' + faker.string.numeric(8),
-      });
-      customers.push(customer);
+      
+      try {
+        const hashedPassword = await bcrypt.hash('password123', 10);
+        const customer = await userRepository.save({
+          firstName,
+          lastName,
+          email: faker.internet.email({ firstName, lastName }),
+          password: hashedPassword,
+          role: UserRole.CUSTOMER,
+          phoneNumber: '+47' + faker.string.numeric(8),
+        });
+        customers.push(customer);
+      } catch (error) {
+        const err = new Error(`Failed to create customer ${i + 1}`);
+        console.error(`Error creating customer ${i + 1}:`, error);
+        throw err;
+      }
     }
     console.log(`Created ${customers.length} sample customers`);
 
@@ -64,13 +78,25 @@ export const createSampleBookings = async (dataSource: DataSource) => {
       const service = faker.helpers.arrayElement(services);
       const customer = faker.helpers.arrayElement(customers);
       
+      if (!service || !customer) {
+        const err = new Error(`Failed to select service or customer for booking ${i + 1}`);
+        throw err;
+      }
+
       // Use weighted random status
       const randomWeight = Math.random();
       let cumulativeWeight = 0;
-      const status = statusWeights.find(sw => {
+      const statusWeight = statusWeights.find(sw => {
         cumulativeWeight += sw.weight;
         return randomWeight <= cumulativeWeight;
-      }).status;
+      });
+
+      if (!statusWeight) {
+        const err = new Error(`Failed to determine status for booking ${i + 1}`);
+        throw err;
+      }
+
+      const status = statusWeight.status;
       
       // Generate dates across a wider range (-30 to +30 days)
       const startTime = faker.date.between({
@@ -78,7 +104,9 @@ export const createSampleBookings = async (dataSource: DataSource) => {
         to: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
       });
       
-      const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000);
+      // Ensure service.duration is a number
+      const duration = typeof service.duration === 'number' ? service.duration : 60;
+      const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
 
       const booking: Partial<Booking> = {
         customer,
@@ -111,8 +139,9 @@ export const createSampleBookings = async (dataSource: DataSource) => {
     console.log('Saving bookings to database...');
     const savedBookings = await bookingRepository.save(bookings);
     
-    if (!savedBookings) {
-      throw new Error('Failed to save bookings - no bookings returned from save operation');
+    if (!savedBookings || !Array.isArray(savedBookings)) {
+      const err = new Error('Failed to save bookings - no bookings returned from save operation');
+      throw err;
     }
 
     const statusDistribution = {

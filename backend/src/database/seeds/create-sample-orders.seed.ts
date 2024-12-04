@@ -1,10 +1,11 @@
-import { DataSource } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 
 export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
-  const bookingRepository = dataSource.getRepository(Booking);
-  const orderRepository = dataSource.getRepository(Order);
+  // Initialize repositories with proper typing
+  const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
+  const orderRepository: Repository<Order> = dataSource.getRepository(Order);
 
   try {
     console.log('Starting to create sample orders...');
@@ -15,6 +16,10 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
       relations: ["customer", "employee", "service"],
     });
 
+    if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
+      throw new Error('Failed to fetch confirmed bookings');
+    }
+
     console.log(`Found ${confirmedBookings.length} confirmed bookings`);
 
     // Take first 20 confirmed bookings (or less if fewer exist)
@@ -23,23 +28,53 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 
     console.log(`Creating ${numberOfOrders} orders...`);
 
-    const createdOrders = [];
+    const createdOrders: Order[] = [];
     for (const booking of selectedBookings) {
-      const order = orderRepository.create({
-        booking: booking,
-        completedAt: new Date(),
-        totalAmount: booking.totalPrice,
-        notes: `Order created for booking ${booking.id}`,
-      });
+      // Verify booking has required properties
+      if (!booking.id || !booking.totalPrice) {
+        console.error(`Invalid booking data: ${JSON.stringify(booking)}`);
+        continue;
+      }
 
-      const savedOrder = await orderRepository.save(order);
-      createdOrders.push(savedOrder);
+      try {
+        // Create order with proper type
+        const order = orderRepository.create({
+          booking: booking,
+          completedAt: new Date(),
+          totalAmount: booking.totalPrice,
+          notes: `Order created for booking ${booking.id}`,
+        });
 
-      // Update booking status to completed
-      booking.status = BookingStatus.COMPLETED;
-      await bookingRepository.save(booking);
+        if (!order) {
+          throw new Error(`Failed to create order for booking ${booking.id}`);
+        }
 
-      console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
+        // Save order with proper error handling
+        const savedOrder = await orderRepository.save(order);
+        if (!savedOrder) {
+          throw new Error(`Failed to save order for booking ${booking.id}`);
+        }
+
+        createdOrders.push(savedOrder);
+
+        // Update booking status to completed
+        booking.status = BookingStatus.COMPLETED;
+        const updatedBooking = await bookingRepository.save(booking);
+        
+        if (!updatedBooking) {
+          throw new Error(`Failed to update status for booking ${booking.id}`);
+        }
+
+        console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
+      } catch (error) {
+        // Log error but continue processing other bookings
+        console.error(`Error processing booking ${booking.id}:`, error instanceof Error ? error.message : String(error));
+        continue;
+      }
+    }
+
+    if (createdOrders.length === 0) {
+      throw new Error('No orders were created successfully');
     }
 
     console.log(`Successfully created ${createdOrders.length} sample orders`);

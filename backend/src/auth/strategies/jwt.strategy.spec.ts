@@ -17,20 +17,15 @@ type MockConfigService = {
   get: jest.Mock<string | undefined, [string]>;
 };
 
-type MockUserRepository = {
-  findOne: jest.Mock;
-};
-
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let configService: MockConfigService;
-  let usersRepository: MockUserRepository;
 
   const mockConfigService: MockConfigService = {
     get: jest.fn((key: string) => key === 'JWT_SECRET' ? 'test-secret' : undefined),
   };
 
-  const mockUsersRepository: MockUserRepository = {
+  const mockUsersRepository = {
     findOne: jest.fn(),
   };
 
@@ -51,7 +46,6 @@ describe('JwtStrategy', () => {
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
     configService = module.get(ConfigService) as unknown as MockConfigService;
-    usersRepository = module.get(getRepositoryToken(User)) as unknown as MockUserRepository;
   });
 
   afterEach(() => {
