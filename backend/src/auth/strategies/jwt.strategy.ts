@@ -5,6 +5,22 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "../../users/entities/user.entity";
+import { Request } from "express";
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
+interface SafeUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -13,15 +29,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User)
     private usersRepository: Repository<User>
   ) {
+    const jwtSecret = configService.get<string>("JWT_SECRET");
+    if (!jwtSecret) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get("JWT_SECRET"),
-      passReqToCallback: true, // Pass request object to validate method
+      secretOrKey: jwtSecret,
+      passReqToCallback: true,
     });
   }
 
-  async validate(request: any, payload: any) {
+  async validate(request: Request, payload: JwtPayload): Promise<SafeUser> {
     try {
       // Log the incoming request headers
       console.log("JWT Strategy - Headers:", request.headers);
@@ -58,8 +79,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     } catch (error) {
       console.error("JWT Strategy - Validation error:", error);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException(
-        error.message || "Token validation failed"
+        error instanceof Error ? error.message : "Token validation failed"
       );
     }
   }
