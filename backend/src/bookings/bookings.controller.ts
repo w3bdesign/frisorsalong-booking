@@ -8,6 +8,8 @@ import {
   UseGuards,
   BadRequestException,
   Req,
+  ParseUUIDPipe,
+  ValidationPipe,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
@@ -38,24 +40,22 @@ export class BookingsController {
 
   @Get("upcoming/count")
   async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    return this.bookingsService.getUpcomingCount();
+    return await this.bookingsService.getUpcomingCount();
   }
 
   @Post("walk-in")
   @UseGuards(ShopCodeGuard)
   async createWalkIn(
-    @Body() createWalkInBookingDto: CreateWalkInBookingDto,
+    @Body(new ValidationPipe()) createWalkInBookingDto: CreateWalkInBookingDto,
     @Req() request: RequestWithShop
-  ) {
-    // Get shop from request (added by ShopCodeGuard)
-    const shop = request.shop;
-    if (!shop) {
+  ): Promise<BookingResponseDto> {
+    if (!request?.shop) {
       throw new BadRequestException('Shop information is required for walk-in bookings');
     }
 
     const booking = await this.bookingsService.createWalkIn(
       createWalkInBookingDto,
-      shop
+      request.shop
     );
     return BookingResponseDto.fromEntity(booking);
   }
@@ -63,7 +63,9 @@ export class BookingsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async create(@Body() createBookingDto: CreateBookingDto) {
+  async create(
+    @Body(new ValidationPipe()) createBookingDto: CreateBookingDto
+  ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.create(createBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -71,7 +73,7 @@ export class BookingsController {
   @Get("upcoming")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findUpcoming() {
+  async findUpcoming(): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findUpcoming();
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -79,7 +81,9 @@ export class BookingsController {
   @Get("customer/:customerId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async findByCustomer(@Param("customerId") customerId: string) {
+  async findByCustomer(
+    @Param("customerId", new ParseUUIDPipe()) customerId: string
+  ): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findByCustomer(customerId);
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -87,7 +91,9 @@ export class BookingsController {
   @Get("employee/:employeeId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findByEmployee(@Param("employeeId") employeeId: string) {
+  async findByEmployee(
+    @Param("employeeId", new ParseUUIDPipe()) employeeId: string
+  ): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findByEmployee(employeeId);
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -95,7 +101,9 @@ export class BookingsController {
   @Get(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findOne(@Param("id") id: string) {
+  async findOne(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.findOne(id);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -104,9 +112,9 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async update(
-    @Param("id") id: string,
-    @Body() updateBookingDto: UpdateBookingDto
-  ) {
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ValidationPipe()) updateBookingDto: UpdateBookingDto
+  ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.update(id, updateBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -114,8 +122,9 @@ export class BookingsController {
   @Put(":id/cancel")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async cancel(@Param("id") id: string) {
-    // For admin cancellations, use a default reason
+  async cancel(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
     const reason = "Cancelled by administrator";
     const booking = await this.bookingsService.cancel(id, reason);
     return BookingResponseDto.fromEntity(booking);
@@ -124,9 +133,9 @@ export class BookingsController {
   @Put(":id/complete")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async complete(@Param("id") id: string) {
-    // Create an order for the booking
-    const order = await this.ordersService.createFromBooking(id);
-    return order;
+  async complete(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ) {
+    return await this.ordersService.createFromBooking(id);
   }
 }
