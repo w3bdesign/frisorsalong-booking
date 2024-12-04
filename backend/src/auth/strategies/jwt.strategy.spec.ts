@@ -4,7 +4,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Repository } from 'typeorm';
 import { Request } from 'express';
 
 interface JwtPayload {
