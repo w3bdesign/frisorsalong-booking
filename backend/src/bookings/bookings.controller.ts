@@ -21,6 +21,13 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/entities/user.entity";
+import { Request } from "express";
+import { Shop } from "../shops/entities/shop.entity";
+
+// Extend Express Request to include shop property
+interface RequestWithShop extends Request {
+  shop: Shop;
+}
 
 @Controller("bookings")
 export class BookingsController {
@@ -38,10 +45,13 @@ export class BookingsController {
   @UseGuards(ShopCodeGuard)
   async createWalkIn(
     @Body() createWalkInBookingDto: CreateWalkInBookingDto,
-    @Req() request: any
-  ) {
+    @Req() request: RequestWithShop
+  ): Promise<BookingResponseDto> {
     // Get shop from request (added by ShopCodeGuard)
     const shop = request.shop;
+    if (!shop) {
+      throw new BadRequestException('Shop information is required for walk-in bookings');
+    }
 
     const booking = await this.bookingsService.createWalkIn(
       createWalkInBookingDto,
@@ -53,7 +63,7 @@ export class BookingsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async create(@Body() createBookingDto: CreateBookingDto) {
+  async create(@Body() createBookingDto: CreateBookingDto): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.create(createBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -61,7 +71,7 @@ export class BookingsController {
   @Get("upcoming")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findUpcoming() {
+  async findUpcoming(): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findUpcoming();
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -69,7 +79,7 @@ export class BookingsController {
   @Get("customer/:customerId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async findByCustomer(@Param("customerId") customerId: string) {
+  async findByCustomer(@Param("customerId") customerId: string): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findByCustomer(customerId);
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -77,7 +87,7 @@ export class BookingsController {
   @Get("employee/:employeeId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findByEmployee(@Param("employeeId") employeeId: string) {
+  async findByEmployee(@Param("employeeId") employeeId: string): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findByEmployee(employeeId);
     return BookingResponseDto.fromEntities(bookings);
   }
@@ -85,7 +95,7 @@ export class BookingsController {
   @Get(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findOne(@Param("id") id: string) {
+  async findOne(@Param("id") id: string): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.findOne(id);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -96,7 +106,7 @@ export class BookingsController {
   async update(
     @Param("id") id: string,
     @Body() updateBookingDto: UpdateBookingDto
-  ) {
+  ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.update(id, updateBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
@@ -104,7 +114,7 @@ export class BookingsController {
   @Put(":id/cancel")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async cancel(@Param("id") id: string) {
+  async cancel(@Param("id") id: string): Promise<BookingResponseDto> {
     // For admin cancellations, use a default reason
     const reason = "Cancelled by administrator";
     const booking = await this.bookingsService.cancel(id, reason);
