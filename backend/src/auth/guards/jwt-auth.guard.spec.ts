@@ -128,9 +128,10 @@ describe('JwtAuthGuard', () => {
         // Expected to throw, we just want to verify the logs
       }
 
-      expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - Error:', null);
-      expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - User:', false);
-      expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - Info:', 'Test info');
+      const calls = (console.log as jest.Mock).mock.calls;
+      expect(calls[0]).toEqual(['JWT Auth Guard - Error:', 'null']);
+      expect(calls[1]).toEqual(['JWT Auth Guard - User:', false]);
+      expect(calls[2]).toEqual(['JWT Auth Guard - Info:', mockInfo]);
     });
   });
 });
