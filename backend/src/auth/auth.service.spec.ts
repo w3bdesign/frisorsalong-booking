@@ -1,10 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
-import { User, UserRole } from "../users/entities/user.entity";
+import { UserRole } from "../users/entities/user.entity";
 import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 
@@ -81,7 +79,7 @@ describe("AuthService", () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException,
+        ConflictException
       );
     });
   });
@@ -113,7 +111,7 @@ describe("AuthService", () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedException
       );
     });
 
@@ -124,7 +122,7 @@ describe("AuthService", () => {
         .mockImplementation(() => Promise.resolve(false));
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedException
       );
     });
   });
