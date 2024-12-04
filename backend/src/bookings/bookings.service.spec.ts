@@ -19,38 +19,34 @@ type MockType<T> = {
 
 describe('BookingsService', () => {
   let service: BookingsService;
-  let mockBookingRepository: MockType<Repository<Booking>>;
-  let mockUsersService: MockType<UsersService>;
-  let mockEmployeesService: MockType<EmployeesService>;
-  let mockServicesService: MockType<ServicesService>;
+
+  const mockBookingRepository: MockType<Repository<Booking>> = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+
+  const mockUsersService: MockType<UsersService> = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
+
+  const mockEmployeesService: MockType<EmployeesService> = {
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+    isAvailable: jest.fn(),
+  };
+
+  const mockServicesService: MockType<ServicesService> = {
+    findOne: jest.fn(),
+  };
+
+  const mockOrdersService: MockType<OrdersService> = {
+    createFromBooking: jest.fn(),
+  };
 
   beforeEach(async () => {
-    mockBookingRepository = {
-      create: jest.fn(),
-      save: jest.fn(),
-      findOne: jest.fn(),
-      find: jest.fn(),
-    };
-
-    mockUsersService = {
-      create: jest.fn(),
-      findOne: jest.fn(),
-    };
-
-    mockEmployeesService = {
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      isAvailable: jest.fn(),
-    };
-
-    mockServicesService = {
-      findOne: jest.fn(),
-    };
-
-    const mockOrdersService = {
-      createFromBooking: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BookingsService,
