@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsService } from './bookings.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, MoreThan, In, Between } from 'typeorm';
+import { Repository,  In  } from 'typeorm';
 import { Booking, BookingStatus } from './entities/booking.entity';
 import { UsersService } from '../users/users.service';
 import { EmployeesService } from '../employees/employees.service';
@@ -16,11 +16,7 @@ import { ShopCode } from '../shops/entities/shop-code.entity';
 
 describe('BookingsService', () => {
   let service: BookingsService;
-  let bookingRepository: Repository<Booking>;
-  let usersService: UsersService;
-  let employeesService: EmployeesService;
-  let servicesService: ServicesService;
-  let ordersService: OrdersService;
+
 
   const mockBookingRepository = {
     create: jest.fn(),
