@@ -10,6 +10,7 @@ import {
   Req,
   ParseUUIDPipe,
   ValidationPipe,
+  Type,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
@@ -36,17 +37,24 @@ export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
     private readonly ordersService: OrdersService
-  ) {}
+  ) {
+    if (!bookingsService) {
+      throw new Error('BookingsService is required');
+    }
+    if (!ordersService) {
+      throw new Error('OrdersService is required');
+    }
+  }
 
   @Get("upcoming/count")
   async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    return await this.bookingsService.getUpcomingCount();
+    return this.bookingsService.getUpcomingCount();
   }
 
   @Post("walk-in")
-  @UseGuards(ShopCodeGuard)
+  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
   async createWalkIn(
-    @Body(new ValidationPipe()) createWalkInBookingDto: CreateWalkInBookingDto,
+    @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
     @Req() request: RequestWithShop
   ): Promise<BookingResponseDto> {
     if (!request?.shop) {
@@ -61,17 +69,17 @@ export class BookingsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async create(
-    @Body(new ValidationPipe()) createBookingDto: CreateBookingDto
+    @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
   ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.create(createBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
 
   @Get("upcoming")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findUpcoming(): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findUpcoming();
@@ -79,7 +87,7 @@ export class BookingsController {
   }
 
   @Get("customer/:customerId")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async findByCustomer(
     @Param("customerId", new ParseUUIDPipe()) customerId: string
@@ -89,7 +97,7 @@ export class BookingsController {
   }
 
   @Get("employee/:employeeId")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findByEmployee(
     @Param("employeeId", new ParseUUIDPipe()) employeeId: string
@@ -99,7 +107,7 @@ export class BookingsController {
   }
 
   @Get(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async findOne(
     @Param("id", new ParseUUIDPipe()) id: string
@@ -109,18 +117,18 @@ export class BookingsController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async update(
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ValidationPipe()) updateBookingDto: UpdateBookingDto
+    @Body(new ValidationPipe({ transform: true })) updateBookingDto: UpdateBookingDto
   ): Promise<BookingResponseDto> {
     const booking = await this.bookingsService.update(id, updateBookingDto);
     return BookingResponseDto.fromEntity(booking);
   }
 
   @Put(":id/cancel")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async cancel(
     @Param("id", new ParseUUIDPipe()) id: string
@@ -131,11 +139,11 @@ export class BookingsController {
   }
 
   @Put(":id/complete")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
   @Roles(UserRole.ADMIN)
   async complete(
     @Param("id", new ParseUUIDPipe()) id: string
   ) {
-    return await this.ordersService.createFromBooking(id);
+    return this.ordersService.createFromBooking(id);
   }
 }
