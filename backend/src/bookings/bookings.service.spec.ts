@@ -16,7 +16,11 @@ import { ShopCode } from '../shops/entities/shop-code.entity';
 
 describe('BookingsService', () => {
   let service: BookingsService;
-
+  let bookingRepository: Repository<Booking>;
+  let usersService: UsersService;
+  let employeesService: EmployeesService;
+  let servicesService: ServicesService;
+  let ordersService: OrdersService;
 
   const mockBookingRepository = {
     create: jest.fn(),
