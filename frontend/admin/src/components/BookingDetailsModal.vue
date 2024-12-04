@@ -9,6 +9,7 @@
               variant="secondary"
               size="sm"
               className="rounded-md bg-white text-gray-400 hover:text-gray-500"
+              aria-label="Lukk"
             >
               <span class="sr-only">Lukk</span>
               <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -19,32 +20,32 @@
 
           <div class="sm:flex sm:items-start">
             <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-              <h3 class="text-lg font-semibold leading-6 text-gray-900">
+              <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
                 Bestillingsdetaljer
               </h3>
               <div class="mt-4 space-y-4">
                 <!-- Customer -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Kunde</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ booking?.customerName }}</p>
+                  <label for="customer-name" class="block text-sm font-medium text-gray-700">Kunde</label>
+                  <p id="customer-name" class="mt-1 text-sm text-gray-900">{{ booking?.customerName }}</p>
                 </div>
 
                 <!-- Employee -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Ansatt</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ booking?.employeeName }}</p>
+                  <label for="employee-name" class="block text-sm font-medium text-gray-700">Ansatt</label>
+                  <p id="employee-name" class="mt-1 text-sm text-gray-900">{{ booking?.employeeName }}</p>
                 </div>
 
                 <!-- Service -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Tjeneste</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ booking?.serviceName }}</p>
+                  <label for="service-name" class="block text-sm font-medium text-gray-700">Tjeneste</label>
+                  <p id="service-name" class="mt-1 text-sm text-gray-900">{{ booking?.serviceName }}</p>
                 </div>
 
                 <!-- Status -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Status</label>
-                  <p class="mt-1">
+                  <label for="booking-status" class="block text-sm font-medium text-gray-700">Status</label>
+                  <p id="booking-status" class="mt-1">
                     <span
                       :class="[
                         'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
@@ -58,14 +59,14 @@
 
                 <!-- Date and Time -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Dato og tid</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ formatDateTime(booking?.startTime) }}</p>
+                  <label for="booking-datetime" class="block text-sm font-medium text-gray-700">Dato og tid</label>
+                  <p id="booking-datetime" class="mt-1 text-sm text-gray-900">{{ formatDateTime(booking?.startTime) }}</p>
                 </div>
 
                 <!-- Notes -->
                 <div v-if="booking?.notes">
-                  <label class="block text-sm font-medium text-gray-700">Notater</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ booking?.notes }}</p>
+                  <label for="booking-notes" class="block text-sm font-medium text-gray-700">Notater</label>
+                  <p id="booking-notes" class="mt-1 text-sm text-gray-900">{{ booking?.notes }}</p>
                 </div>
               </div>
             </div>
@@ -75,6 +76,7 @@
             <Button
               @click="closeModal"
               variant="secondary"
+              aria-label="Lukk modal"
             >
               Lukk
             </Button>
