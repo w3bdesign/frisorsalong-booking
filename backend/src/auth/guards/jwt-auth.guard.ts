@@ -1,11 +1,12 @@
 import { Injectable, ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { User } from "../../users/entities/user.entity";
+import { Request } from "express";
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
   canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
 
     // Check if Authorization header exists and is properly formatted
@@ -26,8 +27,8 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
       throw new UnauthorizedException('Invalid Authorization header format');
     }
 
-    const token = parts[1];
-    if (!token) {
+    const [, token] = parts;
+    if (!token || typeof token !== 'string') {
       throw new UnauthorizedException('Token not provided');
     }
 
@@ -37,31 +38,39 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     return super.canActivate(context);
   }
 
-  handleRequest(err: Error | null, user: User | null, info: Error | unknown): User {
+  handleRequest<TUser = User>(
+    err: any,
+    user: TUser | false,
+    info: any,
+    context: ExecutionContext,
+    status?: any
+  ): TUser {
     // Add debug logging
-    const errorMessage = err instanceof Error ? err.message : err;
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const infoMessage = info instanceof Error ? info.message : String(info);
+
     console.log('JWT Auth Guard - Error:', errorMessage);
     console.log('JWT Auth Guard - User:', user);
-    console.log('JWT Auth Guard - Info:', info instanceof Error ? info.message : info);
+    console.log('JWT Auth Guard - Info:', infoMessage);
 
     // Handle specific JWT errors
     if (info instanceof Error) {
-      if (info.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Invalid token format');
-      }
-      if (info.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Token has expired');
+      switch (info.name) {
+        case 'JsonWebTokenError':
+          throw new UnauthorizedException('Invalid token format');
+        case 'TokenExpiredError':
+          throw new UnauthorizedException('Token has expired');
       }
     }
 
     if (err) {
-      throw err;
+      throw err instanceof Error ? err : new UnauthorizedException(String(err));
     }
 
     if (!user) {
       throw new UnauthorizedException('User not authenticated');
     }
 
-    return user;
+    return user as TUser;
   }
 }

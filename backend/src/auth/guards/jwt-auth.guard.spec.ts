@@ -78,12 +78,12 @@ describe('JwtAuthGuard', () => {
         lastName: 'User',
         role: UserRole.CUSTOMER
       };
-      const result = guard.handleRequest(null, mockUser as User, null);
+      const result = guard.handleRequest(null, mockUser as User, null, mockExecutionContext);
       expect(result).toBe(mockUser);
     });
 
     it('should throw UnauthorizedException when user is not found', () => {
-      expect(() => guard.handleRequest(null, null, null)).toThrow(
+      expect(() => guard.handleRequest(null, false, null, mockExecutionContext)).toThrow(
         new UnauthorizedException('User not authenticated')
       );
     });
@@ -92,7 +92,7 @@ describe('JwtAuthGuard', () => {
       const jwtError = new Error('Invalid token');
       (jwtError as any).name = 'JsonWebTokenError';
 
-      expect(() => guard.handleRequest(null, null, jwtError)).toThrow(
+      expect(() => guard.handleRequest(null, false, jwtError, mockExecutionContext)).toThrow(
         new UnauthorizedException('Invalid token format')
       );
     });
@@ -101,7 +101,7 @@ describe('JwtAuthGuard', () => {
       const expiredError = new Error('Token expired');
       (expiredError as any).name = 'TokenExpiredError';
 
-      expect(() => guard.handleRequest(null, null, expiredError)).toThrow(
+      expect(() => guard.handleRequest(null, false, expiredError, mockExecutionContext)).toThrow(
         new UnauthorizedException('Token has expired')
       );
     });
@@ -109,7 +109,7 @@ describe('JwtAuthGuard', () => {
     it('should throw original error when error is provided', () => {
       const originalError = new Error('Custom error');
 
-      expect(() => guard.handleRequest(originalError, null, null)).toThrow(originalError);
+      expect(() => guard.handleRequest(originalError, false, null, mockExecutionContext)).toThrow(originalError);
     });
 
     it('should log debug information when error occurs', () => {
@@ -123,13 +123,13 @@ describe('JwtAuthGuard', () => {
       const mockInfo = { message: 'Test info' };
 
       try {
-        guard.handleRequest(null, null, mockInfo);
+        guard.handleRequest(null, false, mockInfo, mockExecutionContext);
       } catch (error) {
         // Expected to throw, we just want to verify the logs
       }
 
       expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - Error:', null);
-      expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - User:', null);
+      expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - User:', false);
       expect(console.log).toHaveBeenCalledWith('JWT Auth Guard - Info:', 'Test info');
     });
   });
