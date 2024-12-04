@@ -42,8 +42,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     err: any,
     user: TUser | false,
     info: any,
-    context: ExecutionContext,
-    status?: any
+    context: ExecutionContext
   ): TUser {
     // Add debug logging
     const errorMessage = err instanceof Error ? err.message : String(err);

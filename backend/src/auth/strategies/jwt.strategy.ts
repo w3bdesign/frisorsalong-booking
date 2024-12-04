@@ -34,8 +34,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new Error("JWT_SECRET is not configured");
     }
 
+    // Type assertion to ensure type safety
+    const jwtExtractor = ExtractJwt.fromAuthHeaderAsBearerToken();
+    if (!jwtExtractor || typeof jwtExtractor !== 'function') {
+      throw new Error("Failed to initialize JWT extractor");
+    }
+
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: jwtExtractor,
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
       passReqToCallback: true,

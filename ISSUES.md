@@ -2,12 +2,67 @@ CRITICAL
 
 Error prone
 
+'mockUser' is assigned a value but never used.
+backend/src/auth/guards/
+
+jwt-auth.guard.spec.ts
+
+116      const mockUser: Partial<User> = {
+
+CRITICAL
+
+Error prone
+
+Unsafe argument of type `any` assigned to a parameter of type `string | RegExp | Constructable | Error | undefined`.
+backend/src/auth/guards/
+
+jwt-auth.guard.spec.ts
+
+52        new UnauthorizedException('Token not provided')
+
+CRITICAL
+
+Error prone
+
+Unsafe return of an error typed value.
+backend/src/auth/guards/
+
+jwt-auth.guard.spec.ts
+
+35      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
+
+CRITICAL
+
+Error prone
+
 'status' is defined but never used.
 backend/src/auth/guards/
 
 jwt-auth.guard.ts
 
 46    status?: any
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .findOne on an `error` typed value.
+backend/src/auth/strategies/
+
+jwt.strategy.spec.ts
+
+97      (mockUsersRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .get on an `error` typed value.
+backend/src/auth/strategies/
+
+jwt.strategy.spec.ts
+
+55    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
 
 CRITICAL
 
@@ -29,315 +84,7 @@ backend/src/bookings/
 
 bookings.controller.ts
 
-71  @Get("upcoming")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-117  async cancel(@Param("id") id: string) {
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-124  @Put(":id/complete")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-39  @Get("upcoming/count")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-95  @Get(":id")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-66  async create(@Body() createBookingDto: CreateBookingDto) {
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-47    @Body() createWalkInBookingDto: CreateWalkInBookingDto,
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-48    @Req() request: RequestWithShop
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-107    @Param("id") id: string,
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-44  @Post("walk-in")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-108    @Body() updateBookingDto: UpdateBookingDto
-
-CRITICAL
-
-Error prone
-
-'ordersService' is defined but never used.
-backend/src/bookings/
-
-bookings.controller.ts
-
-36    private readonly ordersService: OrdersService
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-45  @UseGuards(ShopCodeGuard)
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
 79  @Get("customer/:customerId")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-87  @Get("employee/:employeeId")
-
-CRITICAL
-
-Error prone
-
-'bookingsService' is defined but never used.
-backend/src/bookings/
-
-bookings.controller.ts
-
-35    private readonly bookingsService: BookingsService,
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-82  async findByCustomer(@Param("customerId") customerId: string) {
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-127  async complete(@Param("id") id: string) {
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-63  @Post()
-
-CRITICAL
-
-Error prone
-
-Unsafe construction of an any type value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-53      throw new BadRequestException('Shop information is required for walk-in bookings');
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-32@Controller("bookings")
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.controller.ts
-
-64  @UseGuards(JwtAuthGuard, RolesGuard)
-
-CRITICAL
-
-Error prone
-
-Unsafe argument of type `any` assigned to a parameter of type `string | RegExp | Constructable | Error | undefined`.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-272        new NotFoundException('Booking with ID non-existent-id not found'),
-
-CRITICAL
-
-Error prone
-
-Unsafe assignment of an `any` value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-117      email: expect.stringMatching(/^walkin_\d+@temp.com$/),
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-53    const module: TestingModule = await Test.createTestingModule({
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-83    servicesService = module.get<ServicesService>(ServicesService);
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-79    service = module.get<BookingsService>(BookingsService);
-
-CRITICAL
-
-Error prone
-
-Unsafe call of an `error` type typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-81    usersService = module.get<UsersService>(UsersService);
-
-CRITICAL
-
-Error prone
-
-'ordersService' is assigned a value but never used.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-23  let ordersService: OrdersService;
 
 CRITICAL
 
@@ -354,62 +101,18 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .get on an `error` typed value.
+Unsafe assignment of an error typed value.
 backend/src/bookings/
 
 bookings.service.spec.ts
 
-79    service = module.get<BookingsService>(BookingsService);
+83    servicesService = module.get<ServicesService>(ServicesService);
 
 CRITICAL
 
 Error prone
 
 Unsafe argument of type `any` assigned to a parameter of type `string | RegExp | Constructable | Error | undefined`.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-223        new NotFoundException('Employee not found'),
-
-CRITICAL
-
-Error prone
-
-Unsafe argument of type `any` assigned to a parameter of type `string | RegExp | Constructable | Error | undefined`.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-145        .rejects.toThrow(new NotFoundException('Service not found'));
-
-CRITICAL
-
-Error prone
-
-'employeesService' is assigned a value but never used.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-21  let employeesService: EmployeesService;
-
-CRITICAL
-
-Error prone
-
-Unsafe member access .get on an `error` typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-82    employeesService = module.get<EmployeesService>(EmployeesService);
-
-CRITICAL
-
-Error prone
-
-Unsafe construction of an any type value.
 backend/src/bookings/
 
 bookings.service.spec.ts
@@ -420,32 +123,219 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .createTestingModule on an `error` typed value.
-backend/src/bookings/
+Unsafe return of an `any` typed value.
+backend/src/database/migrations/
 
-bookings.service.spec.ts
+1731981975581-InitialMigration.spec.ts
 
-53    const module: TestingModule = await Test.createTestingModule({
+117        call => call[0],
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/database/migrations/
+
+1731981975581-InitialMigration.ts
+
+82    await queryRunner.query(`DROP TABLE "services"`);
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .query on an `error` typed value.
+backend/src/database/migrations/
+
+1731981975582-CreateBookingSystem.ts
+
+96    await queryRunner.query(`DROP TABLE "employees"`);
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .foreignKeys on an `error` typed value.
+backend/src/database/migrations/
+
+1731981975583-CreateOrders.ts
+
+63    const foreignKey = table.foreignKeys.find(
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .mock on an `error` typed value.
+backend/src/database/migrations/
+
+1731981975584-AddShopCodes.spec.ts
+
+50      expect(querySpy.mock.calls[1][0]).toContain('Test Shop');
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .into on an `error` typed value.
+backend/src/database/seeds/
+
+create-initial-data.seed.spec.ts
+
+127    expect(mockQueryBuilder.into).toHaveBeenCalledWith('employee_services');
 
 CRITICAL
 
 Error prone
 
 Unsafe assignment of an error typed value.
-backend/src/bookings/
+backend/src/database/seeds/
 
-bookings.service.spec.ts
+create-initial-data.seed.ts
 
-81    usersService = module.get<UsersService>(UsersService);
+92            employee_id: employee.id,
+
+CRITICAL
+
+Error prone
+
+Unsafe return of an error typed value.
+backend/src/database/seeds/
+
+create-sample-bookings.seed.spec.ts
+
+72      if (entity === Booking) return mockBookingRepository as Repository<Booking>;
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/database/seeds/
+
+create-sample-bookings.seed.ts
+
+81      const endTime = new Date(startTime.getTime() + service.duration * 60 * 1000);
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/database/seeds/
+
+create-sample-bookings.seed.ts
+
+44        password: await bcrypt.hash('password123', 10),
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/database/seeds/
+
+create-sample-bookings.seed.ts
+
+13  const bookingRepository = dataSource.getRepository(Booking);
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/database/seeds/
+
+create-sample-orders.seed.ts
+
+13    const confirmedBookings = await bookingRepository.find({
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .length on an `error` typed value.
+backend/src/employees/dto/
+
+create-employee.dto.spec.ts
+
+17    expect(errors.length).toBe(0);
+
+CRITICAL
+
+Error prone
+
+Avoid referencing unbound methods which may cause unintentional scoping of `this`. If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+backend/src/employees/
+
+employees.controller.spec.ts
+
+180      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .get on an `error` typed value.
+backend/src/employees/
+
+employees.controller.spec.ts
+
+81    controller = module.get<EmployeesController>(EmployeesController);
 
 CRITICAL
 
 Error prone
 
 Unsafe assignment of an error typed value.
-backend/src/bookings/
+backend/src/employees/
 
-bookings.service.spec.ts
+employees.controller.spec.ts
+
+25        const salt = await bcrypt.genSalt();
+
+CRITICAL
+
+Error prone
+
+Unsafe assignment of an error typed value.
+backend/src/employees/
+
+employees.service.spec.ts
+
+68          provide: getRepositoryToken(Booking),
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .get on an `error` typed value.
+backend/src/employees/
+
+employees.service.spec.ts
+
+78    service = module.get<EmployeesService>(EmployeesService);
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .save on an `error` typed value.
+backend/src/employees/
+
+employees.service.spec.ts
+
+152      expect(userRepository.save).not.toHaveBeenCalled();
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .get on an `error` typed value.
+backend/src/employees/
+
+employees.service.spec.ts
 
 80    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
 
@@ -453,53 +343,64 @@ CRITICAL
 
 Error prone
 
-Unsafe construction of an any type value.
-backend/src/bookings/
+Unsafe call of an `error` type typed value.
+backend/src/employees/
 
-bookings.service.spec.ts
+employees.service.ts
 
-214        new NotFoundException('Customer not found'),
+14    @InjectRepository(Employee)
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/employees/
+
+employees.service.ts
+
+72    const employee = await this.employeeRepository.findOne({
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .start on an `any` value.
+backend/src/employees/
+
+employees.service.ts
+
+126      const [startHour, startMinute] = slot.start.split(':').map(Number);
+
+CRITICAL
+
+Error prone
+
+Unsafe call of an `error` type typed value.
+backend/src/
+
+main.spec.ts
+
+118    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+
+CRITICAL
+
+Error prone
+
+Unsafe member access .prototype on an `error` typed value.
+backend/src/
+
+main.spec.ts
+
+119    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
 
 CRITICAL
 
 Error prone
 
 Unsafe assignment of an error typed value.
-backend/src/bookings/
+backend/src/orders/
 
-bookings.service.spec.ts
+orders.controller.spec.ts
 
-79    service = module.get<BookingsService>(BookingsService);
-
-CRITICAL
-
-Error prone
-
-Unsafe assignment of an error typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-82    employeesService = module.get<EmployeesService>(EmployeesService);
-
-CRITICAL
-
-Error prone
-
-Unsafe member access .get on an `error` typed value.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-81    usersService = module.get<UsersService>(UsersService);
-
-CRITICAL
-
-Error prone
-
-Unsafe argument of type `any` assigned to a parameter of type `string | RegExp | Constructable | Error | undefined`.
-backend/src/bookings/
-
-bookings.service.spec.ts
-
-233        new NotFoundException('Service not found'),
+26        this.password = await bcrypt.hash(this.password, salt);
