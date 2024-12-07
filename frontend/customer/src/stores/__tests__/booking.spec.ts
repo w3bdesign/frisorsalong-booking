@@ -1,150 +1,157 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useBookingStore } from '../booking'
+import type { CreateWalkInBookingParams } from '../types'
 
-// Mock booking data
-const mockBooking = {
+// Test data
+interface MockResponse {
+  id: string;
+  serviceId: string;
+  firstName: string;
+  phoneNumber: string;
+  status: 'confirmed';
+}
+
+const createMockBooking = (overrides: Partial<CreateWalkInBookingParams> = {}): CreateWalkInBookingParams => ({
   serviceId: '1',
   firstName: 'Test',
   phoneNumber: '12345678',
   isPaid: true,
-}
+  ...overrides,
+});
 
-const mockBookingResponse = {
+const createMockResponse = (overrides: Partial<MockResponse> = {}): MockResponse => ({
   id: '1',
   serviceId: '1',
   firstName: 'Test',
   phoneNumber: '12345678',
-  status: 'confirmed' as const,
-}
+  status: 'confirmed',
+  ...overrides,
+});
 
+// Helper functions
+const mockFetchSuccess = (response: any) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+    }),
+  );
+};
+
+const mockFetchError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ message }),
+    }),
+  );
+};
+
+const mockNetworkError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() => 
+    Promise.reject(new Error(message))
+  );
+};
+
+const verifyFetchCall = (mockBooking: CreateWalkInBookingParams) => {
+  expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:3000/bookings/walk-in',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shop-Code': 'SHOP123',
+        accept: '*/*',
+      },
+      body: JSON.stringify(mockBooking),
+    }
+  );
+};
+
+// Tests
 describe('Booking Store', () => {
-  beforeEach(() => {
-    // Create a fresh pinia instance for each test
-    setActivePinia(createPinia())
+  let store: ReturnType<typeof useBookingStore>;
 
-    // Reset all mocks
-    vi.clearAllMocks()
-  })
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    store = useBookingStore();
+  });
 
   afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+    vi.unstubAllGlobals();
+  });
 
-  describe('Initial State', () => {
-    it('should have empty initial state', () => {
-      const store = useBookingStore()
+  it('has empty initial state', () => {
+    expect(store.currentBooking).toBeNull();
+    expect(store.pendingBooking).toBeNull();
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBeNull();
+  });
 
-      expect(store.currentBooking).toBe(null)
-      expect(store.pendingBooking).toBe(null)
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe(null)
-    })
-  })
+  it('creates walk-in booking successfully', async () => {
+    const mockBooking = createMockBooking();
+    const mockResponse = createMockResponse();
+    mockFetchSuccess(mockResponse);
 
-  describe('createWalkInBooking', () => {
-    it('should create walk-in booking successfully', async () => {
-      // Mock successful fetch response
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockBookingResponse),
-        }),
-      )
+    await store.createWalkInBooking(mockBooking);
 
-      const store = useBookingStore()
-      await store.createWalkInBooking(mockBooking)
+    verifyFetchCall(mockBooking);
+    expect(store.currentBooking).toEqual(mockResponse);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBeNull();
+  });
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/bookings/walk-in', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shop-Code': 'SHOP123',
-          accept: '*/*',
-        },
-        body: JSON.stringify({
-          serviceId: mockBooking.serviceId,
-          firstName: mockBooking.firstName,
-          phoneNumber: mockBooking.phoneNumber,
-          isPaid: mockBooking.isPaid,
-        }),
-      })
-      expect(store.currentBooking).toEqual(mockBookingResponse)
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe(null)
-    })
+  it('handles fetch error in walk-in booking', async () => {
+    const mockBooking = createMockBooking();
+    const errorMessage = 'Failed to create booking';
+    mockFetchError(errorMessage);
 
-    it('should handle fetch error', async () => {
-      // Mock failed fetch response
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: false,
-          json: () => Promise.resolve({ message: 'Failed to create booking' }),
-        }),
-      )
+    await expect(store.createWalkInBooking(mockBooking))
+      .rejects
+      .toThrow(errorMessage);
 
-      const store = useBookingStore()
+    verifyFetchCall(mockBooking);
+    expect(store.currentBooking).toBeNull();
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe(errorMessage);
+  });
 
-      await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(
-        'Failed to create booking',
-      )
+  it('handles network error in walk-in booking', async () => {
+    const mockBooking = createMockBooking();
+    const errorMessage = 'Network error';
+    mockNetworkError(errorMessage);
 
-      expect(store.currentBooking).toBe(null)
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Failed to create booking')
-    })
+    await expect(store.createWalkInBooking(mockBooking))
+      .rejects
+      .toThrow(errorMessage);
 
-    it('should handle network error', async () => {
-      // Mock network error
-      global.fetch = vi.fn().mockImplementation(() => Promise.reject(new Error('Network error')))
+    verifyFetchCall(mockBooking);
+    expect(store.currentBooking).toBeNull();
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe(errorMessage);
+  });
 
-      const store = useBookingStore()
+  it('sets pending booking', () => {
+    const pendingBooking = createMockBooking();
+    store.setPendingBooking(pendingBooking);
+    expect(store.pendingBooking).toEqual(pendingBooking);
+  });
 
-      await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow('Network error')
+  it('clears booking state', async () => {
+    // Setup: Create a booking first
+    const mockBooking = createMockBooking();
+    const mockResponse = createMockResponse();
+    mockFetchSuccess(mockResponse);
+    await store.createWalkInBooking(mockBooking);
+    expect(store.currentBooking).toEqual(mockResponse);
 
-      expect(store.currentBooking).toBe(null)
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Network error')
-    })
-  })
+    // Test: Clear the booking
+    store.clearBooking();
 
-  describe('setPendingBooking', () => {
-    it('should set pending booking', () => {
-      const store = useBookingStore()
-      const pendingBooking = {
-        serviceId: '1',
-        firstName: 'Test',
-        phoneNumber: '12345678',
-      }
-
-      store.setPendingBooking(pendingBooking)
-      expect(store.pendingBooking).toEqual(pendingBooking)
-    })
-  })
-
-  describe('clearBooking', () => {
-    it('should clear current booking and error', async () => {
-      // First create a booking
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockBookingResponse),
-        }),
-      )
-
-      const store = useBookingStore()
-      await store.createWalkInBooking(mockBooking)
-
-      // Verify booking was created
-      expect(store.currentBooking).toEqual(mockBookingResponse)
-
-      // Clear the booking
-      store.clearBooking()
-
-      // Verify state is cleared
-      expect(store.currentBooking).toBe(null)
-      expect(store.pendingBooking).toBe(null)
-      expect(store.error).toBe(null)
-    })
-  })
-})
+    expect(store.currentBooking).toBeNull();
+    expect(store.pendingBooking).toBeNull();
+    expect(store.error).toBeNull();
+  });
+});
