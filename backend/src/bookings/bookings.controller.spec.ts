@@ -42,22 +42,24 @@ describe("BookingsController", () => {
     ]
   };
 
+  const mockBookingsService = {
+    create: jest.fn().mockResolvedValue(mockBooking),
+    findOne: jest.fn().mockResolvedValue(mockBooking),
+    findByCustomer: jest.fn().mockResolvedValue([mockBooking]),
+    findByEmployee: jest.fn().mockResolvedValue([mockBooking]),
+    findUpcoming: jest.fn().mockResolvedValue([mockBooking]),
+    update: jest.fn().mockResolvedValue(mockBooking),
+    cancel: jest.fn().mockResolvedValue(mockBooking),
+    getUpcomingCount: jest.fn().mockResolvedValue(mockUpcomingCount),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BookingsController],
       providers: [
         {
           provide: BookingsService,
-          useValue: {
-            create: jest.fn().mockResolvedValue(mockBooking),
-            findOne: jest.fn().mockResolvedValue(mockBooking),
-            findByCustomer: jest.fn().mockResolvedValue([mockBooking]),
-            findByEmployee: jest.fn().mockResolvedValue([mockBooking]),
-            findUpcoming: jest.fn().mockResolvedValue([mockBooking]),
-            update: jest.fn().mockResolvedValue(mockBooking),
-            cancel: jest.fn().mockResolvedValue(mockBooking),
-            getUpcomingCount: jest.fn().mockResolvedValue(mockUpcomingCount),
-          },
+          useValue: mockBookingsService,
         },
         {
           provide: OrdersService,
@@ -97,7 +99,7 @@ describe("BookingsController", () => {
       const result = await controller.create(createBookingDto);
 
       expect(result).toBeDefined();
-      expect(service.create).toHaveBeenCalledWith(createBookingDto);
+      expect(mockBookingsService.create).toHaveBeenCalledWith(createBookingDto);
     });
   });
 
@@ -106,7 +108,7 @@ describe("BookingsController", () => {
       const result = await controller.findOne("booking-1");
 
       expect(result).toBeDefined();
-      expect(service.findOne).toHaveBeenCalledWith("booking-1");
+      expect(mockBookingsService.findOne).toHaveBeenCalledWith("booking-1");
     });
   });
 
@@ -115,7 +117,7 @@ describe("BookingsController", () => {
       const result = await controller.findByCustomer("customer-1");
 
       expect(result).toBeDefined();
-      expect(service.findByCustomer).toHaveBeenCalledWith("customer-1");
+      expect(mockBookingsService.findByCustomer).toHaveBeenCalledWith("customer-1");
     });
   });
 
@@ -124,7 +126,7 @@ describe("BookingsController", () => {
       const result = await controller.findByEmployee("employee-1");
 
       expect(result).toBeDefined();
-      expect(service.findByEmployee).toHaveBeenCalledWith("employee-1");
+      expect(mockBookingsService.findByEmployee).toHaveBeenCalledWith("employee-1");
     });
   });
 
@@ -133,7 +135,7 @@ describe("BookingsController", () => {
       const result = await controller.findUpcoming();
 
       expect(result).toBeDefined();
-      expect(service.findUpcoming).toHaveBeenCalled();
+      expect(mockBookingsService.findUpcoming).toHaveBeenCalled();
     });
   });
 
@@ -147,7 +149,7 @@ describe("BookingsController", () => {
       const result = await controller.update("booking-1", updateBookingDto);
 
       expect(result).toBeDefined();
-      expect(service.update).toHaveBeenCalledWith("booking-1", updateBookingDto);
+      expect(mockBookingsService.update).toHaveBeenCalledWith("booking-1", updateBookingDto);
     });
   });
 
@@ -156,7 +158,7 @@ describe("BookingsController", () => {
       const result = await controller.cancel("booking-1");
 
       expect(result).toBeDefined();
-      expect(service.cancel).toHaveBeenCalledWith(
+      expect(mockBookingsService.cancel).toHaveBeenCalledWith(
         "booking-1",
         "Cancelled by administrator",
       );
@@ -178,7 +180,8 @@ describe("BookingsController", () => {
 
       expect(result).toBeDefined();
       expect(result.count).toBe(mockCount);
-      expect(service.getUpcomingCount).toHaveBeenCalled();
+      // Use the mock service reference instead of the injected service
+      expect(mockBookingsService.getUpcomingCount).toHaveBeenCalled();
     });
   });
 });
