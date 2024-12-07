@@ -1,16 +1,3 @@
-backend/src/database/migrations/1731981975582-CreateBookingSystem.spec.ts
-
-Refactor this code to not nest functions more than 4 levels deep.
-brain-overload
-
-Open
-Not assigned
-Code Smell
-
-        Critical
-        20min effort
-        17 days ago
-
 backend/src/shops/guards/shop-code.guard.spec.ts
 
 Refactor this code to not nest functions more than 4 levels deep.
@@ -131,4 +118,3 @@ Not assigned
 Code Smell
 
     Critical
-

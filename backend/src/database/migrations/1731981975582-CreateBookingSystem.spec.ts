@@ -10,16 +10,23 @@ const verifyTableSchema = (query: string, tableName: string, ...fields: string[]
   expect(query).toMatch(tablePattern);
 };
 
-const verifyForeignKey = (query: string, constraint: string, references: string): void => {
-  expect(query).toMatch(new RegExp(`CONSTRAINT[\\s\\S]*${constraint}[\\s\\S]*FOREIGN KEY[\\s\\S]*REFERENCES[\\s\\S]*${references}`));
+const verifyForeignKey = (query: string, tableName: string, columnName: string, referencedTable: string): void => {
+  const pattern = new RegExp(
+    `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${columnName}"\\)[\\s\\S]*REFERENCES "${referencedTable}"`,
+    'i'
+  );
+  expect(query).toMatch(pattern);
 };
 
 const verifyDropOrder = (calls: string[], tables: string[]): void => {
   const indices = tables.map(table => findQueryCall(calls, `DROP TABLE "${table}"`));
-  indices.reduce((prev, curr) => {
-    expect(curr).toBeGreaterThan(prev);
+  const result = indices.reduce((prev, curr, idx) => {
+    if (idx > 0) {
+      expect(curr).toBeGreaterThan(prev);
+    }
     return curr;
   });
+  expect(result).toBeDefined();
 };
 
 describe('CreateBookingSystem1731981975582', () => {
@@ -55,23 +62,24 @@ describe('CreateBookingSystem1731981975582', () => {
 
     test('creates employees table with user foreign key', () => {
       const employeesQuery = queryCalls.find(call => call.includes('CREATE TABLE "employees"'));
-      verifyForeignKey(employeesQuery!, 'FOREIGN KEY', 'users');
+      verifyForeignKey(employeesQuery!, 'employees', 'user_id', 'users');
     });
 
     test('creates employee_services junction table', () => {
       const junctionQuery = queryCalls.find(call => call.includes('CREATE TABLE "employee_services"'));
-      expect(junctionQuery).toMatch(/PRIMARY KEY[\s\S]*FOREIGN KEY/);
+      verifyForeignKey(junctionQuery!, 'employee_services', 'employee_id', 'employees');
+      verifyForeignKey(junctionQuery!, 'employee_services', 'service_id', 'services');
     });
 
     test('creates bookings table with all foreign keys', () => {
       const bookingsQuery = queryCalls.find(call => call.includes('CREATE TABLE "bookings"'));
       
       [
-        ['fk_booking_customer', 'users'],
-        ['fk_booking_employee', 'employees'],
-        ['fk_booking_service', 'services'],
-      ].forEach(([constraint, reference]) => {
-        verifyForeignKey(bookingsQuery!, constraint, reference);
+        ['customer_id', 'users'],
+        ['employee_id', 'employees'],
+        ['service_id', 'services'],
+      ].forEach(([column, reference]) => {
+        verifyForeignKey(bookingsQuery!, 'bookings', column, reference);
       });
     });
 
