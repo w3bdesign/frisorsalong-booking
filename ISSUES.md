@@ -42,17 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .mock on an `error` typed value.
-backend/src/database/migrations/
-
-1731981975584-AddShopCodes.spec.ts
-
-50      expect(querySpy.mock.calls[1][0]).toContain('Test Shop');
-
-CRITICAL
-
-Error prone
-
 Unsafe member access .into on an `error` typed value.
 backend/src/database/seeds/
 
