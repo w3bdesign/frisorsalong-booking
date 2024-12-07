@@ -73,6 +73,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException("User not found");
       }
 
+      // Type guard to ensure user has all required properties
+      if (!this.isValidUser(user)) {
+        console.log("JWT Strategy - Invalid user data:", user);
+        throw new UnauthorizedException("Invalid user data");
+      }
+
       console.log("JWT Strategy - Found User:", user);
 
       // Return a plain object instead of the entity
@@ -83,7 +89,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         lastName: user.lastName,
         role: user.role,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("JWT Strategy - Validation error:", error);
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -92,5 +98,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         error instanceof Error ? error.message : "Token validation failed"
       );
     }
+  }
+
+  private isValidUser(user: any): user is SafeUser {
+    return (
+      typeof user === 'object' &&
+      user !== null &&
+      typeof user.id === 'string' &&
+      typeof user.email === 'string' &&
+      typeof user.firstName === 'string' &&
+      typeof user.lastName === 'string' &&
+      typeof user.role === 'string'
+    );
   }
 }
