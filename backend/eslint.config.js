@@ -1,23 +1,19 @@
-const tseslint = require('@typescript-eslint/eslint-plugin');
-const tsparser = require('@typescript-eslint/parser');
-const path = require('path');
-
 module.exports = [
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
     languageOptions: {
-      parser: tsparser,
+      parser: require('@typescript-eslint/parser'),
       parserOptions: {
-        project: path.join(__dirname, 'tsconfig.json'),
+        project: require('path').join(__dirname, 'tsconfig.json'),
         sourceType: 'module',
       },
     },
     plugins: {
-      '@typescript-eslint': tseslint,
+      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
     },
     rules: {
-      ...tseslint.configs['recommended'].rules,
-      ...tseslint.configs['recommended-requiring-type-checking'].rules,
+      ...require('@typescript-eslint/eslint-plugin').configs['recommended'].rules,
+      ...require('@typescript-eslint/eslint-plugin').configs['recommended-requiring-type-checking'].rules,
       '@typescript-eslint/no-unsafe-member-access': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'error',
       '@typescript-eslint/no-unsafe-call': 'error',
