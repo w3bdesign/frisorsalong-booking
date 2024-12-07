@@ -4,6 +4,19 @@ import { Employee } from "../../employees/entities/employee.entity";
 import { Service } from "../../services/entities/service.entity";
 import * as bcrypt from "bcrypt";
 
+interface ServiceWithId extends Service {
+  id: string;
+}
+
+interface EmployeeWithId extends Employee {
+  id: string;
+}
+
+interface EmployeeServiceAssociation {
+  employee_id: string;
+  service_id: string;
+}
+
 export const createInitialData = async (dataSource: DataSource) => {
   const userRepository = dataSource.getRepository(User);
   const employeeRepository = dataSource.getRepository(Employee);
@@ -49,7 +62,7 @@ export const createInitialData = async (dataSource: DataSource) => {
         duration: 45,
         isActive: true,
       }
-    ]);
+    ]) as ServiceWithId[];
 
     // Check if employee user already exists
     const existingEmployee = await userRepository.findOne({
@@ -80,19 +93,25 @@ export const createInitialData = async (dataSource: DataSource) => {
           friday: [{ start: "09:00", end: "17:00" }],
         },
         isActive: true,
-      });
+      }) as EmployeeWithId;
+
+      // Type guard for service and employee IDs
+      if (!employee.id || !services.every(service => service.id)) {
+        throw new Error("Failed to create employee or services with valid IDs");
+      }
+
+      // Create associations with type safety
+      const associations: EmployeeServiceAssociation[] = services.map((service) => ({
+        employee_id: employee.id,
+        service_id: service.id,
+      }));
 
       // Associate services with employee
       await dataSource
         .createQueryBuilder()
         .insert()
         .into("employee_services")
-        .values(
-          services.map((service) => ({
-            employee_id: employee.id,
-            service_id: service.id,
-          })),
-        )
+        .values(associations)
         .execute();
 
       console.log("Initial data seeded successfully");
@@ -100,7 +119,7 @@ export const createInitialData = async (dataSource: DataSource) => {
       console.log("Employee user already exists");
     }
   } catch (error) {
-    console.error("Error creating initial data:", error);
+    console.error("Error creating initial data:", error instanceof Error ? error.message : String(error));
     throw error;
   }
 };

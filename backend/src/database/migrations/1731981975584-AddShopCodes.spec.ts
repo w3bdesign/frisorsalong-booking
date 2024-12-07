@@ -1,9 +1,15 @@
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { AddShopCodes1731981975584 } from './1731981975584-AddShopCodes';
+
+type SafeQueryRunner = {
+  hasTable: jest.Mock<Promise<boolean>, [string]>;
+  query: jest.Mock<Promise<void>, [string]>;
+};
 
 describe('AddShopCodes1731981975584', () => {
   let migration: AddShopCodes1731981975584;
   let dataSource: DataSource;
+  let queryRunner: SafeQueryRunner;
 
   beforeEach(() => {
     migration = new AddShopCodes1731981975584();
@@ -15,6 +21,11 @@ describe('AddShopCodes1731981975584', () => {
       logging: false,
       entities: [],
     });
+
+    queryRunner = {
+      hasTable: jest.fn().mockResolvedValue(false),
+      query: jest.fn().mockResolvedValue(undefined),
+    };
   });
 
   it('should have correct name', () => {
@@ -23,53 +34,70 @@ describe('AddShopCodes1731981975584', () => {
 
   describe('up', () => {
     it('should create shop_codes table if it does not exist', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      const hasTableSpy = jest.spyOn(queryRunner, 'hasTable').mockResolvedValue(false);
-      const querySpy = jest.spyOn(queryRunner, 'query').mockResolvedValue(undefined);
+      queryRunner.hasTable.mockResolvedValue(false);
 
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
-      expect(hasTableSpy).toHaveBeenCalledWith('shop_codes');
-      expect(querySpy).toHaveBeenCalledTimes(2);
+      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
+      expect(queryRunner.query).toHaveBeenCalledTimes(2);
       
+      const calls = queryRunner.query.mock.calls;
+      if (!Array.isArray(calls) || calls.length < 2) {
+        throw new Error('Expected at least 2 query calls');
+      }
+
+      const createTableQuery = calls[0][0];
+      const insertDataQuery = calls[1][0];
+
+      if (typeof createTableQuery !== 'string' || typeof insertDataQuery !== 'string') {
+        throw new Error('Expected string queries');
+      }
+
       // Verify create table query
-      expect(querySpy.mock.calls[0][0]).toContain('CREATE TABLE "shop_codes"');
-      expect(querySpy.mock.calls[0][0]).toContain('"id" uuid NOT NULL DEFAULT uuid_generate_v4()');
-      expect(querySpy.mock.calls[0][0]).toContain('"code" character varying NOT NULL');
-      expect(querySpy.mock.calls[0][0]).toContain('"shop_name" character varying NOT NULL');
-      expect(querySpy.mock.calls[0][0]).toContain('"is_active" boolean NOT NULL DEFAULT true');
-      expect(querySpy.mock.calls[0][0]).toContain('"daily_booking_limit" integer NOT NULL DEFAULT 100');
-      expect(querySpy.mock.calls[0][0]).toContain('"last_booking_time" TIMESTAMP');
-      expect(querySpy.mock.calls[0][0]).toContain('"today_booking_count" integer NOT NULL DEFAULT 0');
-      expect(querySpy.mock.calls[0][0]).toContain('"created_at" TIMESTAMP NOT NULL DEFAULT now()');
-      expect(querySpy.mock.calls[0][0]).toContain('"updated_at" TIMESTAMP NOT NULL DEFAULT now()');
+      expect(createTableQuery).toContain('CREATE TABLE "shop_codes"');
+      expect(createTableQuery).toContain('"id" uuid NOT NULL DEFAULT uuid_generate_v4()');
+      expect(createTableQuery).toContain('"code" character varying NOT NULL');
+      expect(createTableQuery).toContain('"shop_name" character varying NOT NULL');
+      expect(createTableQuery).toContain('"is_active" boolean NOT NULL DEFAULT true');
+      expect(createTableQuery).toContain('"daily_booking_limit" integer NOT NULL DEFAULT 100');
+      expect(createTableQuery).toContain('"last_booking_time" TIMESTAMP');
+      expect(createTableQuery).toContain('"today_booking_count" integer NOT NULL DEFAULT 0');
+      expect(createTableQuery).toContain('"created_at" TIMESTAMP NOT NULL DEFAULT now()');
+      expect(createTableQuery).toContain('"updated_at" TIMESTAMP NOT NULL DEFAULT now()');
       
       // Verify initial data insertion
-      expect(querySpy.mock.calls[1][0]).toContain('INSERT INTO "shop_codes"');
-      expect(querySpy.mock.calls[1][0]).toContain('SHOP123');
-      expect(querySpy.mock.calls[1][0]).toContain('Test Shop');
+      expect(insertDataQuery).toContain('INSERT INTO "shop_codes"');
+      expect(insertDataQuery).toContain('SHOP123');
+      expect(insertDataQuery).toContain('Test Shop');
     });
 
     it('should not create shop_codes table if it already exists', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      const hasTableSpy = jest.spyOn(queryRunner, 'hasTable').mockResolvedValue(true);
-      const querySpy = jest.spyOn(queryRunner, 'query').mockResolvedValue(undefined);
+      queryRunner.hasTable.mockResolvedValue(true);
 
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
-      expect(hasTableSpy).toHaveBeenCalledWith('shop_codes');
-      expect(querySpy).not.toHaveBeenCalled();
+      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
+      expect(queryRunner.query).not.toHaveBeenCalled();
     });
   });
 
   describe('down', () => {
     it('should drop shop_codes table', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      const querySpy = jest.spyOn(queryRunner, 'query').mockResolvedValue(undefined);
+      await migration.down(queryRunner as unknown as QueryRunner);
 
-      await migration.down(queryRunner);
+      expect(queryRunner.query).toHaveBeenCalledWith('DROP TABLE IF EXISTS "shop_codes"');
 
-      expect(querySpy).toHaveBeenCalledWith('DROP TABLE IF EXISTS "shop_codes"');
+      const calls = queryRunner.query.mock.calls;
+      if (!Array.isArray(calls) || calls.length === 0) {
+        throw new Error('Expected at least one query call');
+      }
+
+      const dropTableQuery = calls[0][0];
+      if (typeof dropTableQuery !== 'string') {
+        throw new Error('Expected string query');
+      }
+
+      expect(dropTableQuery).toBe('DROP TABLE IF EXISTS "shop_codes"');
     });
   });
 });
