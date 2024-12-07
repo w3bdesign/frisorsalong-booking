@@ -25,3 +25,21 @@ export interface BookingState {
   isLoading: boolean;
   error: string | null;
 }
+
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  duration: number;
+  price: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServicesState {
+  services: Service[];
+  selectedService: Service | null;
+  isLoading: boolean;
+  error: string | null;
+}

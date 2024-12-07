@@ -1,151 +1,124 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useServicesStore } from '../services'
+import type { Service } from '../types'
 
-// Mock service data
-const mockServices = [
-  {
-    id: '1',
-    name: 'Haircut',
-    description: 'Basic haircut',
-    duration: 30,
-    price: '300',
-    isActive: true,
-    createdAt: '2023-01-01',
-    updatedAt: '2023-01-01',
-  },
-]
+// Test data
+const createMockService = (overrides: Partial<Service> = {}): Service => ({
+  id: '1',
+  name: 'Haircut',
+  description: 'Basic haircut',
+  duration: 30,
+  price: '300',
+  isActive: true,
+  createdAt: '2023-01-01',
+  updatedAt: '2023-01-01',
+  ...overrides,
+});
+
+// Helper functions
+const mockFetchSuccess = (response: Service[] = []) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+    }),
+  );
+};
+
+const mockFetchError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ message }),
+    }),
+  );
+};
+
+const mockNetworkError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() => 
+    Promise.reject(new Error(message))
+  );
+};
+
+const waitForInitialFetch = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('Services Store', () => {
-  beforeEach(() => {
-    // Create a fresh pinia instance for each test
-    setActivePinia(createPinia())
+  let store: ReturnType<typeof useServicesStore>;
+  const mockService = createMockService();
 
-    // Reset all mocks
-    vi.clearAllMocks()
-  })
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    mockFetchSuccess([]); // Default to empty services list
+    store = useServicesStore();
+  });
 
   afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+    vi.unstubAllGlobals();
+  });
 
-  describe('Initial State', () => {
-    it('should have empty initial state', async () => {
-      // Mock fetch before creating store
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        }),
-      )
+  it('has correct empty initial state', async () => {
+    // Initial state should show loading
+    expect(store.isLoading).toBeTruthy();
+    expect(store.services).toEqual([]);
+    expect(store.error).toBeNull();
+    expect(store.selectedService).toBeNull();
 
-      const store = useServicesStore()
+    // Wait for the initial fetch to complete
+    await waitForInitialFetch();
 
-      // Initial state should show loading
-      expect(store.isLoading).toBe(true)
-      expect(store.services).toEqual([])
-      expect(store.error).toBe(null)
-      expect(store.selectedService).toBe(null)
+    // After fetch completes
+    expect(store.isLoading).toBeFalsy();
+    expect(store.services).toEqual([]);
+    expect(store.error).toBeNull();
+    expect(store.selectedService).toBeNull();
+  });
 
-      // Wait for the initial fetch to complete
-      await new Promise((resolve) => setImmediate(resolve))
+  it('fetches services successfully', async () => {
+    mockFetchSuccess([mockService]);
+    await store.fetchServices();
 
-      // After fetch completes
-      expect(store.isLoading).toBe(false)
-      expect(store.services).toEqual([])
-      expect(store.error).toBe(null)
-      expect(store.selectedService).toBe(null)
-    })
-  })
+    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services');
+    expect(store.services).toEqual([mockService]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBeNull();
+  });
 
-  describe('fetchServices', () => {
-    it('should fetch services successfully', async () => {
-      // Mock successful fetch response before creating store
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockServices),
-        }),
-      )
+  it('handles fetch error', async () => {
+    mockFetchError('Failed to fetch services');
+    await store.fetchServices();
 
-      const store = useServicesStore()
-      await store.fetchServices()
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Failed to fetch services');
+  });
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services')
-      expect(store.services).toEqual(mockServices)
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe(null)
-    })
+  it('handles network error', async () => {
+    mockNetworkError('Network error');
+    await store.fetchServices();
 
-    it('should handle fetch error', async () => {
-      // Mock failed fetch response before creating store
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: false,
-        }),
-      )
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Network error');
+  });
 
-      const store = useServicesStore()
-      await store.fetchServices()
+  it('selects a service', async () => {
+    await waitForInitialFetch();
 
-      expect(store.services).toEqual([])
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Failed to fetch services')
-    })
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
+  });
 
-    it('should handle network error', async () => {
-      // Mock network error before creating store
-      global.fetch = vi.fn().mockImplementation(() => Promise.reject(new Error('Network error')))
+  it('clears selected service', async () => {
+    await waitForInitialFetch();
 
-      const store = useServicesStore()
-      await store.fetchServices()
+    // First select a service
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
 
-      expect(store.services).toEqual([])
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Network error')
-    })
-  })
-
-  describe('selectService', () => {
-    it('should select a service', async () => {
-      // Mock fetch before creating store
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        }),
-      )
-
-      const store = useServicesStore()
-
-      // Wait for the initial fetch to complete
-      await new Promise((resolve) => setImmediate(resolve))
-
-      store.selectService(mockServices[0])
-      expect(store.selectedService).toEqual(mockServices[0])
-    })
-  })
-
-  describe('clearSelection', () => {
-    it('should clear selected service', async () => {
-      // Mock fetch before creating store
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        }),
-      )
-
-      const store = useServicesStore()
-
-      // Wait for the initial fetch to complete
-      await new Promise((resolve) => setImmediate(resolve))
-
-      store.selectService(mockServices[0])
-      expect(store.selectedService).toEqual(mockServices[0])
-
-      store.clearSelection()
-      expect(store.selectedService).toBe(null)
-    })
-  })
-})
+    // Then clear it
+    store.clearSelection();
+    expect(store.selectedService).toBeNull();
+  });
+});
