@@ -14,7 +14,7 @@ export interface Service {
 
 export const useServicesStore = defineStore('services', () => {
   const services = ref<Service[]>([])
-  const isLoading = ref(false)
+  const isLoading = ref(true)  // Initialize as true since we fetch immediately
   const error = ref<string | null>(null)
   const selectedService = ref<Service | null>(null)
 
