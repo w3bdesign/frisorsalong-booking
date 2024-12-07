@@ -20,13 +20,12 @@ const verifyForeignKey = (query: string, tableName: string, columnName: string, 
 
 const verifyDropOrder = (calls: string[], tables: string[]): void => {
   const indices = tables.map(table => findQueryCall(calls, `DROP TABLE "${table}"`));
-  const result = indices.reduce((prev, curr, idx) => {
-    if (idx > 0) {
-      expect(curr).toBeGreaterThan(prev);
-    }
+  
+  // Verify each index is greater than the previous one
+  indices.reduce((prev, curr) => {
+    expect(curr).toBeGreaterThan(prev);
     return curr;
-  });
-  expect(result).toBeDefined();
+  }, -1); // Start with -1 to ensure first index is valid
 };
 
 describe('CreateBookingSystem1731981975582', () => {
