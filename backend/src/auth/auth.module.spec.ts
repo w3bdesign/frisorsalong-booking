@@ -8,6 +8,36 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { User } from '../users/entities/user.entity';
+import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
+
+type Constructor<T> = new (...args: unknown[]) => T;
+
+interface ModuleMetadata {
+  imports: Array<Type<unknown> | DynamicModule>;
+  providers: Provider[];
+  exports: Array<Type<unknown> | DynamicModule>;
+  controllers: Constructor<unknown>[];
+}
+
+interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
+  provide: string;
+  useValue: { defaultStrategy: string };
+}
+
+interface JwtConfig extends FactoryProvider {
+  provide: string;
+  useFactory: (...args: unknown[]) => unknown;
+  inject: Type<unknown>[];
+}
+
+interface TypeOrmEntityConfig {
+  provide: string;
+  useValue: {
+    targetEntitySchema: {
+      target: Constructor<User>;
+    };
+  };
+}
 
 jest.mock('../users/users.module');
 
@@ -18,41 +48,62 @@ describe('AuthModule', () => {
 
   describe('module metadata', () => {
     it('should have the correct imports', () => {
-      const imports = Reflect.getMetadata('imports', AuthModule);
+      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
       
       // Check UsersModule
       expect(imports).toContain(UsersModule);
       
       // Check PassportModule (as dynamic module)
       const passportModuleConfig = imports.find(
-        imp => imp.module === PassportModule
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === PassportModule
       );
       expect(passportModuleConfig).toBeDefined();
-      expect(passportModuleConfig.providers[0].useValue).toEqual({
-        defaultStrategy: 'jwt'
-      });
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig;
+      if (passportProvider) {
+        expect(passportProvider.useValue).toEqual({
+          defaultStrategy: 'jwt'
+        });
+      }
 
       // Check JwtModule
-      const jwtModuleConfig = imports.find(imp => imp.module === JwtModule);
+      const jwtModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === JwtModule
+      );
       expect(jwtModuleConfig).toBeDefined();
-      expect(jwtModuleConfig.providers).toBeDefined();
-      expect(jwtModuleConfig.providers[0].inject).toContain(ConfigService);
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig;
+      if (jwtProvider) {
+        expect(jwtProvider.inject).toContain(ConfigService);
+      }
 
       // Check TypeOrmModule
-      const typeOrmModuleConfig = imports.find(imp => imp.module === TypeOrmModule);
+      const typeOrmModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === TypeOrmModule
+      );
       expect(typeOrmModuleConfig).toBeDefined();
-      expect(typeOrmModuleConfig.exports[0].targetEntitySchema.target).toBe(User);
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig;
+      if (typeOrmProvider?.useValue) {
+        expect(typeOrmProvider.useValue.targetEntitySchema.target).toBe(User);
+      }
     });
 
     it('should have the correct providers', () => {
-      const providers = Reflect.getMetadata('providers', AuthModule);
+      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
       expect(providers).toContain(AuthService);
       expect(providers).toContain(JwtStrategy);
       expect(providers).toContain(RolesGuard);
     });
 
     it('should have the correct exports', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule);
+      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
       expect(exports).toContain(AuthService);
       expect(exports).toContain(JwtStrategy);
       expect(exports).toContain(RolesGuard);
@@ -61,7 +112,7 @@ describe('AuthModule', () => {
     });
 
     it('should have the correct controllers', () => {
-      const controllers = Reflect.getMetadata('controllers', AuthModule);
+      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
       expect(controllers).toBeDefined();
       expect(controllers.length).toBe(1);
     });

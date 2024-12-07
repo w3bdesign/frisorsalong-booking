@@ -16,16 +16,33 @@ describe('ClearServices1732141970009', () => {
     it('should clear existing services and insert new Norwegian services', async () => {
       await migration.up(queryRunner);
 
+      const { calls } = (queryRunner.query as jest.Mock).mock;
+      
       // Verify deletion queries
-      expect(queryRunner.query).toHaveBeenCalledWith(`DELETE FROM "employee_services"`);
-      expect(queryRunner.query).toHaveBeenCalledWith(`DELETE FROM "services"`);
+      const deleteQueries = calls.map((call: unknown[]) => call[0] as string);
+      expect(deleteQueries).toEqual(
+        expect.arrayContaining([
+          'DELETE FROM "employee_services"',
+          'DELETE FROM "services"'
+        ])
+      );
 
       // Verify insertion of new services
-      expect(queryRunner.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO "services"'));
-      expect(queryRunner.query).toHaveBeenCalledWith(expect.stringContaining('Standard Klipp'));
-      expect(queryRunner.query).toHaveBeenCalledWith(expect.stringContaining('Styling Klipp'));
-      expect(queryRunner.query).toHaveBeenCalledWith(expect.stringContaining('Skjegg Trim'));
-      expect(queryRunner.query).toHaveBeenCalledWith(expect.stringContaining('Full Service'));
+      const insertQueries = calls.map((call: unknown[]) => call[0] as string);
+      const expectedServices = [
+        'Standard Klipp',
+        'Styling Klipp',
+        'Skjegg Trim',
+        'Full Service'
+      ];
+
+      expectedServices.forEach(serviceName => {
+        const hasService = insertQueries.some(query => 
+          query.includes('INSERT INTO "services"') && 
+          query.includes(serviceName)
+        );
+        expect(hasService).toBe(true);
+      });
     });
   });
 
@@ -33,9 +50,11 @@ describe('ClearServices1732141970009', () => {
     it('should delete Norwegian services', async () => {
       await migration.down(queryRunner);
 
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        `DELETE FROM "services" WHERE "name" IN ('Standard Klipp', 'Styling Klipp', 'Skjegg Trim', 'Full Service')`
-      );
+      const expectedQuery = 'DELETE FROM "services" WHERE "name" IN (\'Standard Klipp\', \'Styling Klipp\', \'Skjegg Trim\', \'Full Service\')';
+      const { calls } = (queryRunner.query as jest.Mock).mock;
+      const actualQueries = calls.map((call: unknown[]) => call[0] as string);
+      
+      expect(actualQueries).toContain(expectedQuery);
     });
   });
 });

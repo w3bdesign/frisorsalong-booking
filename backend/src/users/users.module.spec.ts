@@ -1,8 +1,9 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { UsersModule } from './users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
+import { DynamicModule, Type } from '@nestjs/common';
 
 // Mock UsersService
 const mockUsersService = {
@@ -23,15 +24,12 @@ const mockRepository = {
   delete: jest.fn(),
 };
 
-// Mock TypeOrmModule
-const MockTypeOrmModule = {
-  forFeature: jest.fn().mockReturnValue({
-    module: class MockTypeOrmFeatureModule {},
-  }),
-};
+// Define metadata types
+type ModuleExports = Array<Type<unknown> | DynamicModule>;
+type ModuleImports = Array<Type<unknown> | DynamicModule>;
 
 describe('UsersModule', () => {
-  let moduleRef;
+  let moduleRef: TestingModule;
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -55,8 +53,11 @@ describe('UsersModule', () => {
     }).compile();
 
     // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [UsersService, TypeOrmModule], UsersModule);
-    Reflect.defineMetadata('imports', [TypeOrmModule.forFeature([User])], UsersModule);
+    const moduleExports: ModuleExports = [UsersService, TypeOrmModule];
+    const moduleImports: ModuleImports = [TypeOrmModule.forFeature([User])];
+
+    Reflect.defineMetadata('exports', moduleExports, UsersModule);
+    Reflect.defineMetadata('imports', moduleImports, UsersModule);
   });
 
   it('should be defined', () => {
@@ -64,17 +65,17 @@ describe('UsersModule', () => {
   });
 
   it('should export UsersService', () => {
-    const exports = Reflect.getMetadata('exports', UsersModule);
-    expect(exports).toContain(UsersService);
+    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
+    expect(exports.includes(UsersService)).toBe(true);
   });
 
   it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', UsersModule);
-    expect(exports).toContain(TypeOrmModule);
+    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
+    expect(exports.includes(TypeOrmModule)).toBe(true);
   });
 
   it('should not have any controllers', () => {
-    const controllers = Reflect.getMetadata('controllers', UsersModule);
+    const controllers = Reflect.getMetadata('controllers', UsersModule) as Type<unknown>[];
     expect(controllers).toEqual([]);
   });
 });

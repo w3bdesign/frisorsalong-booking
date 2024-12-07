@@ -1,13 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOneOptions } from 'typeorm';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 import { NotFoundException } from '@nestjs/common';
 
+type JestMock = jest.Mock;
+type MockCalls = Array<Array<unknown>>;
+
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepository: Repository<User>;
 
   const mockUser = {
     id: 'user-1',
@@ -36,7 +38,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
   });
 
   it('should be defined', () => {
@@ -49,7 +50,17 @@ describe('UsersService', () => {
 
       const result = await service.findOne('user-1');
       expect(result).toEqual(mockUser);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      
+      if (!lastCall) {
+        throw new Error('Expected findOne to be called');
+      }
+
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
         where: { id: 'user-1' },
       });
     });
@@ -69,7 +80,17 @@ describe('UsersService', () => {
 
       const result = await service.findByEmail('test@example.com');
       expect(result).toEqual(mockUser);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      
+      if (!lastCall) {
+        throw new Error('Expected findOne to be called');
+      }
+
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
         where: { email: 'test@example.com' },
       });
     });
@@ -95,10 +116,26 @@ describe('UsersService', () => {
       mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
 
       const result = await service.create(createUserData);
-      
       expect(result).toEqual({ id: 'new-user', ...createUserData });
-      expect(userRepository.create).toHaveBeenCalledWith(createUserData);
-      expect(userRepository.save).toHaveBeenCalledWith(createUserData);
+
+      const createMock = mockUserRepository.create as JestMock;
+      const saveMock = mockUserRepository.save as JestMock;
+      
+      const createCalls = createMock.mock.calls as MockCalls;
+      const saveCalls = saveMock.mock.calls as MockCalls;
+      
+      const lastCreateCall = createCalls[createCalls.length - 1];
+      const lastSaveCall = saveCalls[saveCalls.length - 1];
+      
+      if (!lastCreateCall || !lastSaveCall) {
+        throw new Error('Expected create and save to be called');
+      }
+
+      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
+      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
+      
+      expect(lastCreateArgs).toEqual(createUserData);
+      expect(lastSaveArgs).toEqual(createUserData);
     });
   });
 
@@ -114,10 +151,23 @@ describe('UsersService', () => {
       mockUserRepository.findOne.mockResolvedValue(updatedUser);
 
       const result = await service.update('user-1', updateData);
-
       expect(result).toEqual(updatedUser);
-      expect(userRepository.update).toHaveBeenCalledWith('user-1', updateData);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const updateMock = mockUserRepository.update as JestMock;
+      const findOneMock = mockUserRepository.findOne as JestMock;
+
+      const updateCalls = updateMock.mock.calls as MockCalls;
+      const findOneCalls = findOneMock.mock.calls as MockCalls;
+
+      const lastUpdateCall = updateCalls[updateCalls.length - 1];
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
+
+      if (!lastUpdateCall || !lastFindOneCall) {
+        throw new Error('Expected update and findOne to be called');
+      }
+
+      expect(lastUpdateCall).toEqual(['user-1', updateData]);
+      expect(lastFindOneCall[0]).toEqual({
         where: { id: 'user-1' },
       });
     });

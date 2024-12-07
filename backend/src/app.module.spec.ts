@@ -1,25 +1,44 @@
-import { Test } from "@nestjs/testing";
-import { AppModule } from "./app.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
-import { ShopCode } from "./shops/entities/shop-code.entity";
-import { join } from "path";
-
-// Mock the ConfigService
-const mockConfigService = {
-  get: jest.fn((key) => {
-    switch (key) {
-      case "DATABASE_URL":
-        return "postgres://test:test@localhost:5432/test";
-      case "NODE_ENV":
-        return "test";
-      default:
-        return null;
-    }
+// Mock implementations must be at the top level
+const mockTypeOrmModule = {
+  forRootAsync: jest.fn().mockReturnValue({
+    module: class MockModule {
+      static forRoot() {
+        return {};
+      }
+    },
+  }),
+  forFeature: jest.fn().mockReturnValue({
+    module: class MockFeatureModule {
+      static forFeature() {
+        return {};
+      }
+    },
   }),
 };
 
-// Create mock repositories
+// Mock modules must be defined before imports
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: mockTypeOrmModule,
+  getRepositoryToken: () => "SHOP_CODE_REPOSITORY",
+  InjectRepository: () => () => ({
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  }),
+}));
+
+// Now we can have our imports
+import { Test } from "@nestjs/testing";
+import { AppModule } from "./app.module";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import type { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
+import { join } from "path";
+import type { INestApplication } from "@nestjs/common";
+
+// Mock repositories
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -34,71 +53,74 @@ const mockShopCodeRepository = {
   findOne: jest.fn().mockResolvedValue({ code: "TEST123" }),
 };
 
-// Mock @nestjs/typeorm
-jest.mock("@nestjs/typeorm", () => {
-  return {
-    TypeOrmModule: {
-      forRootAsync: jest.fn().mockReturnValue({
-        module: class MockTypeOrmModule {
-          static forRoot() { return {}; }
-        },
-      }),
-      forFeature: jest.fn().mockReturnValue({
-        module: class MockTypeOrmFeatureModule {
-          static forFeature() { return {}; }
-        },
-      }),
-    },
-    getRepositoryToken: jest.fn((entity) => {
-      if (entity === ShopCode) {
-        return "SHOP_CODE_REPOSITORY";
-      }
-      return "MockRepository";
-    }),
-    InjectRepository: jest.fn().mockReturnValue(() => mockRepository),
-  };
-});
+// Mock ConfigService
+const mockConfigService = {
+  get: jest.fn((key: string) => {
+    switch (key) {
+      case "DATABASE_URL":
+        return "postgres://test:test@localhost:5432/test";
+      case "NODE_ENV":
+        return "test";
+      default:
+        return null;
+    }
+  }),
+};
 
-// Mock feature modules with basic implementations
+// Mock feature modules
 jest.mock("./auth/auth.module", () => ({
   AuthModule: class MockAuthModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./users/users.module", () => ({
   UsersModule: class MockUsersModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./employees/employees.module", () => ({
   EmployeesModule: class MockEmployeesModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./services/services.module", () => ({
   ServicesModule: class MockServicesModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./bookings/bookings.module", () => ({
   BookingsModule: class MockBookingsModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./orders/orders.module", () => ({
   OrdersModule: class MockOrdersModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./shops/shops.module", () => ({
   ShopsModule: class MockShopsModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
@@ -140,8 +162,7 @@ jest.mock("./shops/entities/shop-code.entity", () => ({
 }));
 
 describe("AppModule", () => {
-  let app;
-  let typeOrmModule;
+  let app: INestApplication;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -153,10 +174,8 @@ describe("AppModule", () => {
       .useValue(mockShopCodeRepository)
       .compile();
 
-    app = await moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication();
     await app.init();
-
-    typeOrmModule = require("@nestjs/typeorm").TypeOrmModule;
   });
 
   afterEach(async () => {
@@ -170,17 +189,22 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct database settings", () => {
-    expect(typeOrmModule.forRootAsync).toHaveBeenCalled();
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalled();
 
-    // Get the factory function from the forRootAsync call
-    const options = typeOrmModule.forRootAsync.mock
-      .calls[0][0] as TypeOrmModuleAsyncOptions;
+    const calls = mockTypeOrmModule.forRootAsync.mock.calls;
+    if (!calls?.length) {
+      throw new Error("forRootAsync was not called");
+    }
+
+    const [options] = calls[0];
     const factoryFn = options.useFactory;
 
-    // Execute the factory function with our mocked ConfigService
+    if (!factoryFn) {
+      throw new Error("Factory function not found");
+    }
+
     const config = factoryFn(mockConfigService);
 
-    // Verify the configuration matches what's in app.module.ts
     expect(config).toEqual({
       type: "postgres",
       url: "postgres://test:test@localhost:5432/test",
@@ -194,7 +218,7 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct injection", () => {
-    expect(typeOrmModule.forRootAsync).toHaveBeenCalledWith(
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         imports: [ConfigModule],
         inject: [ConfigService],
