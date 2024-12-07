@@ -2,10 +2,15 @@ import { Injectable, ExecutionContext, UnauthorizedException } from "@nestjs/com
 import { AuthGuard } from "@nestjs/passport";
 import { User } from "../../users/entities/user.entity";
 import { Request } from "express";
+import { Observable } from 'rxjs';
+
+interface JwtError extends Error {
+  name: 'JsonWebTokenError' | 'TokenExpiredError';
+}
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
-  canActivate(context: ExecutionContext) {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
 
@@ -39,10 +44,9 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
   }
 
   handleRequest<TUser = User>(
-    err: any,
+    err: Error | null,
     user: TUser | false,
-    info: any,
-    context: ExecutionContext
+    info: JwtError | null
   ): TUser {
     // Add debug logging
     const errorMessage = err instanceof Error ? err.message : String(err);
