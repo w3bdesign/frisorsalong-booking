@@ -1,26 +1,44 @@
+// Mock implementations must be at the top level
+const mockTypeOrmModule = {
+  forRootAsync: jest.fn().mockReturnValue({
+    module: class MockModule {
+      static forRoot() {
+        return {};
+      }
+    },
+  }),
+  forFeature: jest.fn().mockReturnValue({
+    module: class MockFeatureModule {
+      static forFeature() {
+        return {};
+      }
+    },
+  }),
+};
+
+// Mock modules must be defined before imports
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: mockTypeOrmModule,
+  getRepositoryToken: () => "SHOP_CODE_REPOSITORY",
+  InjectRepository: () => () => ({
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  }),
+}));
+
+// Now we can have our imports
 import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import type { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
-import { ShopCode } from "./shops/entities/shop-code.entity";
 import { join } from "path";
 import type { INestApplication } from "@nestjs/common";
 
-// Mock the ConfigService
-const mockConfigService = {
-  get: jest.fn((key: string) => {
-    switch (key) {
-      case "DATABASE_URL":
-        return "postgres://test:test@localhost:5432/test";
-      case "NODE_ENV":
-        return "test";
-      default:
-        return null;
-    }
-  }),
-};
-
-// Create mock repositories with proper typing
+// Mock repositories
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -35,46 +53,21 @@ const mockShopCodeRepository = {
   findOne: jest.fn().mockResolvedValue({ code: "TEST123" }),
 };
 
-// Mock TypeOrmModule with proper typing
-const MockTypeOrmModule = {
-  forRoot: () => ({}),
-};
-
-const MockTypeOrmFeatureModule = {
-  forFeature: () => ({}),
-};
-
-// Create a properly typed mock for TypeOrmModule
-const typeOrmModuleMock = {
-  forRootAsync: jest.fn<ReturnType<typeof MockTypeOrmModule.forRoot>, [TypeOrmModuleAsyncOptions]>().mockReturnValue({
-    module: class {
-      static forRoot() {
-        return MockTypeOrmModule;
-      }
-    },
-  }),
-  forFeature: jest.fn().mockReturnValue({
-    module: class {
-      static forFeature() {
-        return MockTypeOrmFeatureModule;
-      }
-    },
-  }),
-};
-
-// Mock @nestjs/typeorm with proper typing
-jest.mock("@nestjs/typeorm", () => ({
-  TypeOrmModule: typeOrmModuleMock,
-  getRepositoryToken: (entity: typeof ShopCode) => {
-    if (entity === ShopCode) {
-      return "SHOP_CODE_REPOSITORY";
+// Mock ConfigService
+const mockConfigService = {
+  get: jest.fn((key: string) => {
+    switch (key) {
+      case "DATABASE_URL":
+        return "postgres://test:test@localhost:5432/test";
+      case "NODE_ENV":
+        return "test";
+      default:
+        return null;
     }
-    return "MockRepository";
-  },
-  InjectRepository: () => () => mockRepository,
-}));
+  }),
+};
 
-// Mock feature modules with proper typing
+// Mock feature modules
 jest.mock("./auth/auth.module", () => ({
   AuthModule: class MockAuthModule {
     static register() {
@@ -131,7 +124,7 @@ jest.mock("./shops/shops.module", () => ({
   },
 }));
 
-// Mock entities with proper typing
+// Mock entities
 jest.mock("./users/entities/user.entity", () => ({
   User: class MockUser {
     constructor() {}
@@ -182,7 +175,6 @@ describe("AppModule", () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    // init() returns a Promise, so await is needed
     await app.init();
   });
 
@@ -197,10 +189,9 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct database settings", () => {
-    expect(typeOrmModuleMock.forRootAsync).toHaveBeenCalled();
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalled();
 
-    // Get the factory function from the forRootAsync call with proper typing
-    const calls = typeOrmModuleMock.forRootAsync.mock.calls;
+    const calls = mockTypeOrmModule.forRootAsync.mock.calls;
     if (!calls?.length) {
       throw new Error("forRootAsync was not called");
     }
@@ -212,10 +203,8 @@ describe("AppModule", () => {
       throw new Error("Factory function not found");
     }
 
-    // Execute the factory function with our mocked ConfigService
     const config = factoryFn(mockConfigService);
 
-    // Verify the configuration matches what's in app.module.ts
     expect(config).toEqual({
       type: "postgres",
       url: "postgres://test:test@localhost:5432/test",
@@ -229,7 +218,7 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct injection", () => {
-    expect(typeOrmModuleMock.forRootAsync).toHaveBeenCalledWith(
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         imports: [ConfigModule],
         inject: [ConfigService],
