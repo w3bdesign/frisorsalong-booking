@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from "typeorm";
+import { QueryRunner, Table, TableForeignKey } from "typeorm";
 import { CreateOrders1731981975583 } from "./1731981975583-CreateOrders";
 
 type SafeQueryRunner = {
@@ -16,20 +16,26 @@ describe("CreateOrders1731981975583", () => {
   beforeEach(() => {
     migration = new CreateOrders1731981975583();
     queryRunner = {
-      createTable: jest.fn().mockResolvedValue(new Table({ name: "orders", columns: [] })),
-      createForeignKey: jest.fn().mockResolvedValue(undefined),
-      getTable: jest.fn().mockResolvedValue(new Table({
-        name: "orders",
-        columns: [],
-        foreignKeys: [new TableForeignKey({
-          columnNames: ["booking_id"],
-          referencedColumnNames: ["id"],
-          referencedTableName: "bookings",
-          onDelete: "CASCADE"
-        })]
-      })),
-      dropForeignKey: jest.fn().mockResolvedValue(undefined),
-      dropTable: jest.fn().mockResolvedValue(undefined),
+      createTable: jest.fn<Promise<Table>, [Table, boolean]>().mockResolvedValue(
+        new Table({ name: "orders", columns: [] })
+      ),
+      createForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      getTable: jest.fn<Promise<Table>, [string]>().mockResolvedValue(
+        new Table({
+          name: "orders",
+          columns: [],
+          foreignKeys: [
+            new TableForeignKey({
+              columnNames: ["booking_id"],
+              referencedColumnNames: ["id"],
+              referencedTableName: "bookings",
+              onDelete: "CASCADE",
+            }),
+          ],
+        })
+      ),
+      dropForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      dropTable: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
     };
   });
 
@@ -42,12 +48,11 @@ describe("CreateOrders1731981975583", () => {
         true,
       );
 
-      const createTableCall = queryRunner.createTable.mock.calls[0];
-      if (!createTableCall || !createTableCall[0] || !(createTableCall[0] instanceof Table)) {
+      const table = queryRunner.createTable.mock.calls[0]?.[0];
+      if (!(table instanceof Table)) {
         throw new Error('Invalid createTable mock call');
       }
 
-      const table = createTableCall[0];
       expect(table.name).toBe("orders");
       expect(table.columns).toHaveLength(7);
 
@@ -87,12 +92,11 @@ describe("CreateOrders1731981975583", () => {
         expect.any(TableForeignKey),
       );
 
-      const createForeignKeyCall = queryRunner.createForeignKey.mock.calls[0];
-      if (!createForeignKeyCall || !createForeignKeyCall[1] || !(createForeignKeyCall[1] instanceof TableForeignKey)) {
+      const foreignKey = queryRunner.createForeignKey.mock.calls[0]?.[1];
+      if (!(foreignKey instanceof TableForeignKey)) {
         throw new Error('Invalid createForeignKey mock call');
       }
 
-      const foreignKey = createForeignKeyCall[1];
       expect(foreignKey.columnNames).toEqual(["booking_id"]);
       expect(foreignKey.referencedColumnNames).toEqual(["id"]);
       expect(foreignKey.referencedTableName).toBe("bookings");
@@ -112,8 +116,8 @@ describe("CreateOrders1731981975583", () => {
       expect(queryRunner.dropTable).toHaveBeenCalledWith("orders");
 
       // Verify the mock calls have correct types
-      const dropForeignKeyCall = queryRunner.dropForeignKey.mock.calls[0];
-      if (!dropForeignKeyCall || !dropForeignKeyCall[1] || !(dropForeignKeyCall[1] instanceof TableForeignKey)) {
+      const foreignKey = queryRunner.dropForeignKey.mock.calls[0]?.[1];
+      if (!(foreignKey instanceof TableForeignKey)) {
         throw new Error('Invalid dropForeignKey mock call');
       }
     });
