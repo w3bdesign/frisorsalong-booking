@@ -42,39 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe construction of an any type value.
-backend/src/auth/
-
-auth.service.ts
-
-26        throw new ConflictException("Email already exists");
-
-CRITICAL
-
-Error prone
-
-Unsafe member access .role on an `error` typed value.
-backend/src/auth/strategies/
-
-jwt.strategy.ts
-
-84        role: user.role,
-
-CRITICAL
-
-Error prone
-
-Avoid referencing unbound methods which may cause unintentional scoping of `this`. If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
-backend/src/bookings/
-
-bookings.controller.spec.ts
-
-181      expect(service.getUpcomingCount).toHaveBeenCalled();
-
-CRITICAL
-
-Error prone
-
 Unsafe return of an `any` typed value.
 backend/src/database/migrations/
 
