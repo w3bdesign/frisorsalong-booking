@@ -113,9 +113,14 @@ describe('InitialMigration1731981975581', () => {
     it('should drop tables in correct order', async () => {
       await migration.down(queryRunner);
 
-      const calls = (queryRunner.query as jest.Mock).mock.calls.map(
-        call => call[0],
-      );
+      const mockFn = queryRunner.query as jest.MockedFunction<typeof queryRunner.query>;
+      const calls = mockFn.mock.calls.map((call): string => {
+        const query = call[0];
+        if (typeof query !== 'string') {
+          throw new Error('Expected first argument to be a string');
+        }
+        return query;
+      });
       
       // Verify drop order: employee_services -> bookings -> services -> employees -> users
       const employeeServicesIndex = calls.findIndex(call =>
