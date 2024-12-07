@@ -1,6 +1,13 @@
 import { QueryRunner } from 'typeorm';
 import { InitialMigration1731981975581 } from './1731981975581-InitialMigration';
 
+interface MockCall {
+  query: string;
+  params?: unknown[];
+}
+
+type MockQueryFunction = jest.Mock<Promise<unknown>, [string, ...unknown[]]>;
+
 describe('InitialMigration1731981975581', () => {
   let migration: InitialMigration1731981975581;
   let queryRunner: QueryRunner;
@@ -113,13 +120,12 @@ describe('InitialMigration1731981975581', () => {
     it('should drop tables in correct order', async () => {
       await migration.down(queryRunner);
 
-      const mockFn = queryRunner.query as jest.MockedFunction<typeof queryRunner.query>;
-      const calls = mockFn.mock.calls.map((call): string => {
-        const query = call[0];
-        if (typeof query !== 'string') {
-          throw new Error('Expected first argument to be a string');
+      const mockQueryFn = queryRunner.query as MockQueryFunction;
+      const calls = mockQueryFn.mock.calls.map((call): string => {
+        if (!Array.isArray(call) || call.length === 0 || typeof call[0] !== 'string') {
+          throw new Error('Invalid mock call format');
         }
-        return query;
+        return call[0];
       });
       
       // Verify drop order: employee_services -> bookings -> services -> employees -> users
