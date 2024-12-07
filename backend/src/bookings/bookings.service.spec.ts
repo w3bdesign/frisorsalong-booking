@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, FindOneOptions, FindManyOptions } from 'typeorm';
+import { FindOneOptions, FindManyOptions } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { UsersService } from '../users/users.service';
