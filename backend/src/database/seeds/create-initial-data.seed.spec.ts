@@ -7,19 +7,23 @@ import * as bcrypt from "bcrypt";
 
 jest.mock("bcrypt");
 
-type SafeInsertQueryBuilder = {
-  insert: jest.Mock<SafeInsertQueryBuilder>;
-  into: jest.Mock<SafeInsertQueryBuilder>;
-  values: jest.Mock<SafeInsertQueryBuilder>;
-  execute: jest.Mock<Promise<void>>;
-};
+interface RepositoryMapping {
+  User: Partial<Repository<User>>;
+  Employee: Partial<Repository<Employee>>;
+  Service: Partial<Repository<Service>>;
+}
 
 describe("createInitialData", () => {
   let mockDataSource: Partial<DataSource>;
   let mockUserRepository: Partial<Repository<User>>;
   let mockEmployeeRepository: Partial<Repository<Employee>>;
   let mockServiceRepository: Partial<Repository<Service>>;
-  let mockQueryBuilder: SafeInsertQueryBuilder;
+  let mockQueryBuilder: {
+    insert: jest.Mock;
+    into: jest.Mock;
+    values: jest.Mock;
+    execute: jest.Mock;
+  };
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -28,16 +32,16 @@ describe("createInitialData", () => {
       findOne: jest.fn().mockResolvedValue(null),
       save: jest
         .fn()
-        .mockImplementation((user) =>
-          Promise.resolve({ ...user, id: "user-1" })
+        .mockImplementation((data) =>
+          Promise.resolve({ id: "user-1", ...data })
         ),
     };
 
     mockEmployeeRepository = {
       save: jest
         .fn()
-        .mockImplementation((employee) =>
-          Promise.resolve({ ...employee, id: "employee-1" })
+        .mockImplementation((data) =>
+          Promise.resolve({ id: "employee-1", ...data })
         ),
     };
 
@@ -53,30 +57,30 @@ describe("createInitialData", () => {
         ),
     };
 
-    // Mock query builder with proper typing
+    // Mock query builder for service associations
     mockQueryBuilder = {
-      insert: jest.fn(function (this: SafeInsertQueryBuilder) {
-        return this;
-      }),
-      into: jest.fn(function (this: SafeInsertQueryBuilder) {
-        return this;
-      }),
-      values: jest.fn(function (this: SafeInsertQueryBuilder) {
-        return this;
-      }),
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
       execute: jest.fn().mockResolvedValue(undefined),
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = (entity: EntityTarget<any>): Repository<any> => {
-      if (entity === User) return mockUserRepository as Repository<User>;
-      if (entity === Employee)
-        return mockEmployeeRepository as Repository<Employee>;
-      if (entity === Service)
-        return mockServiceRepository as Repository<Service>;
-      throw new Error(
-        `Repository not mocked for entity: ${typeof entity === "function" ? entity.name : "Unknown Entity"}`
-      );
+    const mockGetRepository = (entity: EntityTarget<any>) => {
+      const repositories: RepositoryMapping = {
+        User: mockUserRepository,
+        Employee: mockEmployeeRepository,
+        Service: mockServiceRepository,
+      };
+
+      const entityName = typeof entity === "function" ? entity.name : "Unknown";
+      const repository = repositories[entityName as keyof RepositoryMapping];
+
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+
+      return repository;
     };
 
     mockDataSource = {
@@ -105,7 +109,7 @@ describe("createInitialData", () => {
     jest.clearAllMocks();
   });
 
-  it("should create services, employee user, and employee when they do not exist", async () => {
+  test("creates services, employee user, and employee when they do not exist", async () => {
     // Mock that employee doesn't exist
     (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
 
@@ -159,15 +163,6 @@ describe("createInitialData", () => {
       })
     );
 
-    // Type guard for mockQueryBuilder methods
-    if (
-      !mockQueryBuilder.insert ||
-      !mockQueryBuilder.into ||
-      !mockQueryBuilder.values
-    ) {
-      throw new Error("Query builder methods not properly mocked");
-    }
-
     // Verify services were associated with employee
     expect(mockQueryBuilder.insert).toHaveBeenCalled();
     expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
@@ -184,7 +179,7 @@ describe("createInitialData", () => {
     );
   });
 
-  it("should not create employee when it already exists", async () => {
+  test("does not create employee when it already exists", async () => {
     // Mock that employee already exists
     const existingEmployee = {
       email: "employee@example.com",
@@ -208,7 +203,7 @@ describe("createInitialData", () => {
     expect(console.log).toHaveBeenCalledWith("Employee user already exists");
   });
 
-  it("should throw error when employee email is missing", async () => {
+  test("throws error when employee email is missing", async () => {
     delete process.env.EMPLOYEE_EMAIL;
 
     await expect(
@@ -224,7 +219,7 @@ describe("createInitialData", () => {
     expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
   });
 
-  it("should throw error when employee password is missing", async () => {
+  test("throws error when employee password is missing", async () => {
     delete process.env.EMPLOYEE_PASSWORD;
 
     await expect(
@@ -240,7 +235,7 @@ describe("createInitialData", () => {
     expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
   });
 
-  it("should handle database errors during service creation", async () => {
+  test("handles database errors during service creation", async () => {
     const dbError = new Error("Database error during service creation");
     (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
 
@@ -255,7 +250,7 @@ describe("createInitialData", () => {
     );
   });
 
-  it("should handle database errors during employee creation", async () => {
+  test("handles database errors during employee creation", async () => {
     // Mock that employee doesn't exist
     (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
     // Mock services creation success
@@ -275,7 +270,7 @@ describe("createInitialData", () => {
     );
   });
 
-  it("should handle password hashing errors", async () => {
+  test("handles password hashing errors", async () => {
     // Mock that employee doesn't exist
     (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
     // Mock services creation success
@@ -295,7 +290,7 @@ describe("createInitialData", () => {
     );
   });
 
-  it("should use default phone number when EMPLOYEE_PHONE is not set", async () => {
+  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
     // Remove EMPLOYEE_PHONE from environment
     delete process.env.EMPLOYEE_PHONE;
 
