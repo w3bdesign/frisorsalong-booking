@@ -25,9 +25,9 @@ interface SafeUser {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
     @InjectRepository(User)
-    private usersRepository: Repository<User>
+    private readonly usersRepository: Repository<User>
   ) {
     const jwtSecret = configService.get<string>("JWT_SECRET");
     if (!jwtSecret) {
