@@ -73,9 +73,10 @@ export class BookingsService {
       }))
     );
 
-    const selectedEmployee = employeeBookings.sort(
+    const sortedEmployeeBookings = employeeBookings.toSorted(
       (a, b) => a.bookingCount - b.bookingCount
-    )[0].employee;
+    );
+    const selectedEmployee = sortedEmployeeBookings[0].employee;
 
     // Calculate start and end times
     const startDate = new Date();
