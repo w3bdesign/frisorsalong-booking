@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from "typeorm";
+import { QueryRunner, Table, TableForeignKey } from "typeorm";
 import { CreateOrders1731981975583 } from "./1731981975583-CreateOrders";
 
 type SafeQueryRunner = {
@@ -16,20 +16,26 @@ describe("CreateOrders1731981975583", () => {
   beforeEach(() => {
     migration = new CreateOrders1731981975583();
     queryRunner = {
-      createTable: jest.fn().mockResolvedValue(new Table({ name: "orders", columns: [] })),
-      createForeignKey: jest.fn().mockResolvedValue(undefined),
-      getTable: jest.fn().mockResolvedValue(new Table({
-        name: "orders",
-        columns: [],
-        foreignKeys: [new TableForeignKey({
-          columnNames: ["booking_id"],
-          referencedColumnNames: ["id"],
-          referencedTableName: "bookings",
-          onDelete: "CASCADE"
-        })]
-      })),
-      dropForeignKey: jest.fn().mockResolvedValue(undefined),
-      dropTable: jest.fn().mockResolvedValue(undefined),
+      createTable: jest.fn<Promise<Table>, [Table, boolean]>().mockResolvedValue(
+        new Table({ name: "orders", columns: [] })
+      ),
+      createForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      getTable: jest.fn<Promise<Table>, [string]>().mockResolvedValue(
+        new Table({
+          name: "orders",
+          columns: [],
+          foreignKeys: [
+            new TableForeignKey({
+              columnNames: ["booking_id"],
+              referencedColumnNames: ["id"],
+              referencedTableName: "bookings",
+              onDelete: "CASCADE",
+            }),
+          ],
+        })
+      ),
+      dropForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      dropTable: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
     };
   });
 
