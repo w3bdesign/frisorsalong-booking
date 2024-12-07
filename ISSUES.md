@@ -42,17 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .query on an `error` typed value.
-backend/src/database/migrations/
-
-1731981975582-CreateBookingSystem.ts
-
-96    await queryRunner.query(`DROP TABLE "employees"`);
-
-CRITICAL
-
-Error prone
-
 Unsafe member access .dropForeignKey on an `error` typed value.
 backend/src/database/migrations/
 
