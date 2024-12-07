@@ -1,22 +1,19 @@
 import { QueryRunner } from 'typeorm';
 import { InitialMigration1731981975581 } from './1731981975581-InitialMigration';
 
-interface MockCall {
-  query: string;
-  params?: unknown[];
-}
-
-type MockQueryFunction = jest.Mock<Promise<unknown>, [string, ...unknown[]]>;
+type SafeQueryRunner = {
+  query: jest.Mock<Promise<unknown>, [string, ...unknown[]]>;
+};
 
 describe('InitialMigration1731981975581', () => {
   let migration: InitialMigration1731981975581;
-  let queryRunner: QueryRunner;
+  let queryRunner: SafeQueryRunner;
 
   beforeEach(() => {
     migration = new InitialMigration1731981975581();
     queryRunner = {
-      query: jest.fn(),
-    } as unknown as QueryRunner;
+      query: jest.fn().mockResolvedValue(undefined),
+    };
   });
 
   it('should have correct name', () => {
@@ -25,7 +22,7 @@ describe('InitialMigration1731981975581', () => {
 
   describe('up', () => {
     it('should create user role enum', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TYPE "public"."users_role_enum"'),
@@ -33,7 +30,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create users table', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE "users"'),
@@ -41,7 +38,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create employees table', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE "employees"'),
@@ -49,7 +46,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create services table', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE "services"'),
@@ -57,7 +54,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create booking status enum', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TYPE "public"."bookings_status_enum"'),
@@ -65,7 +62,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create bookings table', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE "bookings"'),
@@ -73,7 +70,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create employee_services table', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE "employee_services"'),
@@ -81,7 +78,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create indexes', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('CREATE INDEX'),
@@ -89,7 +86,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should create foreign key constraints', async () => {
-      await migration.up(queryRunner);
+      await migration.up(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('ALTER TABLE'),
@@ -102,7 +99,7 @@ describe('InitialMigration1731981975581', () => {
 
   describe('down', () => {
     it('should drop foreign key constraints', async () => {
-      await migration.down(queryRunner);
+      await migration.down(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('DROP CONSTRAINT'),
@@ -110,7 +107,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should drop indexes', async () => {
-      await migration.down(queryRunner);
+      await migration.down(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('DROP INDEX'),
@@ -118,10 +115,9 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should drop tables in correct order', async () => {
-      await migration.down(queryRunner);
+      await migration.down(queryRunner as unknown as QueryRunner);
 
-      const mockQueryFn = queryRunner.query as MockQueryFunction;
-      const calls = mockQueryFn.mock.calls.map((call): string => {
+      const calls = queryRunner.query.mock.calls.map((call): string => {
         if (!Array.isArray(call) || call.length === 0 || typeof call[0] !== 'string') {
           throw new Error('Invalid mock call format');
         }
@@ -152,7 +148,7 @@ describe('InitialMigration1731981975581', () => {
     });
 
     it('should drop enums', async () => {
-      await migration.down(queryRunner);
+      await migration.down(queryRunner as unknown as QueryRunner);
 
       expect(queryRunner.query).toHaveBeenCalledWith(
         expect.stringContaining('DROP TYPE "public"."users_role_enum"'),

@@ -9,11 +9,12 @@ export class InitialMigration1731981975581 implements MigrationInterface {
     }
 
     try {
-      const result = await queryRunner.query(sql);
-      if (result instanceof Error) {
-        throw result;
-      }
-    } catch (error) {
+      await queryRunner.query(sql).catch((error: unknown) => {
+        throw new Error(
+          `Query failed: ${sql}\nError: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Migration failed executing query: ${sql}\nError: ${errorMessage}`);
     }
@@ -28,10 +29,12 @@ export class InitialMigration1731981975581 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     try {
       // Create enums
-      await this.executeQuery(
-        queryRunner,
-        `CREATE TYPE "public"."users_role_enum" AS ENUM('customer', 'employee', 'admin')`
-      );
+      const createEnumQueries = [
+        `CREATE TYPE "public"."users_role_enum" AS ENUM('customer', 'employee', 'admin')`,
+        `CREATE TYPE "public"."bookings_status_enum" AS ENUM('pending', 'confirmed', 'cancelled', 'completed', 'no_show')`
+      ];
+
+      await this.executeQueries(queryRunner, createEnumQueries);
 
       // Create tables
       const createTableQueries = [
@@ -116,7 +119,7 @@ export class InitialMigration1731981975581 implements MigrationInterface {
       ];
 
       await this.executeQueries(queryRunner, addForeignKeyQueries);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Migration up failed: ${errorMessage}`);
     }
@@ -156,9 +159,13 @@ export class InitialMigration1731981975581 implements MigrationInterface {
       await this.executeQueries(queryRunner, dropTableQueries);
 
       // Drop enums
-      await this.executeQuery(queryRunner, `DROP TYPE "public"."users_role_enum"`);
-      await this.executeQuery(queryRunner, `DROP TYPE "public"."bookings_status_enum"`);
-    } catch (error) {
+      const dropEnumQueries = [
+        `DROP TYPE "public"."users_role_enum"`,
+        `DROP TYPE "public"."bookings_status_enum"`
+      ];
+
+      await this.executeQueries(queryRunner, dropEnumQueries);
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Migration down failed: ${errorMessage}`);
     }
