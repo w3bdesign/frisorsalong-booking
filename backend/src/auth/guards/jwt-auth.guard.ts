@@ -70,6 +70,6 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
       throw new UnauthorizedException('User not authenticated');
     }
 
-    return user as TUser;
+    return user;
   }
 }

@@ -13,9 +13,9 @@ describe('createAdminUser', () => {
   beforeEach(() => {
     // Mock repository methods
     mockUserRepository = {
-      findOne: jest.fn() as jest.Mock,
-      create: jest.fn() as jest.Mock,
-      save: jest.fn() as jest.Mock,
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
     };
 
     // Mock DataSource
