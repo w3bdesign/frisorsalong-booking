@@ -2,7 +2,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BookingsController } from "./bookings.controller";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
-import { ShopsService } from "../shops/shops.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { Booking, BookingStatus } from "./entities/booking.entity";
@@ -10,9 +9,7 @@ import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
 
 describe("BookingsController", () => {
   let controller: BookingsController;
-  let service: BookingsService;
   let ordersService: OrdersService;
-  let shopsService: ShopsService;
 
   const mockBooking = {
     id: "booking-1",
@@ -67,19 +64,11 @@ describe("BookingsController", () => {
             createFromBooking: jest.fn().mockResolvedValue({ id: "order-1" }),
           },
         },
-        {
-          provide: ShopsService,
-          useValue: {
-            validateShopCode: jest.fn().mockResolvedValue(true),
-          },
-        },
       ],
     }).compile();
 
     controller = module.get<BookingsController>(BookingsController);
-    service = module.get<BookingsService>(BookingsService);
     ordersService = module.get<OrdersService>(OrdersService);
-    shopsService = module.get<ShopsService>(ShopsService);
   });
 
   it("should be defined", () => {
@@ -180,7 +169,6 @@ describe("BookingsController", () => {
 
       expect(result).toBeDefined();
       expect(result.count).toBe(mockCount);
-      // Use the mock service reference instead of the injected service
       expect(mockBookingsService.getUpcomingCount).toHaveBeenCalled();
     });
   });

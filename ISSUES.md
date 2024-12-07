@@ -42,17 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe call of an `error` type typed value.
-backend/src/database/migrations/
-
-1731981975581-InitialMigration.ts
-
-82    await queryRunner.query(`DROP TABLE "services"`);
-
-CRITICAL
-
-Error prone
-
 Unsafe member access .query on an `error` typed value.
 backend/src/database/migrations/
 
