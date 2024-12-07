@@ -1,39 +1,26 @@
-import { QueryRunner } from "typeorm";
-import { CreateBookingSystem1731981975582 } from "./1731981975582-CreateBookingSystem";
+import { QueryRunner } from 'typeorm';
+import { CreateBookingSystem1731981975582 } from './1731981975582-CreateBookingSystem';
 
 // Helper functions to reduce nesting and improve readability
 const findQueryCall = (calls: string[], pattern: string): number =>
-  calls.findIndex((call) => call.includes(pattern));
+  calls.findIndex(call => call.includes(pattern));
 
-const verifyTableSchema = (
-  query: string,
-  tableName: string,
-  ...fields: string[]
-): void => {
-  const tablePattern = new RegExp(
-    `CREATE TABLE[\\s\\S]*${tableName}[\\s\\S]*${fields.join("[\\s\\S]*")}`
-  );
+const verifyTableSchema = (query: string, tableName: string, ...fields: string[]): void => {
+  const tablePattern = new RegExp(`CREATE TABLE[\\s\\S]*${tableName}[\\s\\S]*${fields.join('[\\s\\S]*')}`);
   expect(query).toMatch(tablePattern);
 };
 
-const verifyForeignKey = (
-  query: string,
-  tableName: string,
-  columnName: string,
-  referencedTable: string
-): void => {
+const verifyForeignKey = (query: string, tableName: string, columnName: string, referencedTable: string): void => {
   const pattern = new RegExp(
     `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${columnName}"\\)[\\s\\S]*REFERENCES "${referencedTable}"`,
-    "i"
+    'i'
   );
   expect(query).toMatch(pattern);
 };
 
 const verifyDropOrder = (calls: string[], tables: string[]): void => {
-  const indices = tables.map((table) =>
-    findQueryCall(calls, `DROP TABLE "${table}"`)
-  );
-
+  const indices = tables.map(table => findQueryCall(calls, `DROP TABLE "${table}"`));
+  
   // Verify each index is greater than the previous one and store the final index
   const finalIndex = indices.reduce((prev, curr) => {
     expect(curr).toBeGreaterThan(prev);
@@ -46,7 +33,7 @@ const verifyDropOrder = (calls: string[], tables: string[]): void => {
   expect(finalIndex).toBeLessThan(calls.length);
 };
 
-describe("CreateBookingSystem1731981975582", () => {
+describe('CreateBookingSystem1731981975582', () => {
   let migration: CreateBookingSystem1731981975582;
   let queryRunner: QueryRunner;
   let queryCalls: string[];
@@ -59,87 +46,57 @@ describe("CreateBookingSystem1731981975582", () => {
   });
 
   afterEach(() => {
-    queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(
-      (call) => call[0]
-    );
+    queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
   });
 
-  test("migration name is correct", () => {
-    expect(migration.name).toBe("CreateBookingSystem1731981975582");
+  test('migration name is correct', () => {
+    expect(migration.name).toBe('CreateBookingSystem1731981975582');
   });
 
-  describe("up migration", () => {
+  describe('up migration', () => {
     beforeEach(async () => {
       await migration.up(queryRunner);
-      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(
-        (call) => call[0]
-      );
+      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
     });
 
-    test("creates services table with required fields", () => {
-      const servicesQuery = queryCalls.find((call) =>
-        call.includes('CREATE TABLE "services"')
-      );
-      verifyTableSchema(
-        servicesQuery,
-        "services",
-        "id",
-        "name",
-        "description",
-        "duration",
-        "price"
-      );
+    test('creates services table with required fields', () => {
+      const servicesQuery = queryCalls.find(call => call.includes('CREATE TABLE "services"'));
+      verifyTableSchema(servicesQuery, 'services', 'id', 'name', 'description', 'duration', 'price');
     });
 
-    test("creates employees table with user foreign key", () => {
-      const employeesQuery = queryCalls.find((call) =>
-        call.includes('CREATE TABLE "employees"')
-      );
-      verifyForeignKey(employeesQuery, "employees", "user_id", "users");
+    test('creates employees table with user foreign key', () => {
+      const employeesQuery = queryCalls.find(call => call.includes('CREATE TABLE "employees"'));
+      verifyForeignKey(employeesQuery, 'employees', 'user_id', 'users');
     });
 
-    test("creates employee_services junction table", () => {
-      const junctionQuery = queryCalls.find((call) =>
-        call.includes('CREATE TABLE "employee_services"')
-      );
-      verifyForeignKey(
-        junctionQuery,
-        "employee_services",
-        "employee_id",
-        "employees"
-      );
-      verifyForeignKey(
-        junctionQuery,
-        "employee_services",
-        "service_id",
-        "services"
-      );
+    test('creates employee_services junction table', () => {
+      const junctionQuery = queryCalls.find(call => call.includes('CREATE TABLE "employee_services"'));
+      verifyForeignKey(junctionQuery, 'employee_services', 'employee_id', 'employees');
+      verifyForeignKey(junctionQuery, 'employee_services', 'service_id', 'services');
     });
 
-    test("creates bookings table with all foreign keys", () => {
-      const bookingsQuery = queryCalls.find((call) =>
-        call.includes('CREATE TABLE "bookings"')
-      );
-
+    test('creates bookings table with all foreign keys', () => {
+      const bookingsQuery = queryCalls.find(call => call.includes('CREATE TABLE "bookings"'));
+      
       [
-        ["customer_id", "users"],
-        ["employee_id", "employees"],
-        ["service_id", "services"],
+        ['customer_id', 'users'],
+        ['employee_id', 'employees'],
+        ['service_id', 'services'],
       ].forEach(([column, reference]) => {
-        verifyForeignKey(bookingsQuery, "bookings", column, reference);
+        verifyForeignKey(bookingsQuery, 'bookings', column, reference);
       });
     });
 
-    test("creates all required indexes", () => {
+    test('creates all required indexes', () => {
       const indexPatterns = [
-        "idx_bookings_customer",
-        "idx_bookings_employee",
-        "idx_bookings_service",
-        "idx_bookings_start_time",
-        "idx_bookings_status",
+        'idx_bookings_customer',
+        'idx_bookings_employee',
+        'idx_bookings_service',
+        'idx_bookings_start_time',
+        'idx_bookings_status',
       ];
 
-      indexPatterns.forEach((indexName) => {
+      indexPatterns.forEach(indexName => {
         expect(queryRunner.query).toHaveBeenCalledWith(
           expect.stringContaining(`CREATE INDEX "${indexName}"`)
         );
@@ -147,51 +104,36 @@ describe("CreateBookingSystem1731981975582", () => {
     });
   });
 
-  describe("down migration", () => {
+  describe('down migration', () => {
     beforeEach(async () => {
       await migration.down(queryRunner);
-      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(
-        (call) => call[0]
-      );
+      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
     });
 
-    test("drops indexes in correct order", () => {
+    test('drops indexes in correct order', () => {
       const indexOrder = [
-        "idx_bookings_status",
-        "idx_bookings_start_time",
-        "idx_bookings_service",
-        "idx_bookings_employee",
-        "idx_bookings_customer",
+        'idx_bookings_status',
+        'idx_bookings_start_time',
+        'idx_bookings_service',
+        'idx_bookings_employee',
+        'idx_bookings_customer',
       ];
 
       indexOrder.forEach((indexName, i) => {
-        const dropIndex = findQueryCall(
-          queryCalls,
-          `DROP INDEX "${indexName}"`
-        );
+        const dropIndex = findQueryCall(queryCalls, `DROP INDEX "${indexName}"`);
         expect(dropIndex).toBe(i);
       });
     });
 
-    test("drops tables in correct order", () => {
-      const tableOrder = [
-        "bookings",
-        "employee_services",
-        "employees",
-        "services",
-      ];
+    test('drops tables in correct order', () => {
+      const tableOrder = ['bookings', 'employee_services', 'employees', 'services'];
       verifyDropOrder(queryCalls, tableOrder);
     });
 
-    test("drops all required tables", () => {
-      const requiredTables = [
-        "bookings",
-        "employee_services",
-        "employees",
-        "services",
-      ];
-
-      requiredTables.forEach((tableName) => {
+    test('drops all required tables', () => {
+      const requiredTables = ['bookings', 'employee_services', 'employees', 'services'];
+      
+      requiredTables.forEach(tableName => {
         expect(queryRunner.query).toHaveBeenCalledWith(
           expect.stringContaining(`DROP TABLE "${tableName}"`)
         );

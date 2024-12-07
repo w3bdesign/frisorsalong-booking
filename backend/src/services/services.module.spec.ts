@@ -3,6 +3,7 @@ import { ServicesModule } from './services.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Service } from './entities/service.entity';
 import { ServicesService } from './services.service';
+import { Type } from '@nestjs/common';
 
 // Mock ServicesService
 const mockServicesService = {
@@ -21,13 +22,6 @@ const mockRepository = {
   create: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
-};
-
-// Mock TypeOrmModule
-const MockTypeOrmModule = {
-  forFeature: jest.fn().mockReturnValue({
-    module: class MockTypeOrmFeatureModule {},
-  }),
 };
 
 describe('ServicesModule', () => {
@@ -65,17 +59,17 @@ describe('ServicesModule', () => {
   });
 
   it('should export ServicesService', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule);
+    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
     expect(exports).toContain(ServicesService);
   });
 
   it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule);
+    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
     expect(exports).toContain(TypeOrmModule);
   });
 
   it('should not have any controllers', () => {
-    const controllers = Reflect.getMetadata('controllers', ServicesModule);
+    const controllers = Reflect.getMetadata('controllers', ServicesModule) as Array<Type>;
     expect(controllers).toEqual([]);
   });
 });
