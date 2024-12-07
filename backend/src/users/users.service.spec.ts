@@ -49,7 +49,10 @@ describe('UsersService', () => {
 
       const result = await service.findOne('user-1');
       expect(result).toEqual(mockUser);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const findOneCalls = (userRepository.findOne as jest.Mock).mock.calls;
+      const lastCall = findOneCalls[findOneCalls.length - 1];
+      expect(lastCall?.[0]).toEqual({
         where: { id: 'user-1' },
       });
     });
@@ -69,7 +72,10 @@ describe('UsersService', () => {
 
       const result = await service.findByEmail('test@example.com');
       expect(result).toEqual(mockUser);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const findOneCalls = (userRepository.findOne as jest.Mock).mock.calls;
+      const lastCall = findOneCalls[findOneCalls.length - 1];
+      expect(lastCall?.[0]).toEqual({
         where: { email: 'test@example.com' },
       });
     });
@@ -95,10 +101,13 @@ describe('UsersService', () => {
       mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
 
       const result = await service.create(createUserData);
-      
       expect(result).toEqual({ id: 'new-user', ...createUserData });
-      expect(userRepository.create).toHaveBeenCalledWith(createUserData);
-      expect(userRepository.save).toHaveBeenCalledWith(createUserData);
+
+      const createCalls = (userRepository.create as jest.Mock).mock.calls;
+      const saveCalls = (userRepository.save as jest.Mock).mock.calls;
+      
+      expect(createCalls[createCalls.length - 1]?.[0]).toEqual(createUserData);
+      expect(saveCalls[saveCalls.length - 1]?.[0]).toEqual(createUserData);
     });
   });
 
@@ -114,10 +123,13 @@ describe('UsersService', () => {
       mockUserRepository.findOne.mockResolvedValue(updatedUser);
 
       const result = await service.update('user-1', updateData);
-
       expect(result).toEqual(updatedUser);
-      expect(userRepository.update).toHaveBeenCalledWith('user-1', updateData);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
+
+      const updateCalls = (userRepository.update as jest.Mock).mock.calls;
+      const findOneCalls = (userRepository.findOne as jest.Mock).mock.calls;
+
+      expect(updateCalls[updateCalls.length - 1]).toEqual(['user-1', updateData]);
+      expect(findOneCalls[findOneCalls.length - 1]?.[0]).toEqual({
         where: { id: 'user-1' },
       });
     });
