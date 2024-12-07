@@ -28,7 +28,10 @@ const createMockShopCode = (overrides: Partial<ShopCode> = {}): ShopCode => ({
 
 describe('ShopCodeGuard', () => {
   let guard: ShopCodeGuard;
-  let shopsService: ShopsService;
+  const mockValidateShopCode = jest.fn();
+  const mockShopsService = {
+    validateShopCode: mockValidateShopCode,
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -36,15 +39,15 @@ describe('ShopCodeGuard', () => {
         ShopCodeGuard,
         {
           provide: ShopsService,
-          useValue: {
-            validateShopCode: jest.fn(),
-          },
+          useValue: mockShopsService,
         },
       ],
     }).compile();
 
     guard = moduleRef.get<ShopCodeGuard>(ShopCodeGuard);
-    shopsService = moduleRef.get<ShopsService>(ShopsService);
+    
+    // Clear mock calls between tests
+    mockValidateShopCode.mockReset();
   });
 
   test('guard should be defined', () => {
@@ -55,40 +58,38 @@ describe('ShopCodeGuard', () => {
     // Arrange
     const mockShopCode = createMockShopCode();
     const mockContext = createMockContext({ 'x-shop-code': 'TEST123' });
-    jest.spyOn(shopsService, 'validateShopCode').mockResolvedValue(mockShopCode);
+    mockValidateShopCode.mockResolvedValue(mockShopCode);
 
     // Act
     const result = await guard.canActivate(mockContext);
 
     // Assert
     expect(result).toBe(true);
-    expect(shopsService.validateShopCode).toHaveBeenCalledWith('TEST123');
+    expect(mockValidateShopCode).toHaveBeenCalledWith('TEST123');
   });
 
   test('throws UnauthorizedException when shop code header is missing', async () => {
     // Arrange
     const mockContext = createMockContext();
-    const validateSpy = jest.spyOn(shopsService, 'validateShopCode');
 
     // Act & Assert
     await expect(guard.canActivate(mockContext))
       .rejects
       .toThrow(UnauthorizedException);
     
-    expect(validateSpy).not.toHaveBeenCalled();
+    expect(mockValidateShopCode).not.toHaveBeenCalled();
   });
 
   test('throws UnauthorizedException when shop code is invalid', async () => {
     // Arrange
     const mockContext = createMockContext({ 'x-shop-code': 'INVALID' });
-    jest.spyOn(shopsService, 'validateShopCode')
-      .mockRejectedValue(new UnauthorizedException());
+    mockValidateShopCode.mockRejectedValue(new UnauthorizedException());
 
     // Act & Assert
     await expect(guard.canActivate(mockContext))
       .rejects
       .toThrow(UnauthorizedException);
     
-    expect(shopsService.validateShopCode).toHaveBeenCalledWith('INVALID');
+    expect(mockValidateShopCode).toHaveBeenCalledWith('INVALID');
   });
 });
