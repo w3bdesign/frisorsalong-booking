@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOneOptions, FindManyOptions } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { UsersService } from '../users/users.service';
@@ -13,36 +13,44 @@ import { Employee } from '../employees/entities/employee.entity';
 import { Service } from '../services/entities/service.entity';
 import { ShopCode } from '../shops/entities/shop-code.entity';
 
-type MockType<T> = {
+// Define required repository methods to ensure type safety
+type MockRepository<T> = {
+  create: jest.Mock<T, [Partial<T>]>;
+  save: jest.Mock<Promise<T>, [T]>;
+  findOne: jest.Mock<Promise<T | null>, [FindOneOptions<T>]>;
+  find: jest.Mock<Promise<T[]>, [FindManyOptions<T>]>;
+};
+
+type MockService<T> = {
   [P in keyof T]?: jest.Mock;
 };
 
 describe('BookingsService', () => {
   let service: BookingsService;
 
-  const mockBookingRepository: MockType<Repository<Booking>> = {
+  const mockBookingRepository: MockRepository<Booking> = {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
   };
 
-  const mockUsersService: MockType<UsersService> = {
+  const mockUsersService: MockService<UsersService> = {
     create: jest.fn(),
     findOne: jest.fn(),
   };
 
-  const mockEmployeesService: MockType<EmployeesService> = {
+  const mockEmployeesService: MockService<EmployeesService> = {
     findOne: jest.fn(),
     findAll: jest.fn(),
     isAvailable: jest.fn(),
   };
 
-  const mockServicesService: MockType<ServicesService> = {
+  const mockServicesService: MockService<ServicesService> = {
     findOne: jest.fn(),
   };
 
-  const mockOrdersService: MockType<OrdersService> = {
+  const mockOrdersService: MockService<OrdersService> = {
     createFromBooking: jest.fn(),
   };
 
@@ -134,29 +142,44 @@ describe('BookingsService', () => {
         isPaid: true,
       };
 
-      const mockUser = {
+      const mockUser = new User();
+      Object.assign(mockUser, {
         id: 'user-1',
         email: `walkin_${Date.now()}@temp.com`,
         firstName: createWalkInDto.firstName,
         lastName: 'Walk-in',
         phoneNumber: createWalkInDto.phoneNumber,
         role: UserRole.CUSTOMER,
-      };
+        password: 'hashedPassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       mockUsersService.create?.mockResolvedValue(mockUser);
       mockServicesService.findOne?.mockResolvedValue(mockService);
       mockEmployeesService.findAll?.mockResolvedValue([mockEmployee]);
-      mockBookingRepository.find?.mockResolvedValue([]);
-      mockBookingRepository.create?.mockReturnValue({
+      mockBookingRepository.find.mockResolvedValue([]);
+
+      const mockBooking = new Booking();
+      Object.assign(mockBooking, {
         id: 'booking-1',
         customer: mockUser,
         employee: mockEmployee,
         service: mockService,
-        startTime: expect.any(Date),
-        endTime: expect.any(Date),
+        startTime: new Date(),
+        endTime: new Date(),
         status: BookingStatus.CONFIRMED,
+        notes: '',
+        totalPrice: mockService.price,
+        reminderSent: false,
+        cancelledAt: null,
+        cancellationReason: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
-      mockBookingRepository.save?.mockImplementation((booking) => Promise.resolve(booking));
+
+      mockBookingRepository.create.mockReturnValue(mockBooking);
+      mockBookingRepository.save.mockImplementation((booking) => Promise.resolve(booking));
 
       const result = await service.createWalkIn(createWalkInDto, mockShop);
 
@@ -204,7 +227,7 @@ describe('BookingsService', () => {
   describe('findOne', () => {
     it('should throw NotFoundException when booking is not found', async () => {
       const bookingId = 'non-existent-id';
-      mockBookingRepository.findOne?.mockResolvedValue(null);
+      mockBookingRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(bookingId))
         .rejects
