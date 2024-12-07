@@ -5,7 +5,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In, LessThanOrEqual, Between } from "typeorm";
+import { Repository, MoreThan, In, Between } from "typeorm";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
@@ -73,7 +73,7 @@ export class BookingsService {
       }))
     );
 
-    const sortedEmployeeBookings = employeeBookings.toSorted(
+    const sortedEmployeeBookings = [...employeeBookings].sort(
       (a, b) => a.bookingCount - b.bookingCount
     );
     const selectedEmployee = sortedEmployeeBookings[0].employee;
@@ -252,7 +252,7 @@ export class BookingsService {
       this.logger.debug("Sample booking dates:");
       allBookings.slice(0, 3).forEach((booking) => {
         this.logger.debug(
-          `Booking ${booking.id}: startTime=${booking.startTime}, status=${booking.status}`
+          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`
         );
       });
     }
