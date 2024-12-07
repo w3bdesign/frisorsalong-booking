@@ -1,13 +1,14 @@
 import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
+import type { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
 import { ShopCode } from "./shops/entities/shop-code.entity";
 import { join } from "path";
+import type { INestApplication } from "@nestjs/common";
 
 // Mock the ConfigService
 const mockConfigService = {
-  get: jest.fn((key) => {
+  get: jest.fn((key: string) => {
     switch (key) {
       case "DATABASE_URL":
         return "postgres://test:test@localhost:5432/test";
@@ -19,7 +20,7 @@ const mockConfigService = {
   }),
 };
 
-// Create mock repositories
+// Create mock repositories with proper typing
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -34,75 +35,103 @@ const mockShopCodeRepository = {
   findOne: jest.fn().mockResolvedValue({ code: "TEST123" }),
 };
 
-// Mock @nestjs/typeorm
-jest.mock("@nestjs/typeorm", () => {
-  return {
-    TypeOrmModule: {
-      forRootAsync: jest.fn().mockReturnValue({
-        module: class MockTypeOrmModule {
-          static forRoot() { return {}; }
-        },
-      }),
-      forFeature: jest.fn().mockReturnValue({
-        module: class MockTypeOrmFeatureModule {
-          static forFeature() { return {}; }
-        },
-      }),
-    },
-    getRepositoryToken: jest.fn((entity) => {
-      if (entity === ShopCode) {
-        return "SHOP_CODE_REPOSITORY";
-      }
-      return "MockRepository";
-    }),
-    InjectRepository: jest.fn().mockReturnValue(() => mockRepository),
-  };
-});
+// Mock TypeOrmModule with proper typing
+const MockTypeOrmModule = {
+  forRoot: () => ({}),
+};
 
-// Mock feature modules with basic implementations
+const MockTypeOrmFeatureModule = {
+  forFeature: () => ({}),
+};
+
+// Create a properly typed mock for TypeOrmModule
+const typeOrmModuleMock = {
+  forRootAsync: jest.fn().mockReturnValue({
+    module: class {
+      static forRoot() {
+        return MockTypeOrmModule;
+      }
+    },
+  }),
+  forFeature: jest.fn().mockReturnValue({
+    module: class {
+      static forFeature() {
+        return MockTypeOrmFeatureModule;
+      }
+    },
+  }),
+};
+
+// Mock @nestjs/typeorm with proper typing
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: typeOrmModuleMock,
+  getRepositoryToken: (entity: typeof ShopCode) => {
+    if (entity === ShopCode) {
+      return "SHOP_CODE_REPOSITORY";
+    }
+    return "MockRepository";
+  },
+  InjectRepository: () => () => mockRepository,
+}));
+
+// Mock feature modules with proper typing
 jest.mock("./auth/auth.module", () => ({
   AuthModule: class MockAuthModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./users/users.module", () => ({
   UsersModule: class MockUsersModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./employees/employees.module", () => ({
   EmployeesModule: class MockEmployeesModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./services/services.module", () => ({
   ServicesModule: class MockServicesModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./bookings/bookings.module", () => ({
   BookingsModule: class MockBookingsModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./orders/orders.module", () => ({
   OrdersModule: class MockOrdersModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
 jest.mock("./shops/shops.module", () => ({
   ShopsModule: class MockShopsModule {
-    static register() { return {}; }
+    static register() {
+      return {};
+    }
   },
 }));
 
-// Mock entities
+// Mock entities with proper typing
 jest.mock("./users/entities/user.entity", () => ({
   User: class MockUser {
     constructor() {}
@@ -140,8 +169,7 @@ jest.mock("./shops/entities/shop-code.entity", () => ({
 }));
 
 describe("AppModule", () => {
-  let app;
-  let typeOrmModule;
+  let app: INestApplication;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -153,10 +181,9 @@ describe("AppModule", () => {
       .useValue(mockShopCodeRepository)
       .compile();
 
-    app = await moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication();
+    // init() returns a Promise, so await is needed
     await app.init();
-
-    typeOrmModule = require("@nestjs/typeorm").TypeOrmModule;
   });
 
   afterEach(async () => {
@@ -170,12 +197,20 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct database settings", () => {
-    expect(typeOrmModule.forRootAsync).toHaveBeenCalled();
+    expect(typeOrmModuleMock.forRootAsync).toHaveBeenCalled();
 
-    // Get the factory function from the forRootAsync call
-    const options = typeOrmModule.forRootAsync.mock
-      .calls[0][0] as TypeOrmModuleAsyncOptions;
+    // Get the factory function from the forRootAsync call with proper typing
+    const mockCalls = typeOrmModuleMock.forRootAsync.mock?.calls;
+    if (!mockCalls?.length) {
+      throw new Error("forRootAsync was not called");
+    }
+
+    const options = mockCalls[0][0] as TypeOrmModuleAsyncOptions;
     const factoryFn = options.useFactory;
+
+    if (!factoryFn) {
+      throw new Error("Factory function not found");
+    }
 
     // Execute the factory function with our mocked ConfigService
     const config = factoryFn(mockConfigService);
@@ -194,7 +229,7 @@ describe("AppModule", () => {
   });
 
   it("should configure TypeOrmModule with correct injection", () => {
-    expect(typeOrmModule.forRootAsync).toHaveBeenCalledWith(
+    expect(typeOrmModuleMock.forRootAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         imports: [ConfigModule],
         inject: [ConfigService],
