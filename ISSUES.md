@@ -42,28 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .dropForeignKey on an `error` typed value.
-backend/src/database/migrations/
-
-1731981975583-CreateOrders.spec.ts
-
-92      expect(queryRunner.dropForeignKey).toHaveBeenCalledWith(
-
-CRITICAL
-
-Error prone
-
-Unsafe member access .foreignKeys on an `error` typed value.
-backend/src/database/migrations/
-
-1731981975583-CreateOrders.ts
-
-63    const foreignKey = table.foreignKeys.find(
-
-CRITICAL
-
-Error prone
-
 Unsafe member access .mock on an `error` typed value.
 backend/src/database/migrations/
 
