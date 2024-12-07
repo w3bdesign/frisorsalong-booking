@@ -4,6 +4,28 @@ import { ShopsService } from '../shops.service';
 import { Test } from '@nestjs/testing';
 import { ShopCode } from '../entities/shop-code.entity';
 
+// Helper functions to reduce nesting
+const createMockContext = (headers: Record<string, string> = {}): ExecutionContext => ({
+  switchToHttp: () => ({
+    getRequest: () => ({
+      headers,
+    }),
+  }),
+}) as ExecutionContext;
+
+const createMockShopCode = (overrides: Partial<ShopCode> = {}): ShopCode => ({
+  id: '1',
+  code: 'TEST123',
+  shopName: 'Test Shop',
+  isActive: true,
+  dailyBookingLimit: 100,
+  todayBookingCount: 0,
+  lastBookingTime: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
+
 describe('ShopCodeGuard', () => {
   let guard: ShopCodeGuard;
   let shopsService: ShopsService;
@@ -25,70 +47,48 @@ describe('ShopCodeGuard', () => {
     shopsService = moduleRef.get<ShopsService>(ShopsService);
   });
 
-  it('should be defined', () => {
+  test('guard should be defined', () => {
     expect(guard).toBeDefined();
   });
 
-  describe('canActivate', () => {
-    it('should allow access with valid shop code', async () => {
-      const mockShopCode: ShopCode = {
-        id: '1',
-        code: 'TEST123',
-        shopName: 'Test Shop',
-        isActive: true,
-        dailyBookingLimit: 100,
-        todayBookingCount: 0,
-        lastBookingTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+  test('allows access with valid shop code', async () => {
+    // Arrange
+    const mockShopCode = createMockShopCode();
+    const mockContext = createMockContext({ 'x-shop-code': 'TEST123' });
+    jest.spyOn(shopsService, 'validateShopCode').mockResolvedValue(mockShopCode);
 
-      const mockContext = {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: {
-              'x-shop-code': 'TEST123',
-            },
-          }),
-        }),
-      } as ExecutionContext;
+    // Act
+    const result = await guard.canActivate(mockContext);
 
-      jest.spyOn(shopsService, 'validateShopCode').mockResolvedValue(mockShopCode);
+    // Assert
+    expect(result).toBe(true);
+    expect(shopsService.validateShopCode).toHaveBeenCalledWith('TEST123');
+  });
 
-      const result = await guard.canActivate(mockContext);
+  test('throws UnauthorizedException when shop code header is missing', async () => {
+    // Arrange
+    const mockContext = createMockContext();
+    const validateSpy = jest.spyOn(shopsService, 'validateShopCode');
 
-      expect(result).toBe(true);
-      expect(shopsService.validateShopCode).toHaveBeenCalledWith('TEST123');
-    });
+    // Act & Assert
+    await expect(guard.canActivate(mockContext))
+      .rejects
+      .toThrow(UnauthorizedException);
+    
+    expect(validateSpy).not.toHaveBeenCalled();
+  });
 
-    it('should throw UnauthorizedException when shop code header is missing', async () => {
-      const mockContext = {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: {},
-          }),
-        }),
-      } as ExecutionContext;
+  test('throws UnauthorizedException when shop code is invalid', async () => {
+    // Arrange
+    const mockContext = createMockContext({ 'x-shop-code': 'INVALID' });
+    jest.spyOn(shopsService, 'validateShopCode')
+      .mockRejectedValue(new UnauthorizedException());
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      expect(shopsService.validateShopCode).not.toHaveBeenCalled();
-    });
-
-    it('should throw UnauthorizedException when shop code is invalid', async () => {
-      const mockContext = {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: {
-              'x-shop-code': 'INVALID',
-            },
-          }),
-        }),
-      } as ExecutionContext;
-
-      jest.spyOn(shopsService, 'validateShopCode').mockRejectedValue(new UnauthorizedException());
-
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      expect(shopsService.validateShopCode).toHaveBeenCalledWith('INVALID');
-    });
+    // Act & Assert
+    await expect(guard.canActivate(mockContext))
+      .rejects
+      .toThrow(UnauthorizedException);
+    
+    expect(shopsService.validateShopCode).toHaveBeenCalledWith('INVALID');
   });
 });
