@@ -48,19 +48,19 @@ describe('OrdersService', () => {
   } as Employee;
 
   const mockOrderRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-    findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => dto),
+    save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
+    find: jest.fn().mockImplementation(() => Promise.resolve([mockOrder])),
+    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockOrder)),
   };
 
   const mockBookingRepository = {
-    findOne: jest.fn(),
-    save: jest.fn(),
+    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockBooking)),
+    save: jest.fn().mockImplementation((booking) => Promise.resolve(booking)),
   };
 
   const mockEmployeesService = {
-    findByUserId: jest.fn(),
+    findByUserId: jest.fn().mockImplementation(() => Promise.resolve(mockEmployee)),
   };
 
   beforeEach(async () => {
@@ -97,11 +97,6 @@ describe('OrdersService', () => {
 
   describe('createFromBooking', () => {
     it('should create an order from a confirmed booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockResolvedValue({ ...mockBooking, status: BookingStatus.COMPLETED });
-      mockOrderRepository.create.mockReturnValue(mockOrder);
-      mockOrderRepository.save.mockResolvedValue(mockOrder);
-
       const result = await service.createFromBooking('booking-1');
 
       expect(result).toEqual(mockOrder);
@@ -118,7 +113,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if booking does not exist', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
+      jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
 
       await expect(service.createFromBooking('non-existent')).rejects.toThrow(
         NotFoundException,
@@ -128,12 +123,9 @@ describe('OrdersService', () => {
 
   describe('findAll', () => {
     it('should return an array of orders', async () => {
-      const mockOrders = [mockOrder];
-      mockOrderRepository.find.mockResolvedValue(mockOrders);
-
       const result = await service.findAll();
 
-      expect(result).toEqual(mockOrders);
+      expect(result).toEqual([mockOrder]);
       expect(orderRepository.find).toHaveBeenCalledWith({
         relations: [
           'booking',
@@ -149,9 +141,6 @@ describe('OrdersService', () => {
 
   describe('findAllByEmployee', () => {
     it('should return orders for a specific employee', async () => {
-      mockEmployeesService.findByUserId.mockResolvedValue(mockEmployee);
-      mockOrderRepository.find.mockResolvedValue([mockOrder]);
-
       const result = await service.findAllByEmployee('user-1');
 
       expect(result).toEqual([mockOrder]);
@@ -178,8 +167,6 @@ describe('OrdersService', () => {
 
   describe('findOne', () => {
     it('should return an order by id', async () => {
-      mockOrderRepository.findOne.mockResolvedValue(mockOrder);
-
       const result = await service.findOne('order-1');
 
       expect(result).toEqual(mockOrder);
@@ -196,7 +183,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      mockOrderRepository.findOne.mockResolvedValue(null);
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
       await expect(service.findOne('non-existent')).rejects.toThrow(
         NotFoundException,
@@ -206,9 +193,6 @@ describe('OrdersService', () => {
 
   describe('findOneByEmployee', () => {
     it('should return an order for a specific employee', async () => {
-      mockEmployeesService.findByUserId.mockResolvedValue(mockEmployee);
-      mockOrderRepository.findOne.mockResolvedValue(mockOrder);
-
       const result = await service.findOneByEmployee('order-1', 'user-1');
 
       expect(result).toEqual(mockOrder);
@@ -233,8 +217,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      mockEmployeesService.findByUserId.mockResolvedValue(mockEmployee);
-      mockOrderRepository.findOne.mockResolvedValue(null);
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
       await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toThrow(
         NotFoundException,
