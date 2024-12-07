@@ -46,7 +46,7 @@ const MockTypeOrmFeatureModule = {
 
 // Create a properly typed mock for TypeOrmModule
 const typeOrmModuleMock = {
-  forRootAsync: jest.fn().mockReturnValue({
+  forRootAsync: jest.fn<ReturnType<typeof MockTypeOrmModule.forRoot>, [TypeOrmModuleAsyncOptions]>().mockReturnValue({
     module: class {
       static forRoot() {
         return MockTypeOrmModule;
@@ -200,12 +200,12 @@ describe("AppModule", () => {
     expect(typeOrmModuleMock.forRootAsync).toHaveBeenCalled();
 
     // Get the factory function from the forRootAsync call with proper typing
-    const mockCalls = typeOrmModuleMock.forRootAsync.mock?.calls;
-    if (!mockCalls?.length) {
+    const calls = typeOrmModuleMock.forRootAsync.mock.calls;
+    if (!calls?.length) {
       throw new Error("forRootAsync was not called");
     }
 
-    const options = mockCalls[0][0] as TypeOrmModuleAsyncOptions;
+    const [options] = calls[0];
     const factoryFn = options.useFactory;
 
     if (!factoryFn) {
