@@ -34,7 +34,6 @@ jest.mock("@nestjs/typeorm", () => ({
 import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import type { TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
 import { join } from "path";
 import type { INestApplication } from "@nestjs/common";
 
