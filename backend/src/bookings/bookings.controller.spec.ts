@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BookingsController } from "./bookings.controller";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
+import { ShopsService } from "../shops/shops.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { Booking, BookingStatus } from "./entities/booking.entity";
@@ -50,6 +51,10 @@ describe("BookingsController", () => {
     getUpcomingCount: jest.fn().mockResolvedValue(mockUpcomingCount),
   };
 
+  const mockShopsService = {
+    validateShopCode: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BookingsController],
@@ -63,6 +68,10 @@ describe("BookingsController", () => {
           useValue: {
             createFromBooking: jest.fn().mockResolvedValue({ id: "order-1" }),
           },
+        },
+        {
+          provide: ShopsService,
+          useValue: mockShopsService,
         },
       ],
     }).compile();
