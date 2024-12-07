@@ -1,4 +1,4 @@
-import { DataSource } from "typeorm";
+import { DataSource, DataSourceOptions } from "typeorm";
 import { config } from 'dotenv';
 import { createAdminUser } from "./create-admin-user.seed";
 import { createInitialData } from "./create-initial-data.seed";
@@ -8,8 +8,8 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 // Load environment variables
 config();
 
-export const createDataSource = () => {
-  return new DataSource({
+export const createDataSource = (): DataSource => {
+  const options: DataSourceOptions = {
     type: 'postgres',
     url: process.env.DATABASE_URL,
     entities: ['src/**/*.entity{.ts,.js}'],
@@ -17,10 +17,24 @@ export const createDataSource = () => {
     ssl: {
       rejectUnauthorized: false
     }
-  });
+  };
+
+  if (!options.url) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
+
+  try {
+    return new DataSource(options);
+  } catch (error) {
+    throw new Error(`Failed to create DataSource: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
 export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
+  if (!dataSource || typeof dataSource.initialize !== 'function') {
+    throw new Error('Invalid DataSource provided');
+  }
+
   try {
     await dataSource.initialize();
     console.log('Connected to database');
@@ -44,21 +58,32 @@ export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
     console.log('All seeds completed successfully');
     return true;
   } catch (error) {
-    console.error('Error running seeds:', error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error running seeds:', errorMessage);
+    throw new Error(`Seed operation failed: ${errorMessage}`);
   }
 };
 
 // Only run seeds if this file is being run directly
 if (require.main === module) {
-  const dataSource = createDataSource();
-  runSeeds(dataSource)
-    .then(async () => {
-      await dataSource.destroy();
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Seed process failed:', error);
-      process.exit(1);
-    });
+  let dataSource: DataSource | undefined;
+  
+  try {
+    dataSource = createDataSource();
+    
+    runSeeds(dataSource)
+      .then(async () => {
+        if (dataSource && typeof dataSource.destroy === 'function') {
+          await dataSource.destroy();
+        }
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error('Seed process failed:', error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      });
+  } catch (error) {
+    console.error('Failed to create DataSource:', error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }

@@ -1,4 +1,4 @@
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, EntityTarget } from 'typeorm';
 import { User, UserRole } from '../../users/entities/user.entity';
 import { Employee } from '../../employees/entities/employee.entity';
 import { Service } from '../../services/entities/service.entity';
@@ -33,6 +33,13 @@ jest.mock('@faker-js/faker', () => ({
   },
 }));
 
+interface RepositoryMapping {
+  'User': Repository<User>;
+  'Employee': Repository<Employee>;
+  'Service': Repository<Service>;
+  'Booking': Repository<Booking>;
+}
+
 describe('createSampleBookings', () => {
   let mockDataSource: Partial<DataSource>;
   let mockUserRepository: Partial<Repository<User>>;
@@ -43,34 +50,44 @@ describe('createSampleBookings', () => {
   const originalRandom = Math.random;
 
   beforeEach(() => {
-    // Mock repositories
+    // Mock repositories with proper typing
     mockUserRepository = {
-      save: jest.fn().mockImplementation(data => ({ id: 'user-1', ...data })),
+      save: jest.fn().mockImplementation(data => Promise.resolve({ id: 'user-1', ...data })),
     };
 
     mockEmployeeRepository = {
-      findOne: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(null),
     };
 
     mockServiceRepository = {
-      find: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
     };
 
     mockBookingRepository = {
       save: jest.fn().mockImplementation(bookings => 
-        Array.isArray(bookings) 
+        Promise.resolve(Array.isArray(bookings) 
           ? bookings.map((b, i) => ({ id: `booking-${i}`, ...b }))
-          : ({ id: 'booking-1', ...bookings })
+          : ({ id: 'booking-1', ...bookings }))
       ),
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = (entity: any) => {
-      if (entity === User) return mockUserRepository as Repository<User>;
-      if (entity === Employee) return mockEmployeeRepository as Repository<Employee>;
-      if (entity === Service) return mockServiceRepository as Repository<Service>;
-      if (entity === Booking) return mockBookingRepository as Repository<Booking>;
-      throw new Error(`Repository not mocked for entity: ${entity}`);
+    const mockGetRepository = <T>(entity: EntityTarget<T>): Repository<T> => {
+      const repositories: RepositoryMapping = {
+        'User': mockUserRepository as Repository<User>,
+        'Employee': mockEmployeeRepository as Repository<Employee>,
+        'Service': mockServiceRepository as Repository<Service>,
+        'Booking': mockBookingRepository as Repository<Booking>,
+      };
+
+      const entityName = typeof entity === 'function' ? entity.name : 'Unknown';
+      const repository = repositories[entityName as keyof RepositoryMapping];
+
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+
+      return repository as Repository<T>;
     };
 
     mockDataSource = {
@@ -210,7 +227,7 @@ describe('createSampleBookings', () => {
 
     // Verify cancelled booking was created with correct details
     const savedBookings = (mockBookingRepository.save as jest.Mock).mock.calls[0][0];
-    const cancelledBooking = savedBookings.find((b: any) => b.status === BookingStatus.CANCELLED);
+    const cancelledBooking = savedBookings.find((b: Booking) => b.status === BookingStatus.CANCELLED);
     expect(cancelledBooking).toBeDefined();
     expect(cancelledBooking).toEqual(expect.objectContaining({
       status: BookingStatus.CANCELLED,

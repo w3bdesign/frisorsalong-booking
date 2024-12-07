@@ -42,28 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe return of an error typed value.
-backend/src/database/seeds/
-
-create-sample-bookings.seed.spec.ts
-
-72      if (entity === Booking) return mockBookingRepository as Repository<Booking>;
-
-CRITICAL
-
-Error prone
-
-Unsafe return of an error typed value.
-backend/src/database/seeds/
-
-run-seeds.ts
-
-12  return new DataSource({
-
-CRITICAL
-
-Error prone
-
 Unsafe member access .length on an `error` typed value.
 backend/src/employees/dto/
 
