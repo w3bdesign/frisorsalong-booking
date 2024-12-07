@@ -42,17 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe return of an `any` typed value.
-backend/src/database/migrations/
-
-1731981975581-InitialMigration.spec.ts
-
-117        call => call[0],
-
-CRITICAL
-
-Error prone
-
 Unsafe call of an `error` type typed value.
 backend/src/database/migrations/
 
