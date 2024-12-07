@@ -58,7 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
       console.log("JWT Strategy - Payload:", payload);
 
-      if (!payload || !payload.sub) {
+      if (!this.isValidPayload(payload)) {
         console.log("JWT Strategy - Invalid payload");
         throw new UnauthorizedException("Invalid token payload");
       }
@@ -73,6 +73,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException("User not found");
       }
 
+      if (!this.isValidUser(user)) {
+        console.log("JWT Strategy - Invalid user data:", user);
+        throw new UnauthorizedException("Invalid user data");
+      }
+
       console.log("JWT Strategy - Found User:", user);
 
       // Return a plain object instead of the entity
@@ -83,7 +88,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         lastName: user.lastName,
         role: user.role,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("JWT Strategy - Validation error:", error);
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -92,5 +97,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         error instanceof Error ? error.message : "Token validation failed"
       );
     }
+  }
+
+  private isValidPayload(payload: unknown): payload is JwtPayload {
+    return (
+      typeof payload === 'object' &&
+      payload !== null &&
+      typeof (payload as JwtPayload).sub === 'string' &&
+      typeof (payload as JwtPayload).email === 'string'
+    );
+  }
+
+  private isValidUser(user: unknown): user is SafeUser {
+    return (
+      typeof user === 'object' &&
+      user !== null &&
+      typeof (user as SafeUser).id === 'string' &&
+      typeof (user as SafeUser).email === 'string' &&
+      typeof (user as SafeUser).firstName === 'string' &&
+      typeof (user as SafeUser).lastName === 'string' &&
+      typeof (user as SafeUser).role === 'string'
+    );
   }
 }

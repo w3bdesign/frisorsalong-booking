@@ -9,6 +9,7 @@ import * as bcrypt from "bcrypt";
 import { UsersService } from "../users/users.service";
 import { LoginDto, RegisterDto } from "./dto";
 import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
 
 @Injectable()
 export class AuthService {
@@ -39,9 +40,12 @@ export class AuthService {
         user: userWithoutPassword,
         token,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ConflictException) {
         throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
       }
       throw new InternalServerErrorException("Error during registration");
     }
@@ -69,15 +73,18 @@ export class AuthService {
         user: userWithoutPassword,
         token,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof UnauthorizedException) {
         throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
       }
       throw new InternalServerErrorException("Error during login");
     }
   }
 
-  private generateToken(user: any): string {
+  private generateToken(user: User): string {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
