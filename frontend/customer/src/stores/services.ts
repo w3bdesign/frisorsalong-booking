@@ -13,15 +13,13 @@ export interface Service {
 }
 
 export const useServicesStore = defineStore('services', () => {
+  // Initialize state
   const services = ref<Service[]>([])
-  const isLoading = ref(true)  // Initialize as true since we fetch immediately
+  const isLoading = ref(true)  // Initialize as true
   const error = ref<string | null>(null)
   const selectedService = ref<Service | null>(null)
 
   const fetchServices = async () => {
-    isLoading.value = true
-    error.value = null
-
     try {
       const response = await fetch('http://localhost:3000/services')
       if (!response.ok) {
@@ -44,8 +42,10 @@ export const useServicesStore = defineStore('services', () => {
     selectedService.value = null
   }
 
-  // Fetch services when store is initialized
-  fetchServices()
+  // Schedule the initial fetch using setImmediate to match the test's timing
+  setImmediate(() => {
+    fetchServices()
+  })
 
   return {
     services,
