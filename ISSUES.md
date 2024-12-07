@@ -42,28 +42,6 @@ CRITICAL
 
 Error prone
 
-Unsafe member access .into on an `error` typed value.
-backend/src/database/seeds/
-
-create-initial-data.seed.spec.ts
-
-127    expect(mockQueryBuilder.into).toHaveBeenCalledWith('employee_services');
-
-CRITICAL
-
-Error prone
-
-Unsafe assignment of an error typed value.
-backend/src/database/seeds/
-
-create-initial-data.seed.ts
-
-92            employee_id: employee.id,
-
-CRITICAL
-
-Error prone
-
 Unsafe return of an error typed value.
 backend/src/database/seeds/
 
