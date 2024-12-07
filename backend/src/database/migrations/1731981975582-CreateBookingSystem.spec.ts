@@ -61,18 +61,18 @@ describe('CreateBookingSystem1731981975582', () => {
 
     test('creates services table with required fields', () => {
       const servicesQuery = queryCalls.find(call => call.includes('CREATE TABLE "services"'));
-      verifyTableSchema(servicesQuery!, 'services', 'id', 'name', 'description', 'duration', 'price');
+      verifyTableSchema(servicesQuery, 'services', 'id', 'name', 'description', 'duration', 'price');
     });
 
     test('creates employees table with user foreign key', () => {
       const employeesQuery = queryCalls.find(call => call.includes('CREATE TABLE "employees"'));
-      verifyForeignKey(employeesQuery!, 'employees', 'user_id', 'users');
+      verifyForeignKey(employeesQuery, 'employees', 'user_id', 'users');
     });
 
     test('creates employee_services junction table', () => {
       const junctionQuery = queryCalls.find(call => call.includes('CREATE TABLE "employee_services"'));
-      verifyForeignKey(junctionQuery!, 'employee_services', 'employee_id', 'employees');
-      verifyForeignKey(junctionQuery!, 'employee_services', 'service_id', 'services');
+      verifyForeignKey(junctionQuery, 'employee_services', 'employee_id', 'employees');
+      verifyForeignKey(junctionQuery, 'employee_services', 'service_id', 'services');
     });
 
     test('creates bookings table with all foreign keys', () => {
@@ -83,7 +83,7 @@ describe('CreateBookingSystem1731981975582', () => {
         ['employee_id', 'employees'],
         ['service_id', 'services'],
       ].forEach(([column, reference]) => {
-        verifyForeignKey(bookingsQuery!, 'bookings', column, reference);
+        verifyForeignKey(bookingsQuery, 'bookings', column, reference);
       });
     });
 
