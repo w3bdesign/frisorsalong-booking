@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-export const updateAdminPassword = async (dataSource: DataSource) => {
+export const updateAdminPassword = async (dataSource: DataSource): Promise<void> => {
   const userRepository = dataSource.getRepository(User);
 
   try {
