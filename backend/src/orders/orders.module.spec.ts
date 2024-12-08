@@ -1,30 +1,30 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersModule } from './orders.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { OrdersService } from './orders.service';
 import { BookingsModule } from '../bookings/bookings.module';
+import { Repository } from 'typeorm';
+
+interface MockOrdersService {
+  findAll: jest.Mock;
+  findOne: jest.Mock;
+  createFromBooking: jest.Mock;
+}
 
 // Mock OrdersService
-const mockOrdersService = {
+const mockOrdersService: MockOrdersService = {
   findAll: jest.fn(),
   findOne: jest.fn(),
   createFromBooking: jest.fn(),
 };
 
 // Mock repository
-const mockRepository = {
+const mockRepository: Partial<Repository<Order>> = {
   find: jest.fn(),
   findOne: jest.fn(),
   save: jest.fn(),
   create: jest.fn(),
-};
-
-// Mock TypeOrmModule
-const MockTypeOrmModule = {
-  forFeature: jest.fn().mockReturnValue({
-    module: class MockTypeOrmFeatureModule {},
-  }),
 };
 
 // Mock BookingsModule
@@ -33,7 +33,7 @@ jest.mock('../bookings/bookings.module', () => ({
 }));
 
 describe('OrdersModule', () => {
-  let moduleRef;
+  let moduleRef: TestingModule;
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -70,17 +70,17 @@ describe('OrdersModule', () => {
   });
 
   it('should export OrdersService', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule);
+    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
     expect(exports).toContain(OrdersService);
   });
 
   it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule);
+    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
     expect(exports).toContain(TypeOrmModule);
   });
 
   it('should import required modules', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule);
+    const imports = Reflect.getMetadata('imports', OrdersModule) as Array<unknown>;
     expect(imports).toContain(BookingsModule);
   });
 });
