@@ -1,16 +1,37 @@
+import type { DynamicModule, INestApplication } from "@nestjs/common";
+
+// Base mock module class that all mock modules will extend
+class BaseMockModule {
+  static register(): DynamicModule {
+    return {
+      module: this,
+      providers: [],
+      exports: [],
+    };
+  }
+}
+
 // Mock implementations must be at the top level
 const mockTypeOrmModule = {
   forRootAsync: jest.fn().mockReturnValue({
     module: class MockModule {
-      static forRoot() {
-        return {};
+      static forRoot(): DynamicModule {
+        return {
+          module: MockModule,
+          providers: [],
+          exports: [],
+        };
       }
     },
   }),
   forFeature: jest.fn().mockReturnValue({
     module: class MockFeatureModule {
-      static forFeature() {
-        return {};
+      static forFeature(): DynamicModule {
+        return {
+          module: MockFeatureModule,
+          providers: [],
+          exports: [],
+        };
       }
     },
   }),
@@ -35,7 +56,6 @@ import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { join } from "path";
-import type { INestApplication } from "@nestjs/common";
 
 // Mock repositories
 const mockRepository = {
@@ -52,75 +72,53 @@ const mockShopCodeRepository = {
   findOne: jest.fn().mockResolvedValue({ code: "TEST123" }),
 };
 
-// Mock ConfigService
-const mockConfigService = {
-  get: jest.fn((key: string) => {
+// Create a proper mock of ConfigService
+class MockConfigService extends ConfigService {
+  constructor() {
+    super();
+  }
+
+  get(key: string): string | undefined {
     switch (key) {
       case "DATABASE_URL":
         return "postgres://test:test@localhost:5432/test";
       case "NODE_ENV":
         return "test";
       default:
-        return null;
+        return undefined;
     }
-  }),
-};
+  }
+}
+
+const mockConfigService = new MockConfigService();
 
 // Mock feature modules
 jest.mock("./auth/auth.module", () => ({
-  AuthModule: class MockAuthModule {
-    static register() {
-      return {};
-    }
-  },
+  AuthModule: class MockAuthModule extends BaseMockModule {},
 }));
 
 jest.mock("./users/users.module", () => ({
-  UsersModule: class MockUsersModule {
-    static register() {
-      return {};
-    }
-  },
+  UsersModule: class MockUsersModule extends BaseMockModule {},
 }));
 
 jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: class MockEmployeesModule {
-    static register() {
-      return {};
-    }
-  },
+  EmployeesModule: class MockEmployeesModule extends BaseMockModule {},
 }));
 
 jest.mock("./services/services.module", () => ({
-  ServicesModule: class MockServicesModule {
-    static register() {
-      return {};
-    }
-  },
+  ServicesModule: class MockServicesModule extends BaseMockModule {},
 }));
 
 jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: class MockBookingsModule {
-    static register() {
-      return {};
-    }
-  },
+  BookingsModule: class MockBookingsModule extends BaseMockModule {},
 }));
 
 jest.mock("./orders/orders.module", () => ({
-  OrdersModule: class MockOrdersModule {
-    static register() {
-      return {};
-    }
-  },
+  OrdersModule: class MockOrdersModule extends BaseMockModule {},
 }));
 
 jest.mock("./shops/shops.module", () => ({
-  ShopsModule: class MockShopsModule {
-    static register() {
-      return {};
-    }
-  },
+  ShopsModule: class MockShopsModule extends BaseMockModule {},
 }));
 
 // Mock entities
@@ -160,6 +158,21 @@ jest.mock("./shops/entities/shop-code.entity", () => ({
   },
 }));
 
+interface TypeOrmModuleOptions {
+  type: string;
+  url: string;
+  entities: string[];
+  synchronize: boolean;
+  logging: boolean;
+  ssl: {
+    rejectUnauthorized: boolean;
+  };
+}
+
+interface MockCall {
+  useFactory: (config: ConfigService) => TypeOrmModuleOptions;
+}
+
 describe("AppModule", () => {
   let app: INestApplication;
 
@@ -195,7 +208,7 @@ describe("AppModule", () => {
       throw new Error("forRootAsync was not called");
     }
 
-    const [options] = calls[0];
+    const [options] = calls[0] as [MockCall];
     const factoryFn = options.useFactory;
 
     if (!factoryFn) {

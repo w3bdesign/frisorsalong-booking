@@ -7,12 +7,6 @@ import { LoginDto } from "./dto/login.dto";
 
 describe("AuthController", () => {
   let controller: AuthController;
-  let authService: AuthService;
-
-  const mockAuthService = {
-    register: jest.fn(),
-    login: jest.fn(),
-  };
 
   const mockUser = {
     id: "1",
@@ -27,6 +21,11 @@ describe("AuthController", () => {
     token: "jwt_token",
   };
 
+  const mockAuthService = {
+    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -39,7 +38,9 @@ describe("AuthController", () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get<AuthService>(AuthService);
+
+    // Clear mock calls between tests
+    jest.clearAllMocks();
   });
 
   it("should be defined", () => {
@@ -56,17 +57,15 @@ describe("AuthController", () => {
     };
 
     it("should successfully register a new user", async () => {
-      mockAuthService.register.mockResolvedValue(mockAuthResponse);
-
       const result = await controller.register(registerDto);
 
       expect(result).toEqual(mockAuthResponse);
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
+      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
     });
 
     it("should pass through service errors", async () => {
       const error = new Error("Registration failed");
-      mockAuthService.register.mockRejectedValue(error);
+      mockAuthService.register.mockRejectedValueOnce(error);
 
       await expect(controller.register(registerDto)).rejects.toThrow(error);
     });
@@ -79,17 +78,15 @@ describe("AuthController", () => {
     };
 
     it("should successfully login a user", async () => {
-      mockAuthService.login.mockResolvedValue(mockAuthResponse);
-
       const result = await controller.login(loginDto);
 
       expect(result).toEqual(mockAuthResponse);
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
+      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
     });
 
     it("should pass through service errors", async () => {
       const error = new Error("Login failed");
-      mockAuthService.login.mockRejectedValue(error);
+      mockAuthService.login.mockRejectedValueOnce(error);
 
       await expect(controller.login(loginDto)).rejects.toThrow(error);
     });

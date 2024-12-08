@@ -17,7 +17,7 @@ interface EmployeeServiceAssociation {
   service_id: string;
 }
 
-export const createInitialData = async (dataSource: DataSource) => {
+export const createInitialData = async (dataSource: DataSource): Promise<void> => {
   const userRepository = dataSource.getRepository(User);
   const employeeRepository = dataSource.getRepository(Employee);
   const serviceRepository = dataSource.getRepository(Service);

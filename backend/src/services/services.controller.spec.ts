@@ -6,7 +6,6 @@ import { NotFoundException } from '@nestjs/common';
 
 describe('ServicesController', () => {
   let controller: ServicesController;
-  let service: ServicesService;
 
   const mockService: Service = {
     id: '1',
@@ -21,9 +20,9 @@ describe('ServicesController', () => {
   };
 
   const mockServicesService = {
-    findAll: jest.fn().mockResolvedValue([mockService]),
-    findOne: jest.fn().mockResolvedValue(mockService),
-    findByEmployee: jest.fn().mockResolvedValue([mockService]),
+    findAll: jest.fn().mockImplementation(() => Promise.resolve([mockService])),
+    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockService)),
+    findByEmployee: jest.fn().mockImplementation(() => Promise.resolve([mockService])),
   };
 
   beforeEach(async () => {
@@ -38,7 +37,9 @@ describe('ServicesController', () => {
     }).compile();
 
     controller = module.get<ServicesController>(ServicesController);
-    service = module.get<ServicesService>(ServicesService);
+
+    // Clear mock calls between tests
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -49,7 +50,7 @@ describe('ServicesController', () => {
     it('should return an array of services', async () => {
       const result = await controller.findAll();
       expect(result).toEqual([mockService]);
-      expect(service.findAll).toHaveBeenCalled();
+      expect(mockServicesService.findAll).toHaveBeenCalled();
     });
   });
 
@@ -57,11 +58,11 @@ describe('ServicesController', () => {
     it('should return a service by id', async () => {
       const result = await controller.findOne('1');
       expect(result).toEqual(mockService);
-      expect(service.findOne).toHaveBeenCalledWith('1');
+      expect(mockServicesService.findOne).toHaveBeenCalledWith('1');
     });
 
     it('should throw NotFoundException when service is not found', async () => {
-      jest.spyOn(service, 'findOne').mockRejectedValueOnce(new NotFoundException());
+      mockServicesService.findOne.mockRejectedValueOnce(new NotFoundException());
       await expect(controller.findOne('999')).rejects.toThrow(NotFoundException);
     });
   });
@@ -70,7 +71,7 @@ describe('ServicesController', () => {
     it('should return services by employee id', async () => {
       const result = await controller.findByEmployee('1');
       expect(result).toEqual([mockService]);
-      expect(service.findByEmployee).toHaveBeenCalledWith('1');
+      expect(mockServicesService.findByEmployee).toHaveBeenCalledWith('1');
     });
   });
 });

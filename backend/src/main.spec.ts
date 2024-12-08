@@ -69,7 +69,7 @@ jest.mock("./app.module", () => ({
 describe("Bootstrap", () => {
   let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset modules before each test
     jest.resetModules();
 
@@ -118,8 +118,7 @@ describe("Bootstrap", () => {
     jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
 
-    // Mock console.log to reduce noise in tests
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation();
   });
 
   afterEach(async () => {

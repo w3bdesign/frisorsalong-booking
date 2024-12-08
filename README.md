@@ -40,7 +40,6 @@ A full-stack booking system for hair salons built with NestJS (backend) and Vue 
   - 🎯 Service specialization assignment
   - 📊 Workload management
 - 🗄️ PostgreSQL Database with TypeORM
-- 🚀 Redis Caching for Performance
 - 📚 Swagger API Documentation
 - 🎨 Modern Admin Dashboard with Vue 3
 - 📱 Responsive Design with Tailwind CSS
@@ -56,7 +55,6 @@ The system follows a modular architecture separating frontend, backend, and data
 
 - **Framework**: NestJS with TypeScript
 - **Database**: PostgreSQL with TypeORM
-- **Caching**: Redis
 - **Authentication**: JWT with Passport
 - **API Documentation**: Swagger/OpenAPI
 - **Testing**: Jest

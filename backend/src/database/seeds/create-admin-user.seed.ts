@@ -2,7 +2,7 @@ import { DataSource } from "typeorm";
 import { User, UserRole } from "../../users/entities/user.entity";
 import * as bcrypt from "bcrypt";
 
-export const createAdminUser = async (dataSource: DataSource) => {
+export const createAdminUser = async (dataSource: DataSource): Promise<void> => {
   const userRepository = dataSource.getRepository(User);
 
   try {

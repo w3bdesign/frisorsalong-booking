@@ -34,7 +34,8 @@ export class AuthService {
       });
 
       const token = this.generateToken(user);
-      const { password, ...userWithoutPassword } = user;
+      // Exclude password from response using object rest spread
+      const { password: _excluded, ...userWithoutPassword } = user;
 
       return {
         user: userWithoutPassword,
@@ -67,7 +68,8 @@ export class AuthService {
       }
 
       const token = this.generateToken(user);
-      const { password, ...userWithoutPassword } = user;
+      // Exclude password from response using object rest spread
+      const { password: _excluded, ...userWithoutPassword } = user;
 
       return {
         user: userWithoutPassword,
