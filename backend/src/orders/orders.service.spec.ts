@@ -14,7 +14,7 @@ describe('OrdersService', () => {
   let bookingRepository: Repository<Booking>;
   let employeesService: EmployeesService;
 
-  const mockOrder = {
+  const mockOrder: Order = {
     id: 'order-1',
     totalAmount: 100,
     completedAt: new Date(),
@@ -24,47 +24,47 @@ describe('OrdersService', () => {
       employee: { 
         id: 'employee-1',
         user: { id: 'user-1' }
-      },
+      } as Employee,
       service: { id: 'service-1' },
       totalPrice: 100,
       status: BookingStatus.COMPLETED,
-    },
+    } as Booking,
   } as Order;
 
-  const mockBooking = {
+  const mockBooking: Booking = {
     id: 'booking-1',
     customer: { id: 'customer-1' },
     employee: { 
       id: 'employee-1',
       user: { id: 'user-1' }
-    },
+    } as Employee,
     service: { id: 'service-1' },
     totalPrice: 100,
     status: BookingStatus.CONFIRMED,
   } as Booking;
 
-  const mockEmployee = {
+  const mockEmployee: Employee = {
     id: 'employee-1',
     user: { id: 'user-1' },
   } as Employee;
 
   const mockOrderRepository = {
-    create: jest.fn().mockImplementation((dto) => ({
+    create: jest.fn().mockImplementation((dto: Partial<Order>): Order => ({
       ...dto,
       id: 'order-1',
-    })),
-    save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
-    find: jest.fn().mockImplementation(() => Promise.resolve([mockOrder])),
-    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockOrder)),
+    } as Order)),
+    save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
+    find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
+    findOne: jest.fn().mockImplementation((): Promise<Order> => Promise.resolve(mockOrder)),
   };
 
   const mockBookingRepository = {
-    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockBooking)),
-    save: jest.fn().mockImplementation((booking) => Promise.resolve(booking)),
+    findOne: jest.fn().mockImplementation((): Promise<Booking> => Promise.resolve(mockBooking)),
+    save: jest.fn().mockImplementation((booking: Booking): Promise<Booking> => Promise.resolve(booking)),
   };
 
   const mockEmployeesService = {
-    findByUserId: jest.fn().mockImplementation(() => Promise.resolve(mockEmployee)),
+    findByUserId: jest.fn().mockImplementation((): Promise<Employee> => Promise.resolve(mockEmployee)),
   };
 
   beforeEach(async () => {
@@ -127,7 +127,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if booking does not exist', async () => {
-      jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
+      jest.spyOn(bookingRepository, 'findOne').mockResolvedValue(null);
 
       await expect(service.createFromBooking('non-existent')).rejects.toThrow(
         NotFoundException,
@@ -197,7 +197,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValue(null);
 
       await expect(service.findOne('non-existent')).rejects.toThrow(
         NotFoundException,
@@ -231,7 +231,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValue(null);
 
       await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toThrow(
         NotFoundException,
