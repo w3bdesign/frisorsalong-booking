@@ -3,15 +3,15 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 
-type SupportedEntity = Booking | Order;
+type SupportedEntity = Order | Booking;
 
 function getEntityName(entity: EntityTarget<SupportedEntity>): string {
-  if (entity === Booking) return 'Booking';
-  if (entity === Order) return 'Order';
-  throw new Error('Unsupported entity type');
+  if (entity === Order) return "Order";
+  if (entity === Booking) return "Booking";
+  throw new Error("Unsupported entity type");
 }
 
-describe('createSampleOrders', () => {
+describe("createSampleOrders", () => {
   let mockDataSource: Partial<DataSource>;
   let mockBookingRepository: Partial<Repository<Booking>>;
   let mockOrderRepository: Partial<Repository<Order>>;
@@ -28,33 +28,37 @@ describe('createSampleOrders', () => {
     };
 
     mockDataSource = {
-      getRepository: jest.fn().mockImplementation((entity: EntityTarget<SupportedEntity>) => {
-        const repositories = {
-          'Booking': mockBookingRepository as Repository<Booking>,
-          'Order': mockOrderRepository as Repository<Order>,
-        };
+      getRepository: jest
+        .fn()
+        .mockImplementation((entity: EntityTarget<SupportedEntity>) => {
+          const repositories = {
+            Booking: mockBookingRepository as Repository<Booking>,
+            Order: mockOrderRepository as Repository<Order>,
+          };
 
-        const entityName = getEntityName(entity);
-        const repository = repositories[entityName];
+          const entityName = getEntityName(entity);
+          const repository = repositories[entityName];
 
-        if (!repository) {
-          throw new Error(`Repository not found for entity: ${entityName}`);
-        }
+          if (!repository) {
+            throw new Error(`Repository not found for entity: ${entityName}`);
+          }
 
-        return repository;
-      }),
+          return repository;
+        }),
     };
   });
 
-  it('should create orders for confirmed bookings', async () => {
-    const mockBookings = Array(20).fill(null).map((_, index) => ({
-      id: `booking-${index}`,
-      status: BookingStatus.CONFIRMED,
-      totalPrice: 100 + index,
-      customer: { id: 'customer-1' },
-      employee: { id: 'employee-1' },
-      service: { id: 'service-1' },
-    })) as Booking[];
+  it("should create orders for confirmed bookings", async () => {
+    const mockBookings = Array(20)
+      .fill(null)
+      .map((_, index) => ({
+        id: `booking-${index}`,
+        status: BookingStatus.CONFIRMED,
+        totalPrice: 100 + index,
+        customer: { id: "customer-1" },
+        employee: { id: "employee-1" },
+        service: { id: "service-1" },
+      })) as Booking[];
 
     const bookingFindMock = mockBookingRepository.find as jest.Mock;
     const orderCreateMock = mockOrderRepository.create as jest.Mock;
@@ -74,33 +78,41 @@ describe('createSampleOrders', () => {
     expect(bookingSaveMock).toHaveBeenCalledTimes(20);
 
     // Verify the first order creation
-    expect(orderCreateMock).toHaveBeenCalledWith(
+    const createCalls = orderCreateMock.mock.calls as [Partial<Order>][];
+    if (!Array.isArray(createCalls) || createCalls.length === 0) {
+      throw new Error("Expected at least one order creation call");
+    }
+
+    const firstOrderData = createCalls[0][0];
+    expect(firstOrderData).toEqual(
       expect.objectContaining({
-        booking: expect.objectContaining({ id: 'booking-0' }),
+        booking: expect.objectContaining({ id: "booking-0" }),
         totalAmount: 100,
-        notes: expect.stringContaining('booking-0'),
+        notes: expect.stringContaining("booking-0"),
       })
     );
 
     // Verify booking status updates
-    const savedBookings = bookingSaveMock.mock.calls;
-    if (!Array.isArray(savedBookings) || savedBookings.length === 0) {
-      throw new Error('Expected at least one saved booking');
+    const saveCalls = bookingSaveMock.mock.calls as [Booking][];
+    if (!Array.isArray(saveCalls) || saveCalls.length === 0) {
+      throw new Error("Expected at least one booking save call");
     }
 
-    const firstSavedBooking = savedBookings[0][0] as Booking;
-    expect(firstSavedBooking.status).toBe(BookingStatus.COMPLETED);
+    const savedBooking = saveCalls[0][0];
+    expect(savedBooking.status).toBe(BookingStatus.COMPLETED);
   });
 
-  it('should handle case with fewer than 20 confirmed bookings', async () => {
-    const mockBookings = Array(5).fill(null).map((_, index) => ({
-      id: `booking-${index}`,
-      status: BookingStatus.CONFIRMED,
-      totalPrice: 100 + index,
-      customer: { id: 'customer-1' },
-      employee: { id: 'employee-1' },
-      service: { id: 'service-1' },
-    })) as Booking[];
+  it("should handle case with fewer than 20 confirmed bookings", async () => {
+    const mockBookings = Array(5)
+      .fill(null)
+      .map((_, index) => ({
+        id: `booking-${index}`,
+        status: BookingStatus.CONFIRMED,
+        totalPrice: 100 + index,
+        customer: { id: "customer-1" },
+        employee: { id: "employee-1" },
+        service: { id: "service-1" },
+      })) as Booking[];
 
     const bookingFindMock = mockBookingRepository.find as jest.Mock;
     const orderCreateMock = mockOrderRepository.create as jest.Mock;
