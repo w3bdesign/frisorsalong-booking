@@ -1,10 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { ShopsService } from './shops.service';
-import { ShopCode } from './entities/shop-code.entity';
-import { UnauthorizedException } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopsService } from "./shops.service";
+import { ShopCode } from "./entities/shop-code.entity";
+import { UnauthorizedException } from "@nestjs/common";
 
-describe('ShopsService', () => {
+describe("ShopsService", () => {
   let service: ShopsService;
 
   const mockRepository = {
@@ -26,13 +27,14 @@ describe('ShopsService', () => {
     }).compile();
 
     service = module.get<ShopsService>(ShopsService);
+    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
     jest.clearAllMocks();
   });
 
-  describe('validateShopCode', () => {
-    it('should validate a shop code successfully', async () => {
+  describe("validateShopCode", () => {
+    it("should validate a shop code successfully", async () => {
       const mockShopCode = {
-        code: 'TEST123',
+        code: "TEST123",
         isActive: true,
         todayBookingCount: 0,
         dailyBookingLimit: 100,
@@ -40,31 +42,34 @@ describe('ShopsService', () => {
       };
 
       mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({ ...mockShopCode, todayBookingCount: 1 });
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
 
-      const result = await service.validateShopCode('TEST123');
+      const result = await service.validateShopCode("TEST123");
 
       expect(result).toBeDefined();
       expect(result.todayBookingCount).toBe(1);
       expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: 'TEST123', isActive: true },
+        where: { code: "TEST123", isActive: true },
       });
     });
 
-    it('should throw UnauthorizedException for invalid shop code', async () => {
+    it("should throw UnauthorizedException for invalid shop code", async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.validateShopCode('INVALID')).rejects.toThrow(
-        UnauthorizedException,
+      await expect(service.validateShopCode("INVALID")).rejects.toThrow(
+        UnauthorizedException
       );
       expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: 'INVALID', isActive: true },
+        where: { code: "INVALID", isActive: true },
       });
     });
 
-    it('should throw UnauthorizedException when daily limit is reached', async () => {
+    it("should throw UnauthorizedException when daily limit is reached", async () => {
       const mockShopCode = {
-        code: 'TEST123',
+        code: "TEST123",
         isActive: true,
         todayBookingCount: 100,
         dailyBookingLimit: 100,
@@ -73,20 +78,20 @@ describe('ShopsService', () => {
 
       mockRepository.findOne.mockResolvedValue(mockShopCode);
 
-      await expect(service.validateShopCode('TEST123')).rejects.toThrow(
-        UnauthorizedException,
+      await expect(service.validateShopCode("TEST123")).rejects.toThrow(
+        UnauthorizedException
       );
       expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: 'TEST123', isActive: true },
+        where: { code: "TEST123", isActive: true },
       });
     });
 
-    it('should reset counter for a new day', async () => {
+    it("should reset counter for a new day", async () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
       const mockShopCode = {
-        code: 'TEST123',
+        code: "TEST123",
         isActive: true,
         todayBookingCount: 100,
         dailyBookingLimit: 100,
@@ -94,69 +99,84 @@ describe('ShopsService', () => {
       };
 
       mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({ ...mockShopCode, todayBookingCount: 1 });
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
 
-      const result = await service.validateShopCode('TEST123');
+      const result = await service.validateShopCode("TEST123");
 
       expect(result.todayBookingCount).toBe(1);
       expect(mockRepository.save).toHaveBeenCalled();
     });
   });
 
-  describe('createShopCode', () => {
-    it('should create a shop code with provided code', async () => {
-      const mockShopCode = {
-        code: 'TEST123',
-        shopName: 'Test Shop',
+  describe("createShopCode", () => {
+    it("should create a shop code with provided code", async () => {
+      const mockShopCode: Partial<ShopCode> = {
+        code: "TEST123",
+        shopName: "Test Shop",
       };
 
       mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
 
-      const result = await service.createShopCode('Test Shop', 'TEST123');
+      const result = await service.createShopCode("Test Shop", "TEST123");
 
       expect(result).toEqual(mockShopCode);
       expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
       expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
     });
 
-    it('should create a shop code with auto-generated code', async () => {
-      mockRepository.create.mockImplementation((data: Partial<ShopCode>) => data as ShopCode);
-      mockRepository.save.mockImplementation((data: ShopCode) => Promise.resolve(data));
+    it("should create a shop code with auto-generated code", async () => {
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
+        ...data,
+        id: "test-id",
+        code: "ABC123", // Changed to 6 characters
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shopName: data.shopName || "Test Shop"
+      }));
+      
+      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
 
-      const result = await service.createShopCode('Test Shop');
+      const result = await service.createShopCode("Test Shop");
 
       expect(result).toBeDefined();
-      expect(result.shopName).toBe('Test Shop');
+      expect(result.shopName).toBe("Test Shop");
       expect(result.code).toBeDefined();
-      expect(typeof result.code).toBe('string');
+      expect(typeof result.code).toBe("string");
       expect(result.code.length).toBe(6);
       expect(mockRepository.save).toHaveBeenCalled();
     });
   });
 
-  describe('deactivateShopCode', () => {
-    it('should deactivate a shop code', async () => {
+  describe("deactivateShopCode", () => {
+    it("should deactivate a shop code", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 });
 
-      await service.deactivateShopCode('TEST123');
+      await service.deactivateShopCode("TEST123");
 
       expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: 'TEST123' },
-        { isActive: false },
+        { code: "TEST123" },
+        { isActive: false }
       );
     });
   });
 
-  describe('updateDailyLimit', () => {
-    it('should update daily booking limit', async () => {
+  describe("updateDailyLimit", () => {
+    it("should update daily booking limit", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 });
 
-      await service.updateDailyLimit('TEST123', 200);
+      await service.updateDailyLimit("TEST123", 200);
 
       expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: 'TEST123' },
-        { dailyBookingLimit: 200 },
+        { code: "TEST123" },
+        { dailyBookingLimit: 200 }
       );
     });
   });

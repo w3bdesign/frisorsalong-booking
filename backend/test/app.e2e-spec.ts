@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { AppModule } from "./../src/app.module";
-import { Express } from 'express';
+import type { Server } from 'http';
 
 describe("AppController (e2e)", () => {
   let app: INestApplication;
@@ -16,8 +16,8 @@ describe("AppController (e2e)", () => {
     await app.init();
   });
 
-  it("/ (GET)", async function testEndpoint(): Promise<void> {
-    await request(app.getHttpServer() as Express)
+  it("/ (GET)", async () => {
+    await request(app.getHttpServer() as Server)
       .get("/")
       .expect(200)
       .expect("Hello World!");

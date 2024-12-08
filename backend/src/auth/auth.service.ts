@@ -34,9 +34,7 @@ export class AuthService {
       });
 
       const token = this.generateToken(user);
-      // Exclude password from response using object rest spread
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = user;
+      const userWithoutPassword = this.excludePassword(user);
 
       return {
         user: userWithoutPassword,
@@ -69,9 +67,7 @@ export class AuthService {
       }
 
       const token = this.generateToken(user);
-      // Exclude password from response using object rest spread
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = user;
+      const userWithoutPassword = this.excludePassword(user);
 
       return {
         user: userWithoutPassword,
@@ -96,5 +92,11 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload);
+  }
+
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }
