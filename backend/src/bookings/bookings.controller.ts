@@ -26,6 +26,7 @@ import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/entities/user.entity";
 import { Request } from "express";
 import { ShopCode } from "../shops/entities/shop-code.entity";
+import { Order } from "../orders/entities/order.entity";
 
 // Extend Express Request to include shop property
 interface RequestWithShop extends Request {
@@ -143,7 +144,7 @@ export class BookingsController {
   @Roles(UserRole.ADMIN)
   async complete(
     @Param("id", new ParseUUIDPipe()) id: string
-  ) {
+  ): Promise<Order> {
     return this.ordersService.createFromBooking(id);
   }
 }

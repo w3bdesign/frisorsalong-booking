@@ -45,7 +45,7 @@ describe('JwtStrategy', () => {
     }).compile();
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
-    configService = module.get(ConfigService) as unknown as MockConfigService;
+    configService = module.get(ConfigService);
   });
 
   afterEach(() => {

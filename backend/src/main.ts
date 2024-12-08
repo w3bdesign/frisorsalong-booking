@@ -3,7 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
-export async function bootstrap() {
+export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
   // Set global prefix for all routes
@@ -68,5 +68,8 @@ export async function bootstrap() {
 
 // Only call bootstrap if this file is being run directly
 if (require.main === module) {
-  bootstrap();
+  bootstrap().catch(err => {
+    console.error('Failed to start application:', err);
+    process.exit(1);
+  });
 }
