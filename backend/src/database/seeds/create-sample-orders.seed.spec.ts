@@ -4,9 +4,12 @@ import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 
 type SupportedEntity = Booking | Order;
-type RepositoryMapping = {
-  [K in SupportedEntity as string]: Repository<K>;
-};
+
+function getEntityName(entity: EntityTarget<SupportedEntity>): string {
+  if (entity === Booking) return 'Booking';
+  if (entity === Order) return 'Order';
+  throw new Error('Unsupported entity type');
+}
 
 describe('createSampleOrders', () => {
   let mockDataSource: Partial<DataSource>;
@@ -26,16 +29,16 @@ describe('createSampleOrders', () => {
 
     mockDataSource = {
       getRepository: jest.fn().mockImplementation((entity: EntityTarget<SupportedEntity>) => {
-        const repositories: RepositoryMapping = {
+        const repositories = {
           'Booking': mockBookingRepository as Repository<Booking>,
           'Order': mockOrderRepository as Repository<Order>,
         };
 
-        const entityName = entity.name;
+        const entityName = getEntityName(entity);
         const repository = repositories[entityName];
 
         if (!repository) {
-          throw new Error(`Repository not found for entity: ${String(entityName)}`);
+          throw new Error(`Repository not found for entity: ${entityName}`);
         }
 
         return repository;
