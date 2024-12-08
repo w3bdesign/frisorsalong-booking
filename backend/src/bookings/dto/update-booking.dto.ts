@@ -21,7 +21,12 @@ export class UpdateBookingDto {
 
   @IsOptional()
   @IsEnum(BookingStatus)
-  @Transform(({ value }) => value?.toLowerCase())
+  @Transform(({ value }: { value: string | undefined }) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase();
+    }
+    return value;
+  })
   status?: BookingStatus;
 
   @IsOptional()
