@@ -6,31 +6,38 @@ import { Employee } from './entities/employee.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 
+interface MockUser extends Omit<User, 'hashPassword' | 'validatePassword'> {
+  hashPassword: () => Promise<void>;
+  validatePassword: (password: string) => Promise<boolean>;
+}
+
 describe('EmployeesController', () => {
   let controller: EmployeesController;
   let service: EmployeesService;
 
-  const createMockUser = (data: Partial<User>): User => ({
-    id: 'default-id',
-    firstName: 'Default',
-    lastName: 'User',
-    email: 'default@example.com',
-    password: 'password',
-    role: UserRole.CUSTOMER,
-    phoneNumber: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    hashPassword: async function() {
-      if (this.password) {
+  const createMockUser = (data: Partial<User>): MockUser => {
+    const user: MockUser = {
+      id: 'default-id',
+      firstName: 'Default',
+      lastName: 'User',
+      email: 'default@example.com',
+      password: 'password',
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async function() {
         const salt = await bcrypt.genSalt();
-        this.password = await bcrypt.hash(this.password, salt);
-      }
-    },
-    validatePassword: async function(password: string) {
-      return bcrypt.compare(password, this.password);
-    },
-    ...data
-  });
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        user.password = hashedPassword;
+      },
+      validatePassword: async function(password: string) {
+        return bcrypt.compare(password, user.password);
+      },
+      ...data
+    };
+    return user;
+  };
 
   const mockAdminUser = createMockUser({
     id: 'admin-id',
