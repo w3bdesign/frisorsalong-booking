@@ -3,6 +3,11 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 
+type SupportedEntity = Booking | Order;
+type RepositoryMapping = {
+  [K in SupportedEntity as string]: Repository<K>;
+};
+
 describe('createSampleOrders', () => {
   let mockDataSource: Partial<DataSource>;
   let mockBookingRepository: Partial<Repository<Booking>>;
@@ -20,10 +25,20 @@ describe('createSampleOrders', () => {
     };
 
     mockDataSource = {
-      getRepository: jest.fn().mockImplementation((entity: EntityTarget<any>) => {
-        if (entity === Booking) return mockBookingRepository as Repository<Booking>;
-        if (entity === Order) return mockOrderRepository as Repository<Order>;
-        throw new Error(`Unexpected entity: ${entity}`);
+      getRepository: jest.fn().mockImplementation((entity: EntityTarget<SupportedEntity>) => {
+        const repositories: RepositoryMapping = {
+          'Booking': mockBookingRepository as Repository<Booking>,
+          'Order': mockOrderRepository as Repository<Order>,
+        };
+
+        const entityName = entity.name;
+        const repository = repositories[entityName];
+
+        if (!repository) {
+          throw new Error(`Repository not found for entity: ${String(entityName)}`);
+        }
+
+        return repository;
       }),
     };
   });
@@ -38,20 +53,25 @@ describe('createSampleOrders', () => {
       service: { id: 'service-1' },
     })) as Booking[];
 
-    (mockBookingRepository.find as jest.Mock).mockResolvedValue(mockBookings);
-    (mockOrderRepository.create as jest.Mock).mockImplementation((data) => data);
-    (mockOrderRepository.save as jest.Mock).mockImplementation((data) => data);
-    (mockBookingRepository.save as jest.Mock).mockImplementation((data) => data);
+    const bookingFindMock = mockBookingRepository.find as jest.Mock;
+    const orderCreateMock = mockOrderRepository.create as jest.Mock;
+    const orderSaveMock = mockOrderRepository.save as jest.Mock;
+    const bookingSaveMock = mockBookingRepository.save as jest.Mock;
+
+    bookingFindMock.mockResolvedValue(mockBookings);
+    orderCreateMock.mockImplementation((data: Partial<Order>) => data);
+    orderSaveMock.mockImplementation((data: Partial<Order>) => data);
+    bookingSaveMock.mockImplementation((data: Partial<Booking>) => data);
 
     await createSampleOrders(mockDataSource as DataSource);
 
     // Should only create 20 orders even though there are 25 confirmed bookings
-    expect(mockOrderRepository.create).toHaveBeenCalledTimes(20);
-    expect(mockOrderRepository.save).toHaveBeenCalledTimes(20);
-    expect(mockBookingRepository.save).toHaveBeenCalledTimes(20);
+    expect(orderCreateMock).toHaveBeenCalledTimes(20);
+    expect(orderSaveMock).toHaveBeenCalledTimes(20);
+    expect(bookingSaveMock).toHaveBeenCalledTimes(20);
 
     // Verify the first order creation
-    expect(mockOrderRepository.create).toHaveBeenCalledWith(
+    expect(orderCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         booking: expect.objectContaining({ id: 'booking-0' }),
         totalAmount: 100,
@@ -60,8 +80,13 @@ describe('createSampleOrders', () => {
     );
 
     // Verify booking status updates
-    const savedBooking = (mockBookingRepository.save as jest.Mock).mock.calls[0][0];
-    expect(savedBooking.status).toBe(BookingStatus.COMPLETED);
+    const savedBookings = bookingSaveMock.mock.calls;
+    if (!Array.isArray(savedBookings) || savedBookings.length === 0) {
+      throw new Error('Expected at least one saved booking');
+    }
+
+    const firstSavedBooking = savedBookings[0][0] as Booking;
+    expect(firstSavedBooking.status).toBe(BookingStatus.COMPLETED);
   });
 
   it('should handle case with fewer than 20 confirmed bookings', async () => {
@@ -74,16 +99,21 @@ describe('createSampleOrders', () => {
       service: { id: 'service-1' },
     })) as Booking[];
 
-    (mockBookingRepository.find as jest.Mock).mockResolvedValue(mockBookings);
-    (mockOrderRepository.create as jest.Mock).mockImplementation((data) => data);
-    (mockOrderRepository.save as jest.Mock).mockImplementation((data) => data);
-    (mockBookingRepository.save as jest.Mock).mockImplementation((data) => data);
+    const bookingFindMock = mockBookingRepository.find as jest.Mock;
+    const orderCreateMock = mockOrderRepository.create as jest.Mock;
+    const orderSaveMock = mockOrderRepository.save as jest.Mock;
+    const bookingSaveMock = mockBookingRepository.save as jest.Mock;
+
+    bookingFindMock.mockResolvedValue(mockBookings);
+    orderCreateMock.mockImplementation((data: Partial<Order>) => data);
+    orderSaveMock.mockImplementation((data: Partial<Order>) => data);
+    bookingSaveMock.mockImplementation((data: Partial<Booking>) => data);
 
     await createSampleOrders(mockDataSource as DataSource);
 
     // Should only create 5 orders since there are only 5 confirmed bookings
-    expect(mockOrderRepository.create).toHaveBeenCalledTimes(5);
-    expect(mockOrderRepository.save).toHaveBeenCalledTimes(5);
-    expect(mockBookingRepository.save).toHaveBeenCalledTimes(5);
+    expect(orderCreateMock).toHaveBeenCalledTimes(5);
+    expect(orderSaveMock).toHaveBeenCalledTimes(5);
+    expect(bookingSaveMock).toHaveBeenCalledTimes(5);
   });
 });

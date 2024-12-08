@@ -34,8 +34,7 @@ export class AuthService {
       });
 
       const token = this.generateToken(user);
-      // Create a new object without the password field
-      const { password, ...userWithoutPassword } = user;
+      const userWithoutPassword = this.excludePassword(user);
 
       return {
         user: userWithoutPassword,
@@ -68,8 +67,7 @@ export class AuthService {
       }
 
       const token = this.generateToken(user);
-      // Create a new object without the password field
-      const { password, ...userWithoutPassword } = user;
+      const userWithoutPassword = this.excludePassword(user);
 
       return {
         user: userWithoutPassword,
@@ -94,5 +92,10 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload);
+  }
+
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }
