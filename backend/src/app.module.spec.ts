@@ -223,9 +223,6 @@ describe("AppModule", () => {
       entities: [join(__dirname, "**", "*.entity{.ts,.js}")],
       synchronize: false,
       logging: false,
-      ssl: {
-        rejectUnauthorized: false,
-      },
     });
   });
 
