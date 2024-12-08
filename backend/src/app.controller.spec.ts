@@ -29,8 +29,8 @@ describe("AppController", () => {
     if (!(appController instanceof AppController)) {
       throw new Error('Failed to get AppController instance');
     }
-    if (!appService || typeof appService.getHello !== 'function') {
-      throw new Error('Failed to get AppService instance');
+    if (typeof appService.getHello !== 'function') {
+      throw new Error('Invalid AppService instance: getHello method not found');
     }
   });
 
