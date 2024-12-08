@@ -1,13 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOneOptions } from 'typeorm';
 import { OrdersService } from './orders.service';
 import { Order } from './entities/order.entity';
 import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
 import { EmployeesService } from '../employees/employees.service';
 import { NotFoundException } from '@nestjs/common';
 import { Employee } from '../employees/entities/employee.entity';
-import { FindOneOptions } from 'typeorm';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -49,6 +48,15 @@ describe('OrdersService', () => {
     user: { id: 'user-1' },
   } as Employee;
 
+  interface OrderWhere {
+    id?: string;
+    booking?: {
+      employee?: {
+        id?: string;
+      };
+    };
+  }
+
   const mockOrderRepository = {
     create: jest.fn().mockImplementation((dto: Partial<Order>): Order => ({
       ...dto,
@@ -59,7 +67,7 @@ describe('OrdersService', () => {
     findOne: jest.fn().mockImplementation((options: FindOneOptions<Order>): Promise<Order | null> => {
       if (!options.where) return Promise.resolve(null);
 
-      const whereCondition = options.where as any;
+      const whereCondition = options.where as OrderWhere;
       
       // Check if this is a findOneByEmployee call
       if (whereCondition.id === 'order-1' && 
@@ -225,12 +233,6 @@ describe('OrdersService', () => {
 
   describe('findOneByEmployee', () => {
     it('should return an order for a specific employee', async () => {
-      // Add console.log to debug the mock calls
-      jest.spyOn(orderRepository, 'findOne').mockImplementation((options: FindOneOptions<Order>): Promise<Order> => {
-        console.log('Mock findOne called with:', JSON.stringify(options, null, 2));
-        return Promise.resolve(mockOrder);
-      });
-
       const result = await service.findOneByEmployee('order-1', 'user-1');
 
       expect(result).toEqual(mockOrder);
