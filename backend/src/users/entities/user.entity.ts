@@ -4,7 +4,6 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
   BeforeInsert,
   BeforeUpdate,
 } from "typeorm";
@@ -53,7 +52,7 @@ export class User {
 
   @BeforeInsert()
   @BeforeUpdate()
-  async hashPassword() {
+  async hashPassword(): Promise<void> {
     // Only hash the password if it has been modified
     if (this.password) {
       const salt = await bcrypt.genSalt();
