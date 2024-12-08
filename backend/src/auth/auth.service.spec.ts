@@ -8,8 +8,6 @@ import * as bcrypt from "bcrypt";
 
 describe("AuthService", () => {
   let service: AuthService;
-  let usersService: UsersService;
-  let jwtService: JwtService;
 
   const mockUser = {
     id: "1",
@@ -21,12 +19,12 @@ describe("AuthService", () => {
   };
 
   const mockUsersService = {
-    findByEmail: jest.fn(),
-    create: jest.fn(),
+    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
+    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
   };
 
   const mockJwtService = {
-    sign: jest.fn(),
+    sign: jest.fn().mockImplementation(() => "jwt_token"),
   };
 
   beforeEach(async () => {
@@ -45,8 +43,9 @@ describe("AuthService", () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersService = module.get<UsersService>(UsersService);
-    jwtService = module.get<JwtService>(JwtService);
+
+    // Clear mock calls between tests
+    jest.clearAllMocks();
   });
 
   it("should be defined", () => {
@@ -63,10 +62,6 @@ describe("AuthService", () => {
     };
 
     it("should successfully register a new user", async () => {
-      mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue(mockUser);
-      mockJwtService.sign.mockReturnValue("jwt_token");
-
       const result = await service.register(registerDto);
 
       expect(result).toHaveProperty("token");
@@ -76,7 +71,7 @@ describe("AuthService", () => {
     });
 
     it("should throw ConflictException if email already exists", async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
 
       await expect(service.register(registerDto)).rejects.toThrow(
         ConflictException
@@ -90,15 +85,9 @@ describe("AuthService", () => {
       password: "password123",
     };
 
-    beforeEach(() => {
-      jest
-        .spyOn(bcrypt, "compare")
-        .mockImplementation(() => Promise.resolve(true));
-    });
-
     it("should successfully login a user", async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      mockJwtService.sign.mockReturnValue("jwt_token");
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      jest.spyOn(bcrypt, "compare").mockImplementationOnce(() => Promise.resolve(true));
 
       const result = await service.login(loginDto);
 
@@ -108,7 +97,7 @@ describe("AuthService", () => {
     });
 
     it("should throw UnauthorizedException if user not found", async () => {
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.findByEmail.mockResolvedValueOnce(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException
@@ -116,10 +105,8 @@ describe("AuthService", () => {
     });
 
     it("should throw UnauthorizedException if password is invalid", async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      jest
-        .spyOn(bcrypt, "compare")
-        .mockImplementation(() => Promise.resolve(false));
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      jest.spyOn(bcrypt, "compare").mockImplementationOnce(() => Promise.resolve(false));
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException

@@ -6,7 +6,6 @@ import { NotFoundException } from '@nestjs/common';
 
 describe('ServicesController', () => {
   let controller: ServicesController;
-  let service: ServicesService;
 
   const mockService: Service = {
     id: '1',
@@ -38,7 +37,6 @@ describe('ServicesController', () => {
     }).compile();
 
     controller = module.get<ServicesController>(ServicesController);
-    service = module.get<ServicesService>(ServicesService);
 
     // Clear mock calls between tests
     jest.clearAllMocks();
