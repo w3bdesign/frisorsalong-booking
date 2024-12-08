@@ -55,7 +55,6 @@ The system follows a modular architecture separating frontend, backend, and data
 
 - **Framework**: NestJS with TypeScript
 - **Database**: PostgreSQL with TypeORM
-- **Caching**: Redis
 - **Authentication**: JWT with Passport
 - **API Documentation**: Swagger/OpenAPI
 - **Testing**: Jest
