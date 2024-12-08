@@ -24,11 +24,20 @@
             <label class="block text-sm font-medium text-gray-700 mb-2"
               >Velg dato</label
             >
-            <input
-              type="date"
-              v-model="selectedDate"
-              class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+            <div class="flex gap-2">
+              <input
+                type="date"
+                v-model="selectedDate"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+              <Button
+                @click="clearDate"
+                variant="secondary"
+                class="whitespace-nowrap"
+              >
+                Fjern dato
+              </Button>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2"
@@ -276,6 +285,10 @@ function refreshData() {
 function showAllOrders() {
   selectedDate.value = "";
   selectedEmployeeId.value = "";
+}
+
+function clearDate() {
+  selectedDate.value = "";
 }
 
 // Watch for filter changes to log filtering info
