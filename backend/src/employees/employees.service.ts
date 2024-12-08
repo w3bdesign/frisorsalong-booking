@@ -1,12 +1,21 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, MoreThan, LessThan } from 'typeorm';
+import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
 import { Employee } from './entities/employee.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Booking } from '../bookings/entities/booking.entity';
+
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+interface Availability {
+  [key: string]: TimeSlot[];
+}
 
 @Injectable()
 export class EmployeesService {
@@ -109,12 +118,14 @@ export class EmployeesService {
 
     // Get day of week (0 = Sunday, 1 = Monday, etc.)
     const dayOfWeek = startTime.getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
     const dayName = dayNames[dayOfWeek];
 
     // Check if employee has availability for this day
-    const dayAvailability = employee.availability?.[dayName];
-    if (!dayAvailability || dayAvailability.length === 0) {
+    const availability = employee.availability as Availability;
+    const dayAvailability = availability[dayName];
+    
+    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
       return false;
     }
 
@@ -122,9 +133,18 @@ export class EmployeesService {
     const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
     const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
 
-    const isWithinAvailability = dayAvailability.some(slot => {
+    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
+      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+        return false;
+      }
+
       const [startHour, startMinute] = slot.start.split(':').map(Number);
       const [endHour, endMinute] = slot.end.split(':').map(Number);
+
+      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+        return false;
+      }
+
       const slotStart = startHour * 60 + startMinute;
       const slotEnd = endHour * 60 + endMinute;
 
@@ -136,7 +156,7 @@ export class EmployeesService {
     }
 
     // Check for overlapping bookings
-    const whereCondition: any = {
+    const whereCondition: FindOptionsWhere<Booking> = {
       employee: { id: employeeId },
       startTime: Not(MoreThan(endTime)),
       endTime: Not(LessThan(startTime)),

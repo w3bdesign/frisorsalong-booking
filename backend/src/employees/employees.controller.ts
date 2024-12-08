@@ -17,6 +17,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -25,19 +26,19 @@ export class EmployeesController {
 
   @Post()
   @Roles(UserRole.ADMIN)
-  create(@Body() createEmployeeDto: CreateEmployeeDto) {
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
     return this.employeesService.create(createEmployeeDto);
   }
 
   @Get()
   @Roles(UserRole.ADMIN)
-  findAll() {
+  async findAll(): Promise<Employee[]> {
     return this.employeesService.findAll();
   }
 
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User) {
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
     // Allow employees to only access their own record
     if (user.role === UserRole.EMPLOYEE) {
       const employee = await this.employeesService.findByUserId(user.id);
@@ -50,25 +51,25 @@ export class EmployeesController {
 
   @Post(':id/reset-password')
   @Roles(UserRole.ADMIN)
-  resetPassword(@Param('id') id: string) {
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
     return this.employeesService.resetPassword(id);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto) {
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
     return this.employeesService.update(id, updateEmployeeDto);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string): Promise<void> {
     return this.employeesService.remove(id);
   }
 
   @Post(':id/restore')
   @Roles(UserRole.ADMIN)
-  restore(@Param('id') id: string) {
+  async restore(@Param('id') id: string): Promise<void> {
     return this.employeesService.restore(id);
   }
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOneOptions } from 'typeorm';
 import { OrdersService } from './orders.service';
 import { Order } from './entities/order.entity';
 import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
@@ -14,7 +14,7 @@ describe('OrdersService', () => {
   let bookingRepository: Repository<Booking>;
   let employeesService: EmployeesService;
 
-  const mockOrder = {
+  const mockOrder: Order = {
     id: 'order-1',
     totalAmount: 100,
     completedAt: new Date(),
@@ -24,47 +24,73 @@ describe('OrdersService', () => {
       employee: { 
         id: 'employee-1',
         user: { id: 'user-1' }
-      },
+      } as Employee,
       service: { id: 'service-1' },
       totalPrice: 100,
       status: BookingStatus.COMPLETED,
-    },
+    } as Booking,
   } as Order;
 
-  const mockBooking = {
+  const mockBooking: Booking = {
     id: 'booking-1',
     customer: { id: 'customer-1' },
     employee: { 
       id: 'employee-1',
       user: { id: 'user-1' }
-    },
+    } as Employee,
     service: { id: 'service-1' },
     totalPrice: 100,
     status: BookingStatus.CONFIRMED,
   } as Booking;
 
-  const mockEmployee = {
+  const mockEmployee: Employee = {
     id: 'employee-1',
     user: { id: 'user-1' },
   } as Employee;
 
+  interface OrderWhere {
+    id?: string;
+    booking?: {
+      employee?: {
+        id?: string;
+      };
+    };
+  }
+
   const mockOrderRepository = {
-    create: jest.fn().mockImplementation((dto) => ({
+    create: jest.fn().mockImplementation((dto: Partial<Order>): Order => ({
       ...dto,
       id: 'order-1',
-    })),
-    save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
-    find: jest.fn().mockImplementation(() => Promise.resolve([mockOrder])),
-    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockOrder)),
+    } as Order)),
+    save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
+    find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
+    findOne: jest.fn().mockImplementation((options: FindOneOptions<Order>): Promise<Order | null> => {
+      if (!options.where) return Promise.resolve(null);
+
+      const whereCondition = options.where as OrderWhere;
+      
+      // Check if this is a findOneByEmployee call
+      if (whereCondition.id === 'order-1' && 
+          whereCondition.booking?.employee?.id === 'employee-1') {
+        return Promise.resolve(mockOrder);
+      }
+      
+      // Check if this is a regular findOne call
+      if (whereCondition.id === 'order-1' && !whereCondition.booking) {
+        return Promise.resolve(mockOrder);
+      }
+      
+      return Promise.resolve(null);
+    }),
   };
 
   const mockBookingRepository = {
-    findOne: jest.fn().mockImplementation(() => Promise.resolve(mockBooking)),
-    save: jest.fn().mockImplementation((booking) => Promise.resolve(booking)),
+    findOne: jest.fn().mockImplementation((): Promise<Booking> => Promise.resolve(mockBooking)),
+    save: jest.fn().mockImplementation((booking: Booking): Promise<Booking> => Promise.resolve(booking)),
   };
 
   const mockEmployeesService = {
-    findByUserId: jest.fn().mockImplementation(() => Promise.resolve(mockEmployee)),
+    findByUserId: jest.fn().mockImplementation((): Promise<Employee> => Promise.resolve(mockEmployee)),
   };
 
   beforeEach(async () => {
@@ -103,7 +129,6 @@ describe('OrdersService', () => {
     it('should create an order from a confirmed booking', async () => {
       const result = await service.createFromBooking('booking-1');
 
-      // Verify the structure without checking exact timestamps
       expect(result).toMatchObject({
         id: expect.any(String),
         totalAmount: mockOrder.totalAmount,
@@ -129,9 +154,8 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if booking does not exist', async () => {
       jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.createFromBooking('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.createFromBooking('non-existent')).rejects.toThrow(NotFoundException);
+      expect(bookingRepository.findOne).toHaveBeenCalled();
     });
   });
 
@@ -199,9 +223,8 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if order does not exist', async () => {
       jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
+      expect(orderRepository.findOne).toHaveBeenCalled();
     });
   });
 
@@ -233,9 +256,8 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if order does not exist', async () => {
       jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toThrow(NotFoundException);
+      expect(orderRepository.findOne).toHaveBeenCalled();
     });
   });
 });
