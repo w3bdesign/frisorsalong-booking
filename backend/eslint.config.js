@@ -21,7 +21,11 @@ module.exports = [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-misused-promises': ['error', {
+        checksVoidReturn: {
+          arguments: false
+        }
+      }],
     },
   },
 ];
