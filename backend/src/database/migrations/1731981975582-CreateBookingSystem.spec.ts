@@ -41,12 +41,13 @@ describe('CreateBookingSystem1731981975582', () => {
   beforeEach(() => {
     migration = new CreateBookingSystem1731981975582();
     queryRunner = {
-      query: jest.fn(),
+      query: jest.fn().mockImplementation((query: string) => Promise.resolve([query])),
     } as unknown as QueryRunner;
   });
 
   afterEach(() => {
-    queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
+    const mockCalls = (queryRunner.query as jest.Mock).mock.calls;
+    queryCalls = mockCalls.map((call: [string]) => call[0]);
   });
 
   test('migration name is correct', () => {
@@ -56,27 +57,32 @@ describe('CreateBookingSystem1731981975582', () => {
   describe('up migration', () => {
     beforeEach(async () => {
       await migration.up(queryRunner);
-      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
+      const mockCalls = (queryRunner.query as jest.Mock).mock.calls;
+      queryCalls = mockCalls.map((call: [string]) => call[0]);
     });
 
     test('creates services table with required fields', () => {
       const servicesQuery = queryCalls.find(call => call.includes('CREATE TABLE "services"'));
+      if (!servicesQuery) throw new Error('Services table creation query not found');
       verifyTableSchema(servicesQuery, 'services', 'id', 'name', 'description', 'duration', 'price');
     });
 
     test('creates employees table with user foreign key', () => {
       const employeesQuery = queryCalls.find(call => call.includes('CREATE TABLE "employees"'));
+      if (!employeesQuery) throw new Error('Employees table creation query not found');
       verifyForeignKey(employeesQuery, 'employees', 'user_id', 'users');
     });
 
     test('creates employee_services junction table', () => {
       const junctionQuery = queryCalls.find(call => call.includes('CREATE TABLE "employee_services"'));
+      if (!junctionQuery) throw new Error('Employee services junction table creation query not found');
       verifyForeignKey(junctionQuery, 'employee_services', 'employee_id', 'employees');
       verifyForeignKey(junctionQuery, 'employee_services', 'service_id', 'services');
     });
 
     test('creates bookings table with all foreign keys', () => {
       const bookingsQuery = queryCalls.find(call => call.includes('CREATE TABLE "bookings"'));
+      if (!bookingsQuery) throw new Error('Bookings table creation query not found');
       
       [
         ['customer_id', 'users'],
@@ -107,7 +113,8 @@ describe('CreateBookingSystem1731981975582', () => {
   describe('down migration', () => {
     beforeEach(async () => {
       await migration.down(queryRunner);
-      queryCalls = (queryRunner.query as jest.Mock).mock.calls.map(call => call[0]);
+      const mockCalls = (queryRunner.query as jest.Mock).mock.calls;
+      queryCalls = mockCalls.map((call: [string]) => call[0]);
     });
 
     test('drops indexes in correct order', () => {
