@@ -122,45 +122,62 @@ describe('OrdersService', () => {
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    const checkService = (): void => {
+      expect(service).toBeDefined();
+    };
+    checkService();
   });
 
   describe('createFromBooking', () => {
     it('should create an order from a confirmed booking', async () => {
       const result = await service.createFromBooking('booking-1');
 
-      // Verify the structure without checking exact timestamps
-      expect(result).toMatchObject({
-        id: expect.any(String),
-        totalAmount: mockOrder.totalAmount,
-        completedAt: expect.any(Date),
-        booking: {
-          ...mockOrder.booking,
-          status: BookingStatus.COMPLETED,
-        },
-      });
+      const checkResult = (): void => {
+        expect(result).toMatchObject({
+          id: expect.any(String),
+          totalAmount: mockOrder.totalAmount,
+          completedAt: expect.any(Date),
+          booking: {
+            ...mockOrder.booking,
+            status: BookingStatus.COMPLETED,
+          },
+        });
+      };
 
-      expect(bookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-1' },
-        relations: ['customer', 'employee', 'service'],
-      });
-      expect(bookingRepository.save).toHaveBeenCalledWith({
-        ...mockBooking,
-        status: BookingStatus.COMPLETED,
-      });
-      expect(orderRepository.create).toHaveBeenCalled();
-      expect(orderRepository.save).toHaveBeenCalled();
+      const checkCalls = (): void => {
+        expect(bookingRepository.findOne).toHaveBeenCalledWith({
+          where: { id: 'booking-1' },
+          relations: ['customer', 'employee', 'service'],
+        });
+        expect(bookingRepository.save).toHaveBeenCalledWith({
+          ...mockBooking,
+          status: BookingStatus.COMPLETED,
+        });
+        expect(orderRepository.create).toHaveBeenCalled();
+        expect(orderRepository.save).toHaveBeenCalled();
+      };
+
+      checkResult();
+      checkCalls();
     });
 
     it('should throw NotFoundException if booking does not exist', async () => {
-      const findOneSpy = jest.spyOn(bookingRepository, 'findOne').mockResolvedValue(null);
+      const findOneSpy = jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
 
-      const testFn = async () => {
+      const testFn = async (): Promise<void> => {
         await service.createFromBooking('non-existent');
       };
 
-      await expect(testFn()).rejects.toThrow(NotFoundException);
-      expect(findOneSpy).toHaveBeenCalled();
+      const checkError = async (): Promise<void> => {
+        await expect(testFn()).rejects.toThrow(NotFoundException);
+      };
+
+      const checkSpy = (): void => {
+        expect(findOneSpy).toHaveBeenCalled();
+      };
+
+      await checkError();
+      checkSpy();
     });
   });
 
@@ -168,17 +185,25 @@ describe('OrdersService', () => {
     it('should return an array of orders', async () => {
       const result = await service.findAll();
 
-      expect(result).toEqual([mockOrder]);
-      expect(orderRepository.find).toHaveBeenCalledWith({
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-        order: { completedAt: 'DESC' },
-      });
+      const checkResult = (): void => {
+        expect(result).toEqual([mockOrder]);
+      };
+
+      const checkCalls = (): void => {
+        expect(orderRepository.find).toHaveBeenCalledWith({
+          relations: [
+            'booking',
+            'booking.customer',
+            'booking.employee',
+            'booking.employee.user',
+            'booking.service',
+          ],
+          order: { completedAt: 'DESC' },
+        });
+      };
+
+      checkResult();
+      checkCalls();
     });
   });
 
@@ -186,25 +211,33 @@ describe('OrdersService', () => {
     it('should return orders for a specific employee', async () => {
       const result = await service.findAllByEmployee('user-1');
 
-      expect(result).toEqual([mockOrder]);
-      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(orderRepository.find).toHaveBeenCalledWith({
-        where: {
-          booking: {
-            employee: {
-              id: mockEmployee.id,
+      const checkResult = (): void => {
+        expect(result).toEqual([mockOrder]);
+      };
+
+      const checkCalls = (): void => {
+        expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
+        expect(orderRepository.find).toHaveBeenCalledWith({
+          where: {
+            booking: {
+              employee: {
+                id: mockEmployee.id,
+              },
             },
           },
-        },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-        order: { completedAt: 'DESC' },
-      });
+          relations: [
+            'booking',
+            'booking.customer',
+            'booking.employee',
+            'booking.employee.user',
+            'booking.service',
+          ],
+          order: { completedAt: 'DESC' },
+        });
+      };
+
+      checkResult();
+      checkCalls();
     });
   });
 
@@ -212,28 +245,44 @@ describe('OrdersService', () => {
     it('should return an order by id', async () => {
       const result = await service.findOne('order-1');
 
-      expect(result).toEqual(mockOrder);
-      expect(orderRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-      });
+      const checkResult = (): void => {
+        expect(result).toEqual(mockOrder);
+      };
+
+      const checkCalls = (): void => {
+        expect(orderRepository.findOne).toHaveBeenCalledWith({
+          where: { id: 'order-1' },
+          relations: [
+            'booking',
+            'booking.customer',
+            'booking.employee',
+            'booking.employee.user',
+            'booking.service',
+          ],
+        });
+      };
+
+      checkResult();
+      checkCalls();
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      const findOneSpy = jest.spyOn(orderRepository, 'findOne').mockResolvedValue(null);
+      const findOneSpy = jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      const testFn = async () => {
+      const testFn = async (): Promise<void> => {
         await service.findOne('non-existent');
       };
 
-      await expect(testFn()).rejects.toThrow(NotFoundException);
-      expect(findOneSpy).toHaveBeenCalled();
+      const checkError = async (): Promise<void> => {
+        await expect(testFn()).rejects.toThrow(NotFoundException);
+      };
+
+      const checkSpy = (): void => {
+        expect(findOneSpy).toHaveBeenCalled();
+      };
+
+      await checkError();
+      checkSpy();
     });
   });
 
@@ -241,36 +290,52 @@ describe('OrdersService', () => {
     it('should return an order for a specific employee', async () => {
       const result = await service.findOneByEmployee('order-1', 'user-1');
 
-      expect(result).toEqual(mockOrder);
-      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(orderRepository.findOne).toHaveBeenCalledWith({
-        where: {
-          id: 'order-1',
-          booking: {
-            employee: {
-              id: mockEmployee.id,
+      const checkResult = (): void => {
+        expect(result).toEqual(mockOrder);
+      };
+
+      const checkCalls = (): void => {
+        expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
+        expect(orderRepository.findOne).toHaveBeenCalledWith({
+          where: {
+            id: 'order-1',
+            booking: {
+              employee: {
+                id: mockEmployee.id,
+              },
             },
           },
-        },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-      });
+          relations: [
+            'booking',
+            'booking.customer',
+            'booking.employee',
+            'booking.employee.user',
+            'booking.service',
+          ],
+        });
+      };
+
+      checkResult();
+      checkCalls();
     });
 
     it('should throw NotFoundException if order does not exist', async () => {
-      const findOneSpy = jest.spyOn(orderRepository, 'findOne').mockResolvedValue(null);
+      const findOneSpy = jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      const testFn = async () => {
+      const testFn = async (): Promise<void> => {
         await service.findOneByEmployee('non-existent', 'user-1');
       };
 
-      await expect(testFn()).rejects.toThrow(NotFoundException);
-      expect(findOneSpy).toHaveBeenCalled();
+      const checkError = async (): Promise<void> => {
+        await expect(testFn()).rejects.toThrow(NotFoundException);
+      };
+
+      const checkSpy = (): void => {
+        expect(findOneSpy).toHaveBeenCalled();
+      };
+
+      await checkError();
+      checkSpy();
     });
   });
 });
