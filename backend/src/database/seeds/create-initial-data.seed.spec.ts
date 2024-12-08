@@ -13,6 +13,8 @@ interface RepositoryMapping {
   Service: Partial<Repository<Service>>;
 }
 
+type SupportedEntity = User | Employee | Service;
+
 describe("createInitialData", () => {
   let mockDataSource: Partial<DataSource>;
   let mockUserRepository: Partial<Repository<User>>;
@@ -66,7 +68,7 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = (entity: EntityTarget<any>) => {
+    const mockGetRepository = (entity: EntityTarget<SupportedEntity>): Partial<Repository<SupportedEntity>> => {
       const repositories: RepositoryMapping = {
         User: mockUserRepository,
         Employee: mockEmployeeRepository,
