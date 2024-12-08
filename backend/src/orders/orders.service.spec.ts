@@ -27,6 +27,7 @@ describe('OrdersService', () => {
       },
       service: { id: 'service-1' },
       totalPrice: 100,
+      status: BookingStatus.COMPLETED,
     },
   } as Order;
 
@@ -48,7 +49,10 @@ describe('OrdersService', () => {
   } as Employee;
 
   const mockOrderRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
+    create: jest.fn().mockImplementation((dto) => ({
+      ...dto,
+      id: 'order-1',
+    })),
     save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
     find: jest.fn().mockImplementation(() => Promise.resolve([mockOrder])),
     findOne: jest.fn().mockImplementation(() => Promise.resolve(mockOrder)),
@@ -99,7 +103,17 @@ describe('OrdersService', () => {
     it('should create an order from a confirmed booking', async () => {
       const result = await service.createFromBooking('booking-1');
 
-      expect(result).toEqual(mockOrder);
+      // Verify the structure without checking exact timestamps
+      expect(result).toMatchObject({
+        id: expect.any(String),
+        totalAmount: mockOrder.totalAmount,
+        completedAt: expect.any(Date),
+        booking: {
+          ...mockOrder.booking,
+          status: BookingStatus.COMPLETED,
+        },
+      });
+
       expect(bookingRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'booking-1' },
         relations: ['customer', 'employee', 'service'],
