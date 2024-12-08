@@ -69,17 +69,21 @@ describe('run-seeds', () => {
       const executionOrder: string[] = [];
 
       // Mock seed functions to track execution order
-      (createAdminUser as jest.Mock).mockImplementation(async () => {
+      (createAdminUser as jest.Mock).mockImplementation(() => {
         executionOrder.push('admin');
+        return Promise.resolve();
       });
-      (createInitialData as jest.Mock).mockImplementation(async () => {
+      (createInitialData as jest.Mock).mockImplementation(() => {
         executionOrder.push('initial');
+        return Promise.resolve();
       });
-      (createSampleBookings as jest.Mock).mockImplementation(async () => {
+      (createSampleBookings as jest.Mock).mockImplementation(() => {
         executionOrder.push('bookings');
+        return Promise.resolve();
       });
-      (createSampleOrders as jest.Mock).mockImplementation(async () => {
+      (createSampleOrders as jest.Mock).mockImplementation(() => {
         executionOrder.push('orders');
+        return Promise.resolve();
       });
 
       await runSeeds(mockDataSource);

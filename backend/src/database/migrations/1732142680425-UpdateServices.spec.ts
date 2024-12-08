@@ -23,7 +23,16 @@ describe('UpdateServices1732142680425', () => {
       expect(queryRunner.query).toHaveBeenCalledWith(`DELETE FROM "services"`);
 
       // Verify insertion of updated services
-      const insertQuery = queryMock.mock.calls[2][0];
+      const calls = queryMock.mock.calls as [string][];
+      if (!Array.isArray(calls) || calls.length < 3) {
+        throw new Error('Expected at least 3 query calls');
+      }
+
+      const insertQuery = calls[2][0];
+      if (typeof insertQuery !== 'string') {
+        throw new Error('Expected string query');
+      }
+
       expect(insertQuery).toContain('INSERT INTO "services"');
       expect(insertQuery).toContain('Standard Klipp');
       expect(insertQuery).toContain('299.00');

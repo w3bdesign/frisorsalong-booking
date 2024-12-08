@@ -14,6 +14,20 @@ interface RepositoryMapping {
 }
 
 type SupportedEntity = User | Employee | Service;
+type RepositoryType<T extends SupportedEntity> = T extends User 
+  ? Partial<Repository<User>> 
+  : T extends Employee 
+    ? Partial<Repository<Employee>> 
+    : T extends Service 
+      ? Partial<Repository<Service>> 
+      : never;
+
+function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
+  if (typeof entity === "function") {
+    return entity.name as keyof RepositoryMapping;
+  }
+  throw new Error("Unsupported entity type");
+}
 
 describe("createInitialData", () => {
   let mockDataSource: Partial<DataSource>;
@@ -68,21 +82,21 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = (entity: EntityTarget<SupportedEntity>): Partial<Repository<SupportedEntity>> => {
+    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>): RepositoryType<T> => {
       const repositories: RepositoryMapping = {
         User: mockUserRepository,
         Employee: mockEmployeeRepository,
         Service: mockServiceRepository,
       };
 
-      const entityName = typeof entity === "function" ? entity.name : "Unknown";
-      const repository = repositories[entityName as keyof RepositoryMapping];
+      const entityName = getEntityName(entity);
+      const repository = repositories[entityName];
 
       if (!repository) {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
       }
 
-      return repository;
+      return repository as RepositoryType<T>;
     };
 
     mockDataSource = {
