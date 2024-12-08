@@ -6,6 +6,11 @@ import { UserRole } from "../users/entities/user.entity";
 import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 
+jest.mock('bcrypt', () => ({
+  compare: jest.fn(),
+  hash: jest.fn(),
+}));
+
 describe("AuthService", () => {
   let service: AuthService;
 
@@ -87,7 +92,7 @@ describe("AuthService", () => {
 
     beforeEach(() => {
       // Setup bcrypt mock before each test
-      jest.spyOn(bcrypt, "compare").mockImplementation(() => Promise.resolve(true));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
     });
 
     it("should successfully login a user", async () => {
@@ -110,7 +115,7 @@ describe("AuthService", () => {
 
     it("should throw UnauthorizedException if password is invalid", async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      jest.spyOn(bcrypt, "compare").mockImplementation(() => Promise.resolve(false));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException
