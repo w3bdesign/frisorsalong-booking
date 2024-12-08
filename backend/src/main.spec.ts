@@ -1,5 +1,5 @@
 import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { NestFactory } from "@nestjs/core";
 import { bootstrap } from "./main";
@@ -110,14 +110,16 @@ describe("Bootstrap", () => {
     app = mockApp as unknown as INestApplication;
 
     jest.spyOn(NestFactory, "create").mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue({
+    const mockSwaggerDoc = {
+      openapi: "3.0.0",
       paths: {},
       components: {},
       info: {
         title: "Test API",
         version: "1.0",
       },
-    } as OpenAPIObject);
+    };
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
@@ -151,12 +153,9 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = (app.useGlobalPipes as jest.Mock).mock.calls;
-    if (
-      !Array.isArray(validationPipeCalls) ||
-      validationPipeCalls.length === 0
-    ) {
-      throw new Error("Expected at least one validation pipe call");
+    const validationPipeCalls = (app.useGlobalPipes as jest.Mock).mock.calls as [ValidationPipe][];
+    if (!Array.isArray(validationPipeCalls) || validationPipeCalls.length === 0) {
+      throw new Error('Expected at least one validation pipe call');
     }
 
     const validationPipe = validationPipeCalls[0][0];
@@ -186,19 +185,32 @@ describe("Bootstrap", () => {
     );
     expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    expect(SwaggerModule.setup).toHaveBeenCalledWith(
-      "api-docs",
-      app,
-      expect.any(OpenAPIObject),
-      {
-        swaggerOptions: {
-          persistAuthorization: true,
-          docExpansion: "none",
-          filter: true,
-          showRequestDuration: true,
-        },
-      }
-    );
+
+    const setupCalls = (SwaggerModule.setup as jest.Mock).mock.calls;
+    if (!Array.isArray(setupCalls) || setupCalls.length === 0) {
+      throw new Error('Expected at least one Swagger setup call');
+    }
+
+    const [path, setupApp, document, options] = setupCalls[0];
+    expect(path).toBe("api-docs");
+    expect(setupApp).toBe(app);
+    expect(document).toEqual(expect.objectContaining({
+      openapi: "3.0.0",
+      paths: expect.any(Object),
+      components: expect.any(Object),
+      info: expect.objectContaining({
+        title: expect.any(String),
+        version: expect.any(String),
+      }),
+    }));
+    expect(options).toEqual({
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
   });
 
   it("should listen on the configured port", async () => {
