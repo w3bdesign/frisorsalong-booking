@@ -3,6 +3,16 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class InitialMigration1731981975581 implements MigrationInterface {
   name = "InitialMigration1731981975581";
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
   private async executeQuery(queryRunner: QueryRunner, sql: string): Promise<void> {
     if (!queryRunner || typeof queryRunner.query !== 'function') {
       throw new Error('Invalid query runner');
@@ -11,12 +21,11 @@ export class InitialMigration1731981975581 implements MigrationInterface {
     try {
       await queryRunner.query(sql).catch((error: unknown) => {
         throw new Error(
-          `Query failed: ${sql}\nError: ${error instanceof Error ? error.message : String(error)}`
+          `Query failed: ${sql}\nError: ${this.getErrorMessage(error)}`
         );
       });
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Migration failed executing query: ${sql}\nError: ${errorMessage}`);
+      throw new Error(`Migration failed executing query: ${sql}\nError: ${this.getErrorMessage(error)}`);
     }
   }
 
@@ -120,8 +129,7 @@ export class InitialMigration1731981975581 implements MigrationInterface {
 
       await this.executeQueries(queryRunner, addForeignKeyQueries);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Migration up failed: ${errorMessage}`);
+      throw new Error(`Migration up failed: ${this.getErrorMessage(error)}`);
     }
   }
 
@@ -166,8 +174,7 @@ export class InitialMigration1731981975581 implements MigrationInterface {
 
       await this.executeQueries(queryRunner, dropEnumQueries);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Migration down failed: ${errorMessage}`);
+      throw new Error(`Migration down failed: ${this.getErrorMessage(error)}`);
     }
   }
 }

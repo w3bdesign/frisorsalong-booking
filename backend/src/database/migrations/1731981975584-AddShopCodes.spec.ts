@@ -1,4 +1,4 @@
-import { DataSource, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
 import { AddShopCodes1731981975584 } from './1731981975584-AddShopCodes';
 
 type SafeQueryRunner = {
@@ -8,20 +8,10 @@ type SafeQueryRunner = {
 
 describe('AddShopCodes1731981975584', () => {
   let migration: AddShopCodes1731981975584;
-  let dataSource: DataSource;
   let queryRunner: SafeQueryRunner;
 
   beforeEach(() => {
     migration = new AddShopCodes1731981975584();
-    dataSource = new DataSource({
-      type: 'postgres',
-      database: ':memory:',
-      dropSchema: true,
-      synchronize: false,
-      logging: false,
-      entities: [],
-    });
-
     queryRunner = {
       hasTable: jest.fn().mockResolvedValue(false),
       query: jest.fn().mockResolvedValue(undefined),
