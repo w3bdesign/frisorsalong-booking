@@ -33,19 +33,19 @@ jest.mock("@faker-js/faker", () => ({
   },
 }));
 
-interface RepositoryMapping {
+type MockRepositories = {
   User: Repository<User>;
   Employee: Repository<Employee>;
   Service: Repository<Service>;
   Booking: Repository<Booking>;
-}
+};
 
 describe("createSampleBookings", () => {
   let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockEmployeeRepository: Partial<Repository<Employee>>;
-  let mockServiceRepository: Partial<Repository<Service>>;
-  let mockBookingRepository: Partial<Repository<Booking>>;
+  let mockUserRepository: Repository<User>;
+  let mockEmployeeRepository: Repository<Employee>;
+  let mockServiceRepository: Repository<Service>;
+  let mockBookingRepository: Repository<Booking>;
   const originalEnv = process.env;
   const originalRandom = Math.random;
 
@@ -54,15 +54,15 @@ describe("createSampleBookings", () => {
       save: jest.fn().mockImplementation((data) =>
         Promise.resolve({ id: "user-1", ...data })
       ),
-    };
+    } as unknown as Repository<User>;
 
     mockEmployeeRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-    };
+    } as unknown as Repository<Employee>;
 
     mockServiceRepository = {
       find: jest.fn().mockResolvedValue([]),
-    };
+    } as unknown as Repository<Service>;
 
     mockBookingRepository = {
       save: jest.fn().mockImplementation((bookings) =>
@@ -72,18 +72,18 @@ describe("createSampleBookings", () => {
             : { id: "booking-1", ...bookings }
         )
       ),
+    } as unknown as Repository<Booking>;
+
+    const repositories: MockRepositories = {
+      User: mockUserRepository,
+      Employee: mockEmployeeRepository,
+      Service: mockServiceRepository,
+      Booking: mockBookingRepository,
     };
 
     const mockGetRepository = <T>(entity: EntityTarget<T>): Repository<T> => {
-      const repositories: RepositoryMapping = {
-        User: mockUserRepository as Repository<User>,
-        Employee: mockEmployeeRepository as Repository<Employee>,
-        Service: mockServiceRepository as Repository<Service>,
-        Booking: mockBookingRepository as Repository<Booking>,
-      };
-
       const entityName = typeof entity === "function" ? entity.name : "Unknown";
-      const repository = repositories[entityName as keyof RepositoryMapping];
+      const repository = repositories[entityName as keyof MockRepositories];
 
       if (!repository) {
         throw new Error(`Repository not mocked for entity: ${entityName}`);

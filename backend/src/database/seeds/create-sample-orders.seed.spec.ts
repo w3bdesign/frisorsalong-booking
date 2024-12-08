@@ -3,15 +3,12 @@ import { createSampleOrders } from './create-sample-orders.seed';
 import { Order } from '../../orders/entities/order.entity';
 import { Booking, BookingStatus } from '../../bookings/entities/booking.entity';
 
-type SupportedEntity = Order | Booking;
+type MockRepositories = {
+  Booking: Repository<Booking>;
+  Order: Repository<Order>;
+};
 
-function getEntityName(entity: EntityTarget<SupportedEntity>): string {
-  if (entity === Order) return 'Order';
-  if (entity === Booking) return 'Booking';
-  throw new Error('Unsupported entity type');
-}
-
-interface MockRepositories {
+interface MockFunctions {
   bookingFindMock: jest.Mock;
   orderCreateMock: jest.Mock;
   orderSaveMock: jest.Mock;
@@ -20,9 +17,9 @@ interface MockRepositories {
 
 describe('createSampleOrders', () => {
   let mockDataSource: Partial<DataSource>;
-  let mockBookingRepository: Partial<Repository<Booking>>;
-  let mockOrderRepository: Partial<Repository<Order>>;
-  let mocks: MockRepositories;
+  let mockBookingRepository: Repository<Booking>;
+  let mockOrderRepository: Repository<Order>;
+  let mocks: MockFunctions;
 
   function createMockBookings(count: number): Booking[] {
     return Array(count).fill(null).map((_, index) => ({
@@ -35,7 +32,7 @@ describe('createSampleOrders', () => {
     })) as Booking[];
   }
 
-  function setupMocks(): MockRepositories {
+  function setupMocks(): MockFunctions {
     const bookingFindMock = mockBookingRepository.find as jest.Mock;
     const orderCreateMock = mockOrderRepository.create as jest.Mock;
     const orderSaveMock = mockOrderRepository.save as jest.Mock;
@@ -57,29 +54,31 @@ describe('createSampleOrders', () => {
     mockBookingRepository = {
       find: jest.fn(),
       save: jest.fn(),
-    };
+    } as unknown as Repository<Booking>;
 
     mockOrderRepository = {
       create: jest.fn(),
       save: jest.fn(),
+    } as unknown as Repository<Order>;
+
+    const repositories: MockRepositories = {
+      Booking: mockBookingRepository,
+      Order: mockOrderRepository,
+    };
+
+    const mockGetRepository = <T>(entity: EntityTarget<T>): Repository<T> => {
+      const entityName = typeof entity === 'function' ? entity.name : 'Unknown';
+      const repository = repositories[entityName as keyof MockRepositories];
+
+      if (!repository) {
+        throw new Error(`Repository not found for entity: ${entityName}`);
+      }
+
+      return repository as Repository<T>;
     };
 
     mockDataSource = {
-      getRepository: jest.fn().mockImplementation((entity: EntityTarget<SupportedEntity>) => {
-        const repositories = {
-          'Booking': mockBookingRepository as Repository<Booking>,
-          'Order': mockOrderRepository as Repository<Order>,
-        };
-
-        const entityName = getEntityName(entity);
-        const repository = repositories[entityName];
-
-        if (!repository) {
-          throw new Error(`Repository not found for entity: ${entityName}`);
-        }
-
-        return repository;
-      }),
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
     };
 
     mocks = setupMocks();
