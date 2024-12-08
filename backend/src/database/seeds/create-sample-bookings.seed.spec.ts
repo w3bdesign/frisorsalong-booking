@@ -133,7 +133,8 @@ describe('createSampleBookings', () => {
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
 
     // Mock faker array element to return first items
-    (faker.helpers.arrayElement as jest.Mock)
+    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
+    mockArrayElement
       .mockReturnValueOnce(mockServices[0])  // First service
       .mockReturnValue({ id: 'customer-1' }); // Customer for subsequent calls
 
@@ -142,7 +143,7 @@ describe('createSampleBookings', () => {
     (faker.date.between as jest.Mock).mockReturnValue(mockDate);
 
     // Mock maybe function to always return a note
-    (faker.helpers.maybe as jest.Mock).mockImplementation((callback) => callback());
+    (faker.helpers.maybe as jest.Mock).mockImplementation((callback: () => string) => callback());
 
     await createSampleBookings(mockDataSource as DataSource);
 
@@ -156,8 +157,9 @@ describe('createSampleBookings', () => {
     }));
 
     // Verify bookings were created
-    expect(mockBookingRepository.save).toHaveBeenCalled();
-    const savedBookings = (mockBookingRepository.save as jest.Mock).mock.calls[0][0];
+    const saveBookingMock = mockBookingRepository.save as jest.Mock;
+    expect(saveBookingMock).toHaveBeenCalled();
+    const savedBookings = saveBookingMock.mock.calls[0][0] as Booking[];
     expect(savedBookings).toHaveLength(20);
     expect(savedBookings[0]).toEqual(expect.objectContaining({
       employee: mockEmployee,
@@ -210,7 +212,8 @@ describe('createSampleBookings', () => {
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
 
     // Mock faker to return service and customer
-    (faker.helpers.arrayElement as jest.Mock)
+    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
+    mockArrayElement
       .mockReturnValueOnce(mockServices[0])  // Service
       .mockReturnValue({ id: 'customer-1' }); // Customer
 
@@ -219,21 +222,26 @@ describe('createSampleBookings', () => {
 
     const mockStartDate = new Date('2024-01-01T10:00:00Z');
     const mockCancelDate = new Date('2024-01-01T09:00:00Z');
-    (faker.date.between as jest.Mock)
+    const mockDateBetween = faker.date.between as jest.Mock;
+    mockDateBetween
       .mockReturnValueOnce(mockStartDate)  // Booking start time
       .mockReturnValue(mockCancelDate);    // Cancellation time
 
     await createSampleBookings(mockDataSource as DataSource);
 
     // Verify cancelled booking was created with correct details
-    const savedBookings = (mockBookingRepository.save as jest.Mock).mock.calls[0][0];
+    const saveBookingMock = mockBookingRepository.save as jest.Mock;
+    const savedBookings = saveBookingMock.mock.calls[0][0] as Booking[];
     const cancelledBooking = savedBookings.find((b: Booking) => b.status === BookingStatus.CANCELLED);
+    
     expect(cancelledBooking).toBeDefined();
-    expect(cancelledBooking).toEqual(expect.objectContaining({
-      status: BookingStatus.CANCELLED,
-      cancelledAt: mockCancelDate,
-      cancellationReason: 'Sample note',
-    }));
+    if (cancelledBooking) {
+      expect(cancelledBooking).toEqual(expect.objectContaining({
+        status: BookingStatus.CANCELLED,
+        cancelledAt: mockCancelDate,
+        cancellationReason: 'Sample note',
+      }));
+    }
   });
 
   it('should handle database errors', async () => {
