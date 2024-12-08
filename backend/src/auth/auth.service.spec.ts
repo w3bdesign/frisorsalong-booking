@@ -24,7 +24,7 @@ describe("AuthService", () => {
   };
 
   const mockJwtService = {
-    sign: jest.fn().mockImplementation(() => "jwt_token"),
+    sign: jest.fn().mockReturnValue("jwt_token"),
   };
 
   beforeEach(async () => {
@@ -85,9 +85,13 @@ describe("AuthService", () => {
       password: "password123",
     };
 
+    beforeEach(() => {
+      // Setup bcrypt mock before each test
+      jest.spyOn(bcrypt, "compare").mockImplementation(() => Promise.resolve(true));
+    });
+
     it("should successfully login a user", async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      jest.spyOn(bcrypt, "compare").mockImplementationOnce(() => Promise.resolve(true));
 
       const result = await service.login(loginDto);
 
@@ -106,7 +110,7 @@ describe("AuthService", () => {
 
     it("should throw UnauthorizedException if password is invalid", async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      jest.spyOn(bcrypt, "compare").mockImplementationOnce(() => Promise.resolve(false));
+      jest.spyOn(bcrypt, "compare").mockImplementation(() => Promise.resolve(false));
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException

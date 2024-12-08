@@ -22,8 +22,8 @@ describe("AuthController", () => {
   };
 
   const mockAuthService = {
-    register: jest.fn().mockImplementation((dto: RegisterDto) => Promise.resolve(mockAuthResponse)),
-    login: jest.fn().mockImplementation((dto: LoginDto) => Promise.resolve(mockAuthResponse)),
+    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
   };
 
   beforeEach(async () => {
