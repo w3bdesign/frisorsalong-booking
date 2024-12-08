@@ -35,7 +35,8 @@ export class AuthService {
 
       const token = this.generateToken(user);
       // Exclude password from response using object rest spread
-      const { password: _excluded, ...userWithoutPassword } = user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userWithoutPassword } = user;
 
       return {
         user: userWithoutPassword,
@@ -69,7 +70,8 @@ export class AuthService {
 
       const token = this.generateToken(user);
       // Exclude password from response using object rest spread
-      const { password: _excluded, ...userWithoutPassword } = user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userWithoutPassword } = user;
 
       return {
         user: userWithoutPassword,

@@ -25,8 +25,9 @@ describe("AppController", () => {
 
   describe("root", () => {
     it('should return API information', () => {
+      const mockGetHello = jest.spyOn(appService, 'getHello');
       expect(appController.getInfo()).toBe("Hello World!");
-      expect(appService.getHello).toHaveBeenCalled();
+      expect(mockGetHello).toHaveBeenCalled();
     });
   });
 

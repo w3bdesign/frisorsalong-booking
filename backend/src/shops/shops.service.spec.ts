@@ -7,7 +7,6 @@ import { UnauthorizedException } from '@nestjs/common';
 
 describe('ShopsService', () => {
   let service: ShopsService;
-  let repository: Repository<ShopCode>;
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -28,7 +27,6 @@ describe('ShopsService', () => {
     }).compile();
 
     service = module.get<ShopsService>(ShopsService);
-    repository = module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
     jest.clearAllMocks();
   });
 
@@ -124,8 +122,8 @@ describe('ShopsService', () => {
     });
 
     it('should create a shop code with auto-generated code', async () => {
-      mockRepository.create.mockImplementation((data) => data);
-      mockRepository.save.mockImplementation((data) => Promise.resolve(data));
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>) => data as ShopCode);
+      mockRepository.save.mockImplementation((data: ShopCode) => Promise.resolve(data));
 
       const result = await service.createShopCode('Test Shop');
 
