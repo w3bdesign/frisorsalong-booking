@@ -165,10 +165,11 @@ describe("BookingsController", () => {
 
   describe("complete", () => {
     it("should complete a booking and create an order", async () => {
+      const mockCreateFromBooking = jest.spyOn(ordersService, 'createFromBooking');
       const result = await controller.complete("booking-1");
 
       expect(result).toBeDefined();
-      expect(ordersService.createFromBooking).toHaveBeenCalledWith("booking-1");
+      expect(mockCreateFromBooking).toHaveBeenCalledWith("booking-1");
     });
   });
 
