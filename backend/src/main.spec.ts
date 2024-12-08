@@ -1,5 +1,5 @@
 import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { NestFactory } from "@nestjs/core";
 import { bootstrap } from "./main";
@@ -27,7 +27,7 @@ jest.mock("@nestjs/config", () => ({
     forRoot: jest.fn().mockReturnValue({}),
   },
   ConfigService: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key) => {
+    get: jest.fn().mockImplementation((key: string) => {
       if (key === "cache") {
         return {
           host: "localhost",
@@ -110,7 +110,14 @@ describe("Bootstrap", () => {
     app = mockApp as unknown as INestApplication;
 
     jest.spyOn(NestFactory, "create").mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue({} as any);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue({
+      paths: {},
+      components: {},
+      info: {
+        title: "Test API",
+        version: "1.0",
+      },
+    } as OpenAPIObject);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
@@ -118,10 +125,10 @@ describe("Bootstrap", () => {
     jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
 
-    jest.spyOn(console, "log").mockImplementation();
+    jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -144,7 +151,15 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipe = (app.useGlobalPipes as jest.Mock).mock.calls[0][0];
+    const validationPipeCalls = (app.useGlobalPipes as jest.Mock).mock.calls;
+    if (
+      !Array.isArray(validationPipeCalls) ||
+      validationPipeCalls.length === 0
+    ) {
+      throw new Error("Expected at least one validation pipe call");
+    }
+
+    const validationPipe = validationPipeCalls[0][0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 
@@ -174,7 +189,7 @@ describe("Bootstrap", () => {
     expect(SwaggerModule.setup).toHaveBeenCalledWith(
       "api-docs",
       app,
-      expect.any(Object),
+      expect.any(OpenAPIObject),
       {
         swaggerOptions: {
           persistAuthorization: true,
