@@ -7,6 +7,7 @@ import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
 import { EmployeesService } from '../employees/employees.service';
 import { NotFoundException } from '@nestjs/common';
 import { Employee } from '../employees/entities/employee.entity';
+import { FindOneOptions } from 'typeorm';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -55,11 +56,23 @@ describe('OrdersService', () => {
     } as Order)),
     save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
     find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
-    findOne: jest.fn().mockImplementation((options: any): Promise<Order | null> => {
-      if (options?.where?.id === 'order-1' && 
-          options?.where?.booking?.employee?.id === 'employee-1') {
-        return Promise.resolve(mockOrder);
+    findOne: jest.fn().mockImplementation((options: FindOneOptions<Order>): Promise<Order | null> => {
+      if (!options.where) return Promise.resolve(null);
+
+      const where = options.where as any;
+      
+      // For regular findOne by id
+      if ('id' in where && where.id === 'order-1') {
+        // For findOneByEmployee, also check the employee ID
+        if ('booking' in where && where.booking?.employee?.id === 'employee-1') {
+          return Promise.resolve(mockOrder);
+        }
+        // For regular findOne, just return the order
+        if (!('booking' in where)) {
+          return Promise.resolve(mockOrder);
+        }
       }
+      
       return Promise.resolve(null);
     }),
   };
