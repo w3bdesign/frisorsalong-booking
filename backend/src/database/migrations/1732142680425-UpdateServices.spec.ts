@@ -23,7 +23,7 @@ describe('UpdateServices1732142680425', () => {
       expect(queryRunner.query).toHaveBeenCalledWith(`DELETE FROM "services"`);
 
       // Verify insertion of updated services
-      const calls = queryMock.mock.calls;
+      const calls = queryMock.mock.calls as [string][];
       if (!Array.isArray(calls) || calls.length < 3) {
         throw new Error('Expected at least 3 query calls');
       }
