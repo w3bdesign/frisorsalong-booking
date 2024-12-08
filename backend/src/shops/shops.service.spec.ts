@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ShopsService } from './shops.service';
 import { ShopCode } from './entities/shop-code.entity';
 import { UnauthorizedException } from '@nestjs/common';
