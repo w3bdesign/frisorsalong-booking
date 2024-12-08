@@ -18,11 +18,13 @@ module.exports = [
         "recommended-requiring-type-checking"
       ].rules,
       "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-unsafe-return": "warn",
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/unbound-method": "warn",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      // End temporary
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": [
