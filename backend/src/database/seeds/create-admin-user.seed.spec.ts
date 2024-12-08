@@ -1,4 +1,4 @@
-import { DataSource, Repository, FindOneOptions } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../../users/entities/user.entity';
 import { createAdminUser } from './create-admin-user.seed';
 import * as bcrypt from 'bcrypt';

@@ -1,4 +1,4 @@
-import type { DynamicModule } from '@nestjs/common';
+import type { DynamicModule, INestApplication } from "@nestjs/common";
 
 // Base mock module class that all mock modules will extend
 class BaseMockModule {
@@ -56,7 +56,6 @@ import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { join } from "path";
-import type { INestApplication } from "@nestjs/common";
 
 // Mock repositories
 const mockRepository = {
