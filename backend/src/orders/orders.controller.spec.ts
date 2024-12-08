@@ -8,29 +8,29 @@ import * as bcrypt from 'bcrypt';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
-  let service: OrdersService;
 
-  const createMockUser = (data: Partial<User>): User => ({
-    id: 'default-id',
-    firstName: 'Default',
-    lastName: 'User',
-    email: 'default@example.com',
-    password: 'password',
-    role: UserRole.CUSTOMER,
-    phoneNumber: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    hashPassword: async function() {
-      if (this.password) {
+  const createMockUser = (data: Partial<User>): User => {
+    const defaultUser: User = {
+      id: 'default-id',
+      firstName: 'Default',
+      lastName: 'User',
+      email: 'default@example.com',
+      password: 'password',
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async (): Promise<void> => {
         const salt = await bcrypt.genSalt();
-        this.password = await bcrypt.hash(this.password, salt);
-      }
-    },
-    validatePassword: async function(password: string) {
-      return bcrypt.compare(password, this.password);
-    },
-    ...data
-  });
+        defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
+      },
+      validatePassword: async (password: string): Promise<boolean> => {
+        return bcrypt.compare(password, defaultUser.password);
+      },
+      ...data
+    };
+    return defaultUser;
+  };
 
   const mockAdminUser = createMockUser({
     id: 'admin-id',
@@ -49,11 +49,16 @@ describe('OrdersController', () => {
   });
 
   const mockOrdersService = {
-    createFromBooking: jest.fn(),
-    findAll: jest.fn(),
-    findAllByEmployee: jest.fn(),
-    findOne: jest.fn(),
-    findOneByEmployee: jest.fn(),
+    createFromBooking: jest.fn().mockImplementation((bookingId: string): Promise<Order> => 
+      Promise.resolve({ id: 'order-id', totalAmount: 100 } as Order)),
+    findAll: jest.fn().mockImplementation((): Promise<Order[]> => 
+      Promise.resolve([{ id: '1', totalAmount: 100 } as Order])),
+    findAllByEmployee: jest.fn().mockImplementation((employeeId: string): Promise<Order[]> => 
+      Promise.resolve([{ id: '1', totalAmount: 100 } as Order])),
+    findOne: jest.fn().mockImplementation((id: string): Promise<Order> => 
+      Promise.resolve({ id, totalAmount: 100 } as Order)),
+    findOneByEmployee: jest.fn().mockImplementation((orderId: string, employeeId: string): Promise<Order> => 
+      Promise.resolve({ id: orderId, totalAmount: 100 } as Order)),
   };
 
   beforeEach(async () => {
@@ -68,7 +73,6 @@ describe('OrdersController', () => {
     }).compile();
 
     controller = module.get<OrdersController>(OrdersController);
-    service = module.get<OrdersService>(OrdersService);
 
     // Reset all mocks before each test
     jest.clearAllMocks();

@@ -55,7 +55,13 @@ describe('OrdersService', () => {
     } as Order)),
     save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
     find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
-    findOne: jest.fn().mockImplementation((): Promise<Order> => Promise.resolve(mockOrder)),
+    findOne: jest.fn().mockImplementation((options: any): Promise<Order | null> => {
+      if (options?.where?.id === 'order-1' && 
+          options?.where?.booking?.employee?.id === 'employee-1') {
+        return Promise.resolve(mockOrder);
+      }
+      return Promise.resolve(null);
+    }),
   };
 
   const mockBookingRepository = {

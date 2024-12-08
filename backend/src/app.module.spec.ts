@@ -1,5 +1,16 @@
 import type { DynamicModule } from '@nestjs/common';
 
+// Base mock module class that all mock modules will extend
+class BaseMockModule {
+  static register(): DynamicModule {
+    return {
+      module: this,
+      providers: [],
+      exports: [],
+    };
+  }
+}
+
 // Mock implementations must be at the top level
 const mockTypeOrmModule = {
   forRootAsync: jest.fn().mockReturnValue({
@@ -82,17 +93,7 @@ class MockConfigService extends ConfigService {
 
 const mockConfigService = new MockConfigService();
 
-// Mock feature modules with proper DynamicModule returns
-class BaseMockModule {
-  static register(): DynamicModule {
-    return {
-      module: this,
-      providers: [],
-      exports: [],
-    };
-  }
-}
-
+// Mock feature modules
 jest.mock("./auth/auth.module", () => ({
   AuthModule: class MockAuthModule extends BaseMockModule {},
 }));
