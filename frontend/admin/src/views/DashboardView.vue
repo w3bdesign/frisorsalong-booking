@@ -79,6 +79,14 @@
           >
             {{ bookingStore.error }}
           </div>
+          <div
+            v-else-if="!bookingStore.bookings.length"
+            class="p-12 text-center"
+            data-test="empty-state"
+          >
+            <h3 class="text-lg font-medium text-gray-900 mb-1">Ingen bestillinger</h3>
+            <p class="text-sm text-gray-500">Det er ingen aktive bestillinger for øyeblikket.</p>
+          </div>
           <table v-else class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
