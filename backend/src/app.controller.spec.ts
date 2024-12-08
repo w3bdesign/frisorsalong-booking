@@ -5,9 +5,10 @@ import { AppService } from "./app.service";
 describe("AppController", () => {
   let appController: AppController;
   let appService: AppService;
+  let module: TestingModule;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       controllers: [AppController],
       providers: [
         {
@@ -19,14 +20,25 @@ describe("AppController", () => {
       ],
     }).compile();
 
-    appController = app.get<AppController>(AppController);
-    appService = app.get<AppService>(AppService);
+    // Use type assertion here since we know these types are correct
+    // based on our module configuration
+    appController = module.get(AppController);
+    appService = module.get(AppService);
+
+    // Verify the instances are correct
+    if (!(appController instanceof AppController)) {
+      throw new Error('Failed to get AppController instance');
+    }
+    if (!appService || typeof appService.getHello !== 'function') {
+      throw new Error('Failed to get AppService instance');
+    }
   });
 
   describe("root", () => {
     it('should return API information', () => {
+      const mockGetHello = jest.spyOn(appService, 'getHello');
       expect(appController.getInfo()).toBe("Hello World!");
-      expect(appService.getHello).toHaveBeenCalled();
+      expect(mockGetHello).toHaveBeenCalled();
     });
   });
 
