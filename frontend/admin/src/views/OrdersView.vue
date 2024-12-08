@@ -19,15 +19,40 @@
 
       <!-- Filters -->
       <div class="mb-6 bg-white p-4 rounded-lg shadow space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Velg dato</label
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Velg dato</label
+            >
+            <input
+              type="date"
+              v-model="selectedDate"
+              class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Velg ansatt</label
+            >
+            <select
+              v-model="selectedEmployeeId"
+              class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="">Alle ansatte</option>
+              <option v-for="employee in activeEmployees" :key="employee.id" :value="employee.id">
+                {{ employee.user.firstName }} {{ employee.user.lastName }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <Button
+            @click="showAllOrders"
+            variant="secondary"
+            class="ml-2"
           >
-          <input
-            type="date"
-            v-model="selectedDate"
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
+            Vis alle ordre
+          </Button>
         </div>
       </div>
 
@@ -149,14 +174,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useOrdersStore } from "../stores/orders";
-import { useAuthStore } from "../stores/auth";
+import { useEmployeesStore } from "../stores/employees";
 import { storeToRefs } from "pinia";
 import OrdersChart from "../components/OrdersChart.vue";
 import Button from "../components/base/Button.vue";
 
 const ordersStore = useOrdersStore();
-const authStore = useAuthStore();
+const employeesStore = useEmployeesStore();
 const { orders, loading, error } = storeToRefs(ordersStore);
+const { employees } = storeToRefs(employeesStore);
 
 // Set up periodic refresh
 let refreshInterval: number | null = null;
@@ -164,6 +190,11 @@ let refreshInterval: number | null = null;
 // Date handling - initialize with today's date in local timezone
 const today = new Date();
 const selectedDate = ref(today.toISOString().split("T")[0]);
+const selectedEmployeeId = ref("");
+
+const activeEmployees = computed(() => {
+  return employees.value.filter(emp => emp.isActive);
+});
 
 const filteredOrders = computed(() => {
   let filtered = orders.value;
@@ -190,6 +221,13 @@ const filteredOrders = computed(() => {
       const orderDate = new Date(order.completedAt);
       return orderDate >= startOfDay && orderDate <= endOfDay;
     });
+  }
+
+  // Filter by employee
+  if (selectedEmployeeId.value) {
+    filtered = filtered.filter((order) => 
+      order.booking.employee.id === selectedEmployeeId.value
+    );
   }
 
   return filtered;
@@ -232,22 +270,33 @@ function formatPrice(price: string | number): string {
 
 function refreshData() {
   ordersStore.fetchOrders(true);
+  employeesStore.fetchEmployees();
+}
+
+function showAllOrders() {
+  selectedDate.value = "";
+  selectedEmployeeId.value = "";
 }
 
 // Watch for filter changes to log filtering info
-watch([selectedDate, orders], () => {
+watch([selectedDate, selectedEmployeeId, orders], () => {
   console.log("Filtering debug:");
   console.log("Selected date:", selectedDate.value);
+  console.log("Selected employee:", selectedEmployeeId.value);
   console.log("Total orders:", orders.value.length);
   console.log("Filtered orders:", filteredOrders.value.length);
 });
 
 onMounted(async () => {
-  await ordersStore.fetchOrders();
+  await Promise.all([
+    ordersStore.fetchOrders(),
+    employeesStore.fetchEmployees()
+  ]);
   
   // Set up periodic refresh every 5 minutes
   refreshInterval = window.setInterval(() => {
     ordersStore.fetchOrders();
+    employeesStore.fetchEmployees();
   }, 300000); // 5 minutes in milliseconds
 });
 
