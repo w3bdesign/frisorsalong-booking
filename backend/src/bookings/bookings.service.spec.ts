@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, MoreThan, In, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { BookingsService } from './bookings.service';
 import { Booking, BookingStatus } from './entities/booking.entity';
 import { UsersService } from '../users/users.service';
@@ -12,7 +12,6 @@ import { CreateWalkInBookingDto } from './dto/create-walk-in-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { UserRole } from '../users/entities/user.entity';
-import { ShopCode } from '../shops/entities/shop-code.entity';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -88,7 +87,7 @@ describe('BookingsService', () => {
   });
 
   describe('createWalkIn', () => {
-    const mockShop: ShopCode = {
+    const mockShop = {
       id: 'shop1',
       code: 'SHOP1',
       shopName: 'Test Shop',
@@ -251,17 +250,22 @@ describe('BookingsService', () => {
   describe('cancel', () => {
     it('should cancel booking successfully', async () => {
       const mockBooking = { id: 'booking1' };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockResolvedValue({
+      const reason = 'Test reason';
+      const expectedSavedBooking = {
         ...mockBooking,
         status: BookingStatus.CANCELLED,
-      });
+        cancelledAt: expect.any(Date),
+        cancellationReason: reason,
+      };
 
-      const result = await service.cancel('booking1', 'Test reason');
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation(booking => Promise.resolve(booking));
+
+      const result = await service.cancel('booking1', reason);
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe('Test reason');
-      expect(mockBookingRepository.save).toHaveBeenCalled();
+      expect(result.cancellationReason).toBe(reason);
+      expect(mockBookingRepository.save).toHaveBeenCalledWith(expectedSavedBooking);
     });
   });
 
