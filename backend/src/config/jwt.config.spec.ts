@@ -1,6 +1,6 @@
 import jwtConfig from './jwt.config';
 
-describe('JWT Configuration', () => {
+describe('JWT Config', () => {
   const OLD_ENV = process.env;
 
   beforeEach(() => {
@@ -12,45 +12,32 @@ describe('JWT Configuration', () => {
     process.env = OLD_ENV;
   });
 
-  it('should use environment variables when provided', () => {
+  it('should be registered with jwt namespace', () => {
+    // registerAs adds a KEY property in the format "CONFIGURATION(namespace)"
+    expect(jwtConfig.KEY).toBe('CONFIGURATION(jwt)');
+  });
+
+  it('should use JWT_SECRET from environment', () => {
     process.env.JWT_SECRET = 'test-secret';
+    const config = jwtConfig();
+    expect(config.secret).toBe('test-secret');
+  });
+
+  it('should use JWT_EXPIRATION from environment', () => {
     process.env.JWT_EXPIRATION = '2h';
-
     const config = jwtConfig();
-
-    expect(config).toEqual({
-      secret: 'test-secret',
-      signOptions: {
-        expiresIn: '2h',
-      },
-    });
+    expect(config.signOptions.expiresIn).toBe('2h');
   });
 
-  it('should use default expiration when JWT_EXPIRATION is not provided', () => {
-    process.env.JWT_SECRET = 'test-secret';
+  it('should use default expiration when JWT_EXPIRATION is not set', () => {
     delete process.env.JWT_EXPIRATION;
-
     const config = jwtConfig();
-
-    expect(config).toEqual({
-      secret: 'test-secret',
-      signOptions: {
-        expiresIn: '1h',
-      },
-    });
+    expect(config.signOptions.expiresIn).toBe('1h');
   });
 
-  it('should return undefined secret when JWT_SECRET is not provided', () => {
+  it('should return undefined secret when JWT_SECRET is not set', () => {
     delete process.env.JWT_SECRET;
-    delete process.env.JWT_EXPIRATION;
-
     const config = jwtConfig();
-
-    expect(config).toEqual({
-      secret: undefined,
-      signOptions: {
-        expiresIn: '1h',
-      },
-    });
+    expect(config.secret).toBeUndefined();
   });
 });

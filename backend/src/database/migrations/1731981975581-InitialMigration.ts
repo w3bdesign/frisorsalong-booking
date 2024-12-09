@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class InitialMigration1731981975581 implements MigrationInterface {
   name = "InitialMigration1731981975581";
 
-  private getErrorMessage(error: unknown): string {
+  protected getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
       return error.message;
     }
@@ -13,7 +13,7 @@ export class InitialMigration1731981975581 implements MigrationInterface {
     return 'Unknown error occurred';
   }
 
-  private async executeQuery(queryRunner: QueryRunner, sql: string): Promise<void> {
+  protected async executeQuery(queryRunner: QueryRunner, sql: string): Promise<void> {
     if (!queryRunner || typeof queryRunner.query !== 'function') {
       throw new Error('Invalid query runner');
     }
@@ -29,7 +29,7 @@ export class InitialMigration1731981975581 implements MigrationInterface {
     }
   }
 
-  private async executeQueries(queryRunner: QueryRunner, queries: string[]): Promise<void> {
+  protected async executeQueries(queryRunner: QueryRunner, queries: string[]): Promise<void> {
     for (const query of queries) {
       await this.executeQuery(queryRunner, query);
     }
