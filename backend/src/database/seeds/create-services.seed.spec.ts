@@ -41,28 +41,28 @@ describe('CreateServicesSeed', () => {
     expect(savedServices).toEqual([
       expect.objectContaining({
         name: 'Standard Klipp',
-        description: expect.any(String),
+        description: expect.any(String) as string,
         duration: 20,
         price: 299,
         isActive: true,
       }),
       expect.objectContaining({
         name: 'Styling Klipp',
-        description: expect.any(String),
+        description: expect.any(String) as string,
         duration: 30,
         price: 399,
         isActive: true,
       }),
       expect.objectContaining({
         name: 'Skjegg Trim',
-        description: expect.any(String),
+        description: expect.any(String) as string,
         duration: 15,
         price: 199,
         isActive: true,
       }),
       expect.objectContaining({
         name: 'Full Service',
-        description: expect.any(String),
+        description: expect.any(String) as string,
         duration: 45,
         price: 549,
         isActive: true,
