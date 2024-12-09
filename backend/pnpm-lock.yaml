@@ -52,7 +52,7 @@ importers:
         version: 0.14.1
       dotenv:
         specifier: ^16.4.5
-        version: 16.4.5
+        version: 16.4.7
       passport:
         specifier: ^0.7.0
         version: 0.7.0
@@ -75,9 +75,6 @@ importers:
       '@faker-js/faker':
         specifier: ^9.2.0
         version: 9.2.0
-      '@golevelup/ts-jest':
-        specifier: ^0.6.1
-        version: 0.6.1
       '@nestjs/cli':
         specifier: ^10.4.8
         version: 10.4.8
@@ -381,9 +378,6 @@ packages:
   '@faker-js/faker@9.2.0':
     resolution: {integrity: sha512-ulqQu4KMr1/sTFIYvqSdegHT8NIkt66tFAkugGnHA+1WAfEn6hMzNR+svjXGFRVLnapxvej67Z/LwchFrnLBUg==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
-
-  '@golevelup/ts-jest@0.6.1':
-    resolution: {integrity: sha512-ubs2xao8q2BsFWD6g2GnkWLLIeVHsPQKYMihzk3v0ptegKJhlNRZvk8wodDx2U2MI7cyKh43mueafZ9xpYdwHQ==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -1420,6 +1414,10 @@ packages:
 
   dotenv@16.4.5:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
+    engines: {node: '>=12'}
+
+  dotenv@16.4.7:
+    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
     engines: {node: '>=12'}
 
   eastasianwidth@0.2.0:
@@ -3540,8 +3538,6 @@ snapshots:
 
   '@faker-js/faker@9.2.0': {}
 
-  '@golevelup/ts-jest@0.6.1': {}
-
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.6':
@@ -4788,6 +4784,8 @@ snapshots:
   dotenv-expand@10.0.0: {}
 
   dotenv@16.4.5: {}
+
+  dotenv@16.4.7: {}
 
   eastasianwidth@0.2.0: {}
 
@@ -6613,7 +6611,7 @@ snapshots:
       cli-highlight: 2.1.11
       dayjs: 1.11.13
       debug: 4.3.7
-      dotenv: 16.4.5
+      dotenv: 16.4.7
       glob: 10.4.5
       mkdirp: 2.1.6
       reflect-metadata: 0.2.2
