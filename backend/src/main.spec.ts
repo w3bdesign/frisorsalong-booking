@@ -75,9 +75,18 @@ interface MockNestApplication extends INestApplication {
   setGlobalPrefix: jest.Mock;
 }
 
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+
 describe("Bootstrap", () => {
   let app: MockNestApplication;
-  const mockSwaggerDoc: Partial<OpenAPIObject> = {
+  const mockSwaggerDoc: OpenAPIObject = {
     openapi: "3.0.0",
     paths: {},
     components: {},
@@ -125,7 +134,7 @@ describe("Bootstrap", () => {
     } as unknown as MockNestApplication;
 
     jest.spyOn(NestFactory, "create").mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc as OpenAPIObject);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
@@ -160,11 +169,7 @@ describe("Bootstrap", () => {
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
     const validationPipeCalls = app.useGlobalPipes.mock.calls;
-    if (!Array.isArray(validationPipeCalls) || validationPipeCalls.length === 0) {
-      throw new Error('Expected at least one validation pipe call');
-    }
-
-    const validationPipe = validationPipeCalls[0][0] as ValidationPipe;
+    const validationPipe = validationPipeCalls[0][0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 
@@ -192,24 +197,22 @@ describe("Bootstrap", () => {
     expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
 
-    const setupCalls = (SwaggerModule.setup as jest.Mock).mock.calls;
-    if (!Array.isArray(setupCalls) || setupCalls.length === 0) {
-      throw new Error('Expected at least one Swagger setup call');
-    }
-
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls;
     const [path, setupApp, document, options] = setupCalls[0];
+
     expect(path).toBe("api-docs");
     expect(setupApp).toBe(app);
-    expect(document).toEqual(expect.objectContaining({
+    expect(document).toEqual<OpenAPIObject>({
       openapi: "3.0.0",
-      paths: expect.any(Object),
-      components: expect.any(Object),
-      info: expect.objectContaining({
+      paths: {},
+      components: {},
+      info: {
         title: expect.any(String),
         version: expect.any(String),
-      }),
-    }));
-    expect(options).toEqual({
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
       swaggerOptions: {
         persistAuthorization: true,
         docExpansion: "none",

@@ -1,11 +1,44 @@
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CreateServicesSeed } from './create-services.seed';
 import { Service } from '../../services/entities/service.entity';
 
-interface MockServiceRepository extends Partial<Repository<Service>> {
-  clear: jest.Mock<Promise<void>>;
+interface MockServiceRepository {
+  clear: jest.Mock<Promise<void>, []>;
   save: jest.Mock<Promise<Service[]>, [Service[]]>;
 }
+
+type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
+
+const expectedServices: ServiceData[] = [
+  {
+    name: 'Standard Klipp',
+    description: 'Standard haircut service',
+    duration: 20,
+    price: 299,
+    isActive: true,
+  },
+  {
+    name: 'Styling Klipp',
+    description: 'Haircut with styling service',
+    duration: 30,
+    price: 399,
+    isActive: true,
+  },
+  {
+    name: 'Skjegg Trim',
+    description: 'Beard trimming service',
+    duration: 15,
+    price: 199,
+    isActive: true,
+  },
+  {
+    name: 'Full Service',
+    description: 'Complete hair and beard service',
+    duration: 45,
+    price: 549,
+    isActive: true,
+  }
+];
 
 describe('CreateServicesSeed', () => {
   let seed: CreateServicesSeed;
@@ -16,12 +49,14 @@ describe('CreateServicesSeed', () => {
     mockServiceRepository = {
       clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
       save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
-        return Promise.resolve(services.map(service => ({
-          ...service,
-          id: 'test-id',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })));
+        return Promise.resolve(
+          services.map(service => ({
+            ...service,
+            id: 'test-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        );
       }),
     };
 
@@ -38,36 +73,12 @@ describe('CreateServicesSeed', () => {
     expect(mockServiceRepository.clear).toHaveBeenCalled();
 
     const savedServices = mockServiceRepository.save.mock.calls[0][0];
-    expect(savedServices).toEqual([
-      expect.objectContaining({
-        name: 'Standard Klipp',
-        description: expect.any(String) as string,
-        duration: 20,
-        price: 299,
-        isActive: true,
-      }),
-      expect.objectContaining({
-        name: 'Styling Klipp',
-        description: expect.any(String) as string,
-        duration: 30,
-        price: 399,
-        isActive: true,
-      }),
-      expect.objectContaining({
-        name: 'Skjegg Trim',
-        description: expect.any(String) as string,
-        duration: 15,
-        price: 199,
-        isActive: true,
-      }),
-      expect.objectContaining({
-        name: 'Full Service',
-        description: expect.any(String) as string,
-        duration: 45,
-        price: 549,
-        isActive: true,
-      })
-    ]);
+
+    expectedServices.forEach((expectedService, index) => {
+      expect(savedServices[index]).toEqual(
+        expect.objectContaining(expectedService)
+      );
+    });
   });
 
   it('should handle database errors gracefully', async () => {
