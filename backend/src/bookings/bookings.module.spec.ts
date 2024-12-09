@@ -1,21 +1,20 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BookingsModule } from './bookings.module';
-import { BookingsService } from './bookings.service';
-import { BookingsController } from './bookings.controller';
-import { Booking } from './entities/booking.entity';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
-import { EmployeesService } from '../employees/employees.service';
-import { ServicesService } from '../services/services.service';
-import { OrdersService } from '../orders/orders.service';
-import { ShopsService } from '../shops/shops.service';
-import { ShopCode } from '../shops/entities/shop-code.entity';
+import { Test, TestingModule } from "@nestjs/testing";
+import { BookingsService } from "./bookings.service";
+import { BookingsController } from "./bookings.controller";
+import { Booking } from "./entities/booking.entity";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { JwtModule } from "@nestjs/jwt";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { ShopsService } from "../shops/shops.service";
+import { ShopCode } from "../shops/entities/shop-code.entity";
 
-describe('BookingsModule', () => {
+describe("BookingsModule", () => {
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -58,9 +57,9 @@ describe('BookingsModule', () => {
         JwtModule.registerAsync({
           imports: [ConfigModule],
           useFactory: async (configService: ConfigService) => ({
-            secret: configService.get('JWT_SECRET') || 'test-secret',
+            secret: configService.get("JWT_SECRET") || "test-secret",
             signOptions: {
-              expiresIn: configService.get('JWT_EXPIRATION') || '1h',
+              expiresIn: configService.get("JWT_EXPIRATION") || "1h",
             },
           }),
           inject: [ConfigService],
@@ -104,21 +103,22 @@ describe('BookingsModule', () => {
     }).compile();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(module).toBeDefined();
   });
 
-  it('should have BookingsService defined', () => {
+  it("should have BookingsService defined", () => {
     const bookingsService = module.get<BookingsService>(BookingsService);
     expect(bookingsService).toBeDefined();
   });
 
-  it('should have BookingsController defined', () => {
-    const bookingsController = module.get<BookingsController>(BookingsController);
+  it("should have BookingsController defined", () => {
+    const bookingsController =
+      module.get<BookingsController>(BookingsController);
     expect(bookingsController).toBeDefined();
   });
 
-  it('should have guards defined', () => {
+  it("should have guards defined", () => {
     const rolesGuard = module.get<RolesGuard>(RolesGuard);
     const jwtAuthGuard = module.get<JwtAuthGuard>(JwtAuthGuard);
 
@@ -126,7 +126,7 @@ describe('BookingsModule', () => {
     expect(jwtAuthGuard).toBeDefined();
   });
 
-  it('should have required services defined', () => {
+  it("should have required services defined", () => {
     const usersService = module.get<UsersService>(UsersService);
     const employeesService = module.get<EmployeesService>(EmployeesService);
     const servicesService = module.get<ServicesService>(ServicesService);
