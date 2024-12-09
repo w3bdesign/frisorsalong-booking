@@ -120,7 +120,7 @@ describe("createSampleOrders", () => {
     const firstOrderData = createCalls.calls[0][0];
     expect(firstOrderData).toEqual(
       expect.objectContaining({
-        booking: expect.objectContaining({ id: "booking-0" }),
+        booking: expect.objectContaining({ id: "booking-0" }) as string,
         totalAmount: 100,
         notes: expect.stringContaining("booking-0") as string,
       })
