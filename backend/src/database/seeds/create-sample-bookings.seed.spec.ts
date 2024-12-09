@@ -184,6 +184,58 @@ describe("createSampleBookings", () => {
     expect(mockBookingRepository.save).not.toHaveBeenCalled();
   });
 
+  it("should throw error when customer creation fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(new Error("Database error"));
+
+    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+      "Failed to create customer 1"
+    );
+  });
+
+  it("should throw error when service/customer selection fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock).mockReturnValue(null);
+
+    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+      "Failed to select service or customer for booking 1"
+    );
+  });
+
+  it("should throw error when saving bookings fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    const mockCustomer = { id: "customer-1" };
+    
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock)
+      .mockReturnValueOnce(mockServices[0])  // First call for service
+      .mockReturnValue(mockCustomer);        // Subsequent calls for customer
+    (mockBookingRepository.save as jest.Mock).mockResolvedValue(null);
+
+    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+      "Failed to save bookings - no bookings returned from save operation"
+    );
+  });
+
   it("should create bookings with cancelled status and cancellation details", async () => {
     const mockEmployee = {
       id: "employee-1",

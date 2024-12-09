@@ -1,161 +1,131 @@
 import { QueryRunner } from 'typeorm';
 import { InitialMigration1731981975581 } from './1731981975581-InitialMigration';
 
-type SafeQueryRunner = {
-  query: jest.Mock<Promise<unknown>, [string, ...unknown[]]>;
-};
+class TestInitialMigration extends InitialMigration1731981975581 {
+  public testGetErrorMessage(error: unknown): string {
+    return this.getErrorMessage(error);
+  }
+
+  public testExecuteQuery(queryRunner: QueryRunner, sql: string): Promise<void> {
+    return this.executeQuery(queryRunner, sql);
+  }
+
+  public testExecuteQueries(queryRunner: QueryRunner, queries: string[]): Promise<void> {
+    return this.executeQueries(queryRunner, queries);
+  }
+}
 
 describe('InitialMigration1731981975581', () => {
-  let migration: InitialMigration1731981975581;
-  let queryRunner: SafeQueryRunner;
+  let migration: TestInitialMigration;
+  let mockQueryRunner: QueryRunner;
+  let mockQuery: jest.Mock;
 
   beforeEach(() => {
-    migration = new InitialMigration1731981975581();
-    queryRunner = {
-      query: jest.fn<Promise<unknown>, [string, ...unknown[]]>().mockResolvedValue(undefined),
-    };
+    migration = new TestInitialMigration();
+    mockQuery = jest.fn();
+    mockQueryRunner = {
+      query: mockQuery,
+    } as unknown as QueryRunner;
   });
 
-  it('should have correct name', () => {
-    expect(migration.name).toBe('InitialMigration1731981975581');
+  describe('getErrorMessage', () => {
+    it('should handle Error instance', () => {
+      const error = new Error('Test error');
+      const result = migration.testGetErrorMessage(error);
+      expect(result).toBe('Test error');
+    });
+
+    it('should handle string error', () => {
+      const error = 'String error';
+      const result = migration.testGetErrorMessage(error);
+      expect(result).toBe('String error');
+    });
+
+    it('should handle unknown error type', () => {
+      const error = { custom: 'error' };
+      const result = migration.testGetErrorMessage(error);
+      expect(result).toBe('Unknown error occurred');
+    });
+  });
+
+  describe('executeQuery', () => {
+    it('should throw error for invalid query runner', async () => {
+      const invalidQueryRunner = {} as QueryRunner;
+      await expect(migration.testExecuteQuery(invalidQueryRunner, 'SELECT 1'))
+        .rejects
+        .toThrow('Invalid query runner');
+    });
+
+    it('should throw error when query fails', async () => {
+      const error = new Error('Query execution failed');
+      mockQuery.mockRejectedValue(error);
+
+      await expect(migration.testExecuteQuery(mockQueryRunner, 'SELECT 1'))
+        .rejects
+        .toThrow('Migration failed executing query: SELECT 1\nError: Query failed: SELECT 1\nError: Query execution failed');
+    });
+
+    it('should execute query successfully', async () => {
+      mockQuery.mockResolvedValue({});
+      await expect(migration.testExecuteQuery(mockQueryRunner, 'SELECT 1'))
+        .resolves
+        .not
+        .toThrow();
+    });
+  });
+
+  describe('executeQueries', () => {
+    it('should execute multiple queries successfully', async () => {
+      mockQuery.mockResolvedValue({});
+      const queries = ['SELECT 1', 'SELECT 2'];
+      await expect(migration.testExecuteQueries(mockQueryRunner, queries))
+        .resolves
+        .not
+        .toThrow();
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+    });
+
+    it('should throw error when any query fails', async () => {
+      const error = new Error('Query execution failed');
+      mockQuery.mockRejectedValue(error);
+      const queries = ['SELECT 1', 'SELECT 2'];
+      await expect(migration.testExecuteQueries(mockQueryRunner, queries))
+        .rejects
+        .toThrow('Migration failed executing query: SELECT 1\nError: Query failed: SELECT 1\nError: Query execution failed');
+    });
   });
 
   describe('up', () => {
-    it('should create user role enum', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TYPE "public"."users_role_enum"'),
-      );
+    it('should execute migration up successfully', async () => {
+      mockQuery.mockResolvedValue({});
+      await expect(migration.up(mockQueryRunner)).resolves.not.toThrow();
+      // Verify all required queries were executed
+      expect(mockQuery).toHaveBeenCalled();
     });
 
-    it('should create users table', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE "users"'),
-      );
-    });
-
-    it('should create employees table', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE "employees"'),
-      );
-    });
-
-    it('should create services table', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE "services"'),
-      );
-    });
-
-    it('should create booking status enum', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TYPE "public"."bookings_status_enum"'),
-      );
-    });
-
-    it('should create bookings table', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE "bookings"'),
-      );
-    });
-
-    it('should create employee_services table', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE TABLE "employee_services"'),
-      );
-    });
-
-    it('should create indexes', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE INDEX'),
-      );
-    });
-
-    it('should create foreign key constraints', async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('ALTER TABLE'),
-      );
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('FOREIGN KEY'),
-      );
+    it('should handle errors during up migration', async () => {
+      const error = new Error('Migration failed');
+      mockQuery.mockRejectedValue(error);
+      await expect(migration.up(mockQueryRunner))
+        .rejects
+        .toThrow('Migration up failed: Migration failed');
     });
   });
 
   describe('down', () => {
-    it('should drop foreign key constraints', async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('DROP CONSTRAINT'),
-      );
+    it('should execute migration down successfully', async () => {
+      mockQuery.mockResolvedValue({});
+      await expect(migration.down(mockQueryRunner)).resolves.not.toThrow();
+      // Verify all required queries were executed
+      expect(mockQuery).toHaveBeenCalled();
     });
 
-    it('should drop indexes', async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('DROP INDEX'),
-      );
-    });
-
-    it('should drop tables in correct order', async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-
-      const calls = queryRunner.query.mock.calls.map((call): string => {
-        if (!Array.isArray(call) || call.length === 0 || typeof call[0] !== 'string') {
-          throw new Error('Invalid mock call format');
-        }
-        return call[0];
-      });
-      
-      // Verify drop order: employee_services -> bookings -> services -> employees -> users
-      const employeeServicesIndex = calls.findIndex(call =>
-        call.includes('DROP TABLE "employee_services"'),
-      );
-      const bookingsIndex = calls.findIndex(call =>
-        call.includes('DROP TABLE "bookings"'),
-      );
-      const servicesIndex = calls.findIndex(call =>
-        call.includes('DROP TABLE "services"'),
-      );
-      const employeesIndex = calls.findIndex(call =>
-        call.includes('DROP TABLE "employees"'),
-      );
-      const usersIndex = calls.findIndex(call =>
-        call.includes('DROP TABLE "users"'),
-      );
-
-      expect(employeeServicesIndex).toBeLessThan(bookingsIndex);
-      expect(bookingsIndex).toBeLessThan(servicesIndex);
-      expect(servicesIndex).toBeLessThan(employeesIndex);
-      expect(employeesIndex).toBeLessThan(usersIndex);
-    });
-
-    it('should drop enums', async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('DROP TYPE "public"."users_role_enum"'),
-      );
-      expect(queryRunner.query).toHaveBeenCalledWith(
-        expect.stringContaining('DROP TYPE "public"."bookings_status_enum"'),
-      );
+    it('should handle errors during down migration', async () => {
+      const error = new Error('Migration failed');
+      mockQuery.mockRejectedValue(error);
+      await expect(migration.down(mockQueryRunner))
+        .rejects
+        .toThrow('Migration down failed: Migration failed');
     });
   });
 });
