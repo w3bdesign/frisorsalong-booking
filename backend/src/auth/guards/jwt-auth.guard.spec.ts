@@ -1,4 +1,4 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, UnauthorizedException, HttpArgumentsHost } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
@@ -14,20 +14,24 @@ describe('JwtAuthGuard', () => {
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
   });
 
-  const mockExecutionContext = (headers: Record<string, any>): ExecutionContext => ({
-    switchToHttp: () => ({
-      getRequest: () => ({
-        headers,
-      } as Request),
-    }),
-    getClass: jest.fn(),
-    getHandler: jest.fn(),
-    getArgs: jest.fn(),
-    getArgByIndex: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-  });
+  const mockExecutionContext = (headers: Record<string, any>): ExecutionContext => {
+    const mockHttp: HttpArgumentsHost = {
+      getRequest: () => ({ headers } as Request),
+      getResponse: jest.fn(),
+      getNext: jest.fn(),
+    };
+
+    return {
+      switchToHttp: () => mockHttp,
+      getClass: jest.fn(),
+      getHandler: jest.fn(),
+      getArgs: jest.fn(),
+      getArgByIndex: jest.fn(),
+      switchToRpc: jest.fn(),
+      switchToWs: jest.fn(),
+      getType: jest.fn(),
+    };
+  };
 
   describe('canActivate', () => {
     it('should throw UnauthorizedException when Authorization header is missing', () => {
