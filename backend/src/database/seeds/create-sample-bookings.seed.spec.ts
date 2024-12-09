@@ -166,7 +166,7 @@ describe("createSampleBookings", () => {
         employee: mockEmployee,
         service: mockServices[0],
         startTime: mockDate,
-        endTime: expect.any(Date),
+        endTime: expect.any(Date) as Date,
         notes: "Sample note",
       })
     );
