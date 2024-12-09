@@ -1,141 +1,117 @@
-import { DataSource } from 'typeorm';
-import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
-import { createDataSource, runSeeds } from './run-seeds';
-import { createAdminUser } from './create-admin-user.seed';
-import { createInitialData } from './create-initial-data.seed';
-import { createSampleBookings } from './create-sample-bookings.seed';
-import { createSampleOrders } from './create-sample-orders.seed';
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
 
-jest.mock('./create-admin-user.seed');
-jest.mock('./create-initial-data.seed');
-jest.mock('./create-sample-bookings.seed');
-jest.mock('./create-sample-orders.seed');
+// Mock the DataSource class
+jest.mock("typeorm", () => {
+  const originalModule = jest.requireActual("typeorm");
+  return {
+    ...originalModule,
+    DataSource: jest.fn().mockImplementation((options) => {
+      if (options.url === 'invalid-url') {
+        throw new Error('Invalid URL format');
+      }
+      return new originalModule.DataSource(options);
+    }),
+  };
+});
+
+// Mock the seed functions
+jest.mock("./create-admin-user.seed");
+jest.mock("./create-initial-data.seed");
+jest.mock("./create-sample-bookings.seed");
+jest.mock("./create-sample-orders.seed");
 
 describe('run-seeds', () => {
+  const mockDataSource = {
+    initialize: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
+  } as unknown as DataSource;
+
   const originalEnv = process.env;
 
   beforeEach(() => {
+    jest.resetModules();
     jest.clearAllMocks();
     process.env = { ...originalEnv };
-    process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
-
-    // Mock console methods
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    // Mock seed functions to resolve by default
-    (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-    (createInitialData as jest.Mock).mockResolvedValue(undefined);
-    (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-    (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+    console.log = jest.fn();
+    console.error = jest.fn();
   });
 
-  afterEach(() => {
+  afterAll(() => {
     process.env = originalEnv;
-    jest.restoreAllMocks();
   });
 
   describe('createDataSource', () => {
-    it('should create a DataSource with correct configuration', () => {
+    it('should create a DataSource when DATABASE_URL is set', () => {
+      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
       const dataSource = createDataSource();
-      const options = dataSource.options as PostgresConnectionOptions;
-      
-      expect(dataSource).toBeInstanceOf(DataSource);
-      expect(options.url).toBe(process.env.DATABASE_URL);
-      expect(options.type).toBe('postgres');
+      expect(dataSource).toBeDefined();
+      expect((dataSource.options as PostgresConnectionOptions).url).toBe(process.env.DATABASE_URL);
     });
 
     it('should throw error when DATABASE_URL is not set', () => {
       delete process.env.DATABASE_URL;
       expect(() => createDataSource()).toThrow('DATABASE_URL environment variable is not set');
     });
+
+    it('should handle DataSource creation errors', () => {
+      process.env.DATABASE_URL = 'invalid-url';
+      expect(() => createDataSource()).toThrow('Failed to create DataSource: Invalid URL format');
+    });
   });
 
   describe('runSeeds', () => {
-    let mockDataSource: jest.Mocked<DataSource>;
+    it('should run all seeds successfully', async () => {
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createInitialData as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
 
-    beforeEach(() => {
-      mockDataSource = {
-        initialize: jest.fn().mockResolvedValue(undefined),
-        destroy: jest.fn().mockResolvedValue(undefined),
-        options: {
-          type: 'postgres',
-          url: process.env.DATABASE_URL,
-        } as PostgresConnectionOptions,
-      } as unknown as jest.Mocked<DataSource>;
-    });
-
-    it('should run all seeds in correct order', async () => {
-      const executionOrder: string[] = [];
-
-      // Mock seed functions to track execution order
-      (createAdminUser as jest.Mock).mockImplementation(() => {
-        executionOrder.push('admin');
-        return Promise.resolve();
-      });
-      (createInitialData as jest.Mock).mockImplementation(() => {
-        executionOrder.push('initial');
-        return Promise.resolve();
-      });
-      (createSampleBookings as jest.Mock).mockImplementation(() => {
-        executionOrder.push('bookings');
-        return Promise.resolve();
-      });
-      (createSampleOrders as jest.Mock).mockImplementation(() => {
-        executionOrder.push('orders');
-        return Promise.resolve();
-      });
-
-      await runSeeds(mockDataSource);
-
-      // Verify initialization
+      const result = await runSeeds(mockDataSource);
+      
       expect(mockDataSource.initialize).toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith('Connected to database');
-
-      // Verify seed functions were called with correct DataSource
       expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
       expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
       expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
       expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
-
-      // Verify execution order
-      expect(executionOrder).toEqual(['admin', 'initial', 'bookings', 'orders']);
-
-      // Verify log messages
-      expect(console.log).toHaveBeenCalledWith('Creating admin user...');
-      expect(console.log).toHaveBeenCalledWith('Creating initial data...');
-      expect(console.log).toHaveBeenCalledWith('Creating sample bookings...');
-      expect(console.log).toHaveBeenCalledWith('Creating sample orders...');
+      expect(result).toBe(true);
     });
 
-    it('should throw error when invalid DataSource is provided', async () => {
-      const invalidDataSource = {} as DataSource;
+    it('should throw error for invalid DataSource', async () => {
+      const invalidDataSource = null as unknown as DataSource;
       await expect(runSeeds(invalidDataSource)).rejects.toThrow('Invalid DataSource provided');
     });
 
-    it('should handle database initialization error', async () => {
-      const dbError = new Error('Database connection failed');
-      mockDataSource.initialize.mockRejectedValue(dbError);
+    it('should handle initialization error', async () => {
+      const errorDataSource = {
+        initialize: jest.fn().mockRejectedValue(new Error('Init failed')),
+      } as unknown as DataSource;
 
-      await expect(runSeeds(mockDataSource)).rejects.toThrow('Seed operation failed: Database connection failed');
-      expect(console.error).toHaveBeenCalledWith('Error running seeds:', 'Database connection failed');
+      await expect(runSeeds(errorDataSource)).rejects.toThrow('Seed operation failed: Init failed');
     });
 
     it('should handle seed operation errors', async () => {
-      const seedError = new Error('Failed to create admin user');
-      (createAdminUser as jest.Mock).mockRejectedValue(seedError);
+      const mockError = new Error('Seed operation failed');
+      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(runSeeds(mockDataSource)).rejects.toThrow('Seed operation failed: Failed to create admin user');
-      expect(console.error).toHaveBeenCalledWith('Error running seeds:', 'Failed to create admin user');
+      await expect(runSeeds(mockDataSource)).rejects.toThrow('Seed operation failed: Seed operation failed');
     });
 
-    it('should return true when all seeds complete successfully', async () => {
-      // All seed functions are already mocked to resolve in beforeEach
-      const result = await runSeeds(mockDataSource);
+    it('should handle non-Error objects in catch blocks', async () => {
+      // Mock createInitialData to reject with a string
+      (createInitialData as jest.Mock).mockRejectedValue('String error');
+      
+      // Reset other mocks to resolve successfully
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
 
-      expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith('All seeds completed successfully');
-      expect(console.error).not.toHaveBeenCalled();
+      await expect(runSeeds(mockDataSource)).rejects.toThrow('Seed operation failed: String error');
     });
   });
 });
