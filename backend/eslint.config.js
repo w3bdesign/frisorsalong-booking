@@ -23,7 +23,7 @@ module.exports = [
       "@typescript-eslint/no-unsafe-return": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       // Temporary measure
-      "@typescript-eslint/unbound-method": "off",      
+      "@typescript-eslint/unbound-method": "warn",   
       // End temporary
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/no-floating-promises": "error",
