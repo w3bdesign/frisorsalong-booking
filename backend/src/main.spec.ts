@@ -66,14 +66,9 @@ jest.mock("./app.module", () => ({
   AppModule: jest.fn().mockReturnValue({}),
 }));
 
-interface MockNestApplication extends INestApplication {
-  enableCors: jest.Mock;
-  useGlobalPipes: jest.Mock;
-  listen: jest.Mock;
-  init: jest.Mock;
-  close: jest.Mock;
-  setGlobalPrefix: jest.Mock;
-}
+type MockNestApp = {
+  [K in keyof INestApplication]: jest.Mock;
+};
 
 interface SwaggerSetupOptions {
   swaggerOptions: {
@@ -85,7 +80,7 @@ interface SwaggerSetupOptions {
 }
 
 describe("Bootstrap", () => {
-  let app: MockNestApplication;
+  let app: MockNestApp;
   const mockSwaggerDoc: OpenAPIObject = {
     openapi: "3.0.0",
     paths: {},
@@ -102,38 +97,38 @@ describe("Bootstrap", () => {
 
     // Create a more complete mock implementation of INestApplication
     app = {
-      enableCors: jest.fn(),
-      useGlobalPipes: jest.fn(),
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
       listen: jest.fn().mockResolvedValue(undefined),
       init: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn(),
-      select: jest.fn(),
-      useGlobalFilters: jest.fn(),
-      useGlobalInterceptors: jest.fn(),
-      useGlobalGuards: jest.fn(),
-      use: jest.fn(),
-      setGlobalPrefix: jest.fn(),
-      enableVersioning: jest.fn(),
-      getUrl: jest.fn(),
-      useWebSocketAdapter: jest.fn(),
-      connectMicroservice: jest.fn(),
-      getMicroservices: jest.fn(),
-      getHttpServer: jest.fn(),
-      startAllMicroservices: jest.fn(),
-      stopAllMicroservices: jest.fn(),
-      createNestApplication: jest.fn(),
-      registerRequestByName: jest.fn(),
-      registerRequestById: jest.fn(),
-      flushLogs: jest.fn(),
-      getHttpAdapter: jest.fn(),
-      resolve: jest.fn(),
-      registerRequestByContextId: jest.fn(),
-      useLogger: jest.fn(),
-      enableShutdownHooks: jest.fn(),
-    } as unknown as MockNestApplication;
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
 
-    jest.spyOn(NestFactory, "create").mockResolvedValue(app);
+    jest.spyOn(NestFactory, "create").mockResolvedValue(app as unknown as INestApplication);
     jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
@@ -169,7 +164,7 @@ describe("Bootstrap", () => {
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
     const validationPipeCalls = app.useGlobalPipes.mock.calls;
-    const validationPipe = validationPipeCalls[0][0];
+    const validationPipe = validationPipeCalls[0][0] as ValidationPipe;
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 
@@ -199,7 +194,7 @@ describe("Bootstrap", () => {
 
     const setupMock = SwaggerModule.setup as jest.Mock;
     const setupCalls = setupMock.mock.calls;
-    const [path, setupApp, document, options] = setupCalls[0];
+    const [path, setupApp, document, options] = setupCalls[0] as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions];
 
     expect(path).toBe("api-docs");
     expect(setupApp).toBe(app);
