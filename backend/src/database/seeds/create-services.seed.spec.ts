@@ -12,28 +12,28 @@ type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' |
 const expectedServices: ServiceData[] = [
   {
     name: 'Standard Klipp',
-    description: 'Standard haircut service',
+    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
     duration: 20,
     price: 299,
     isActive: true,
   },
   {
     name: 'Styling Klipp',
-    description: 'Haircut with styling service',
+    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
     duration: 30,
     price: 399,
     isActive: true,
   },
   {
     name: 'Skjegg Trim',
-    description: 'Beard trimming service',
+    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
     duration: 15,
     price: 199,
     isActive: true,
   },
   {
     name: 'Full Service',
-    description: 'Complete hair and beard service',
+    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
     duration: 45,
     price: 549,
     isActive: true,
