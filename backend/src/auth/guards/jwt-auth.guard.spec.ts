@@ -1,10 +1,11 @@
-import { ExecutionContext, UnauthorizedException, HttpArgumentsHost } from '@nestjs/common';
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Request } from 'express';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
+  let mockExecutionContext: ExecutionContext;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -12,89 +13,83 @@ describe('JwtAuthGuard', () => {
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-  });
 
-  const mockExecutionContext = (headers: Record<string, any>): ExecutionContext => {
-    const mockHttp: HttpArgumentsHost = {
-      getRequest: () => ({ headers } as Request),
-      getResponse: jest.fn(),
-      getNext: jest.fn(),
-    };
-
-    return {
-      switchToHttp: () => mockHttp,
-      getClass: jest.fn(),
+    mockExecutionContext = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue({
+          headers: {},
+        }),
+      }),
       getHandler: jest.fn(),
+      getClass: jest.fn(),
       getArgs: jest.fn(),
       getArgByIndex: jest.fn(),
       switchToRpc: jest.fn(),
       switchToWs: jest.fn(),
       getType: jest.fn(),
-    };
-  };
+    } as unknown as ExecutionContext;
+  });
 
   describe('canActivate', () => {
     it('should throw UnauthorizedException when Authorization header is missing', () => {
-      const context = mockExecutionContext({});
-
-      expect(() => guard.canActivate(context)).toThrow(
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
         new UnauthorizedException('Missing Authorization header'),
       );
     });
 
     it('should throw UnauthorizedException when Authorization header is not a string', () => {
-      const context = mockExecutionContext({
-        authorization: ['Bearer token'],
+      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        headers: { authorization: ['Bearer token'] },
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
         new UnauthorizedException('Invalid Authorization header format'),
       );
     });
 
     it('should throw UnauthorizedException when Authorization header does not start with Bearer', () => {
-      const context = mockExecutionContext({
-        authorization: 'Basic token',
+      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        headers: { authorization: 'Basic token' },
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
         new UnauthorizedException('Authorization header must start with "Bearer "'),
       );
     });
 
     it('should throw UnauthorizedException when Authorization header has wrong format', () => {
-      const context = mockExecutionContext({
-        authorization: 'Bearer token extra',
+      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        headers: { authorization: 'Bearer token extra' },
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
         new UnauthorizedException('Invalid Authorization header format'),
       );
     });
 
     it('should throw UnauthorizedException when token is missing', () => {
-      const context = mockExecutionContext({
-        authorization: 'Bearer ',
+      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        headers: { authorization: 'Bearer ' },
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
         new UnauthorizedException('Token not provided'),
       );
     });
 
     it('should call super.canActivate when token is valid', () => {
-      const context = mockExecutionContext({
-        authorization: 'Bearer valid-token',
+      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        headers: { authorization: 'Bearer valid-token' },
       });
 
       const superCanActivateSpy = jest
-        .spyOn(JwtAuthGuard.prototype, 'canActivate')
+        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
         .mockImplementation(() => true);
 
-      const result = guard.canActivate(context);
+      const result = guard.canActivate(mockExecutionContext);
 
       expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(mockExecutionContext);
     });
   });
 
