@@ -1,11 +1,11 @@
-import { DataSource, Repository, EntityTarget } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Employee } from '../../employees/entities/employee.entity';
-import { Service } from '../../services/entities/service.entity';
-import { Booking, BookingStatus } from '../../bookings/entities/booking.entity';
-import { createSampleBookings } from './create-sample-bookings.seed';
-import * as bcrypt from 'bcrypt';
-import { faker } from '@faker-js/faker';
+import { DataSource, Repository, EntityTarget } from "typeorm";
+import { User } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import * as bcrypt from "bcrypt";
+import { faker } from "@faker-js/faker";
 
 jest.mock("bcrypt");
 jest.mock("@faker-js/faker", () => ({
@@ -57,9 +57,12 @@ describe("createSampleBookings", () => {
 
   beforeEach(() => {
     mockUserRepository = {
-      save: jest.fn().mockImplementation((data: Partial<User>): Promise<User> =>
-        Promise.resolve({ id: "user-1", ...data } as User)
-      ),
+      save: jest
+        .fn()
+        .mockImplementation(
+          (data: Partial<User>): Promise<User> =>
+            Promise.resolve({ id: "user-1", ...data } as User)
+        ),
     };
 
     mockEmployeeRepository = {
@@ -71,13 +74,20 @@ describe("createSampleBookings", () => {
     };
 
     mockBookingRepository = {
-      save: jest.fn().mockImplementation((bookings: Partial<Booking> | Partial<Booking>[]): Promise<Booking | Booking[]> =>
-        Promise.resolve(
-          Array.isArray(bookings)
-            ? bookings.map((b, i) => ({ id: `booking-${i}`, ...b } as Booking))
-            : { id: "booking-1", ...bookings } as Booking
-        )
-      ),
+      save: jest
+        .fn()
+        .mockImplementation(
+          (
+            bookings: Partial<Booking> | Partial<Booking>[]
+          ): Promise<Booking | Booking[]> =>
+            Promise.resolve(
+              Array.isArray(bookings)
+                ? bookings.map(
+                    (b, i) => ({ id: `booking-${i}`, ...b }) as Booking
+                  )
+                : ({ id: "booking-1", ...bookings } as Booking)
+            )
+        ),
     };
 
     const repositories: RepositoryMapping = {
@@ -87,7 +97,9 @@ describe("createSampleBookings", () => {
       Booking: mockBookingRepository as Repository<Booking>,
     };
 
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>): Repository<T> => {
+    const mockGetRepository = <T extends SupportedEntity>(
+      entity: EntityTarget<T>
+    ): Repository<T> => {
       const entityName = typeof entity === "function" ? entity.name : "Unknown";
       const repository = repositories[entityName as keyof RepositoryMapping];
 
@@ -126,7 +138,9 @@ describe("createSampleBookings", () => {
       id: "employee-1",
       user: { email: "employee@example.com" },
     };
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
 
     const mockServices = [
       { id: "service-1", name: "Haircut", duration: 30, price: 30 },
@@ -171,13 +185,17 @@ describe("createSampleBookings", () => {
       })
     );
 
-    expect(console.log).toHaveBeenCalledWith("Sample bookings created successfully");
+    expect(console.log).toHaveBeenCalledWith(
+      "Sample bookings created successfully"
+    );
   });
 
   it("should throw error when employee is not found", async () => {
     (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(null);
 
-    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow(
       "Employee not found. Please run initial data seed first."
     );
 
@@ -190,14 +208,18 @@ describe("createSampleBookings", () => {
       user: { email: "employee@example.com" },
     };
     const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(new Error("Database error"));
 
-    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
-      "Failed to create customer 1"
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
     );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(
+      new Error("Database error")
+    );
+
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to create customer 1");
   });
 
   it("should throw error when service/customer selection fails", async () => {
@@ -206,14 +228,16 @@ describe("createSampleBookings", () => {
       user: { email: "employee@example.com" },
     };
     const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
     (faker.helpers.arrayElement as jest.Mock).mockReturnValue(null);
 
-    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
-      "Failed to select service or customer for booking 1"
-    );
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to select service or customer for booking 1");
   });
 
   it("should throw error when saving bookings fails", async () => {
@@ -223,17 +247,45 @@ describe("createSampleBookings", () => {
     };
     const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
     const mockCustomer = { id: "customer-1" };
-    
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
     (faker.helpers.arrayElement as jest.Mock)
-      .mockReturnValueOnce(mockServices[0])  // First call for service
-      .mockReturnValue(mockCustomer);        // Subsequent calls for customer
+      .mockReturnValueOnce(mockServices[0]) // First call for service
+      .mockReturnValue(mockCustomer); // Subsequent calls for customer
     (mockBookingRepository.save as jest.Mock).mockResolvedValue(null);
 
-    await expect(createSampleBookings(mockDataSource as DataSource)).rejects.toThrow(
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow(
       "Failed to save bookings - no bookings returned from save operation"
     );
+  });
+
+  it("should throw error when status weight determination fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    const mockCustomer = { id: "customer-1" };
+
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock)
+      .mockReturnValueOnce(mockServices[0]) // First call for service
+      .mockReturnValue(mockCustomer); // Subsequent calls for customer
+
+    // Set Math.random to return a value greater than all weights
+    Math.random = jest.fn().mockReturnValue(2.0);
+
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to determine status for booking 1");
   });
 
   it("should create bookings with cancelled status and cancellation details", async () => {
@@ -242,7 +294,9 @@ describe("createSampleBookings", () => {
       user: { email: "employee@example.com" },
     };
     const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(mockEmployee);
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
     (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
 
     const mockArrayElement = faker.helpers.arrayElement as jest.Mock;

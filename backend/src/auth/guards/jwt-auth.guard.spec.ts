@@ -7,131 +7,149 @@ describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let mockExecutionContext: ExecutionContext;
 
+  interface RequestMock {
+    headers: {
+      authorization?: string | string[];
+    };
+  }
+
+  const createMockContext = (request: RequestMock): ExecutionContext => ({
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    getHandler: jest.fn(),
+    getClass: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  } as unknown as ExecutionContext);
+
+  const testUnauthorizedScenario = (
+    scenario: {
+      headers: { authorization?: string | string[] },
+      expectedError: string
+    }
+  ) => {
+    const context = createMockContext({ headers: scenario.headers });
+    expect(() => guard.canActivate(context)).toThrow(
+      new UnauthorizedException(scenario.expectedError)
+    );
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [JwtAuthGuard],
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-
-    mockExecutionContext = {
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue({
-          headers: {},
-        }),
-      }),
-      getHandler: jest.fn(),
-      getClass: jest.fn(),
-      getArgs: jest.fn(),
-      getArgByIndex: jest.fn(),
-      switchToRpc: jest.fn(),
-      switchToWs: jest.fn(),
-      getType: jest.fn(),
-    } as unknown as ExecutionContext;
+    mockExecutionContext = createMockContext({ headers: {} });
   });
 
   describe('canActivate', () => {
-    it('should throw UnauthorizedException when Authorization header is missing', () => {
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new UnauthorizedException('Missing Authorization header'),
-      );
-    });
-
-    it('should throw UnauthorizedException when Authorization header is not a string', () => {
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+    const authorizationScenarios = [
+      {
+        description: 'missing Authorization header',
+        headers: {},
+        expectedError: 'Missing Authorization header'
+      },
+      {
+        description: 'non-string Authorization header',
         headers: { authorization: ['Bearer token'] },
-      });
-
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new UnauthorizedException('Invalid Authorization header format'),
-      );
-    });
-
-    it('should throw UnauthorizedException when Authorization header does not start with Bearer', () => {
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'wrong auth type',
         headers: { authorization: 'Basic token' },
-      });
-
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new UnauthorizedException('Authorization header must start with "Bearer "'),
-      );
-    });
-
-    it('should throw UnauthorizedException when Authorization header has wrong format', () => {
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        expectedError: 'Authorization header must start with "Bearer "'
+      },
+      {
+        description: 'wrong format',
         headers: { authorization: 'Bearer token extra' },
-      });
-
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new UnauthorizedException('Invalid Authorization header format'),
-      );
-    });
-
-    it('should throw UnauthorizedException when token is missing', () => {
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'missing token',
         headers: { authorization: 'Bearer ' },
-      });
+        expectedError: 'Token not provided'
+      }
+    ];
 
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new UnauthorizedException('Token not provided'),
-      );
+    authorizationScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
+        testUnauthorizedScenario(scenario);
+      });
     });
 
     it('should call super.canActivate when token is valid', () => {
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue({
-        headers: { authorization: 'Bearer valid-token' },
+      const context = createMockContext({
+        headers: { authorization: 'Bearer valid-token' }
       });
 
       const superCanActivateSpy = jest
         .spyOn(AuthGuard('jwt').prototype, 'canActivate')
         .mockImplementation(() => true);
 
-      const result = guard.canActivate(mockExecutionContext);
+      const result = guard.canActivate(context);
 
       expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(mockExecutionContext);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
     });
   });
 
   describe('handleRequest', () => {
+    const testErrorScenario = (
+      error: any,
+      info: any,
+      expectedError: UnauthorizedException | Error
+    ) => {
+      expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
+    };
+
     it('should return user when authentication is successful', () => {
       const user = { id: '1', email: 'test@example.com' };
       const result = guard.handleRequest(null, user, null);
       expect(result).toBe(user);
     });
 
-    it('should throw UnauthorizedException when user is not authenticated', () => {
-      expect(() => guard.handleRequest(null, false, null)).toThrow(
-        new UnauthorizedException('User not authenticated'),
-      );
-    });
+    const errorScenarios = [
+      {
+        description: 'user not authenticated',
+        error: null,
+        info: null,
+        expectedError: new UnauthorizedException('User not authenticated')
+      },
+      {
+        description: 'invalid token format',
+        error: null,
+        info: Object.assign(new Error('invalid token'), { name: 'JsonWebTokenError' }),
+        expectedError: new UnauthorizedException('Invalid token format')
+      },
+      {
+        description: 'expired token',
+        error: null,
+        info: Object.assign(new Error('jwt expired'), { name: 'TokenExpiredError' }),
+        expectedError: new UnauthorizedException('Token has expired')
+      }
+    ];
 
-    it('should throw UnauthorizedException for invalid token format', () => {
-      const jwtError = new Error('invalid token') as any;
-      jwtError.name = 'JsonWebTokenError';
-
-      expect(() => guard.handleRequest(null, false, jwtError)).toThrow(
-        new UnauthorizedException('Invalid token format'),
-      );
-    });
-
-    it('should throw UnauthorizedException for expired token', () => {
-      const jwtError = new Error('jwt expired') as any;
-      jwtError.name = 'TokenExpiredError';
-
-      expect(() => guard.handleRequest(null, false, jwtError)).toThrow(
-        new UnauthorizedException('Token has expired'),
-      );
+    errorScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
+        testErrorScenario(scenario.error, scenario.info, scenario.expectedError);
+      });
     });
 
     it('should throw original error when error is provided', () => {
       const error = new Error('Custom error');
-      expect(() => guard.handleRequest(error, false, null)).toThrow(error);
+      testErrorScenario(error, null, error);
     });
 
     it('should convert non-Error error to UnauthorizedException', () => {
-      expect(() => guard.handleRequest('string error' as any, false, null)).toThrow(
-        new UnauthorizedException('string error'),
+      testErrorScenario(
+        'string error' as any,
+        null,
+        new UnauthorizedException('string error')
       );
     });
   });

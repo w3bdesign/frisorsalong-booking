@@ -1,142 +1,130 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { BookingsService } from "./bookings.service";
-import { BookingsController } from "./bookings.controller";
-import { Booking } from "./entities/booking.entity";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
-import { ShopsService } from "../shops/shops.service";
-import { ShopCode } from "../shops/entities/shop-code.entity";
+import { Test } from '@nestjs/testing';
+import { BookingsModule } from './bookings.module';
+import { BookingsService } from './bookings.service';
+import { BookingsController } from './bookings.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Booking } from './entities/booking.entity';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
+import { DynamicModule, ForwardReference, Type } from '@nestjs/common';
+import { UsersModule } from '../users/users.module';
+import { EmployeesModule } from '../employees/employees.module';
+import { ServicesModule } from '../services/services.module';
+import { OrdersModule } from '../orders/orders.module';
+import { ShopsModule } from '../shops/shops.module';
+import { AuthModule } from '../auth/auth.module';
 
-describe("BookingsModule", () => {
-  let module: TestingModule;
+describe('BookingsModule', () => {
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
-  beforeEach(async () => {
-    const mockRepository = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      save: jest.fn(),
-      create: jest.fn(),
-    };
+  const mockDataSource = {
+    createQueryRunner: jest.fn(),
+    options: {
+      entities: [Booking],
+    },
+  };
 
-    const mockUsersService = {
-      findOne: jest.fn(),
-      create: jest.fn(),
-    };
-
-    const mockEmployeesService = {
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      isAvailable: jest.fn(),
-    };
-
-    const mockServicesService = {
-      findOne: jest.fn(),
-    };
-
-    const mockOrdersService = {
-      create: jest.fn(),
-    };
-
-    const mockShopsService = {
-      findOne: jest.fn(),
-      validateShopCode: jest.fn(),
-    };
-
-    module = await Test.createTestingModule({
+  const setupTestModule = async () => {
+    const module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
         }),
-        JwtModule.registerAsync({
-          imports: [ConfigModule],
-          useFactory: async (configService: ConfigService) => ({
-            secret: configService.get("JWT_SECRET") || "test-secret",
-            signOptions: {
-              expiresIn: configService.get("JWT_EXPIRATION") || "1h",
-            },
-          }),
-          inject: [ConfigService],
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          entities: [Booking],
         }),
+        JwtModule.register({
+          secret: 'test-secret',
+          signOptions: { expiresIn: '1h' },
+        }),
+        BookingsModule,
       ],
-      controllers: [BookingsController],
-      providers: [
-        BookingsService,
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockRepository,
-        },
-        {
-          provide: getRepositoryToken(ShopCode),
-          useValue: mockRepository,
-        },
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-        {
-          provide: ShopsService,
-          useValue: mockShopsService,
-        },
-        RolesGuard,
-        JwtAuthGuard,
-        ConfigService,
-      ],
-    }).compile();
-  });
+    })
+      .overrideProvider(DataSource)
+      .useValue(mockDataSource)
+      .overrideModule(UsersModule)
+      .useModule(class MockUsersModule {})
+      .overrideModule(EmployeesModule)
+      .useModule(class MockEmployeesModule {})
+      .overrideModule(ServicesModule)
+      .useModule(class MockServicesModule {})
+      .overrideModule(OrdersModule)
+      .useModule(class MockOrdersModule {})
+      .overrideModule(ShopsModule)
+      .useModule(class MockShopsModule {})
+      .overrideModule(AuthModule)
+      .useModule(class MockAuthModule {})
+      .compile();
 
-  it("should be defined", () => {
+    return module;
+  };
+
+  it('should compile the module', async () => {
+    const module = await setupTestModule();
     expect(module).toBeDefined();
   });
 
-  it("should have BookingsService defined", () => {
-    const bookingsService = module.get<BookingsService>(BookingsService);
-    expect(bookingsService).toBeDefined();
+  it('should register providers and controllers', async () => {
+    const module = await setupTestModule();
+    expect(module.get(BookingsService)).toBeDefined();
+    expect(module.get(BookingsController)).toBeDefined();
   });
 
-  it("should have BookingsController defined", () => {
-    const bookingsController =
-      module.get<BookingsController>(BookingsController);
-    expect(bookingsController).toBeDefined();
+  it('should have correct module metadata', () => {
+    const imports = Reflect.getMetadata('imports', BookingsModule);
+    
+    // Check TypeOrmModule.forFeature
+    const hasTypeOrmFeature = imports.some((item: unknown) => 
+      item && typeof item === 'object' && 'module' in item && 
+      (item as { module: unknown }).module === TypeOrmModule
+    );
+    expect(hasTypeOrmFeature).toBe(true);
+
+    // Check forwardRef imports
+    const forwardRefCount = imports.reduce((count: number, item: unknown) => {
+      if (typeof item === 'function') {
+        const str = item.toString();
+        if (str.includes('forwardRef') && 
+           (str.includes('EmployeesModule') || str.includes('OrdersModule'))) {
+          return count + 1;
+        }
+      }
+      return count;
+    }, 0);
+    expect(forwardRefCount).toBe(2);
+
+    // Check regular module imports
+    const moduleNames = imports
+      .map((item: unknown) => {
+        if (typeof item === 'function') {
+          const match = item.toString().match(/forwardRef\(\(\) => (\w+)\)/);
+          return match ? match[1] : item.name;
+        }
+        return item && typeof item === 'object' && 'name' in item ? 
+          String((item as { name: unknown }).name) : null;
+      })
+      .filter((name): name is string => Boolean(name));
+
+    expect(moduleNames).toContain('EmployeesModule');
+    expect(moduleNames).toContain('OrdersModule');
+    expect(moduleNames).toContain('ServicesModule');
+    expect(moduleNames).toContain('ShopsModule');
+    expect(moduleNames).toContain('AuthModule');
   });
 
-  it("should have guards defined", () => {
-    const rolesGuard = module.get<RolesGuard>(RolesGuard);
-    const jwtAuthGuard = module.get<JwtAuthGuard>(JwtAuthGuard);
-
-    expect(rolesGuard).toBeDefined();
-    expect(jwtAuthGuard).toBeDefined();
-  });
-
-  it("should have required services defined", () => {
-    const usersService = module.get<UsersService>(UsersService);
-    const employeesService = module.get<EmployeesService>(EmployeesService);
-    const servicesService = module.get<ServicesService>(ServicesService);
-    const ordersService = module.get<OrdersService>(OrdersService);
-    const shopsService = module.get<ShopsService>(ShopsService);
-
-    expect(usersService).toBeDefined();
-    expect(employeesService).toBeDefined();
-    expect(servicesService).toBeDefined();
-    expect(ordersService).toBeDefined();
-    expect(shopsService).toBeDefined();
+  it('should export BookingsService and TypeOrmModule', () => {
+    const exports = Reflect.getMetadata('exports', BookingsModule);
+    expect(exports).toContain(BookingsService);
+    
+    const hasTypeOrmExport = exports.some((exp: unknown) => 
+      exp === TypeOrmModule || 
+      (exp && typeof exp === 'object' && 'module' in exp && 
+       (exp as { module: unknown }).module === TypeOrmModule)
+    );
+    expect(hasTypeOrmExport).toBe(true);
   });
 });
