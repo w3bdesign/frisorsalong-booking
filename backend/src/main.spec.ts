@@ -163,8 +163,11 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = app.useGlobalPipes.mock.calls;
-    const validationPipe = validationPipeCalls[0][0] as ValidationPipe;
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<[ValidationPipe]>;
+    if (!validationPipeCalls.length) {
+      throw new Error('Expected at least one validation pipe call');
+    }
+    const validationPipe = validationPipeCalls[0][0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 
@@ -193,8 +196,12 @@ describe("Bootstrap", () => {
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
 
     const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls;
-    const [path, setupApp, document, options] = setupCalls[0] as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions];
+    const setupCalls = setupMock.mock.calls as Array<[string, INestApplication, OpenAPIObject, SwaggerSetupOptions]>;
+    if (!setupCalls.length) {
+      throw new Error('Expected at least one Swagger setup call');
+    }
+
+    const [path, setupApp, document, options] = setupCalls[0];
 
     expect(path).toBe("api-docs");
     expect(setupApp).toBe(app);
