@@ -33,17 +33,20 @@ describe('RolesGuard', () => {
 
   describe('canActivate', () => {
     let mockExecutionContext: ExecutionContext;
+    let mockGetRequest: jest.Mock;
 
     beforeEach(() => {
+      mockGetRequest = jest.fn().mockReturnValue({
+        user: {
+          role: UserRole.CUSTOMER,
+        },
+      });
+
       mockExecutionContext = {
         getHandler: jest.fn(),
         getClass: jest.fn(),
         switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue({
-            user: {
-              role: UserRole.CUSTOMER,
-            },
-          }),
+          getRequest: mockGetRequest,
         }),
       } as unknown as ExecutionContext;
     });
@@ -103,6 +106,52 @@ describe('RolesGuard', () => {
         mockContext.getHandler(),
         mockContext.getClass(),
       ]);
+    });
+
+    it('should deny access when user is null', () => {
+      mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
+      mockGetRequest.mockReturnValue({
+        user: null,
+      });
+
+      const result = guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(false);
+    });
+
+    it('should deny access when user.role is null', () => {
+      mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
+      mockGetRequest.mockReturnValue({
+        user: {
+          role: null,
+        },
+      });
+
+      const result = guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(false);
+    });
+
+    it('should deny access when user.role is not a valid UserRole', () => {
+      mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
+      mockGetRequest.mockReturnValue({
+        user: {
+          role: 'INVALID_ROLE',
+        },
+      });
+
+      const result = guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(false);
+    });
+
+    it('should deny access when user object is missing', () => {
+      mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
+      mockGetRequest.mockReturnValue({});
+
+      const result = guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(false);
     });
   });
 });
