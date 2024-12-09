@@ -1,5 +1,5 @@
 import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { NestFactory } from "@nestjs/core";
 import { bootstrap } from "./main";
@@ -66,15 +66,33 @@ jest.mock("./app.module", () => ({
   AppModule: jest.fn().mockReturnValue({}),
 }));
 
+interface MockNestApplication extends INestApplication {
+  enableCors: jest.Mock;
+  useGlobalPipes: jest.Mock;
+  listen: jest.Mock;
+  init: jest.Mock;
+  close: jest.Mock;
+  setGlobalPrefix: jest.Mock;
+}
+
 describe("Bootstrap", () => {
-  let app: INestApplication;
+  let app: MockNestApplication;
+  const mockSwaggerDoc: Partial<OpenAPIObject> = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
 
   beforeEach(() => {
     // Reset modules before each test
     jest.resetModules();
 
     // Create a more complete mock implementation of INestApplication
-    const mockApp = {
+    app = {
       enableCors: jest.fn(),
       useGlobalPipes: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
@@ -104,22 +122,10 @@ describe("Bootstrap", () => {
       registerRequestByContextId: jest.fn(),
       useLogger: jest.fn(),
       enableShutdownHooks: jest.fn(),
-    };
-
-    // Cast the mock to INestApplication
-    app = mockApp as unknown as INestApplication;
+    } as unknown as MockNestApplication;
 
     jest.spyOn(NestFactory, "create").mockResolvedValue(app);
-    const mockSwaggerDoc = {
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: "Test API",
-        version: "1.0",
-      },
-    };
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc as OpenAPIObject);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
     jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
@@ -153,12 +159,12 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = (app.useGlobalPipes as jest.Mock).mock.calls as [ValidationPipe][];
+    const validationPipeCalls = app.useGlobalPipes.mock.calls;
     if (!Array.isArray(validationPipeCalls) || validationPipeCalls.length === 0) {
       throw new Error('Expected at least one validation pipe call');
     }
 
-    const validationPipe = validationPipeCalls[0][0];
+    const validationPipe = validationPipeCalls[0][0] as ValidationPipe;
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
 

@@ -2,15 +2,27 @@ import { DataSource, Repository } from 'typeorm';
 import { CreateServicesSeed } from './create-services.seed';
 import { Service } from '../../services/entities/service.entity';
 
+interface MockServiceRepository extends Partial<Repository<Service>> {
+  clear: jest.Mock<Promise<void>>;
+  save: jest.Mock<Promise<Service[]>, [Service[]]>;
+}
+
 describe('CreateServicesSeed', () => {
   let seed: CreateServicesSeed;
   let mockDataSource: Partial<DataSource>;
-  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockServiceRepository: MockServiceRepository;
 
   beforeEach(() => {
     mockServiceRepository = {
-      clear: jest.fn(),
-      save: jest.fn(),
+      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
+        return Promise.resolve(services.map(service => ({
+          ...service,
+          id: 'test-id',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })));
+      }),
     };
 
     mockDataSource = {
@@ -21,26 +33,12 @@ describe('CreateServicesSeed', () => {
   });
 
   it('should clear existing services and create new ones', async () => {
-    // Mock clear to resolve successfully
-    (mockServiceRepository.clear as jest.Mock).mockResolvedValue(undefined);
-    
-    // Mock save to return the services with proper typing
-    (mockServiceRepository.save as jest.Mock).mockImplementation((services: Service[]): Promise<Service[]> => {
-      return Promise.resolve(services.map(service => ({
-        ...service,
-        id: expect.any(String), // Add expected id property
-        createdAt: expect.any(Date), // Add expected timestamps
-        updatedAt: expect.any(Date),
-      })));
-    });
-
     await seed.run(mockDataSource as DataSource);
 
-    // Verify clear was called
     expect(mockServiceRepository.clear).toHaveBeenCalled();
 
-    // Verify save was called with all services
-    expect(mockServiceRepository.save).toHaveBeenCalledWith([
+    const savedServices = mockServiceRepository.save.mock.calls[0][0];
+    expect(savedServices).toEqual([
       expect.objectContaining({
         name: 'Standard Klipp',
         description: expect.any(String),
@@ -74,7 +72,7 @@ describe('CreateServicesSeed', () => {
 
   it('should handle database errors gracefully', async () => {
     const dbError = new Error('Database connection error');
-    (mockServiceRepository.clear as jest.Mock).mockRejectedValue(dbError);
+    mockServiceRepository.clear.mockRejectedValue(dbError);
 
     await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
   });

@@ -42,6 +42,10 @@ interface RepositoryMapping {
   Booking: Repository<Booking>;
 }
 
+interface MockCall<T> {
+  calls: Array<[T]>;
+}
+
 describe("createSampleBookings", () => {
   let mockDataSource: Partial<DataSource>;
   let mockUserRepository: Partial<Repository<User>>;
@@ -145,13 +149,13 @@ describe("createSampleBookings", () => {
     await createSampleBookings(mockDataSource as DataSource);
 
     const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock.calls as [Booking[]][];
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
 
-    if (!Array.isArray(mockCalls) || mockCalls.length === 0) {
+    if (!mockCalls.calls.length) {
       throw new Error("Expected at least one booking save call");
     }
 
-    const savedBookings = mockCalls[0][0];
+    const savedBookings = mockCalls.calls[0][0];
     if (!Array.isArray(savedBookings)) {
       throw new Error("Expected an array of bookings");
     }
@@ -206,13 +210,13 @@ describe("createSampleBookings", () => {
     await createSampleBookings(mockDataSource as DataSource);
 
     const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock.calls as [Booking[]][];
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
 
-    if (!Array.isArray(mockCalls) || mockCalls.length === 0) {
+    if (!mockCalls.calls.length) {
       throw new Error("Expected at least one booking save call");
     }
 
-    const savedBookings = mockCalls[0][0];
+    const savedBookings = mockCalls.calls[0][0];
     if (!Array.isArray(savedBookings)) {
       throw new Error("Expected an array of bookings");
     }
