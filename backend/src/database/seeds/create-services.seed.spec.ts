@@ -24,8 +24,15 @@ describe('CreateServicesSeed', () => {
     // Mock clear to resolve successfully
     (mockServiceRepository.clear as jest.Mock).mockResolvedValue(undefined);
     
-    // Mock save to return the services
-    (mockServiceRepository.save as jest.Mock).mockImplementation(services => services);
+    // Mock save to return the services with proper typing
+    (mockServiceRepository.save as jest.Mock).mockImplementation((services: Service[]): Promise<Service[]> => {
+      return Promise.resolve(services.map(service => ({
+        ...service,
+        id: expect.any(String), // Add expected id property
+        createdAt: expect.any(Date), // Add expected timestamps
+        updatedAt: expect.any(Date),
+      })));
+    });
 
     await seed.run(mockDataSource as DataSource);
 
