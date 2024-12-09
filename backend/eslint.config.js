@@ -20,10 +20,10 @@ module.exports = [
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
       // Temporary measure
-      "@typescript-eslint/unbound-method": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/unbound-method": "off",      
       // End temporary
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/no-floating-promises": "error",

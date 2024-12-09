@@ -130,9 +130,9 @@ describe('OrdersService', () => {
       const result = await service.createFromBooking('booking-1');
 
       expect(result).toMatchObject({
-        id: expect.any(String),
+        id: expect.any(String) as string,
         totalAmount: mockOrder.totalAmount,
-        completedAt: expect.any(Date),
+        completedAt: expect.any(Date) as Date,
         booking: {
           ...mockOrder.booking,
           status: BookingStatus.COMPLETED,

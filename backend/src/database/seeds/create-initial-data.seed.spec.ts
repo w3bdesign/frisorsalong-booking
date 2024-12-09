@@ -8,19 +8,12 @@ import * as bcrypt from "bcrypt";
 jest.mock("bcrypt");
 
 interface RepositoryMapping {
-  User: Partial<Repository<User>>;
-  Employee: Partial<Repository<Employee>>;
-  Service: Partial<Repository<Service>>;
+  User: Repository<User>;
+  Employee: Repository<Employee>;
+  Service: Repository<Service>;
 }
 
 type SupportedEntity = User | Employee | Service;
-type RepositoryType<T extends SupportedEntity> = T extends User 
-  ? Partial<Repository<User>> 
-  : T extends Employee 
-    ? Partial<Repository<Employee>> 
-    : T extends Service 
-      ? Partial<Repository<Service>> 
-      : never;
 
 function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
   if (typeof entity === "function") {
@@ -48,27 +41,27 @@ describe("createInitialData", () => {
       findOne: jest.fn().mockResolvedValue(null),
       save: jest
         .fn()
-        .mockImplementation((data) =>
-          Promise.resolve({ id: "user-1", ...data })
+        .mockImplementation((data: Partial<User>): Promise<User> =>
+          Promise.resolve({ id: "user-1", ...data } as User)
         ),
     };
 
     mockEmployeeRepository = {
       save: jest
         .fn()
-        .mockImplementation((data) =>
-          Promise.resolve({ id: "employee-1", ...data })
+        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
+          Promise.resolve({ id: "employee-1", ...data } as Employee)
         ),
     };
 
     mockServiceRepository = {
       save: jest
         .fn()
-        .mockImplementation((services) =>
+        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
           Promise.resolve(
             Array.isArray(services)
-              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` }))
-              : services
+              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
+              : { ...services, id: 'service-1' } as Service
           )
         ),
     };
@@ -82,11 +75,11 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>): RepositoryType<T> => {
+    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
       const repositories: RepositoryMapping = {
-        User: mockUserRepository,
-        Employee: mockEmployeeRepository,
-        Service: mockServiceRepository,
+        User: mockUserRepository as Repository<User>,
+        Employee: mockEmployeeRepository as Repository<Employee>,
+        Service: mockServiceRepository as Repository<Service>,
       };
 
       const entityName = getEntityName(entity);
@@ -96,7 +89,7 @@ describe("createInitialData", () => {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
       }
 
-      return repository as RepositoryType<T>;
+      return repository as Repository<T>;
     };
 
     mockDataSource = {

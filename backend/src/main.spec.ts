@@ -1,5 +1,5 @@
 import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { NestFactory } from "@nestjs/core";
 import { bootstrap } from "./main";
@@ -66,59 +66,71 @@ jest.mock("./app.module", () => ({
   AppModule: jest.fn().mockReturnValue({}),
 }));
 
+type MockNestApp = {
+  [K in keyof INestApplication]: jest.Mock;
+};
+
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+
 describe("Bootstrap", () => {
-  let app: INestApplication;
+  let app: MockNestApp;
+  const mockSwaggerDoc: OpenAPIObject = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
 
   beforeEach(() => {
     // Reset modules before each test
     jest.resetModules();
 
     // Create a more complete mock implementation of INestApplication
-    const mockApp = {
-      enableCors: jest.fn(),
-      useGlobalPipes: jest.fn(),
+    app = {
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
       listen: jest.fn().mockResolvedValue(undefined),
       init: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn(),
-      select: jest.fn(),
-      useGlobalFilters: jest.fn(),
-      useGlobalInterceptors: jest.fn(),
-      useGlobalGuards: jest.fn(),
-      use: jest.fn(),
-      setGlobalPrefix: jest.fn(),
-      enableVersioning: jest.fn(),
-      getUrl: jest.fn(),
-      useWebSocketAdapter: jest.fn(),
-      connectMicroservice: jest.fn(),
-      getMicroservices: jest.fn(),
-      getHttpServer: jest.fn(),
-      startAllMicroservices: jest.fn(),
-      stopAllMicroservices: jest.fn(),
-      createNestApplication: jest.fn(),
-      registerRequestByName: jest.fn(),
-      registerRequestById: jest.fn(),
-      flushLogs: jest.fn(),
-      getHttpAdapter: jest.fn(),
-      resolve: jest.fn(),
-      registerRequestByContextId: jest.fn(),
-      useLogger: jest.fn(),
-      enableShutdownHooks: jest.fn(),
-    };
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
 
-    // Cast the mock to INestApplication
-    app = mockApp as unknown as INestApplication;
-
-    jest.spyOn(NestFactory, "create").mockResolvedValue(app);
-    const mockSwaggerDoc = {
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: "Test API",
-        version: "1.0",
-      },
-    };
+    jest
+      .spyOn(NestFactory, "create")
+      .mockResolvedValue(app as unknown as INestApplication);
     jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
@@ -153,11 +165,12 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = (app.useGlobalPipes as jest.Mock).mock.calls as [ValidationPipe][];
-    if (!Array.isArray(validationPipeCalls) || validationPipeCalls.length === 0) {
-      throw new Error('Expected at least one validation pipe call');
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
+      [ValidationPipe]
+    >;
+    if (!validationPipeCalls.length) {
+      throw new Error("Expected at least one validation pipe call");
     }
-
     const validationPipe = validationPipeCalls[0][0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
   });
@@ -186,24 +199,28 @@ describe("Bootstrap", () => {
     expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
 
-    const setupCalls = (SwaggerModule.setup as jest.Mock).mock.calls;
-    if (!Array.isArray(setupCalls) || setupCalls.length === 0) {
-      throw new Error('Expected at least one Swagger setup call');
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls as Array<
+      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
+    >;
+    if (!setupCalls.length) {
+      throw new Error("Expected at least one Swagger setup call");
     }
 
     const [path, setupApp, document, options] = setupCalls[0];
+
     expect(path).toBe("api-docs");
     expect(setupApp).toBe(app);
-    expect(document).toEqual(expect.objectContaining({
+    expect(document).toEqual<OpenAPIObject>({
       openapi: "3.0.0",
-      paths: expect.any(Object),
-      components: expect.any(Object),
-      info: expect.objectContaining({
-        title: expect.any(String),
-        version: expect.any(String),
-      }),
-    }));
-    expect(options).toEqual({
+      paths: {},
+      components: {},
+      info: {
+        title: expect.any(String) as string,
+        version: expect.any(String) as string,
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
       swaggerOptions: {
         persistAuthorization: true,
         docExpansion: "none",

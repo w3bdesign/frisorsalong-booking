@@ -33,57 +33,63 @@ jest.mock("@faker-js/faker", () => ({
   },
 }));
 
-type MockRepositories = {
+type SupportedEntity = User | Employee | Service | Booking;
+
+interface RepositoryMapping {
   User: Repository<User>;
   Employee: Repository<Employee>;
   Service: Repository<Service>;
   Booking: Repository<Booking>;
-};
+}
+
+interface MockCall<T> {
+  calls: Array<[T]>;
+}
 
 describe("createSampleBookings", () => {
   let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Repository<User>;
-  let mockEmployeeRepository: Repository<Employee>;
-  let mockServiceRepository: Repository<Service>;
-  let mockBookingRepository: Repository<Booking>;
+  let mockUserRepository: Partial<Repository<User>>;
+  let mockEmployeeRepository: Partial<Repository<Employee>>;
+  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockBookingRepository: Partial<Repository<Booking>>;
   const originalEnv = process.env;
   const originalRandom = Math.random;
 
   beforeEach(() => {
     mockUserRepository = {
-      save: jest.fn().mockImplementation((data) =>
-        Promise.resolve({ id: "user-1", ...data })
+      save: jest.fn().mockImplementation((data: Partial<User>): Promise<User> =>
+        Promise.resolve({ id: "user-1", ...data } as User)
       ),
-    } as unknown as Repository<User>;
+    };
 
     mockEmployeeRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-    } as unknown as Repository<Employee>;
+    };
 
     mockServiceRepository = {
       find: jest.fn().mockResolvedValue([]),
-    } as unknown as Repository<Service>;
-
-    mockBookingRepository = {
-      save: jest.fn().mockImplementation((bookings) =>
-        Promise.resolve(
-          Array.isArray(bookings)
-            ? bookings.map((b, i) => ({ id: `booking-${i}`, ...b }))
-            : { id: "booking-1", ...bookings }
-        )
-      ),
-    } as unknown as Repository<Booking>;
-
-    const repositories: MockRepositories = {
-      User: mockUserRepository,
-      Employee: mockEmployeeRepository,
-      Service: mockServiceRepository,
-      Booking: mockBookingRepository,
     };
 
-    const mockGetRepository = <T>(entity: EntityTarget<T>): Repository<T> => {
+    mockBookingRepository = {
+      save: jest.fn().mockImplementation((bookings: Partial<Booking> | Partial<Booking>[]): Promise<Booking | Booking[]> =>
+        Promise.resolve(
+          Array.isArray(bookings)
+            ? bookings.map((b, i) => ({ id: `booking-${i}`, ...b } as Booking))
+            : { id: "booking-1", ...bookings } as Booking
+        )
+      ),
+    };
+
+    const repositories: RepositoryMapping = {
+      User: mockUserRepository as Repository<User>,
+      Employee: mockEmployeeRepository as Repository<Employee>,
+      Service: mockServiceRepository as Repository<Service>,
+      Booking: mockBookingRepository as Repository<Booking>,
+    };
+
+    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>): Repository<T> => {
       const entityName = typeof entity === "function" ? entity.name : "Unknown";
-      const repository = repositories[entityName as keyof MockRepositories];
+      const repository = repositories[entityName as keyof RepositoryMapping];
 
       if (!repository) {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
@@ -143,13 +149,13 @@ describe("createSampleBookings", () => {
     await createSampleBookings(mockDataSource as DataSource);
 
     const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock.calls as [Booking[]][];
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
 
-    if (!Array.isArray(mockCalls) || mockCalls.length === 0) {
+    if (!mockCalls.calls.length) {
       throw new Error("Expected at least one booking save call");
     }
 
-    const savedBookings = mockCalls[0][0];
+    const savedBookings = mockCalls.calls[0][0];
     if (!Array.isArray(savedBookings)) {
       throw new Error("Expected an array of bookings");
     }
@@ -160,7 +166,7 @@ describe("createSampleBookings", () => {
         employee: mockEmployee,
         service: mockServices[0],
         startTime: mockDate,
-        endTime: expect.any(Date),
+        endTime: expect.any(Date) as Date,
         notes: "Sample note",
       })
     );
@@ -204,13 +210,13 @@ describe("createSampleBookings", () => {
     await createSampleBookings(mockDataSource as DataSource);
 
     const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock.calls as [Booking[]][];
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
 
-    if (!Array.isArray(mockCalls) || mockCalls.length === 0) {
+    if (!mockCalls.calls.length) {
       throw new Error("Expected at least one booking save call");
     }
 
-    const savedBookings = mockCalls[0][0];
+    const savedBookings = mockCalls.calls[0][0];
     if (!Array.isArray(savedBookings)) {
       throw new Error("Expected an array of bookings");
     }

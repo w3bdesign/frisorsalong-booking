@@ -12,7 +12,7 @@ describe('InitialMigration1731981975581', () => {
   beforeEach(() => {
     migration = new InitialMigration1731981975581();
     queryRunner = {
-      query: jest.fn().mockResolvedValue(undefined),
+      query: jest.fn<Promise<unknown>, [string, ...unknown[]]>().mockResolvedValue(undefined),
     };
   });
 
