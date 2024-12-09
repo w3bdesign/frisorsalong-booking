@@ -13,8 +13,8 @@ describe('AddShopCodes1731981975584', () => {
   beforeEach(() => {
     migration = new AddShopCodes1731981975584();
     queryRunner = {
-      hasTable: jest.fn().mockResolvedValue(false),
-      query: jest.fn().mockResolvedValue(undefined),
+      hasTable: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
+      query: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
     };
   });
 
