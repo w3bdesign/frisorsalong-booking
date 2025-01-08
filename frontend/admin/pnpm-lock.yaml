@@ -44,7 +44,7 @@ importers:
     devDependencies:
       '@rushstack/eslint-patch':
         specifier: ^1.10.4
-        version: 1.10.4
+        version: 1.10.5
       '@tsconfig/node20':
         specifier: ^20.1.4
         version: 20.1.4
@@ -710,8 +710,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rushstack/eslint-patch@1.10.4':
-    resolution: {integrity: sha512-WJgX9nzTqknM393q1QJDJmoW28kUfEnybeTfVNcNAPnIx210RXm2DiXiHzfNPJNIUUb1tJnz/l4QGtJ30PgWmA==}
+  '@rushstack/eslint-patch@1.10.5':
+    resolution: {integrity: sha512-kkKUDVlII2DQiKy7UstOR1ErJP8kUKAQ4oa+SQtM0K+lPdmmjj0YnnxBgtTVYH7mUKtbsxeFC9y0AmK7Yb78/A==}
 
   '@sxzz/popperjs-es@2.11.7':
     resolution: {integrity: sha512-Ccy0NlLkzr0Ex2FKvh2X+OyERHXJ88XJ1MXtsI9y9fGexlaXaVTPzBCRBwIxFkORuOb+uBqeu+RqnpgYTEZRUQ==}
@@ -2565,7 +2565,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.29.1':
     optional: true
 
-  '@rushstack/eslint-patch@1.10.4': {}
+  '@rushstack/eslint-patch@1.10.5': {}
 
   '@sxzz/popperjs-es@2.11.7': {}
 
