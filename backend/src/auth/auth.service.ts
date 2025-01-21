@@ -91,7 +91,8 @@ export class AuthService {
       role: user.role,
     };
 
-    return this.jwtService.sign(payload);
+    const token: string = this.jwtService.sign(payload);
+    return token;
   }
 
   private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
