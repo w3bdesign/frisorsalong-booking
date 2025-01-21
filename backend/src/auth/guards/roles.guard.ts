@@ -42,9 +42,10 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    const hasRole = requiredRoles.includes(user.role);
+    const hasRole: boolean = requiredRoles.includes(user.role);
     console.log('Roles Guard - Has Required Role:', hasRole);
 
-    return hasRole;
+    const canActivate: boolean = hasRole;
+    return canActivate;
   }
 }
