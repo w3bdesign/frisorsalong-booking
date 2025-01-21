@@ -40,17 +40,22 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     // Add debug logging
     console.log('JWT Auth Guard - Token:', token);
     
-    const result = super.canActivate(context);
-    
-    if (result instanceof Observable) {
+    try {
+      const result = super.canActivate(context);
+      
+      if (result instanceof Observable) {
+        return result;
+      }
+      
+      if (result instanceof Promise) {
+        return result;
+      }
+      
       return result;
+    } catch (error) {
+      this.logger.error('Error in canActivate:', error);
+      throw new UnauthorizedException('Authentication failed');
     }
-    
-    if (result instanceof Promise) {
-      return result;
-    }
-    
-    return result;
   }
 
   handleRequest<TUser = User>(

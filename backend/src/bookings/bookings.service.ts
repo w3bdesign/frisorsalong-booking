@@ -207,19 +207,21 @@ export class BookingsService {
   }
 
   async findByCustomer(customerId: string): Promise<Booking[]> {
-    return this.bookingRepository.find({
+    const bookings: Booking[] = await this.bookingRepository.find({
       where: { customer: { id: customerId } },
       relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "DESC" },
     });
+    return bookings;
   }
 
   async findByEmployee(employeeId: string): Promise<Booking[]> {
-    return this.bookingRepository.find({
+    const bookings: Booking[] = await this.bookingRepository.find({
       where: { employee: { id: employeeId } },
       relations: ["customer", "employee", "employee.user", "service"],
       order: { startTime: "DESC" },
     });
+    return bookings;
   }
 
   async findUpcoming(): Promise<Booking[]> {
@@ -231,7 +233,7 @@ export class BookingsService {
     );
     this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
 
-    const bookings = await this.bookingRepository.find({
+    const bookings: Booking[] = await this.bookingRepository.find({
       where: {
         startTime: MoreThan(startOfDay),
         status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
@@ -245,12 +247,12 @@ export class BookingsService {
       this.logger.debug(
         "No bookings found. Checking all bookings for debugging..."
       );
-      const allBookings = await this.bookingRepository.find({
+      const allBookings: Booking[] = await this.bookingRepository.find({
         relations: ["customer", "employee", "employee.user", "service"],
       });
       this.logger.debug(`Total bookings in database: ${allBookings.length}`);
       this.logger.debug("Sample booking dates:");
-      allBookings.slice(0, 3).forEach((booking) => {
+      allBookings.slice(0, 3).forEach((booking: Booking) => {
         this.logger.debug(
           `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`
         );
@@ -270,7 +272,7 @@ export class BookingsService {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const bookings = await this.bookingRepository.find({
+    const bookings: Booking[] = await this.bookingRepository.find({
       where: {
         startTime: Between(startOfDay, endOfDay),
         status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
@@ -279,11 +281,11 @@ export class BookingsService {
       order: { startTime: "ASC" },
     });
 
-    const customers: UpcomingCustomerDto[] = bookings.map((booking, index) => {
+    const customers: UpcomingCustomerDto[] = bookings.map((booking: Booking, index: number) => {
       // Calculate waiting time based on previous bookings' service durations
-      const waitingTime = bookings
+      const waitingTime: number = bookings
         .slice(0, index)
-        .reduce((total, prev) => total + prev.service.duration, 0);
+        .reduce((total: number, prev: Booking) => total + prev.service.duration, 0);
 
       return {
         firstName: booking.customer.firstName,
