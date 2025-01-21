@@ -1,4 +1,4 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from "@nestjs/common";
+import { Injectable, ExecutionContext, UnauthorizedException, Logger } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { User } from "../../users/entities/user.entity";
 import { Request } from "express";
@@ -10,6 +10,7 @@ interface JwtError extends Error {
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
+  private readonly logger = new Logger(JwtAuthGuard.name);
   canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
@@ -40,7 +41,22 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     // Add debug logging
     console.log('JWT Auth Guard - Token:', token);
     
-    return super.canActivate(context);
+    try {
+      const result = super.canActivate(context);
+      
+      if (result instanceof Observable) {
+        return result;
+      }
+      
+      if (result instanceof Promise) {
+        return result;
+      }
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Error in canActivate:', error);
+      throw new UnauthorizedException('Authentication failed');
+    }
   }
 
   handleRequest<TUser = User>(
