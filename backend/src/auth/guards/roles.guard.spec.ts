@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Reflector } from '@nestjs/core';
-import { ExecutionContext } from '@nestjs/common';
-import { RolesGuard } from './roles.guard';
-import { UserRole } from '../../users/entities/user.entity';
+import { Test, TestingModule } from "@nestjs/testing";
+import { Reflector } from "@nestjs/core";
+import { ExecutionContext } from "@nestjs/common";
+import { RolesGuard } from "./roles.guard";
+import { UserRole } from "../../users/entities/user.entity";
 
-describe('RolesGuard', () => {
+describe("RolesGuard", () => {
   let guard: RolesGuard;
   let reflector: Reflector;
 
@@ -27,11 +27,11 @@ describe('RolesGuard', () => {
     reflector = module.get<Reflector>(Reflector);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(guard).toBeDefined();
   });
 
-  describe('canActivate', () => {
+  describe("canActivate", () => {
     let mockExecutionContext: ExecutionContext;
     let mockGetRequest: jest.Mock;
 
@@ -41,29 +41,21 @@ describe('RolesGuard', () => {
           role: UserRole.CUSTOMER,
         },
       });
-
-      mockExecutionContext = {
-        getHandler: jest.fn(),
-        getClass: jest.fn(),
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: mockGetRequest,
-        }),
-      } as unknown as ExecutionContext;
     });
 
-    it('should allow access when no roles are required', () => {
+    it("should allow access when no roles are required", () => {
       mockReflector.getAllAndOverride.mockReturnValue(null);
 
       const result = guard.canActivate(mockExecutionContext);
 
       expect(result).toBe(true);
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith('roles', [
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith("roles", [
         mockExecutionContext.getHandler(),
         mockExecutionContext.getClass(),
       ]);
     });
 
-    it('should allow access when user has required role', () => {
+    it("should allow access when user has required role", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
 
       const result = guard.canActivate(mockExecutionContext);
@@ -71,7 +63,7 @@ describe('RolesGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should deny access when user does not have required role', () => {
+    it("should deny access when user does not have required role", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.ADMIN]);
 
       const result = guard.canActivate(mockExecutionContext);
@@ -79,7 +71,7 @@ describe('RolesGuard', () => {
       expect(result).toBe(false);
     });
 
-    it('should allow access when user has one of multiple required roles', () => {
+    it("should allow access when user has one of multiple required roles", () => {
       mockReflector.getAllAndOverride.mockReturnValue([
         UserRole.ADMIN,
         UserRole.CUSTOMER,
@@ -90,25 +82,27 @@ describe('RolesGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should handle roles defined at both handler and class level', () => {
+    it("should handle roles defined at both handler and class level", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
-      
-      const mockContext = {
-        ...mockExecutionContext,
-        getHandler: jest.fn(),
-        getClass: jest.fn(),
-      };
 
-      const result = guard.canActivate(mockContext as ExecutionContext);
+      const mockContext = {
+        getHandler: () => jest.fn(),
+        getClass: () => jest.fn(),
+        switchToHttp: () => ({
+          getRequest: mockGetRequest,
+        }),
+      } as unknown as ExecutionContext;
+
+      const result = guard.canActivate(mockContext);
 
       expect(result).toBe(true);
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith('roles', [
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith("roles", [
         mockContext.getHandler(),
         mockContext.getClass(),
       ]);
     });
 
-    it('should deny access when user is null', () => {
+    it("should deny access when user is null", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
       mockGetRequest.mockReturnValue({
         user: null,
@@ -119,7 +113,7 @@ describe('RolesGuard', () => {
       expect(result).toBe(false);
     });
 
-    it('should deny access when user.role is null', () => {
+    it("should deny access when user.role is null", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
       mockGetRequest.mockReturnValue({
         user: {
@@ -132,11 +126,11 @@ describe('RolesGuard', () => {
       expect(result).toBe(false);
     });
 
-    it('should deny access when user.role is not a valid UserRole', () => {
+    it("should deny access when user.role is not a valid UserRole", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
       mockGetRequest.mockReturnValue({
         user: {
-          role: 'INVALID_ROLE',
+          role: "INVALID_ROLE",
         },
       });
 
@@ -145,7 +139,7 @@ describe('RolesGuard', () => {
       expect(result).toBe(false);
     });
 
-    it('should deny access when user object is missing', () => {
+    it("should deny access when user object is missing", () => {
       mockReflector.getAllAndOverride.mockReturnValue([UserRole.CUSTOMER]);
       mockGetRequest.mockReturnValue({});
 
