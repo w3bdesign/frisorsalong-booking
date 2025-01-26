@@ -110,20 +110,12 @@ describe('JwtAuthGuard', () => {
     }
 
     const testErrorScenario = (
-      error: Error | null,
+      error: Error | string | null,
       info: JwtError | null,
       expectedError: UnauthorizedException | Error
     ) => {
-      expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
-    };
-
-    const testStringErrorScenario = (
-      errorMessage: string,
-      info: JwtError | null,
-      expectedError: UnauthorizedException | Error
-    ) => {
-      const error = new Error(errorMessage);
-      expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
+      const finalError = typeof error === 'string' ? new Error(error) : error;
+      expect(() => guard.handleRequest(finalError, false, info)).toThrow(expectedError);
     };
 
     it('should return user when authentication is successful', () => {
@@ -132,7 +124,12 @@ describe('JwtAuthGuard', () => {
       expect(result).toBe(user);
     });
 
-    const errorScenarios = [
+    const errorScenarios: Array<{
+      description: string;
+      error: Error | string | null;
+      info: JwtError | null;
+      expectedError: UnauthorizedException | Error;
+    }> = [
       {
         description: 'user not authenticated',
         error: null,
@@ -166,7 +163,7 @@ describe('JwtAuthGuard', () => {
 
     it('should convert non-Error error to UnauthorizedException', () => {
       const errorMessage = 'string error';
-      testStringErrorScenario(
+      testErrorScenario(
         errorMessage,
         null,
         new UnauthorizedException(errorMessage)
