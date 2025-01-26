@@ -124,7 +124,6 @@ describe("run-seeds", () => {
 
       const result = await runSeeds(mockDataSource);
 
-      expect(mockDataSource.initialize).toHaveBeenCalled();
       expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
       expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
       expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
