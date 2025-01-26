@@ -68,20 +68,7 @@ describe("BookingsService", () => {
       ],
     }).compile();
 
-    let bookingRepository: Repository<Booking>;
-    let usersService: UsersService;
-    let employeesService: EmployeesService;
-    let servicesService: ServicesService;
-    let ordersService: OrdersService;
-
     service = module.get<BookingsService>(BookingsService);
-    bookingRepository = module.get<Repository<Booking>>(
-      getRepositoryToken(Booking)
-    );
-    usersService = module.get<UsersService>(UsersService);
-    employeesService = module.get<EmployeesService>(EmployeesService);
-    servicesService = module.get<ServicesService>(ServicesService);
-    ordersService = module.get<OrdersService>(OrdersService);
   });
 
   afterEach(() => {
@@ -306,7 +293,13 @@ describe("BookingsService", () => {
 
   describe("getUpcomingCount", () => {
     it("should return upcoming count and customers", async () => {
-      const mockBookings = [
+      interface MockBooking {
+        id: string;
+        customer: { firstName: string };
+        service: { duration: number };
+      }
+
+      const mockBookings: MockBooking[] = [
         {
           id: "booking1",
           customer: { firstName: "John" },

@@ -11,11 +11,12 @@ jest.mock("typeorm", () => {
   const originalModule = jest.requireActual("typeorm");
   return {
     ...originalModule,
-    DataSource: jest.fn().mockImplementation((options) => {
+    DataSource: jest.fn().mockImplementation((options: PostgresConnectionOptions) => {
       if (options.url === 'invalid-url') {
         throw new Error('Invalid URL format');
       }
-      return new originalModule.DataSource(options);
+      const dataSource = new originalModule.DataSource(options);
+      return dataSource;
     }),
   };
 });
@@ -27,10 +28,15 @@ jest.mock("./create-sample-bookings.seed");
 jest.mock("./create-sample-orders.seed");
 
 describe('run-seeds', () => {
-  const mockDataSource = {
+  const mockDataSource: DataSource = {
     initialize: jest.fn().mockResolvedValue(undefined),
     destroy: jest.fn().mockResolvedValue(undefined),
-  } as unknown as DataSource;
+    options: {} as PostgresConnectionOptions,
+    isInitialized: false,
+    driver: {} as any,
+    manager: {} as any,
+    name: 'default',
+  } as DataSource;
 
   const originalEnv = process.env;
 
@@ -83,14 +89,15 @@ describe('run-seeds', () => {
     });
 
     it('should throw error for invalid DataSource', async () => {
-      const invalidDataSource = null as unknown as DataSource;
+      const invalidDataSource = undefined as unknown as DataSource;
       await expect(runSeeds(invalidDataSource)).rejects.toThrow('Invalid DataSource provided');
     });
 
     it('should handle initialization error', async () => {
-      const errorDataSource = {
+      const errorDataSource: DataSource = {
+        ...mockDataSource,
         initialize: jest.fn().mockRejectedValue(new Error('Init failed')),
-      } as unknown as DataSource;
+      };
 
       await expect(runSeeds(errorDataSource)).rejects.toThrow('Seed operation failed: Init failed');
     });
