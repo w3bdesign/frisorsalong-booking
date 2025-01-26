@@ -27,6 +27,17 @@ describe("BookingsService", () => {
     updatedAt: Date;
   }
 
+  interface FindOneOptions {
+    where: { id: string };
+    relations: string[];
+  }
+
+  interface FindOptions {
+    where: unknown;
+    relations: string[];
+    order: { startTime: 'ASC' | 'DESC' };
+  }
+
   interface MockBooking {
     id: string;
     customer?: Partial<MockUser>;
@@ -48,7 +59,7 @@ describe("BookingsService", () => {
     })),
     save: jest.fn().mockImplementation((booking: MockBooking): Promise<MockBooking> => 
       Promise.resolve({ id: 'booking1', ...booking })),
-    findOne: jest.fn().mockImplementation((options: any): Promise<MockBooking | null> => 
+    findOne: jest.fn().mockImplementation((): Promise<MockBooking | null> => 
       Promise.resolve({ id: 'booking1' })),
     find: jest.fn().mockImplementation((): Promise<MockBooking[]> => 
       Promise.resolve([{ id: 'booking1' }])),
@@ -183,8 +194,9 @@ describe("BookingsService", () => {
       mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
       mockServicesService.findOne.mockResolvedValue(mockService);
       mockEmployeesService.isAvailable.mockResolvedValue(true);
-      mockBookingRepository.create.mockReturnValue({});
-      mockBookingRepository.save.mockResolvedValue({ id: "booking1" });
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
 
       const result = await service.create(createBookingDto);
 
@@ -223,16 +235,17 @@ describe("BookingsService", () => {
 
   describe("findOne", () => {
     it("should return a booking when found", async () => {
-      const mockBooking = { id: "booking1" };
+      const mockBooking: MockBooking = { id: "booking1" };
       mockBookingRepository.findOne.mockResolvedValue(mockBooking);
 
       const result = await service.findOne("booking1");
 
       expect(result).toBe(mockBooking);
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith({
+      const expectedOptions: FindOneOptions = {
         where: { id: "booking1" },
         relations: ["customer", "employee", "employee.user", "service"],
-      });
+      };
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(expectedOptions);
     });
 
     it("should throw NotFoundException when booking not found", async () => {
@@ -258,10 +271,13 @@ describe("BookingsService", () => {
       mockBookingRepository.findOne.mockResolvedValue(mockBooking);
       mockServicesService.findOne.mockResolvedValue({ duration: 30 });
       mockEmployeesService.isAvailable.mockResolvedValue(true);
-      mockBookingRepository.save.mockResolvedValue({
-        ...mockBooking,
-        ...updateDto,
-      });
+      const updatedBooking: MockBooking = {
+        id: mockBooking.id,
+        startTime: new Date(updateDto.startTime),
+        service: { id: mockBooking.service.id, duration: 30 },
+        employee: { id: mockBooking.employee.id }
+      };
+      mockBookingRepository.save.mockResolvedValue(updatedBooking);
 
       const result = await service.update("booking1", updateDto);
 
@@ -282,10 +298,10 @@ describe("BookingsService", () => {
 
   describe("cancel", () => {
     it("should cancel booking successfully", async () => {
-      const mockBooking = { id: "booking1" };
+      const mockBooking: MockBooking = { id: "booking1" };
       const reason = "Test reason";
-      const expectedSavedBooking = {
-        ...mockBooking,
+      const expectedSavedBooking: MockBooking = {
+        id: mockBooking.id,
         status: BookingStatus.CANCELLED,
         cancelledAt: expect.any(Date),
         cancellationReason: reason,
@@ -308,19 +324,21 @@ describe("BookingsService", () => {
 
   describe("findUpcoming", () => {
     it("should return upcoming bookings", async () => {
-      const mockBookings = [{ id: "booking1" }, { id: "booking2" }];
+      const mockBookings: MockBooking[] = [
+        { id: "booking1" },
+        { id: "booking2" }
+      ];
       mockBookingRepository.find.mockResolvedValue(mockBookings);
 
       const result = await service.findUpcoming();
 
       expect(result).toEqual(mockBookings);
-      expect(mockBookingRepository.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.any(Object),
-          relations: ["customer", "employee", "employee.user", "service"],
-          order: { startTime: "ASC" },
-        })
-      );
+      const expectedFindOptions: FindOptions = {
+        where: expect.any(Object),
+        relations: ["customer", "employee", "employee.user", "service"],
+        order: { startTime: "ASC" },
+      };
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(expectedFindOptions);
     });
   });
 
