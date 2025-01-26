@@ -10,15 +10,35 @@ import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { UserRole } from "../users/entities/user.entity";
 
 describe("BookingsService", () => {
   let service: BookingsService;
 
-  interface MockBooking extends Partial<Booking> {
+  interface MockUser {
     id: string;
-    customer?: { firstName: string };
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    phoneNumber: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  interface MockBooking {
+    id: string;
+    customer?: Partial<MockUser>;
     service?: { id: string; duration: number };
     employee?: { id: string };
+    status?: BookingStatus;
+    startTime?: Date;
+    endTime?: Date;
+    notes?: string;
+    totalPrice?: number;
+    cancelledAt?: Date;
+    cancellationReason?: string;
   }
 
   const mockBookingRepository = {
