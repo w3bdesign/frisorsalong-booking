@@ -10,7 +10,7 @@ import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { UserRole } from "../users/entities/user.entity";
+import { User, UserRole } from "../users/entities/user.entity";
 
 describe("BookingsService", () => {
   let service: BookingsService;
@@ -363,13 +363,57 @@ describe("BookingsService", () => {
       const mockBookings: Partial<Booking>[] = [
         {
           id: "booking1",
-          customer: { firstName: "John" },
-          service: { duration: 30 },
+          customer: {
+            id: "user1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "1234567890",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: async () => Promise.resolve(),
+            validatePassword: async () => Promise.resolve(true),
+          } as User,
+          service: {
+            id: "service1",
+            name: "Haircut",
+            description: "Basic haircut",
+            duration: 30,
+            price: 50,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
         },
         {
           id: "booking2",
-          customer: { firstName: "Jane" },
-          service: { duration: 45 },
+          customer: {
+            id: "user2",
+            firstName: "Jane",
+            lastName: "Doe",
+            email: "jane@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "0987654321",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: async () => Promise.resolve(),
+            validatePassword: async () => Promise.resolve(true),
+          } as User,
+          service: {
+            id: "service2",
+            name: "Styling",
+            description: "Hair styling",
+            duration: 45,
+            price: 75,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
         },
       ];
       mockBookingRepository.find.mockResolvedValue(mockBookings);
