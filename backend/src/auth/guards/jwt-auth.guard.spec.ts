@@ -5,7 +5,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
-  let mockExecutionContext: ExecutionContext;
 
   interface RequestMock {
     headers: {
@@ -44,7 +43,6 @@ describe('JwtAuthGuard', () => {
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-    mockExecutionContext = createMockContext({ headers: {} });
   });
 
   describe('canActivate', () => {
@@ -99,11 +97,32 @@ describe('JwtAuthGuard', () => {
   });
 
   describe('handleRequest', () => {
+    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
+    
+    interface JwtError extends Error {
+      name: JwtErrorName;
+    }
+
+    function createJwtError(message: string, name: JwtErrorName): JwtError {
+      const error = new Error(message) as JwtError;
+      error.name = name;
+      return error;
+    }
+
     const testErrorScenario = (
-      error: any,
-      info: any,
+      error: Error | null,
+      info: JwtError | null,
       expectedError: UnauthorizedException | Error
     ) => {
+      expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
+    };
+
+    const testStringErrorScenario = (
+      errorMessage: string,
+      info: JwtError | null,
+      expectedError: UnauthorizedException | Error
+    ) => {
+      const error = new Error(errorMessage);
       expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
     };
 
@@ -123,13 +142,13 @@ describe('JwtAuthGuard', () => {
       {
         description: 'invalid token format',
         error: null,
-        info: Object.assign(new Error('invalid token'), { name: 'JsonWebTokenError' }),
+        info: createJwtError('invalid token', 'JsonWebTokenError'),
         expectedError: new UnauthorizedException('Invalid token format')
       },
       {
         description: 'expired token',
         error: null,
-        info: Object.assign(new Error('jwt expired'), { name: 'TokenExpiredError' }),
+        info: createJwtError('jwt expired', 'TokenExpiredError'),
         expectedError: new UnauthorizedException('Token has expired')
       }
     ];
@@ -146,10 +165,11 @@ describe('JwtAuthGuard', () => {
     });
 
     it('should convert non-Error error to UnauthorizedException', () => {
-      testErrorScenario(
-        'string error' as any,
+      const errorMessage = 'string error';
+      testStringErrorScenario(
+        errorMessage,
         null,
-        new UnauthorizedException('string error')
+        new UnauthorizedException(errorMessage)
       );
     });
   });
