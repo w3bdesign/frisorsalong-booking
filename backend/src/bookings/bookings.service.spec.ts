@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { BookingsService } from "./bookings.service";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { UsersService } from "../users/users.service";
@@ -11,15 +10,48 @@ import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { UserRole } from "../users/entities/user.entity";
 
 describe("BookingsService", () => {
   let service: BookingsService;
 
+  interface MockUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    phoneNumber: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  interface MockBooking {
+    id: string;
+    customer?: Partial<MockUser>;
+    service?: { id: string; duration: number };
+    employee?: { id: string };
+    status?: BookingStatus;
+    startTime?: Date;
+    endTime?: Date;
+    notes?: string;
+    totalPrice?: number;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+  }
+
   const mockBookingRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    find: jest.fn(),
+    create: jest.fn().mockImplementation((dto: Partial<Booking>): MockBooking => ({
+      id: 'booking1',
+      ...dto
+    })),
+    save: jest.fn().mockImplementation((booking: MockBooking): Promise<MockBooking> => 
+      Promise.resolve({ id: 'booking1', ...booking })),
+    findOne: jest.fn().mockImplementation((options: any): Promise<MockBooking | null> => 
+      Promise.resolve({ id: 'booking1' })),
+    find: jest.fn().mockImplementation((): Promise<MockBooking[]> => 
+      Promise.resolve([{ id: 'booking1' }])),
   };
 
   const mockUsersService = {
@@ -68,20 +100,7 @@ describe("BookingsService", () => {
       ],
     }).compile();
 
-    let bookingRepository: Repository<Booking>;
-    let usersService: UsersService;
-    let employeesService: EmployeesService;
-    let servicesService: ServicesService;
-    let ordersService: OrdersService;
-
     service = module.get<BookingsService>(BookingsService);
-    bookingRepository = module.get<Repository<Booking>>(
-      getRepositoryToken(Booking)
-    );
-    usersService = module.get<UsersService>(UsersService);
-    employeesService = module.get<EmployeesService>(EmployeesService);
-    servicesService = module.get<ServicesService>(ServicesService);
-    ordersService = module.get<OrdersService>(OrdersService);
   });
 
   afterEach(() => {
@@ -115,8 +134,9 @@ describe("BookingsService", () => {
       mockServicesService.findOne.mockResolvedValue(mockService);
       mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
       mockBookingRepository.find.mockResolvedValue([]);
-      mockBookingRepository.create.mockReturnValue({});
-      mockBookingRepository.save.mockResolvedValue({ id: "booking1" });
+      const newBooking: MockBooking = { id: 'booking1' };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
 
       const result = await service.createWalkIn(createWalkInDto, mockShop);
 
@@ -272,7 +292,7 @@ describe("BookingsService", () => {
       };
 
       mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation((booking) =>
+      mockBookingRepository.save.mockImplementation((booking: MockBooking): Promise<MockBooking> =>
         Promise.resolve(booking)
       );
 
@@ -306,7 +326,13 @@ describe("BookingsService", () => {
 
   describe("getUpcomingCount", () => {
     it("should return upcoming count and customers", async () => {
-      const mockBookings = [
+      interface MockBooking {
+        id: string;
+        customer: { firstName: string };
+        service: { duration: number };
+      }
+
+      const mockBookings: MockBooking[] = [
         {
           id: "booking1",
           customer: { firstName: "John" },

@@ -8,13 +8,28 @@ describe('createSampleOrders', () => {
   let mockBookingRepository: Partial<Repository<Booking>>;
   let mockOrderRepository: Partial<Repository<Order>>;
 
+  interface MockBooking {
+    id: string;
+    totalPrice: number;
+    status: BookingStatus;
+    customer: { id: string };
+    employee: { id: string };
+    service: { id: string };
+  }
+
+  interface MockOrder {
+    id: string;
+    booking: MockBooking;
+    totalAmount: number;
+  }
+
   interface TestFixture {
-    bookings: any[];
-    order: any;
+    bookings: MockBooking[];
+    order: MockOrder;
     setupMocks: () => void;
   }
 
-  const createMockBooking = (id: string, totalPrice = 100) => ({
+  const createMockBooking = (id: string, totalPrice = 100): MockBooking => ({
     id: `booking${id}`,
     totalPrice,
     status: BookingStatus.CONFIRMED,
@@ -23,13 +38,13 @@ describe('createSampleOrders', () => {
     service: { id: `service${id}` },
   });
 
-  const createMockOrder = (booking: any) => ({
+  const createMockOrder = (booking: MockBooking): MockOrder => ({
     id: 'order1',
     booking,
     totalAmount: booking.totalPrice,
   });
 
-  const createTestFixture = (bookings: any[]): TestFixture => {
+  const createTestFixture = (bookings: MockBooking[]): TestFixture => {
     const order = createMockOrder(bookings[0]);
     return {
       bookings,
@@ -68,10 +83,10 @@ describe('createSampleOrders', () => {
     };
 
     mockDataSource = {
-      getRepository: jest.fn((entity) => {
+      getRepository: jest.fn((entity: new () => Booking | Order) => {
         if (entity === Booking) return mockBookingRepository as Repository<Booking>;
         if (entity === Order) return mockOrderRepository as Repository<Order>;
-        return {} as Repository<any>;
+        throw new Error(`Unexpected entity: ${entity.name}`);
       }),
     } as unknown as DataSource;
   });
