@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { BookingsService } from "./bookings.service";
 import { Booking, BookingStatus } from "./entities/booking.entity";
 import { UsersService } from "../users/users.service";
@@ -15,11 +14,24 @@ import { NotFoundException, BadRequestException } from "@nestjs/common";
 describe("BookingsService", () => {
   let service: BookingsService;
 
+  interface MockBooking extends Partial<Booking> {
+    id: string;
+    customer?: { firstName: string };
+    service?: { id: string; duration: number };
+    employee?: { id: string };
+  }
+
   const mockBookingRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    find: jest.fn(),
+    create: jest.fn().mockImplementation((dto: Partial<Booking>): MockBooking => ({
+      id: 'booking1',
+      ...dto
+    })),
+    save: jest.fn().mockImplementation((booking: MockBooking): Promise<MockBooking> => 
+      Promise.resolve({ id: 'booking1', ...booking })),
+    findOne: jest.fn().mockImplementation((options: any): Promise<MockBooking | null> => 
+      Promise.resolve({ id: 'booking1' })),
+    find: jest.fn().mockImplementation((): Promise<MockBooking[]> => 
+      Promise.resolve([{ id: 'booking1' }])),
   };
 
   const mockUsersService = {
@@ -102,8 +114,9 @@ describe("BookingsService", () => {
       mockServicesService.findOne.mockResolvedValue(mockService);
       mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
       mockBookingRepository.find.mockResolvedValue([]);
-      mockBookingRepository.create.mockReturnValue({});
-      mockBookingRepository.save.mockResolvedValue({ id: "booking1" });
+      const newBooking: MockBooking = { id: 'booking1' };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
 
       const result = await service.createWalkIn(createWalkInDto, mockShop);
 
@@ -259,7 +272,7 @@ describe("BookingsService", () => {
       };
 
       mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation((booking) =>
+      mockBookingRepository.save.mockImplementation((booking: MockBooking): Promise<MockBooking> =>
         Promise.resolve(booking)
       );
 

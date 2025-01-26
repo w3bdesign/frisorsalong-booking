@@ -7,17 +7,24 @@ import { createSampleBookings } from "./create-sample-bookings.seed";
 import { createSampleOrders } from "./create-sample-orders.seed";
 
 // Mock the DataSource class
+// Import the actual DataSource type to use in our mock
+import { DataSourceOptions } from "typeorm";
+
 jest.mock("typeorm", () => {
-  const originalModule = jest.requireActual("typeorm");
-  return {
-    ...originalModule,
-    DataSource: jest.fn().mockImplementation((options: PostgresConnectionOptions) => {
+  const actualModule = jest.requireActual("typeorm") as typeof import("typeorm");
+  
+  class MockDataSource extends actualModule.DataSource {
+    constructor(options: PostgresConnectionOptions) {
       if (options.url === 'invalid-url') {
         throw new Error('Invalid URL format');
       }
-      const dataSource = new originalModule.DataSource(options);
-      return dataSource;
-    }),
+      super(options);
+    }
+  }
+
+  return {
+    ...actualModule,
+    DataSource: jest.fn().mockImplementation((options: PostgresConnectionOptions) => new MockDataSource(options)),
   };
 });
 
@@ -28,15 +35,40 @@ jest.mock("./create-sample-bookings.seed");
 jest.mock("./create-sample-orders.seed");
 
 describe('run-seeds', () => {
-  const mockDataSource: DataSource = {
-    initialize: jest.fn().mockResolvedValue(undefined),
-    destroy: jest.fn().mockResolvedValue(undefined),
+  // Create a minimal mock of DataSource with required properties
+  const createMockDataSource = () => ({
+    name: 'default',
     options: {} as PostgresConnectionOptions,
     isInitialized: false,
-    driver: {} as any,
-    manager: {} as any,
-    name: 'default',
-  } as DataSource;
+    initialize: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
+    isConnected: false,
+    close: jest.fn().mockResolvedValue(undefined),
+    connect: jest.fn().mockResolvedValue(undefined),
+    createEntityManager: jest.fn(),
+    createQueryRunner: jest.fn(),
+    getMetadata: jest.fn(),
+    hasMetadata: jest.fn(),
+    getRepository: jest.fn(),
+    getTreeRepository: jest.fn(),
+    getMongoRepository: jest.fn(),
+    transaction: jest.fn(),
+    driver: {},
+    manager: {},
+    mongoManager: undefined,
+    sqljsManager: undefined,
+    namingStrategy: {},
+    entityMetadatas: [],
+    subscribers: [],
+    migrations: [],
+    logger: console,
+    metadataTableName: 'typeorm_metadata',
+    queryResultCache: null,
+    relationLoader: {},
+    relationIdLoader: {},
+  }) as unknown as DataSource;
+
+  const mockDataSource = createMockDataSource();
 
   const originalEnv = process.env;
 
@@ -94,10 +126,8 @@ describe('run-seeds', () => {
     });
 
     it('should handle initialization error', async () => {
-      const errorDataSource: DataSource = {
-        ...mockDataSource,
-        initialize: jest.fn().mockRejectedValue(new Error('Init failed')),
-      };
+      const errorDataSource = createMockDataSource();
+      errorDataSource.initialize = jest.fn().mockRejectedValue(new Error('Init failed'));
 
       await expect(runSeeds(errorDataSource)).rejects.toThrow('Seed operation failed: Init failed');
     });
