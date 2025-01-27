@@ -39,7 +39,7 @@
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^8.0.7",
-    "@nestjs/typeorm": "^10.0.2",
+    "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^5.1.1",
     "cache-manager": "5.7.6",
     "class-transformer": "^0.5.1",
