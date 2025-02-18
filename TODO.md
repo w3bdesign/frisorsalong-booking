@@ -20,6 +20,10 @@
 
 ## Employee Features
 
+- Employee Login
+
+  - Develop login functionality for employees.
+
 - Schedule Management
 
   - Create an interface for employees to view and manage their schedules.
@@ -29,9 +33,16 @@
 
 ## Admin Features
 
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
 - Reporting
 
   - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
 
 ## Security Enhancements
 
