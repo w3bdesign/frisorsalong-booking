@@ -1,4 +1,5 @@
-This file is a merged representation of the entire codebase, combined into a single document by Repomix. The content has been processed where empty lines have been removed.
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed.
 
 # File Summary
 
