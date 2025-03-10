@@ -11220,7 +11220,7 @@ module.exports = {
     "@nestjs/swagger": "^11.0.0",
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^5.1.1",
-    "cache-manager": "6.4.0",
+    "cache-manager": "6.4.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.5",
