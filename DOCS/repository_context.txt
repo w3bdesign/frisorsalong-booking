@@ -31,6 +31,7 @@ The content is organized as follows:
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Empty lines have been removed from all files
+- Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Additional Info
 
@@ -11175,92 +11176,6 @@ module.exports = {
 }
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.0.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/mapped-types": "^2.0.6",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
-    "bcrypt": "^5.1.1",
-    "cache-manager": "6.4.1",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
-    "dotenv": "^16.4.5",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^9.2.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^5.0.2",
-    "@types/cache-manager": "^5.0.0",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.0",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^9.15.0",
-    "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "jest": "^29.7.0",
-    "prettier": "^3.4.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.2"
-  }
-}
-````
-
 ## File: backend/README.md
 ````markdown
 # Hair Salon Booking System Backend
@@ -11533,721 +11448,6 @@ export default new DataSource({
     rejectUnauthorized: false,
   },
 });
-````
-
-## File: DOCS/ARCHITECTURE.md
-````markdown
-# Hair Salon Booking System Planning Document
-
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Project Objectives](#project-objectives)
-- [Functional Requirements](#functional-requirements)
-- [Non-Functional Requirements](#non-functional-requirements)
-- [Technology Stack](#technology-stack)
-- [System Architecture](#system-architecture)
-- [Database Design](#database-design)
-- [API Design](#api-design)
-- [Frontend Design](#frontend-design)
-- [Security Considerations](#security-considerations)
-- [Scalability Considerations](#scalability-considerations)
-- [Deployment Plan](#deployment-plan)
-- [Timeline and Milestones](#timeline-and-milestones)
-- [Conclusion](#conclusion)
-
----
-
-## Introduction
-
-This document outlines the planning phase for developing a full-stack booking system for a hair salon. The system aims to streamline the booking process for customers, manage appointments efficiently, and provide administrative capabilities for salon management and staff.
-
----
-
-## Project Objectives
-
-- Develop a scalable, production-ready booking platform tailored for hair salons.
-- Implement a user-friendly frontend interface for customers to book appointments.
-- Create an administrative dashboard for the salon's CEO and staff to manage bookings, schedules, and generate reports.
-- Ensure the system is secure, fast, and maintainable for future enhancements.
-- Expose a robust API for potential integration with other solutions.
-
----
-
-## Functional Requirements
-
-### Customer-Facing Features
-
-- **User Registration and Authentication**: Customers can create accounts and securely log in.
-- **Appointment Booking**: Browse available time slots and book appointments without double-booking conflicts.
-- **Service Selection**: View and select from a list of services offered.
-- **Booking Management**: View, modify, or cancel existing bookings.
-- **Notifications**: Receive email/SMS confirmations and reminders.
-
-### Employee Features
-
-- **Employee Login**: Staff members have individual accounts to access their schedules.
-- **Schedule Management**: View and manage personal appointment schedules.
-- **Availability Settings**: Set availability and block out times when not available.
-
-### Admin Features
-
-- **Admin Dashboard**: Comprehensive overview of daily bookings, staff schedules, and salon performance.
-- **User Management**: Add, modify, or remove employee accounts.
-- **Reporting**: Generate reports on bookings, revenue, and employee performance; export data to Excel.
-- **Service Management**: Add or update services offered, including pricing and duration.
-
----
-
-## Non-Functional Requirements
-
-- **Scalability**: Able to handle increased load, e.g., for large salons like Cutters.
-- **Performance**: Fast load times and responsive interactions.
-- **Security**: Protect user data with robust authentication and authorization mechanisms.
-- **Maintainability**: Clean, well-documented codebase for future development.
-- **Reliability**: Ensure high availability and fault tolerance.
-- **Usability**: Intuitive user interface and user experience.
-- **Compliance**: Adhere to relevant data protection regulations (e.g., GDPR).
-
----
-
-## Technology Stack
-
-### Backend
-
-- **Language**: Node.js (JavaScript/TypeScript)
-- **Framework**: [NestJS](https://nestjs.com/) for a scalable and maintainable structure.
-  - Future-proof and supports enterprise-grade applications.
-  - Built with TypeScript, encouraging type safety.
-- **Database**:
-  - **Primary**: PostgreSQL for relational data storage.
-  - **Cache**: Redis for caching frequently accessed data and managing session data.
-- **Authentication**: JSON Web Tokens (JWT) with refresh tokens for secure API access.
-- **API Documentation**: Swagger/OpenAPI for documenting APIs.
-
-### Frontend
-
-- **Framework**: Vue 3
-  - Known for its gentle learning curve and flexibility.
-  - Composition API allows for better organization in larger applications.
-- **State Management**: Pinia (the successor to Vuex) for managing application state.
-- **Routing**: Vue Router for navigating between views.
-
-### DevOps and Deployment
-
-- **Containerization**: Docker for consistent environments across development, testing, and production.
-- **Orchestration**: Kubernetes or Docker Compose for managing containers.
-- **Continuous Integration/Continuous Deployment (CI/CD)**: Jenkins, GitHub Actions, or GitLab CI for automatic building, testing, and deployment.
-- **Hosting**: Cloud provider like AWS, Azure, or Google Cloud Platform.
-
----
-
-## System Architecture
-
-### Overview
-
-The system will follow a modular architecture separating the frontend, backend, and database layers.
-
-1. **Frontend Client**:
-
-   - Runs in the browser.
-   - Communicates with the backend via RESTful API calls.
-   - Provides interfaces for customers, employees, and admins based on roles.
-
-2. **Backend API**:
-
-   - Exposes RESTful endpoints for all functionalities.
-   - Handles business logic, authentication, and authorization.
-   - Interacts with the database and cache layers.
-
-3. **Database Layer**:
-   - PostgreSQL stores persistent relational data.
-   - Redis used for session management, caching, and handling real-time features (e.g., notifications).
-
-### Interaction Flow
-
-1. A customer accesses the booking interface via the frontend.
-2. The frontend communicates with the backend API to fetch available time slots.
-3. Upon booking, the backend validates the request, ensures no double-booking via Redis locks, and stores the appointment in PostgreSQL.
-4. Notifications are sent, and the employee's schedule is updated accordingly.
-
----
-
-## Database Design
-
-### Entities and Relationships
-
-1. **Users**
-
-   - **Attributes**: `id`, `name`, `email`, `password`, `role` (customer, employee, admin), `contact_info`, `created_at`, `updated_at`
-   - Stores all user information with role-based access.
-
-2. **Employees**
-
-   - **Attributes**: `id`, `user_id`, `specializations`, `availability`, `created_at`, `updated_at`
-   - Linked to the `Users` table via `user_id`.
-
-3. **Services**
-
-   - **Attributes**: `id`, `name`, `description`, `duration`, `price`, `created_at`, `updated_at`
-   - List of services offered by the salon.
-
-4. **Bookings**
-
-   - **Attributes**: `id`, `customer_id`, `employee_id`, `service_id`, `start_time`, `end_time`, `status`, `created_at`, `updated_at`
-   - Represents appointments; references `Users`, `Employees`, and `Services`.
-
-5. **Payments** (Optional for future implementation)
-
-   - **Attributes**: `id`, `booking_id`, `amount`, `payment_method`, `status`, `transaction_date`
-
-6. **Reports**
-   - Generated on-demand; data pulled from existing tables.
-
-### Database Constraints
-
-- **Uniqueness**: Ensure email addresses are unique in the `Users` table.
-- **Foreign Keys**: Maintain referential integrity between tables.
-- **Indexes**: Optimize queries on frequently accessed fields (e.g., `start_time` in `Bookings`).
-
----
-
-## API Design
-
-### Authentication
-
-- **Endpoints**:
-  - `POST /auth/register`: Register a new user.
-  - `POST /auth/login`: Authenticate user and provide JWT.
-  - `POST /auth/refresh`: Refresh access tokens.
-- **Middleware**: Protect routes using JWT verification.
-
-### Customer APIs
-
-- `GET /services`: List all available services.
-- `GET /employees`: View employees and their specializations.
-- `GET /availability`: Check available time slots for a service and employee.
-- `POST /bookings`: Create a new booking.
-- `GET /bookings/{id}`: Retrieve booking details.
-- `PUT /bookings/{id}`: Modify an existing booking.
-- `DELETE /bookings/{id}`: Cancel a booking.
-
-### Employee APIs
-
-- `GET /employees/{id}/schedule`: View own schedule.
-- `PUT /employees/{id}/availability`: Update availability.
-
-### Admin APIs
-
-- `GET /admin/dashboard`: Get overview statistics.
-- `POST /admin/employees`: Add a new employee.
-- `PUT /admin/employees/{id}`: Update employee details.
-- `DELETE /admin/employees/{id}`: Remove an employee.
-- `POST /admin/services`: Add a new service.
-- `PUT /admin/services/{id}`: Update service details.
-- `DELETE /admin/services/{id}`: Remove a service.
-- `GET /admin/reports`: Generate and retrieve reports.
-
-### Error Handling
-
-- Use standardized HTTP status codes.
-- Return error messages with details to assist in debugging (avoid exposing sensitive information).
-
----
-
-## Frontend Design
-
-### User Interface Components
-
-#### Customers
-
-- **Home Page**: Introduction and quick access to booking.
-- **Service Catalog**: Display services with details.
-- **Booking Flow**:
-  1. Select Service.
-  2. Choose Employee (optional or auto-assigned).
-  3. Pick Date and Time.
-  4. Confirm Booking.
-- **User Account**:
-  - View upcoming and past appointments.
-  - Edit personal information.
-
-#### Employees
-
-- **Dashboard**: Overview of today's appointments.
-- **Schedule View**: Calendar with upcoming bookings.
-- **Availability Settings**: Interface to block out unavailable times.
-
-#### Admins
-
-- **Admin Dashboard**: Key metrics and alerts.
-- **Employee Management**: CRUD operations for employee accounts.
-- **Service Management**: Add or modify services.
-- **Reporting Tools**: Generate and export reports.
-
-### UX/UI Considerations
-
-- **Responsive Design**: Ensure usability on desktops, tablets, and mobile devices.
-- **Accessibility**: Adhere to WCAG guidelines for inclusive design.
-- **Consistency**: Use a design system or component library (e.g., Vuetify) for uniformity.
-
----
-
-## Security Considerations
-
-- **Authentication**: Implement robust authentication with password hashing (e.g., bcrypt) and secure JWT handling.
-- **Authorization**: Role-based access control to restrict resources.
-- **Input Validation**: Sanitize and validate all user inputs to prevent SQL injection and XSS attacks.
-- **Data Protection**: Encrypt sensitive data at rest and in transit (use HTTPS with TLS).
-- **Rate Limiting**: Protect against brute-force attacks by limiting login attempts.
-- **Audit Logging**: Maintain logs of critical actions for auditing purposes.
-
----
-
-## Scalability Considerations
-
-- **Stateless Backend**: Design the backend to be stateless to facilitate horizontal scaling.
-- **Load Balancing**: Use a load balancer to distribute traffic across multiple server instances.
-- **Caching Strategy**: Implement caching for frequent read operations using Redis.
-- **Database Optimization**: Use indexing and query optimization; consider read replicas for PostgreSQL.
-- **Asynchronous Processing**: Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
-
----
-
-## Deployment Plan
-
-### Environments
-
-1. **Development**
-   - Local machines with hot-reloading for rapid development.
-2. **Testing/Staging**
-   - Mirror production environment for testing features before release.
-3. **Production**
-   - Live environment with robust monitoring and backup strategies.
-
-### CI/CD Pipeline
-
-- **Code Repository**: Use Git for version control (GitHub, GitLab).
-- **Automated Testing**: Run unit and integration tests on every push.
-- **Build and Deployment**: Automate using CI/CD tools to reduce manual errors.
-
-### Monitoring and Logging
-
-- **Application Monitoring**: Use tools like Prometheus and Grafana.
-- **Error Tracking**: Implement Sentry or similar for error logging.
-- **Health Checks**: Set up endpoint and infrastructure health checks.
-
----
-
-## Timeline and Milestones
-
-| Phase                     | Duration | Key Deliverables                                   |
-| ------------------------- | -------- | -------------------------------------------------- |
-| **Requirements Analysis** | 1 week   | Finalize specifications and user stories           |
-| **Design**                | 2 weeks  | System architecture, database schema, UI mockups   |
-| **Backend Development**   | 4 weeks  | API endpoints, authentication, business logic      |
-| **Frontend Development**  | 4 weeks  | UI components, state management, API integration   |
-| **Testing**               | 2 weeks  | Unit tests, integration tests, user acceptance     |
-| **Deployment Setup**      | 1 week   | CI/CD pipeline, server setup, domain configuration |
-| **Beta Release**          | 1 week   | Deploy to staging, gather feedback                 |
-| **Final Adjustments**     | 1 week   | Bug fixes, performance tuning                      |
-| **Launch**                | -        | Deploy to production                               |
-
-_Total Estimated Time: Approximately 3 months_
-
----
-
-## Conclusion
-
-This planning document outlines a comprehensive approach to developing a full-stack hair salon booking system that is scalable, secure, and user-friendly. By leveraging modern technologies and adhering to best practices in software development, the final product aims to meet the immediate needs of hair salons while being adaptable for future growth and integration.
-
----
-
-**Next Steps**:
-
-- Review and approve the planning document.
-- Set up initial development environments.
-- Begin the requirements analysis phase with stakeholder meetings.
-````
-
-## File: DOCS/CONVENTIONS.md
-````markdown
-# Code Conventions and Best Practices
-
-## General Principles
-
-- Follow TDD (Test-Driven Development)
-- Apply DRY (Don't Repeat Yourself)
-- Follow KISS (Keep It Simple, Stupid)
-- Apply YAGNI (You Aren't Gonna Need It)
-- Follow SOLID Principles:
-  - Single Responsibility
-  - Open/Closed
-  - Liskov Substitution
-  - Interface Segregation
-  - Dependency Inversion
-
-## TypeScript/JavaScript Conventions
-
-### Naming Conventions
-
-- Use `PascalCase` for:
-  - Classes
-  - Interfaces
-  - Type aliases
-  - Enums
-- Use `camelCase` for:
-  - Variables
-  - Functions
-  - Methods
-  - Properties
-  - Parameters
-- Use `UPPER_SNAKE_CASE` for constants
-- Use descriptive names that reflect the purpose
-
-### File Naming
-
-- Use `kebab-case` for file names
-- Suffix files based on their type:
-  - `.controller.ts` for controllers
-  - `.service.ts` for services
-  - `.entity.ts` for database entities
-  - `.dto.ts` for Data Transfer Objects
-  - `.spec.ts` for test files
-
-### Code Organization
-
-- One class per file
-- Group related functionality in modules
-- Keep files focused and small
-- Use barrel exports (index.ts) for clean imports
-
-## Testing Conventions
-
-### Test Structure
-
-- Follow the AAA pattern:
-  - Arrange: Set up test data
-  - Act: Execute the code being tested
-  - Assert: Verify the results
-- Use descriptive test names that explain the scenario
-- Group related tests using describe blocks
-- Mock external dependencies
-
-### Test Coverage
-
-- Aim for 80%+ code coverage
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-- Include integration tests for:
-  - API endpoints
-  - Database operations
-
-## API Conventions
-
-### RESTful Endpoints
-
-- Use plural nouns for resources
-- Follow HTTP method semantics:
-  - GET: Read
-  - POST: Create
-  - PUT: Full update
-  - PATCH: Partial update
-  - DELETE: Remove
-- Use proper HTTP status codes
-
-### Request/Response
-
-- Use DTOs for request validation
-- Follow consistent response format:
-  ```typescript
-  {
-    success: boolean;
-    data?: any;
-    error?: {
-      code: string;
-      message: string;
-    }
-  }
-  ```
-
-## Database Conventions
-
-### Entity Design
-
-- Use singular names for entity classes
-- Include created_at and updated_at timestamps
-- Use proper column types and constraints
-- Define explicit relationships
-
-### Migrations
-
-- One migration per change
-- Descriptive migration names
-- Include both up and down migrations
-- Test migrations before deployment
-
-## Documentation
-
-- Use JSDoc for code documentation
-- Keep README files up to date
-- Document API endpoints using Swagger
-- Include setup instructions
-
-## Version Control
-
-- Write clear commit messages
-- Use feature branches
-- Follow conventional commits format:
-  - feat: New feature
-  - fix: Bug fix
-  - docs: Documentation
-  - style: Formatting
-  - refactor: Code restructuring
-  - test: Adding tests
-  - chore: Maintenance
-
-## Error Handling
-
-- Use custom exception filters
-- Implement proper logging
-- Return appropriate error responses
-- Handle async/await properly with try/catch
-
-## Security
-
-- Validate all inputs
-- Sanitize data before storage
-- Use proper authentication/authorization
-- Follow security best practices
-- Keep dependencies updated
-
-## Performance
-
-- Use appropriate caching strategies
-- Optimize database queries
-- Implement pagination for lists
-- Monitor and optimize resource usage
-````
-
-## File: DOCS/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
 ````
 
 ## File: frontend/admin/.vscode/extensions.json
@@ -20251,63 +19451,6 @@ export default [
 </html>
 ````
 
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^2.2.6",
-    "vue": "^3.5.13",
-    "vue-router": "^4.4.5"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.0",
-    "@tsconfig/node22": "^22.0.0",
-    "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.9.2",
-    "@vitejs/plugin-vue": "^5.1.4",
-    "@vitest/coverage-v8": "3.0.8",
-    "@vitest/eslint-plugin": "1.1.37",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.7.0",
-    "autoprefixer": "^10.4.20",
-    "cypress": "^14.0.0",
-    "eslint": "^9.14.0",
-    "eslint-plugin-cypress": "^4.1.0",
-    "eslint-plugin-vue": "^9.30.0",
-    "jsdom": "^26.0.0",
-    "npm-run-all2": "^7.0.1",
-    "postcss": "^8.4.49",
-    "prettier": "^3.3.3",
-    "start-server-and-test": "^2.0.8",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.7.0",
-    "vite": "^6.0.0",
-    "vite-plugin-vue-devtools": "^7.5.4",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^2.1.10"
-  }
-}
-````
-
 ## File: frontend/customer/postcss.config.js
 ````javascript
 export default {
@@ -21597,6 +20740,721 @@ For detailed information about the system architecture, please refer to [docs/AR
 }
 ````
 
+## File: DOCS/ARCHITECTURE.md
+````markdown
+# Hair Salon Booking System Planning Document
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Project Objectives](#project-objectives)
+- [Functional Requirements](#functional-requirements)
+- [Non-Functional Requirements](#non-functional-requirements)
+- [Technology Stack](#technology-stack)
+- [System Architecture](#system-architecture)
+- [Database Design](#database-design)
+- [API Design](#api-design)
+- [Frontend Design](#frontend-design)
+- [Security Considerations](#security-considerations)
+- [Scalability Considerations](#scalability-considerations)
+- [Deployment Plan](#deployment-plan)
+- [Timeline and Milestones](#timeline-and-milestones)
+- [Conclusion](#conclusion)
+
+---
+
+## Introduction
+
+This document outlines the planning phase for developing a full-stack booking system for a hair salon. The system aims to streamline the booking process for customers, manage appointments efficiently, and provide administrative capabilities for salon management and staff.
+
+---
+
+## Project Objectives
+
+- Develop a scalable, production-ready booking platform tailored for hair salons.
+- Implement a user-friendly frontend interface for customers to book appointments.
+- Create an administrative dashboard for the salon's CEO and staff to manage bookings, schedules, and generate reports.
+- Ensure the system is secure, fast, and maintainable for future enhancements.
+- Expose a robust API for potential integration with other solutions.
+
+---
+
+## Functional Requirements
+
+### Customer-Facing Features
+
+- **User Registration and Authentication**: Customers can create accounts and securely log in.
+- **Appointment Booking**: Browse available time slots and book appointments without double-booking conflicts.
+- **Service Selection**: View and select from a list of services offered.
+- **Booking Management**: View, modify, or cancel existing bookings.
+- **Notifications**: Receive email/SMS confirmations and reminders.
+
+### Employee Features
+
+- **Employee Login**: Staff members have individual accounts to access their schedules.
+- **Schedule Management**: View and manage personal appointment schedules.
+- **Availability Settings**: Set availability and block out times when not available.
+
+### Admin Features
+
+- **Admin Dashboard**: Comprehensive overview of daily bookings, staff schedules, and salon performance.
+- **User Management**: Add, modify, or remove employee accounts.
+- **Reporting**: Generate reports on bookings, revenue, and employee performance; export data to Excel.
+- **Service Management**: Add or update services offered, including pricing and duration.
+
+---
+
+## Non-Functional Requirements
+
+- **Scalability**: Able to handle increased load, e.g., for large salons like Cutters.
+- **Performance**: Fast load times and responsive interactions.
+- **Security**: Protect user data with robust authentication and authorization mechanisms.
+- **Maintainability**: Clean, well-documented codebase for future development.
+- **Reliability**: Ensure high availability and fault tolerance.
+- **Usability**: Intuitive user interface and user experience.
+- **Compliance**: Adhere to relevant data protection regulations (e.g., GDPR).
+
+---
+
+## Technology Stack
+
+### Backend
+
+- **Language**: Node.js (JavaScript/TypeScript)
+- **Framework**: [NestJS](https://nestjs.com/) for a scalable and maintainable structure.
+  - Future-proof and supports enterprise-grade applications.
+  - Built with TypeScript, encouraging type safety.
+- **Database**:
+  - **Primary**: PostgreSQL for relational data storage.
+  - **Cache**: Redis for caching frequently accessed data and managing session data.
+- **Authentication**: JSON Web Tokens (JWT) with refresh tokens for secure API access.
+- **API Documentation**: Swagger/OpenAPI for documenting APIs.
+
+### Frontend
+
+- **Framework**: Vue 3
+  - Known for its gentle learning curve and flexibility.
+  - Composition API allows for better organization in larger applications.
+- **State Management**: Pinia (the successor to Vuex) for managing application state.
+- **Routing**: Vue Router for navigating between views.
+
+### DevOps and Deployment
+
+- **Containerization**: Docker for consistent environments across development, testing, and production.
+- **Orchestration**: Kubernetes or Docker Compose for managing containers.
+- **Continuous Integration/Continuous Deployment (CI/CD)**: Jenkins, GitHub Actions, or GitLab CI for automatic building, testing, and deployment.
+- **Hosting**: Cloud provider like AWS, Azure, or Google Cloud Platform.
+
+---
+
+## System Architecture
+
+### Overview
+
+The system will follow a modular architecture separating the frontend, backend, and database layers.
+
+1. **Frontend Client**:
+
+   - Runs in the browser.
+   - Communicates with the backend via RESTful API calls.
+   - Provides interfaces for customers, employees, and admins based on roles.
+
+2. **Backend API**:
+
+   - Exposes RESTful endpoints for all functionalities.
+   - Handles business logic, authentication, and authorization.
+   - Interacts with the database and cache layers.
+
+3. **Database Layer**:
+   - PostgreSQL stores persistent relational data.
+   - Redis used for session management, caching, and handling real-time features (e.g., notifications).
+
+### Interaction Flow
+
+1. A customer accesses the booking interface via the frontend.
+2. The frontend communicates with the backend API to fetch available time slots.
+3. Upon booking, the backend validates the request, ensures no double-booking via Redis locks, and stores the appointment in PostgreSQL.
+4. Notifications are sent, and the employee's schedule is updated accordingly.
+
+---
+
+## Database Design
+
+### Entities and Relationships
+
+1. **Users**
+
+   - **Attributes**: `id`, `name`, `email`, `password`, `role` (customer, employee, admin), `contact_info`, `created_at`, `updated_at`
+   - Stores all user information with role-based access.
+
+2. **Employees**
+
+   - **Attributes**: `id`, `user_id`, `specializations`, `availability`, `created_at`, `updated_at`
+   - Linked to the `Users` table via `user_id`.
+
+3. **Services**
+
+   - **Attributes**: `id`, `name`, `description`, `duration`, `price`, `created_at`, `updated_at`
+   - List of services offered by the salon.
+
+4. **Bookings**
+
+   - **Attributes**: `id`, `customer_id`, `employee_id`, `service_id`, `start_time`, `end_time`, `status`, `created_at`, `updated_at`
+   - Represents appointments; references `Users`, `Employees`, and `Services`.
+
+5. **Payments** (Optional for future implementation)
+
+   - **Attributes**: `id`, `booking_id`, `amount`, `payment_method`, `status`, `transaction_date`
+
+6. **Reports**
+   - Generated on-demand; data pulled from existing tables.
+
+### Database Constraints
+
+- **Uniqueness**: Ensure email addresses are unique in the `Users` table.
+- **Foreign Keys**: Maintain referential integrity between tables.
+- **Indexes**: Optimize queries on frequently accessed fields (e.g., `start_time` in `Bookings`).
+
+---
+
+## API Design
+
+### Authentication
+
+- **Endpoints**:
+  - `POST /auth/register`: Register a new user.
+  - `POST /auth/login`: Authenticate user and provide JWT.
+  - `POST /auth/refresh`: Refresh access tokens.
+- **Middleware**: Protect routes using JWT verification.
+
+### Customer APIs
+
+- `GET /services`: List all available services.
+- `GET /employees`: View employees and their specializations.
+- `GET /availability`: Check available time slots for a service and employee.
+- `POST /bookings`: Create a new booking.
+- `GET /bookings/{id}`: Retrieve booking details.
+- `PUT /bookings/{id}`: Modify an existing booking.
+- `DELETE /bookings/{id}`: Cancel a booking.
+
+### Employee APIs
+
+- `GET /employees/{id}/schedule`: View own schedule.
+- `PUT /employees/{id}/availability`: Update availability.
+
+### Admin APIs
+
+- `GET /admin/dashboard`: Get overview statistics.
+- `POST /admin/employees`: Add a new employee.
+- `PUT /admin/employees/{id}`: Update employee details.
+- `DELETE /admin/employees/{id}`: Remove an employee.
+- `POST /admin/services`: Add a new service.
+- `PUT /admin/services/{id}`: Update service details.
+- `DELETE /admin/services/{id}`: Remove a service.
+- `GET /admin/reports`: Generate and retrieve reports.
+
+### Error Handling
+
+- Use standardized HTTP status codes.
+- Return error messages with details to assist in debugging (avoid exposing sensitive information).
+
+---
+
+## Frontend Design
+
+### User Interface Components
+
+#### Customers
+
+- **Home Page**: Introduction and quick access to booking.
+- **Service Catalog**: Display services with details.
+- **Booking Flow**:
+  1. Select Service.
+  2. Choose Employee (optional or auto-assigned).
+  3. Pick Date and Time.
+  4. Confirm Booking.
+- **User Account**:
+  - View upcoming and past appointments.
+  - Edit personal information.
+
+#### Employees
+
+- **Dashboard**: Overview of today's appointments.
+- **Schedule View**: Calendar with upcoming bookings.
+- **Availability Settings**: Interface to block out unavailable times.
+
+#### Admins
+
+- **Admin Dashboard**: Key metrics and alerts.
+- **Employee Management**: CRUD operations for employee accounts.
+- **Service Management**: Add or modify services.
+- **Reporting Tools**: Generate and export reports.
+
+### UX/UI Considerations
+
+- **Responsive Design**: Ensure usability on desktops, tablets, and mobile devices.
+- **Accessibility**: Adhere to WCAG guidelines for inclusive design.
+- **Consistency**: Use a design system or component library (e.g., Vuetify) for uniformity.
+
+---
+
+## Security Considerations
+
+- **Authentication**: Implement robust authentication with password hashing (e.g., bcrypt) and secure JWT handling.
+- **Authorization**: Role-based access control to restrict resources.
+- **Input Validation**: Sanitize and validate all user inputs to prevent SQL injection and XSS attacks.
+- **Data Protection**: Encrypt sensitive data at rest and in transit (use HTTPS with TLS).
+- **Rate Limiting**: Protect against brute-force attacks by limiting login attempts.
+- **Audit Logging**: Maintain logs of critical actions for auditing purposes.
+
+---
+
+## Scalability Considerations
+
+- **Stateless Backend**: Design the backend to be stateless to facilitate horizontal scaling.
+- **Load Balancing**: Use a load balancer to distribute traffic across multiple server instances.
+- **Caching Strategy**: Implement caching for frequent read operations using Redis.
+- **Database Optimization**: Use indexing and query optimization; consider read replicas for PostgreSQL.
+- **Asynchronous Processing**: Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
+
+---
+
+## Deployment Plan
+
+### Environments
+
+1. **Development**
+   - Local machines with hot-reloading for rapid development.
+2. **Testing/Staging**
+   - Mirror production environment for testing features before release.
+3. **Production**
+   - Live environment with robust monitoring and backup strategies.
+
+### CI/CD Pipeline
+
+- **Code Repository**: Use Git for version control (GitHub, GitLab).
+- **Automated Testing**: Run unit and integration tests on every push.
+- **Build and Deployment**: Automate using CI/CD tools to reduce manual errors.
+
+### Monitoring and Logging
+
+- **Application Monitoring**: Use tools like Prometheus and Grafana.
+- **Error Tracking**: Implement Sentry or similar for error logging.
+- **Health Checks**: Set up endpoint and infrastructure health checks.
+
+---
+
+## Timeline and Milestones
+
+| Phase                     | Duration | Key Deliverables                                   |
+| ------------------------- | -------- | -------------------------------------------------- |
+| **Requirements Analysis** | 1 week   | Finalize specifications and user stories           |
+| **Design**                | 2 weeks  | System architecture, database schema, UI mockups   |
+| **Backend Development**   | 4 weeks  | API endpoints, authentication, business logic      |
+| **Frontend Development**  | 4 weeks  | UI components, state management, API integration   |
+| **Testing**               | 2 weeks  | Unit tests, integration tests, user acceptance     |
+| **Deployment Setup**      | 1 week   | CI/CD pipeline, server setup, domain configuration |
+| **Beta Release**          | 1 week   | Deploy to staging, gather feedback                 |
+| **Final Adjustments**     | 1 week   | Bug fixes, performance tuning                      |
+| **Launch**                | -        | Deploy to production                               |
+
+_Total Estimated Time: Approximately 3 months_
+
+---
+
+## Conclusion
+
+This planning document outlines a comprehensive approach to developing a full-stack hair salon booking system that is scalable, secure, and user-friendly. By leveraging modern technologies and adhering to best practices in software development, the final product aims to meet the immediate needs of hair salons while being adaptable for future growth and integration.
+
+---
+
+**Next Steps**:
+
+- Review and approve the planning document.
+- Set up initial development environments.
+- Begin the requirements analysis phase with stakeholder meetings.
+````
+
+## File: DOCS/CONVENTIONS.md
+````markdown
+# Code Conventions and Best Practices
+
+## General Principles
+
+- Follow TDD (Test-Driven Development)
+- Apply DRY (Don't Repeat Yourself)
+- Follow KISS (Keep It Simple, Stupid)
+- Apply YAGNI (You Aren't Gonna Need It)
+- Follow SOLID Principles:
+  - Single Responsibility
+  - Open/Closed
+  - Liskov Substitution
+  - Interface Segregation
+  - Dependency Inversion
+
+## TypeScript/JavaScript Conventions
+
+### Naming Conventions
+
+- Use `PascalCase` for:
+  - Classes
+  - Interfaces
+  - Type aliases
+  - Enums
+- Use `camelCase` for:
+  - Variables
+  - Functions
+  - Methods
+  - Properties
+  - Parameters
+- Use `UPPER_SNAKE_CASE` for constants
+- Use descriptive names that reflect the purpose
+
+### File Naming
+
+- Use `kebab-case` for file names
+- Suffix files based on their type:
+  - `.controller.ts` for controllers
+  - `.service.ts` for services
+  - `.entity.ts` for database entities
+  - `.dto.ts` for Data Transfer Objects
+  - `.spec.ts` for test files
+
+### Code Organization
+
+- One class per file
+- Group related functionality in modules
+- Keep files focused and small
+- Use barrel exports (index.ts) for clean imports
+
+## Testing Conventions
+
+### Test Structure
+
+- Follow the AAA pattern:
+  - Arrange: Set up test data
+  - Act: Execute the code being tested
+  - Assert: Verify the results
+- Use descriptive test names that explain the scenario
+- Group related tests using describe blocks
+- Mock external dependencies
+
+### Test Coverage
+
+- Aim for 80%+ code coverage
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+- Include integration tests for:
+  - API endpoints
+  - Database operations
+
+## API Conventions
+
+### RESTful Endpoints
+
+- Use plural nouns for resources
+- Follow HTTP method semantics:
+  - GET: Read
+  - POST: Create
+  - PUT: Full update
+  - PATCH: Partial update
+  - DELETE: Remove
+- Use proper HTTP status codes
+
+### Request/Response
+
+- Use DTOs for request validation
+- Follow consistent response format:
+  ```typescript
+  {
+    success: boolean;
+    data?: any;
+    error?: {
+      code: string;
+      message: string;
+    }
+  }
+  ```
+
+## Database Conventions
+
+### Entity Design
+
+- Use singular names for entity classes
+- Include created_at and updated_at timestamps
+- Use proper column types and constraints
+- Define explicit relationships
+
+### Migrations
+
+- One migration per change
+- Descriptive migration names
+- Include both up and down migrations
+- Test migrations before deployment
+
+## Documentation
+
+- Use JSDoc for code documentation
+- Keep README files up to date
+- Document API endpoints using Swagger
+- Include setup instructions
+
+## Version Control
+
+- Write clear commit messages
+- Use feature branches
+- Follow conventional commits format:
+  - feat: New feature
+  - fix: Bug fix
+  - docs: Documentation
+  - style: Formatting
+  - refactor: Code restructuring
+  - test: Adding tests
+  - chore: Maintenance
+
+## Error Handling
+
+- Use custom exception filters
+- Implement proper logging
+- Return appropriate error responses
+- Handle async/await properly with try/catch
+
+## Security
+
+- Validate all inputs
+- Sanitize data before storage
+- Use proper authentication/authorization
+- Follow security best practices
+- Keep dependencies updated
+
+## Performance
+
+- Use appropriate caching strategies
+- Optimize database queries
+- Implement pagination for lists
+- Monitor and optimize resource usage
+````
+
+## File: DOCS/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
+
+## Project Structure
+
+```
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the LICENSE file at the root of the repository.
+````
+
 ## File: TODO.md
 ````markdown
 # TODO
@@ -21781,4 +21639,147 @@ For detailed information about the system architecture, please refer to [docs/AR
 
 - Monitoring and Logging
   - Implement application monitoring, error tracking, and health checks.
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "bcrypt": "^5.1.1",
+    "cache-manager": "6.4.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "dotenv": "^16.4.5",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.2.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/cache-manager": "^5.0.0",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.1",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.2"
+  }
+}
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.0",
+    "@tsconfig/node22": "^22.0.0",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.9.2",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "@vitest/coverage-v8": "3.0.8",
+    "@vitest/eslint-plugin": "1.1.37",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.20",
+    "cypress": "^14.0.0",
+    "eslint": "^9.14.0",
+    "eslint-plugin-cypress": "^4.1.0",
+    "eslint-plugin-vue": "^9.30.0",
+    "jsdom": "^26.0.0",
+    "npm-run-all2": "^7.0.1",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "start-server-and-test": "^2.0.8",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-vue-devtools": "^7.5.4",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^2.1.10"
+  }
+}
 ````
