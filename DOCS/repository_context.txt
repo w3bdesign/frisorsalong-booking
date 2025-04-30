@@ -21405,57 +21405,6 @@ For detailed information about the system architecture, please refer to [docs/AR
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.2",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
-    "@types/chart.js": "^2.9.41",
-    "autoprefixer": "^10.4.20",
-    "axios": "^1.7.7",
-    "chart.js": "^4.4.6",
-    "element-plus": "^2.8.8",
-    "pinia": "^2.2.6",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
-    "vue": "^3.5.13",
-    "vue-router": "^4.4.5"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.10.4",
-    "@tsconfig/node20": "^20.1.4",
-    "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.9.0",
-    "@vitejs/plugin-vue": "^5.2.0",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.7.0",
-    "eslint": "^9.15.0",
-    "eslint-plugin-vue": "^9.31.0",
-    "jsdom": "^26.0.0",
-    "prettier": "^3.3.3",
-    "typescript": "~5.8.0",
-    "vite": "^6.0.0",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^2.1.10"
-  }
-}
-````
-
 ## File: TODO.md
 ````markdown
 # TODO
@@ -21640,6 +21589,57 @@ For detailed information about the system architecture, please refer to [docs/AR
 
 - Monitoring and Logging
   - Implement application monitoring, error tracking, and health checks.
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.2",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/chart.js": "^2.9.41",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.7.7",
+    "chart.js": "^4.4.6",
+    "element-plus": "^2.8.8",
+    "pinia": "^2.2.6",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.10.4",
+    "@tsconfig/node20": "^20.1.4",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.9.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.7.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-vue": "^9.31.0",
+    "jsdom": "^26.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.8.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^2.1.10"
+  }
+}
 ````
 
 ## File: backend/package.json
