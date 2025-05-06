@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@nestjs/cache-manager':
         specifier: ^3.0.0
-        version: 3.0.1(@nestjs/common@11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.0)(cache-manager@6.4.1)(keyv@5.3.1)(rxjs@7.8.2)
+        version: 3.0.1(@nestjs/common@11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.0)(cache-manager@6.4.3)(keyv@5.3.3)(rxjs@7.8.2)
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -42,8 +42,8 @@ importers:
         specifier: ^5.1.1
         version: 5.1.1
       cache-manager:
-        specifier: 6.4.1
-        version: 6.4.1
+        specifier: 6.4.3
+        version: 6.4.3
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -1302,8 +1302,8 @@ packages:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
 
-  cache-manager@6.4.1:
-    resolution: {integrity: sha512-DVy28v0FbeBp2SmFgKTa4o6muKP3T78Id0nht5D6mBAar1Nuc5z4nL6G0jpnEbYq8FS10dtrBNzQri5l9uJ/zA==}
+  cache-manager@6.4.3:
+    resolution: {integrity: sha512-VV5eq/QQ5rIVix7/aICO4JyvSeEv9eIQuKL5iFwgM2BrcYoE0A/D1mNsAHJAsB0WEbNdBlKkn6Tjz6fKzh/cKQ==}
 
   call-bind-apply-helpers@1.0.1:
     resolution: {integrity: sha512-BhYE+WDaywFg2TBWYNXAE+8B1ATnThNBqXHP5nQu0jWJdVvY2hvkpyB3qOmtmDePiS5/BDQ8wASEWGMWRG148g==}
@@ -2321,8 +2321,8 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
-  keyv@5.3.1:
-    resolution: {integrity: sha512-13hQT2q2VIwOoaJdJa7nY3J8UVbYtMTJFHnwm9LI+SaQRfUiM6Em9KZeOVTCKbMnGcRIL3NSUFpAdjZCq24nLQ==}
+  keyv@5.3.3:
+    resolution: {integrity: sha512-Rwu4+nXI9fqcxiEHtbkvoes2X+QfkTRo1TMkPfwzipGsJlJO/z69vqB4FNl9xJ3xCpAcbkvmEabZfPzrwN3+gQ==}
 
   kleur@3.0.3:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
@@ -4203,12 +4203,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/cache-manager@3.0.1(@nestjs/common@11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.0)(cache-manager@6.4.1)(keyv@5.3.1)(rxjs@7.8.2)':
+  '@nestjs/cache-manager@3.0.1(@nestjs/common@11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.0)(cache-manager@6.4.3)(keyv@5.3.3)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.0(@nestjs/common@11.1.0(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      cache-manager: 6.4.1
-      keyv: 5.3.1
+      cache-manager: 6.4.3
+      keyv: 5.3.3
       rxjs: 7.8.2
 
   '@nestjs/cli@11.0.7(@types/node@22.15.8)':
@@ -4433,7 +4433,7 @@ snapshots:
 
   '@types/cache-manager@5.0.0':
     dependencies:
-      cache-manager: 6.4.1
+      cache-manager: 6.4.3
 
   '@types/connect@3.4.38':
     dependencies:
@@ -4954,9 +4954,9 @@ snapshots:
 
   bytes@3.1.2: {}
 
-  cache-manager@6.4.1:
+  cache-manager@6.4.3:
     dependencies:
-      keyv: 5.3.1
+      keyv: 5.3.3
 
   call-bind-apply-helpers@1.0.1:
     dependencies:
@@ -6201,7 +6201,7 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  keyv@5.3.1:
+  keyv@5.3.3:
     dependencies:
       '@keyv/serialize': 1.0.3
 
