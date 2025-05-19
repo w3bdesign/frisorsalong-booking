@@ -14,7 +14,7 @@ The content is organized as follows:
 2. Repository information
 3. Directory structure
 4. Repository files (if enabled)
-4. Multiple file entries, each consisting of:
+5. Multiple file entries, each consisting of:
   a. A header with the file path (## File: path/to/file)
   b. The full contents of the file in a code block
 
@@ -33,8 +33,6 @@ The content is organized as follows:
 - Files matching default ignore patterns are excluded
 - Empty lines have been removed from all files
 - Files are sorted by Git change count (files with more changes are at the bottom)
-
-## Additional Info
 
 # Directory Structure
 ```
@@ -21759,7 +21757,7 @@ volumes:
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.9.2",
     "@vitejs/plugin-vue": "^5.1.4",
-    "@vitest/coverage-v8": "3.0.8",
+    "@vitest/coverage-v8": "3.1.4",
     "@vitest/eslint-plugin": "1.1.43",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.1.3",
