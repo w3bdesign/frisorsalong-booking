@@ -21,7 +21,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, withDefaults } from 'vue';
 import type { ButtonProps } from '@/types/components';
 
 const props = withDefaults(defineProps<ButtonProps>(), {
