@@ -74,11 +74,10 @@ describe("Auth Store", () => {
         data: { message: "Invalid credentials" },
         headers: {},
         config: {
-          method: "post",
           url: "/auth/login",
-          headers: {}
+          method: "post"
         }
-      };
+      } as Partial<AxiosResponse>;
 
       vi.mocked(axios.post).mockRejectedValueOnce(mockError);
 
