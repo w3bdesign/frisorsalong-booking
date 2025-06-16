@@ -125,7 +125,7 @@ export const useAuthStore = defineStore("auth", {
         case 500:
           return "En serverfeil har oppstått. Vennligst prøv igjen senere";
         default:
-          return "En feil oppstod under innlogging. Vennligst prøv igjen";
+          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
       }
     },
 

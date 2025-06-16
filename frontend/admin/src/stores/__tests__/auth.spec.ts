@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { useAuthStore } from "../auth";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 vi.mock("axios");
 
@@ -44,7 +44,7 @@ describe("Auth Store", () => {
           email: "admin@test.com",
           role: "admin",
           firstName: "Admin",
-          lastName: "User"
+          lastName: "User",
         },
       },
     };
@@ -62,18 +62,24 @@ describe("Auth Store", () => {
       expect(store.error).toBeNull();
       expect(localStorage.getItem("admin_token")).toBe("test-token");
       expect(axios.defaults.headers.common["Authorization"]).toBe(
-        "Bearer test-token",
+        "Bearer test-token"
       );
     });
 
     it("should handle login error with invalid credentials", async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce({
-        response: {
-          status: 401,
-          data: { message: "Invalid credentials" }
-        },
-        isAxiosError: true,
-      });
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          url: "/auth/login",
+          method: "post"
+        }
+      } as Partial<AxiosResponse>;
+
+      vi.mocked(axios.post).mockRejectedValueOnce(mockError);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
@@ -85,16 +91,18 @@ describe("Auth Store", () => {
     });
 
     it("should handle server connection error", async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce({
-        code: "ECONNREFUSED",
-        isAxiosError: true,
-      });
+      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
+      mockError.code = "ECONNREFUSED";
+
+      vi.mocked(axios.post).mockRejectedValueOnce(mockError);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
 
       expect(success).toBeFalsy();
-      expect(store.error).toBe("Kunne ikke koble til serveren. Sjekk internettforbindelsen din");
+      expect(store.error).toBe(
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
+      );
       expect(store.isAuthenticated).toBeFalsy();
     });
   });
@@ -112,7 +120,7 @@ describe("Auth Store", () => {
           email: "admin@test.com",
           role: "admin",
           firstName: "Admin",
-          lastName: "User"
+          lastName: "User",
         },
         isAuthenticated: true,
       });
@@ -139,7 +147,7 @@ describe("Auth Store", () => {
       expect(store.token).toBe("test-token");
       expect(store.isAuthenticated).toBeTruthy();
       expect(axios.defaults.headers.common["Authorization"]).toBe(
-        "Bearer test-token",
+        "Bearer test-token"
       );
     });
 
