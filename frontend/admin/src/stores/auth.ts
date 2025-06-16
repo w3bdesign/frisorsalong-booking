@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 interface AuthState {
   token: string | null;
@@ -31,10 +31,11 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 // Set up axios interceptor for error handling
 axios.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     if (error.response?.status === 403) {
-      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+      error.message =
+        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
     }
     return Promise.reject(error);
   }
@@ -58,7 +59,8 @@ export const useAuthStore = defineStore("auth", {
   getters: {
     isAdmin: (state) => state.user?.role === "admin",
     isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
   },
 
   actions: {
@@ -69,7 +71,9 @@ export const useAuthStore = defineStore("auth", {
 
         // Validate API_URL
         if (!API_URL) {
-          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
+          throw new Error(
+            "Systemvariabler er ikke satt: Kontakt systemadministrator"
+          );
         }
 
         const response = await axios.post<AuthResponse>(
@@ -81,7 +85,9 @@ export const useAuthStore = defineStore("auth", {
 
         // Only allow admin and employee users to access the admin panel
         if (user.role === "user") {
-          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
         }
 
         this.token = token;
@@ -105,38 +111,50 @@ export const useAuthStore = defineStore("auth", {
     },
 
     resolveLoginError(error: unknown): string {
-      // Show backend error message if available
-      if (error?.response?.data?.message) {
-        const msg = error.response.data.message;
-        return Array.isArray(msg) ? msg.join(", ") : msg;
-      }
-      // Handle specific HTTP status codes
-      if (error?.response?.status) {
-        switch (error.response.status) {
-          case 401:
-            return "Feil e-postadresse eller passord";
-          case 403:
-            return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-          case 404:
-            return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-          case 500:
-            return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-          default:
-            return "En feil oppstod under innlogging. Vennligst prøv igjen";
+      // Handle AxiosError (most common case)
+      if (error instanceof AxiosError) {
+        // Handle specific HTTP status codes first for better localized messages
+        if (error.response?.status) {
+          switch (error.response.status) {
+            case 401:
+              return "Feil e-postadresse eller passord";
+            case 403:
+              return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+            case 404:
+              return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+            case 500:
+              return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+            default:
+              // For other status codes, try to show backend error message if available
+              if (error.response?.data?.message) {
+                const msg = error.response.data.message;
+                return Array.isArray(msg) ? msg.join(", ") : msg;
+              }
+              return "En feil oppstod under innlogging. Vennligst prøv igjen";
+          }
+        }
+
+        // Show backend error message if available and no status code
+        if (error.response?.data?.message) {
+          const msg = error.response.data.message;
+          return Array.isArray(msg) ? msg.join(", ") : msg;
+        }
+
+        // Handle network/connection errors
+        if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
         }
       }
-      // Handle network/connection errors
-      if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-      // Handle API_URL configuration error
-      if (error?.message?.includes("Systemvariabler er ikke satt")) {
-        return error.message;
-      }
-      // Handle other errors
+
+      // Handle regular Error instances
       if (error instanceof Error) {
+        // Handle API_URL configuration error
+        if (error.message?.includes("Systemvariabler er ikke satt")) {
+          return error.message;
+        }
         return error.message;
       }
+
       // Fallback error message
       return "En feil oppstod under innlogging. Vennligst prøv igjen";
     },
