@@ -3,6 +3,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createRouter, createWebHistory } from 'vue-router';
 import DashboardView from "../DashboardView.vue";
+import type { BookingView } from "../../types";
 
 // Create mock router
 const router = createRouter({
@@ -17,7 +18,7 @@ const router = createRouter({
 
 // Mock the store
 const createMockStore = () => ({
-  bookings: [],
+  bookings: [] as BookingView[],
   totalBookings: 0,
   todayBookings: 0,
   upcomingBookings: 0,
@@ -68,6 +69,18 @@ describe("DashboardView", () => {
   });
 
   it("should display bookings table", async () => {
+    // Add mock bookings data so the table is rendered
+    mockStore.bookings = [
+      {
+        id: "1",
+        customerName: "John Doe",
+        employeeName: "Jane Smith",
+        serviceName: "Haircut",
+        startTime: "2023-12-01T10:00:00Z",
+        status: "CONFIRMED"
+      }
+    ];
+
     const wrapper = await mountComponent();
 
     // Test bookings table exists
