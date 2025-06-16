@@ -457,6 +457,92 @@ jobs:
           fail_ci_if_error: true
 ````
 
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
 ## File: backend/docs/ARCHITECTURE.md
 ````markdown
 # Hair Salon Booking System Planning Document
@@ -2352,112 +2438,6 @@ import { User } from "../users/entities/user.entity";
   exports: [AuthService, JwtStrategy, RolesGuard, JwtModule, PassportModule],
 })
 export class AuthModule {}
-````
-
-## File: backend/src/auth/auth.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { AuthService } from "./auth.service";
-import { UsersService } from "../users/users.service";
-import { UserRole } from "../users/entities/user.entity";
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
-import * as bcrypt from "bcrypt";
-jest.mock('bcrypt', () => ({
-  compare: jest.fn(),
-  hash: jest.fn(),
-}));
-describe("AuthService", () => {
-  let service: AuthService;
-  const mockUser = {
-    id: "1",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    password: "hashedPassword",
-    role: UserRole.CUSTOMER,
-  };
-  const mockUsersService = {
-    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
-    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-  };
-  const mockJwtService = {
-    sign: jest.fn().mockReturnValue("jwt_token"),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: JwtService,
-          useValue: mockJwtService,
-        },
-      ],
-    }).compile();
-    service = module.get<AuthService>(AuthService);
-    // Clear mock calls between tests
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-  describe("register", () => {
-    const registerDto = {
-      email: "test@example.com",
-      password: "password123",
-      firstName: "Test",
-      lastName: "User",
-      role: UserRole.CUSTOMER,
-    };
-    it("should successfully register a new user", async () => {
-      const result = await service.register(registerDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-      expect(mockUsersService.create).toHaveBeenCalled();
-    });
-    it("should throw ConflictException if email already exists", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException
-      );
-    });
-  });
-  describe("login", () => {
-    const loginDto = {
-      email: "test@example.com",
-      password: "password123",
-    };
-    beforeEach(() => {
-      // Setup bcrypt mock before each test
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    });
-    it("should successfully login a user", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      const result = await service.login(loginDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-    });
-    it("should throw UnauthorizedException if user not found", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(null);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException
-      );
-    });
-    it("should throw UnauthorizedException if password is invalid", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/bookings/dto/booking-response.dto.ts
@@ -14064,121 +14044,6 @@ export interface Service {
 }
 ````
 
-## File: frontend/admin/src/views/__tests__/DashboardView.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mount, flushPromises } from "@vue/test-utils";
-import { createPinia, setActivePinia } from "pinia";
-import { createRouter, createWebHistory } from 'vue-router';
-import DashboardView from "../DashboardView.vue";
-// Create mock router
-const router = createRouter({
-  history: createWebHistory(),
-  routes: [
-    {
-      path: '/',
-      component: DashboardView
-    }
-  ]
-});
-// Mock the store
-const createMockStore = () => ({
-  bookings: [],
-  totalBookings: 0,
-  todayBookings: 0,
-  upcomingBookings: 0,
-  isLoading: false,
-  error: null,
-  fetchDashboardStats: vi.fn().mockResolvedValue(undefined),
-  fetchUpcomingBookings: vi.fn().mockResolvedValue(undefined),
-});
-let mockStore = createMockStore();
-// Mock the store module with the correct path
-vi.mock("@/stores/bookings", () => ({
-  useBookingStore: () => mockStore
-}));
-describe("DashboardView", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    mockStore = createMockStore();
-    vi.clearAllMocks();
-  });
-  const mountComponent = async () => {
-    const wrapper = mount(DashboardView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          RouterLink: true
-        }
-      }
-    });
-    await flushPromises();
-    return wrapper;
-  };
-  it("should render statistics cards", async () => {
-    const wrapper = await mountComponent();
-    // Test statistics section exists
-    const statsSection = wrapper.find('[data-test="statistics-cards"]');
-    expect(statsSection.exists()).toBe(true);
-    // Test individual stat cards
-    expect(wrapper.find('[data-test="total-bookings"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="today-bookings"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="upcoming-bookings"]').exists()).toBe(true);
-  });
-  it("should display bookings table", async () => {
-    const wrapper = await mountComponent();
-    // Test bookings table exists
-    const bookingsTable = wrapper.find('[data-test="bookings-table"]');
-    expect(bookingsTable.exists()).toBe(true);
-    // Test table headers
-    const headers = wrapper.findAll("th");
-    expect(headers.length).toBeGreaterThan(0);
-    expect(headers.some((header) => header.text().includes("Kunde"))).toBe(
-      true,
-    );
-    expect(headers.some((header) => header.text().includes("Tjeneste"))).toBe(
-      true,
-    );
-    expect(headers.some((header) => header.text().includes("Dato"))).toBe(true);
-  });
-  it("should load dashboard data on mount", async () => {
-    await mountComponent();
-    await flushPromises();
-    // Verify store actions were called
-    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
-  });
-  it("should show loading state while fetching data", async () => {
-    // Set loading state before mounting
-    mockStore.isLoading = true;
-    const wrapper = await mountComponent();
-    // Test loading state is shown
-    const loadingState = wrapper.find('[data-test="loading-state"]');
-    expect(loadingState.exists()).toBe(true);
-    expect(loadingState.text()).toContain("Laster bestillinger");
-    mockStore.isLoading = false;
-  });
-  it("should display refresh button", async () => {
-    const wrapper = await mountComponent();
-    // Test refresh button exists
-    const refreshButton = wrapper.find('[data-test="refresh-button"]');
-    expect(refreshButton.exists()).toBe(true);
-    expect(refreshButton.text()).toBe("Oppdater");
-  });
-  it("should handle refresh click", async () => {
-    const wrapper = await mountComponent();
-    // Clear mock calls from mounting
-    mockStore.fetchDashboardStats.mockClear();
-    // Click refresh button
-    const refreshButton = wrapper.find('[data-test="refresh-button"]');
-    await refreshButton.trigger("click");
-    await flushPromises();
-    // Verify store action was called with forceRefresh=true
-    expect(mockStore.fetchDashboardStats).toHaveBeenCalledWith(true);
-    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
-  });
-});
-````
-
 ## File: frontend/admin/src/views/BookingsView.vue
 ````vue
 <template>
@@ -15809,6 +15674,57 @@ dist-ssr
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.2",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/chart.js": "^2.9.41",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.7.7",
+    "chart.js": "^4.4.6",
+    "element-plus": "^2.8.8",
+    "pinia": "^2.2.6",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.10.4",
+    "@tsconfig/node20": "^20.1.4",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.9.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.7.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-vue": "^9.31.0",
+    "jsdom": "^26.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.8.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^2.1.10"
+  }
+}
 ````
 
 ## File: frontend/admin/postcss.config.js
@@ -21007,92 +20923,6 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: .github/workflows/repomix.yml
-````yaml
-name: Repository Documentation
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
-        run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
-        run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
-````
-
 ## File: backend/src/auth/dto/login.dto.ts
 ````typescript
 import { ApiProperty } from "@nestjs/swagger";
@@ -21253,215 +21083,131 @@ const sizeClasses = {
 </script>
 ````
 
-## File: frontend/admin/src/stores/auth.ts
+## File: frontend/admin/src/views/__tests__/DashboardView.spec.ts
 ````typescript
-import { defineStore } from "pinia";
-import axios from "axios";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-const API_URL = import.meta.env.VITE_API_URL;
-// Set up axios interceptor for error handling
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 403) {
-      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
+import { createRouter, createWebHistory } from 'vue-router';
+import DashboardView from "../DashboardView.vue";
+import type { BookingView } from "../../types";
+// Create mock router
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/',
+      component: DashboardView
     }
-    return Promise.reject(error);
-  }
-);
-// Initialize axios headers if token exists
-const token = localStorage.getItem("admin_token");
-if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
-    isLoading: false,
-  }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
-  },
-  actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
-      try {
-        this.isLoading = true;
-        this.error = null;
-        // Validate API_URL
-        if (!API_URL) {
-          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
-        }
-        const response = await axios.post<AuthResponse>(
-          `${API_URL}/auth/login`,
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        // Set default Authorization header for future requests
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return true;
-      } catch (error: any) {
-        console.error("Login error:", error);
-        // Show backend error message if available
-        if (error?.response?.data?.message) {
-          const msg = error.response.data.message;
-          this.error = Array.isArray(msg) ? msg.join(", ") : msg;
-        }
-        // Handle specific HTTP status codes
-        else if (error?.response?.status) {
-          switch (error.response.status) {
-            case 401:
-              this.error = "Feil e-postadresse eller passord";
-              break;
-            case 403:
-              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
-              break;
-            case 404:
-              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-              break;
-            case 500:
-              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
-              break;
-            default:
-              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-          }
-        }
-        // Handle network/connection errors
-        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
-          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-        }
-        // Handle API_URL configuration error
-        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
-          this.error = error.message;
-        }
-        // Handle other errors
-        else if (error instanceof Error) {
-          this.error = error.message;
-        }
-        // Fallback error message
-        else {
-          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-        }
-        return false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-      // Remove Authorization header
-      delete axios.defaults.headers.common["Authorization"];
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
-        return false;
-      }
-      // Set the Authorization header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      // If we have a token, consider the user authenticated
-      // The token will be validated on API requests
-      this.token = token;
-      this.isAuthenticated = true;
-      return true;
-    },
-    clearError() {
-      this.error = null;
-    },
-  },
+  ]
 });
-````
-
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.2",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
-    "@types/chart.js": "^2.9.41",
-    "autoprefixer": "^10.4.20",
-    "axios": "^1.7.7",
-    "chart.js": "^4.4.6",
-    "element-plus": "^2.8.8",
-    "pinia": "^2.2.6",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
-    "vue": "^3.5.13",
-    "vue-router": "^4.4.5"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.10.4",
-    "@tsconfig/node20": "^20.1.4",
-    "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.9.0",
-    "@vitejs/plugin-vue": "^5.2.0",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.7.0",
-    "eslint": "^9.15.0",
-    "eslint-plugin-vue": "^9.31.0",
-    "jsdom": "^26.0.0",
-    "prettier": "^3.3.3",
-    "typescript": "~5.8.0",
-    "vite": "^6.0.0",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^2.1.10"
-  }
-}
+// Mock the store
+const createMockStore = () => ({
+  bookings: [] as BookingView[],
+  totalBookings: 0,
+  todayBookings: 0,
+  upcomingBookings: 0,
+  isLoading: false,
+  error: null,
+  fetchDashboardStats: vi.fn().mockResolvedValue(undefined),
+  fetchUpcomingBookings: vi.fn().mockResolvedValue(undefined),
+});
+let mockStore = createMockStore();
+// Mock the store module with the correct path
+vi.mock("@/stores/bookings", () => ({
+  useBookingStore: () => mockStore
+}));
+describe("DashboardView", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mockStore = createMockStore();
+    vi.clearAllMocks();
+  });
+  const mountComponent = async () => {
+    const wrapper = mount(DashboardView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          RouterLink: true
+        }
+      }
+    });
+    await flushPromises();
+    return wrapper;
+  };
+  it("should render statistics cards", async () => {
+    const wrapper = await mountComponent();
+    // Test statistics section exists
+    const statsSection = wrapper.find('[data-test="statistics-cards"]');
+    expect(statsSection.exists()).toBe(true);
+    // Test individual stat cards
+    expect(wrapper.find('[data-test="total-bookings"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="today-bookings"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="upcoming-bookings"]').exists()).toBe(true);
+  });
+  it("should display bookings table", async () => {
+    // Add mock bookings data so the table is rendered
+    mockStore.bookings = [
+      {
+        id: "1",
+        customerName: "John Doe",
+        employeeName: "Jane Smith",
+        serviceName: "Haircut",
+        startTime: "2023-12-01T10:00:00Z",
+        status: "CONFIRMED"
+      }
+    ];
+    const wrapper = await mountComponent();
+    // Test bookings table exists
+    const bookingsTable = wrapper.find('[data-test="bookings-table"]');
+    expect(bookingsTable.exists()).toBe(true);
+    // Test table headers
+    const headers = wrapper.findAll("th");
+    expect(headers.length).toBeGreaterThan(0);
+    expect(headers.some((header) => header.text().includes("Kunde"))).toBe(
+      true,
+    );
+    expect(headers.some((header) => header.text().includes("Tjeneste"))).toBe(
+      true,
+    );
+    expect(headers.some((header) => header.text().includes("Dato"))).toBe(true);
+  });
+  it("should load dashboard data on mount", async () => {
+    await mountComponent();
+    await flushPromises();
+    // Verify store actions were called
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
+  });
+  it("should show loading state while fetching data", async () => {
+    // Set loading state before mounting
+    mockStore.isLoading = true;
+    const wrapper = await mountComponent();
+    // Test loading state is shown
+    const loadingState = wrapper.find('[data-test="loading-state"]');
+    expect(loadingState.exists()).toBe(true);
+    expect(loadingState.text()).toContain("Laster bestillinger");
+    mockStore.isLoading = false;
+  });
+  it("should display refresh button", async () => {
+    const wrapper = await mountComponent();
+    // Test refresh button exists
+    const refreshButton = wrapper.find('[data-test="refresh-button"]');
+    expect(refreshButton.exists()).toBe(true);
+    expect(refreshButton.text()).toBe("Oppdater");
+  });
+  it("should handle refresh click", async () => {
+    const wrapper = await mountComponent();
+    // Clear mock calls from mounting
+    mockStore.fetchDashboardStats.mockClear();
+    // Click refresh button
+    const refreshButton = wrapper.find('[data-test="refresh-button"]');
+    await refreshButton.trigger("click");
+    await flushPromises();
+    // Verify store action was called with forceRefresh=true
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledWith(true);
+    expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
+  });
+});
 ````
 
 ## File: docker-compose.yml
@@ -21515,101 +21261,6 @@ services:
       - "6379:6379"
 volumes:
   postgres_data:
-````
-
-## File: backend/src/auth/auth.service.ts
-````typescript
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
-import { User } from "../users/entities/user.entity";
-@Injectable()
-export class AuthService {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
-      if (existingUser) {
-        throw new ConflictException("E-postadressen er allerede i bruk");
-      }
-      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-      const user = await this.usersService.create({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under registrering");
-    }
-  }
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException("Invalid credentials");
-      }
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under innlogging");
-    }
-  }
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-    const token: string = this.jwtService.sign(payload);
-    return token;
-  }
-  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-}
 ````
 
 ## File: backend/package.json
@@ -21704,6 +21355,396 @@ export class AuthService {
 
 # Base URL for the backend API
 VITE_API_URL=http://localhost:3000/api
+````
+
+## File: backend/src/auth/auth.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt", () => ({
+  compare: jest.fn(),
+  hash: jest.fn(),
+}));
+describe("AuthService", () => {
+  let service: AuthService;
+  const mockUser = {
+    id: "1",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User",
+    password: "hashedPassword",
+    role: UserRole.CUSTOMER,
+  };
+  const mockUsersService = {
+    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
+    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
+  };
+  const mockJwtService = {
+    sign: jest.fn().mockReturnValue("jwt_token"),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
+      ],
+    }).compile();
+    service = module.get<AuthService>(AuthService);
+    // Clear mock calls between tests
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(service).toBeDefined();
+  });
+  describe("register", () => {
+    const registerDto = {
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+      role: UserRole.CUSTOMER,
+    };
+    it("should successfully register a new user", async () => {
+      const result = await service.register(registerDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+      expect(mockUsersService.create).toHaveBeenCalled();
+    });
+    it("should throw ConflictException if email already exists", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      await expect(service.register(registerDto)).rejects.toThrowError(
+        expect.objectContaining({
+          message: "E-postadressen er allerede i bruk",
+        })
+      );
+    });
+  });
+  describe("login", () => {
+    const loginDto = {
+      email: "test@example.com",
+      password: "password123",
+    };
+    beforeEach(() => {
+      // Setup bcrypt mock before each test
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    });
+    it("should successfully login a user", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      const result = await service.login(loginDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+    });
+    it("should throw UnauthorizedException if user not found", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(null);
+      await expect(service.login(loginDto)).rejects.toThrowError(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+    it("should throw UnauthorizedException if password is invalid", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(service.login(loginDto)).rejects.toThrowError(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+  });
+});
+````
+
+## File: backend/src/auth/auth.service.ts
+````typescript
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (existingUser) {
+        throw new ConflictException("E-postadressen er allerede i bruk");
+      }
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under registrering");
+    }
+  }
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
+      if (!user) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under innlogging");
+    }
+  }
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token: string = this.jwtService.sign(payload);
+    return token;
+  }
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+}
+````
+
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import axios, { AxiosError } from "axios";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
+}
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+interface ErrorResponse {
+  message?: string | string[];
+}
+const API_URL = import.meta.env.VITE_API_URL;
+// Set up axios interceptor for error handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403) {
+      error.message =
+        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
+// Initialize axios headers if token exists
+const token = localStorage.getItem("admin_token");
+if (token) {
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        // Validate API_URL
+        if (!API_URL) {
+          throw new Error(
+            "Systemvariabler er ikke satt: Kontakt systemadministrator"
+          );
+        }
+        const response = await axios.post<AuthResponse>(
+          `${API_URL}/auth/login`,
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        // Set default Authorization header for future requests
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        return true;
+      } catch (error) {
+        console.error("Login error:", error);
+        this.error = this.resolveLoginError(error);
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    getHttpStatusErrorMessage(status: number): string {
+      switch (status) {
+        case 401:
+          return "Feil e-postadresse eller passord";
+        case 403:
+          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+        case 404:
+          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+        case 500:
+          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+        default:
+          return "En feil oppstod under innlogging. Vennligst prøv igjen";
+      }
+    },
+    extractBackendMessage(message: string | string[]): string {
+      return Array.isArray(message) ? message.join(", ") : message;
+    },
+    handleAxiosError(error: AxiosError<ErrorResponse>): string {
+      // Handle specific HTTP status codes first
+      if (error.response?.status) {
+        const statusMessage = this.getHttpStatusErrorMessage(
+          error.response.status
+        );
+        if (error.response.status >= 400 && error.response.status < 500) {
+          return statusMessage; // Use localized message for client errors
+        }
+        // For server errors, try backend message first, then fallback to localized
+        if (error.response?.data?.message) {
+          return this.extractBackendMessage(error.response.data.message);
+        }
+        return statusMessage;
+      }
+      // No status code, try backend message
+      if (error.response?.data?.message) {
+        return this.extractBackendMessage(error.response.data.message);
+      }
+      // Handle network/connection errors
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    resolveLoginError(error: unknown): string {
+      if (error instanceof AxiosError) {
+        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
+      }
+      if (error instanceof Error) {
+        if (error.message?.includes("Systemvariabler er ikke satt")) {
+          return error.message;
+        }
+        return error.message;
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+      // Remove Authorization header
+      delete axios.defaults.headers.common["Authorization"];
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      // Set the Authorization header
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      // If we have a token, consider the user authenticated
+      // The token will be validated on API requests
+      this.token = token;
+      this.isAuthenticated = true;
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
+});
 ````
 
 ## File: frontend/customer/package.json
