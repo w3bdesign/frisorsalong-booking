@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 interface AuthState {
   token: string | null;
@@ -27,14 +27,19 @@ interface AuthResponse {
   user: User;
 }
 
+interface ErrorResponse {
+  message?: string | string[];
+}
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Set up axios interceptor for error handling
 axios.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     if (error.response?.status === 403) {
-      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+      error.message =
+        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
     }
     return Promise.reject(error);
   }
@@ -58,7 +63,8 @@ export const useAuthStore = defineStore("auth", {
   getters: {
     isAdmin: (state) => state.user?.role === "admin",
     isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
   },
 
   actions: {
@@ -69,7 +75,9 @@ export const useAuthStore = defineStore("auth", {
 
         // Validate API_URL
         if (!API_URL) {
-          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
+          throw new Error(
+            "Systemvariabler er ikke satt: Kontakt systemadministrator"
+          );
         }
 
         const response = await axios.post<AuthResponse>(
@@ -81,7 +89,9 @@ export const useAuthStore = defineStore("auth", {
 
         // Only allow admin and employee users to access the admin panel
         if (user.role === "user") {
-          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
         }
 
         this.token = token;
@@ -95,54 +105,76 @@ export const useAuthStore = defineStore("auth", {
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
         return true;
-      } catch (error: any) {
+      } catch (error) {
         console.error("Login error:", error);
-
-        // Show backend error message if available
-        if (error?.response?.data?.message) {
-          const msg = error.response.data.message;
-          this.error = Array.isArray(msg) ? msg.join(", ") : msg;
-        }
-        // Handle specific HTTP status codes
-        else if (error?.response?.status) {
-          switch (error.response.status) {
-            case 401:
-              this.error = "Feil e-postadresse eller passord";
-              break;
-            case 403:
-              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
-              break;
-            case 404:
-              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-              break;
-            case 500:
-              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
-              break;
-            default:
-              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-          }
-        }
-        // Handle network/connection errors
-        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
-          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-        }
-        // Handle API_URL configuration error
-        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
-          this.error = error.message;
-        }
-        // Handle other errors
-        else if (error instanceof Error) {
-          this.error = error.message;
-        }
-        // Fallback error message
-        else {
-          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-        }
-
+        this.error = this.resolveLoginError(error);
         return false;
       } finally {
         this.isLoading = false;
       }
+    },
+
+    getHttpStatusErrorMessage(status: number): string {
+      switch (status) {
+        case 401:
+          return "Feil e-postadresse eller passord";
+        case 403:
+          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+        case 404:
+          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+        case 500:
+          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+        default:
+          return "En feil oppstod under innlogging. Vennligst prøv igjen";
+      }
+    },
+
+    extractBackendMessage(message: string | string[]): string {
+      return Array.isArray(message) ? message.join(", ") : message;
+    },
+
+    handleAxiosError(error: AxiosError<ErrorResponse>): string {
+      // Handle specific HTTP status codes first
+      if (error.response?.status) {
+        const statusMessage = this.getHttpStatusErrorMessage(
+          error.response.status
+        );
+        if (error.response.status >= 400 && error.response.status < 500) {
+          return statusMessage; // Use localized message for client errors
+        }
+        // For server errors, try backend message first, then fallback to localized
+        if (error.response?.data?.message) {
+          return this.extractBackendMessage(error.response.data.message);
+        }
+        return statusMessage;
+      }
+
+      // No status code, try backend message
+      if (error.response?.data?.message) {
+        return this.extractBackendMessage(error.response.data.message);
+      }
+
+      // Handle network/connection errors
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+
+    resolveLoginError(error: unknown): string {
+      if (error instanceof AxiosError) {
+        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
+      }
+
+      if (error instanceof Error) {
+        if (error.message?.includes("Systemvariabler er ikke satt")) {
+          return error.message;
+        }
+        return error.message;
+      }
+
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
     },
 
     logout() {
