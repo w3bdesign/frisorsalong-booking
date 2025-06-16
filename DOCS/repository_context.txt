@@ -200,7 +200,6 @@ backend/
   test/
     app.e2e-spec.ts
     jest-e2e.json
-  .env.example
   .gitignore
   eslint.config.js
   jest.config.js
@@ -1304,76 +1303,6 @@ export const Roles = (...roles: UserRole[]): MethodDecorator => {
 ````typescript
 export * from "./login.dto";
 export * from "./register.dto";
-````
-
-## File: backend/src/auth/dto/login.dto.ts
-````typescript
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
-export class LoginDto {
-  @ApiProperty({
-    example: "user@example.com",
-    description: "User email address",
-  })
-  @IsEmail({}, { message: "Please provide a valid email address" })
-  email: string;
-  @ApiProperty({
-    example: "Password123!",
-    description: "User password (min 8 characters)",
-  })
-  @IsString()
-  @MinLength(8, { message: "Password must be at least 8 characters long" })
-  password: string;
-}
-````
-
-## File: backend/src/auth/dto/register.dto.ts
-````typescript
-import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  IsEnum,
-  IsOptional,
-} from "class-validator";
-import { UserRole } from "../../users/entities/user.entity";
-export class RegisterDto {
-  @ApiProperty({
-    example: "user@example.com",
-    description: "User email address",
-  })
-  @IsEmail({}, { message: "Please provide a valid email address" })
-  email: string;
-  @ApiProperty({
-    example: "Password123!",
-    description: "User password (min 8 characters)",
-  })
-  @IsString()
-  @MinLength(8, { message: "Password must be at least 8 characters long" })
-  password: string;
-  @ApiProperty({
-    example: "John",
-    description: "User first name",
-  })
-  @IsString()
-  firstName: string;
-  @ApiProperty({
-    example: "Doe",
-    description: "User last name",
-  })
-  @IsString()
-  lastName: string;
-  @ApiProperty({
-    enum: UserRole,
-    example: UserRole.CUSTOMER,
-    description: "User role",
-    default: UserRole.CUSTOMER,
-  })
-  @IsEnum(UserRole)
-  @IsOptional()
-  role?: UserRole = UserRole.CUSTOMER;
-}
 ````
 
 ## File: backend/src/auth/enums/role.enum.spec.ts
@@ -2529,101 +2458,6 @@ describe("AuthService", () => {
     });
   });
 });
-````
-
-## File: backend/src/auth/auth.service.ts
-````typescript
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
-import { User } from "../users/entities/user.entity";
-@Injectable()
-export class AuthService {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
-      if (existingUser) {
-        throw new ConflictException("Email already exists");
-      }
-      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-      const user = await this.usersService.create({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Error during registration");
-    }
-  }
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException("Invalid credentials");
-      }
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException("Invalid credentials");
-      }
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Error during login");
-    }
-  }
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-    const token: string = this.jwtService.sign(payload);
-    return token;
-  }
-  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-}
 ````
 
 ## File: backend/src/bookings/dto/booking-response.dto.ts
@@ -9966,45 +9800,6 @@ export class User {
 }
 ````
 
-## File: backend/src/users/enums/role.enum.spec.ts
-````typescript
-import { Role } from './role.enum';
-describe('Role Enum', () => {
-  it('should have correct values for all roles', () => {
-    expect(Role.USER).toBe('user');
-    expect(Role.EMPLOYEE).toBe('employee');
-    expect(Role.ADMIN).toBe('admin');
-  });
-  it('should have exactly three roles defined', () => {
-    const roleValues = Object.values(Role);
-    expect(roleValues).toHaveLength(3);
-    expect(roleValues).toEqual(['user', 'employee', 'admin']);
-  });
-  it('should have correct keys matching the values', () => {
-    const roleEntries = Object.entries(Role);
-    expect(roleEntries).toEqual([
-      ['USER', 'user'],
-      ['EMPLOYEE', 'employee'],
-      ['ADMIN', 'admin']
-    ]);
-  });
-  it('should provide type safety through TypeScript', () => {
-    // TypeScript enforces type safety:
-    // The following would cause compile errors:
-    // Role.USER = 'modified';        // Cannot assign to enum member
-    // let role: Role = 'invalid';    // Type '"invalid"' is not assignable to type 'Role'
-    // Valid enum usage:
-    let role: Role;
-    role = Role.USER;
-    expect(role).toBe('user');
-    role = Role.EMPLOYEE;
-    expect(role).toBe('employee');
-    role = Role.ADMIN;
-    expect(role).toBe('admin');
-  });
-});
-````
-
 ## File: backend/src/users/enums/role.enum.ts
 ````typescript
 export enum Role {
@@ -10964,40 +10759,6 @@ describe("AppController (e2e)", () => {
     "^.+\\.(t|j)s$": "ts-jest"
   }
 }
-````
-
-## File: backend/.env.example
-````
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-that-should-be-changed-in-production
-JWT_EXPIRATION=1h
-
-# Redis (for future use)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CACHE_TTL=300
-
-# Admin User
-ADMIN_EMAIL=admin@frisorsalong-booking.local
-ADMIN_PASSWORD=change_this_password_in_production
-
-# Employee User
-EMPLOYEE_EMAIL=employee@frisorsalong-booking.local
-EMPLOYEE_PASSWORD=change_this_password_in_production
-EMPLOYEE_PHONE=+1234567890
-````
-
-## File: backend/.gitignore
-````
-.env
-node_modules
 ````
 
 ## File: backend/eslint.config.js
@@ -13675,161 +13436,6 @@ describe("Auth Store", () => {
       expect(store.error).toBeNull();
     });
   });
-});
-````
-
-## File: frontend/admin/src/stores/auth.ts
-````typescript
-import { defineStore } from "pinia";
-import axios from "axios";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-const API_URL = import.meta.env.VITE_API_URL;
-// Set up axios interceptor for error handling
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 403) {
-      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
-    }
-    return Promise.reject(error);
-  }
-);
-// Initialize axios headers if token exists
-const token = localStorage.getItem("admin_token");
-if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
-    isLoading: false,
-  }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
-  },
-  actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
-      try {
-        this.isLoading = true;
-        this.error = null;
-        // Validate API_URL
-        if (!API_URL) {
-          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
-        }
-        const response = await axios.post<AuthResponse>(
-          `${API_URL}/auth/login`,
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        // Set default Authorization header for future requests
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return true;
-      } catch (error: any) {
-        console.error("Login error:", error);
-        // Handle specific HTTP status codes
-        if (error?.response?.status) {
-          switch (error.response.status) {
-            case 401:
-              this.error = "Feil e-postadresse eller passord";
-              break;
-            case 403:
-              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
-              break;
-            case 404:
-              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-              break;
-            case 500:
-              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
-              break;
-            default:
-              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-          }
-        }
-        // Handle network/connection errors
-        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
-          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-        }
-        // Handle API_URL configuration error
-        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
-          this.error = error.message;
-        }
-        // Handle other errors
-        else if (error instanceof Error) {
-          this.error = error.message;
-        }
-        // Fallback error message
-        else {
-          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-        }
-        return false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-      // Remove Authorization header
-      delete axios.defaults.headers.common["Authorization"];
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
-        return false;
-      }
-      // Set the Authorization header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      // If we have a token, consider the user authenticated
-      // The token will be validated on API requests
-      this.token = token;
-      this.isAuthenticated = true;
-      return true;
-    },
-    clearError() {
-      this.error = null;
-    },
-  },
 });
 ````
 
@@ -21487,6 +21093,117 @@ jobs:
           fi
 ````
 
+## File: backend/src/auth/dto/login.dto.ts
+````typescript
+import { ApiProperty } from "@nestjs/swagger";
+import { IsEmail, IsString, MinLength } from "class-validator";
+export class LoginDto {
+  @ApiProperty({
+    example: "user@example.com",
+    description: "User email address",
+  })
+  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
+  email: string;
+  @ApiProperty({
+    example: "Password123!",
+    description: "User password (min 8 characters)",
+  })
+  @IsString()
+  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
+  password: string;
+}
+````
+
+## File: backend/src/auth/dto/register.dto.ts
+````typescript
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsEnum,
+  IsOptional,
+} from "class-validator";
+import { UserRole } from "../../users/entities/user.entity";
+export class RegisterDto {
+  @ApiProperty({
+    example: "user@example.com",
+    description: "User email address",
+  })
+  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
+  email: string;
+  @ApiProperty({
+    example: "Password123!",
+    description: "User password (min 8 characters)",
+  })
+  @IsString()
+  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
+  password: string;
+  @ApiProperty({
+    example: "John",
+    description: "User first name",
+  })
+  @IsString()
+  firstName: string;
+  @ApiProperty({
+    example: "Doe",
+    description: "User last name",
+  })
+  @IsString()
+  lastName: string;
+  @ApiProperty({
+    enum: UserRole,
+    example: UserRole.CUSTOMER,
+    description: "User role",
+    default: UserRole.CUSTOMER,
+  })
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole = UserRole.CUSTOMER;
+}
+````
+
+## File: backend/src/users/enums/role.enum.spec.ts
+````typescript
+import { Role } from "./role.enum";
+describe("Role Enum", () => {
+  it("should have correct values for all roles", () => {
+    expect(Role.USER).toBe("user");
+    expect(Role.EMPLOYEE).toBe("employee");
+    expect(Role.ADMIN).toBe("admin");
+  });
+  it("should have exactly three roles defined", () => {
+    const roleValues = Object.values(Role);
+    expect(roleValues).toHaveLength(3);
+    expect(roleValues).toEqual(["user", "employee", "admin"]);
+  });
+  it("should have correct keys matching the values", () => {
+    const roleEntries = Object.entries(Role);
+    expect(roleEntries).toEqual([
+      ["USER", "user"],
+      ["EMPLOYEE", "employee"],
+      ["ADMIN", "admin"],
+    ]);
+  });
+  it("should provide type safety through TypeScript", () => {
+    let role: Role;
+    role = Role.USER;
+    expect(role).toBe("user");
+    role = Role.EMPLOYEE;
+    expect(role).toBe("employee");
+    role = Role.ADMIN;
+    expect(role).toBe("admin");
+  });
+});
+````
+
+## File: backend/.gitignore
+````
+.env
+.env*
+node_modules
+````
+
 ## File: frontend/admin/src/components/base/Button.vue
 ````vue
 <template>
@@ -21536,12 +21253,164 @@ const sizeClasses = {
 </script>
 ````
 
-## File: frontend/admin/.env.example
-````
-# Example environment variables for the Hair Salon Booking Admin Dashboard
-
-# Base URL for the backend API
-VITE_API_URL=http://localhost:3000
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import axios from "axios";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
+}
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+const API_URL = import.meta.env.VITE_API_URL;
+// Set up axios interceptor for error handling
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 403) {
+      error.message = "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
+// Initialize axios headers if token exists
+const token = localStorage.getItem("admin_token");
+if (token) {
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) => state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        // Validate API_URL
+        if (!API_URL) {
+          throw new Error("Systemvariabler er ikke satt: Kontakt systemadministrator");
+        }
+        const response = await axios.post<AuthResponse>(
+          `${API_URL}/auth/login`,
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error("Ingen tilgang: Krever ansatt- eller administratortilgang");
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        // Set default Authorization header for future requests
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        return true;
+      } catch (error: any) {
+        console.error("Login error:", error);
+        // Show backend error message if available
+        if (error?.response?.data?.message) {
+          const msg = error.response.data.message;
+          this.error = Array.isArray(msg) ? msg.join(", ") : msg;
+        }
+        // Handle specific HTTP status codes
+        else if (error?.response?.status) {
+          switch (error.response.status) {
+            case 401:
+              this.error = "Feil e-postadresse eller passord";
+              break;
+            case 403:
+              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
+              break;
+            case 404:
+              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+              break;
+            case 500:
+              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
+              break;
+            default:
+              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
+          }
+        }
+        // Handle network/connection errors
+        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
+          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+        }
+        // Handle API_URL configuration error
+        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
+          this.error = error.message;
+        }
+        // Handle other errors
+        else if (error instanceof Error) {
+          this.error = error.message;
+        }
+        // Fallback error message
+        else {
+          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
+        }
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+      // Remove Authorization header
+      delete axios.defaults.headers.common["Authorization"];
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      // Set the Authorization header
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      // If we have a token, consider the user authenticated
+      // The token will be validated on API requests
+      this.token = token;
+      this.isAuthenticated = true;
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
+});
 ````
 
 ## File: frontend/admin/package.json
@@ -21648,6 +21517,101 @@ volumes:
   postgres_data:
 ````
 
+## File: backend/src/auth/auth.service.ts
+````typescript
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (existingUser) {
+        throw new ConflictException("E-postadressen er allerede i bruk");
+      }
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under registrering");
+    }
+  }
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
+      if (!user) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException("Invalid credentials");
+      }
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under innlogging");
+    }
+  }
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token: string = this.jwtService.sign(payload);
+    return token;
+  }
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+}
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -21732,6 +21696,14 @@ volumes:
     "typescript": "^5.7.2"
   }
 }
+````
+
+## File: frontend/admin/.env.example
+````
+# Example environment variables for the Hair Salon Booking Admin Dashboard
+
+# Base URL for the backend API
+VITE_API_URL=http://localhost:3000/api
 ````
 
 ## File: frontend/customer/package.json
