@@ -1,42 +1,36 @@
-import { Role } from './role.enum';
+import { Role } from "./role.enum";
 
-describe('Role Enum', () => {
-  it('should have correct values for all roles', () => {
-    expect(Role.USER).toBe('user');
-    expect(Role.EMPLOYEE).toBe('employee');
-    expect(Role.ADMIN).toBe('admin');
+describe("Role Enum", () => {
+  it("should have correct values for all roles", () => {
+    expect(Role.USER).toBe("user");
+    expect(Role.EMPLOYEE).toBe("employee");
+    expect(Role.ADMIN).toBe("admin");
   });
 
-  it('should have exactly three roles defined', () => {
+  it("should have exactly three roles defined", () => {
     const roleValues = Object.values(Role);
     expect(roleValues).toHaveLength(3);
-    expect(roleValues).toEqual(['user', 'employee', 'admin']);
+    expect(roleValues).toEqual(["user", "employee", "admin"]);
   });
 
-  it('should have correct keys matching the values', () => {
+  it("should have correct keys matching the values", () => {
     const roleEntries = Object.entries(Role);
     expect(roleEntries).toEqual([
-      ['USER', 'user'],
-      ['EMPLOYEE', 'employee'],
-      ['ADMIN', 'admin']
+      ["USER", "user"],
+      ["EMPLOYEE", "employee"],
+      ["ADMIN", "admin"],
     ]);
   });
 
-  it('should provide type safety through TypeScript', () => {
-    // TypeScript enforces type safety:
-    // The following would cause compile errors:
-    // Role.USER = 'modified';        // Cannot assign to enum member
-    // let role: Role = 'invalid';    // Type '"invalid"' is not assignable to type 'Role'
-    
-    // Valid enum usage:
+  it("should provide type safety through TypeScript", () => {
     let role: Role;
     role = Role.USER;
-    expect(role).toBe('user');
-    
+    expect(role).toBe("user");
+
     role = Role.EMPLOYEE;
-    expect(role).toBe('employee');
-    
+    expect(role).toBe("employee");
+
     role = Role.ADMIN;
-    expect(role).toBe('admin');
+    expect(role).toBe("admin");
   });
 });
