@@ -24,7 +24,7 @@ export class AuthService {
         registerDto.email,
       );
       if (existingUser) {
-        throw new ConflictException("Email already exists");
+        throw new ConflictException("E-postadressen er allerede i bruk");
       }
 
       const hashedPassword = await bcrypt.hash(registerDto.password, 10);
@@ -47,7 +47,7 @@ export class AuthService {
       if (error instanceof Error) {
         throw new InternalServerErrorException(error.message);
       }
-      throw new InternalServerErrorException("Error during registration");
+      throw new InternalServerErrorException("Feil under registrering");
     }
   }
 
@@ -55,7 +55,7 @@ export class AuthService {
     try {
       const user = await this.usersService.findByEmail(loginDto.email);
       if (!user) {
-        throw new UnauthorizedException("Invalid credentials");
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
       }
 
       const isPasswordValid = await bcrypt.compare(
@@ -80,7 +80,7 @@ export class AuthService {
       if (error instanceof Error) {
         throw new InternalServerErrorException(error.message);
       }
-      throw new InternalServerErrorException("Error during login");
+      throw new InternalServerErrorException("Feil under innlogging");
     }
   }
 

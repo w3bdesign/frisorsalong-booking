@@ -6,7 +6,7 @@ export class LoginDto {
     example: "user@example.com",
     description: "User email address",
   })
-  @IsEmail({}, { message: "Please provide a valid email address" })
+  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
   email: string;
 
   @ApiProperty({
@@ -14,6 +14,6 @@ export class LoginDto {
     description: "User password (min 8 characters)",
   })
   @IsString()
-  @MinLength(8, { message: "Password must be at least 8 characters long" })
+  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
   password: string;
 }
