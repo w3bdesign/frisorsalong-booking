@@ -67,24 +67,19 @@ describe("Auth Store", () => {
     });
 
     it("should handle login error with invalid credentials", async () => {
-      class MockAxiosError extends AxiosError {
-        constructor() {
-          super("Unauthorized");
-          this.response = {
-            status: 401,
-            statusText: "Unauthorized",
-            data: { message: "Invalid credentials" },
-            headers: {},
-            config: {
-              method: "post",
-              url: "/auth/login",
-              headers: {}
-            }
-          };
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          method: "post",
+          url: "/auth/login",
+          headers: {}
         }
-      }
+      };
 
-      const mockError = new MockAxiosError();
       vi.mocked(axios.post).mockRejectedValueOnce(mockError);
 
       const store = useAuthStore();
