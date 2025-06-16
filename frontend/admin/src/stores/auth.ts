@@ -95,7 +95,7 @@ export const useAuthStore = defineStore("auth", {
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
         return true;
-      } catch (error: any) {
+      } catch (error) {
         console.error("Login error:", error);
         this.error = this.resolveLoginError(error);
         return false;
@@ -104,7 +104,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    resolveLoginError(error: any): string {
+    resolveLoginError(error: unknown): string {
       // Show backend error message if available
       if (error?.response?.data?.message) {
         const msg = error.response.data.message;
