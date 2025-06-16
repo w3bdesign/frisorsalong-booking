@@ -98,8 +98,13 @@ export const useAuthStore = defineStore("auth", {
       } catch (error: any) {
         console.error("Login error:", error);
 
+        // Show backend error message if available
+        if (error?.response?.data?.message) {
+          const msg = error.response.data.message;
+          this.error = Array.isArray(msg) ? msg.join(", ") : msg;
+        }
         // Handle specific HTTP status codes
-        if (error?.response?.status) {
+        else if (error?.response?.status) {
           switch (error.response.status) {
             case 401:
               this.error = "Feil e-postadresse eller passord";
