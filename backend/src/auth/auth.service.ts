@@ -64,7 +64,7 @@ export class AuthService {
         user.password,
       );
       if (!isPasswordValid) {
-        throw new UnauthorizedException("Invalid credentials");
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
       }
 
       const token = this.generateToken(user);
