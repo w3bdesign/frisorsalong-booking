@@ -97,52 +97,48 @@ export const useAuthStore = defineStore("auth", {
         return true;
       } catch (error: any) {
         console.error("Login error:", error);
-
-        // Show backend error message if available
-        if (error?.response?.data?.message) {
-          const msg = error.response.data.message;
-          this.error = Array.isArray(msg) ? msg.join(", ") : msg;
-        }
-        // Handle specific HTTP status codes
-        else if (error?.response?.status) {
-          switch (error.response.status) {
-            case 401:
-              this.error = "Feil e-postadresse eller passord";
-              break;
-            case 403:
-              this.error = "Ingen tilgang: Krever ansatt- eller administratortilgang";
-              break;
-            case 404:
-              this.error = "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-              break;
-            case 500:
-              this.error = "En serverfeil har oppstått. Vennligst prøv igjen senere";
-              break;
-            default:
-              this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-          }
-        }
-        // Handle network/connection errors
-        else if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
-          this.error = "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-        }
-        // Handle API_URL configuration error
-        else if (error?.message?.includes("Systemvariabler er ikke satt")) {
-          this.error = error.message;
-        }
-        // Handle other errors
-        else if (error instanceof Error) {
-          this.error = error.message;
-        }
-        // Fallback error message
-        else {
-          this.error = "En feil oppstod under innlogging. Vennligst prøv igjen";
-        }
-
+        this.error = this.resolveLoginError(error);
         return false;
       } finally {
         this.isLoading = false;
       }
+    },
+
+    resolveLoginError(error: any): string {
+      // Show backend error message if available
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        return Array.isArray(msg) ? msg.join(", ") : msg;
+      }
+      // Handle specific HTTP status codes
+      if (error?.response?.status) {
+        switch (error.response.status) {
+          case 401:
+            return "Feil e-postadresse eller passord";
+          case 403:
+            return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+          case 404:
+            return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+          case 500:
+            return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+          default:
+            return "En feil oppstod under innlogging. Vennligst prøv igjen";
+        }
+      }
+      // Handle network/connection errors
+      if (error?.code === "ECONNREFUSED" || error?.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+      // Handle API_URL configuration error
+      if (error?.message?.includes("Systemvariabler er ikke satt")) {
+        return error.message;
+      }
+      // Handle other errors
+      if (error instanceof Error) {
+        return error.message;
+      }
+      // Fallback error message
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
     },
 
     logout() {
