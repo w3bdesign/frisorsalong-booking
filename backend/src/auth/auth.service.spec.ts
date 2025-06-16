@@ -3,10 +3,10 @@ import { JwtService } from "@nestjs/jwt";
 import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
 import { UserRole } from "../users/entities/user.entity";
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+
 import * as bcrypt from "bcrypt";
 
-jest.mock('bcrypt', () => ({
+jest.mock("bcrypt", () => ({
   compare: jest.fn(),
   hash: jest.fn(),
 }));
@@ -80,7 +80,7 @@ describe("AuthService", () => {
 
       await expect(service.register(registerDto)).rejects.toThrowError(
         expect.objectContaining({
-          message: "E-postadressen er allerede i bruk"
+          message: "E-postadressen er allerede i bruk",
         })
       );
     });
@@ -112,7 +112,7 @@ describe("AuthService", () => {
 
       await expect(service.login(loginDto)).rejects.toThrowError(
         expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer"
+          message: "Ugyldige innloggingsdetaljer",
         })
       );
     });
@@ -123,7 +123,7 @@ describe("AuthService", () => {
 
       await expect(service.login(loginDto)).rejects.toThrowError(
         expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer"
+          message: "Ugyldige innloggingsdetaljer",
         })
       );
     });
