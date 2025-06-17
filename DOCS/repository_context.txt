@@ -9210,43 +9210,6 @@ describe("ServicesService", () => {
 });
 ````
 
-## File: backend/src/services/services.service.ts
-````typescript
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Service } from "./entities/service.entity";
-@Injectable()
-export class ServicesService {
-  constructor(
-    @InjectRepository(Service)
-    private readonly serviceRepository: Repository<Service>,
-  ) {}
-  async findOne(id: string): Promise<Service> {
-    const service = await this.serviceRepository.findOne({
-      where: { id },
-    });
-    if (!service) {
-      throw new NotFoundException(`Service with ID ${id} not found`);
-    }
-    return service;
-  }
-  async findAll(): Promise<Service[]> {
-    return this.serviceRepository.find();
-  }
-  async findByEmployee(employeeId: string): Promise<Service[]> {
-    return this.serviceRepository.find({
-      where: {
-        employees: {
-          id: employeeId,
-        },
-      },
-      relations: ["employees"],
-    });
-  }
-}
-````
-
 ## File: backend/src/shops/entities/shop-code.entity.ts
 ````typescript
 import {
@@ -18831,71 +18794,6 @@ export interface ServicesState {
 }
 ````
 
-## File: frontend/customer/src/stores/waiting.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-interface QueueStatus {
-  peopleWaiting: number
-  estimatedWaitTime: number // in minutes
-  lastUpdated: string
-}
-export const useWaitingStore = defineStore('waiting', () => {
-  const queueStatus = ref<QueueStatus>({
-    peopleWaiting: 0,
-    estimatedWaitTime: 0,
-    lastUpdated: new Date().toISOString(),
-  })
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const formattedWaitTime = computed(() => {
-    const hours = Math.floor(queueStatus.value.estimatedWaitTime / 60)
-    const minutes = queueStatus.value.estimatedWaitTime % 60
-    if (hours > 0) {
-      return `${hours}h ${minutes}min`
-    }
-    return `${minutes}min`
-  })
-  const fetchQueueStatus = async () => {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await fetch('http://localhost:3000/bookings/upcoming/count', {
-        headers: {
-          accept: '*/*',
-        },
-      })
-      if (!response.ok) {
-        throw new Error('Failed to fetch queue status')
-      }
-      const count = await response.json()
-      queueStatus.value = {
-        peopleWaiting: count,
-        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
-        lastUpdated: new Date().toISOString(),
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch queue status'
-    } finally {
-      isLoading.value = false
-    }
-  }
-  // Start polling for queue status
-  const startPolling = (intervalMs: number = 60000): ReturnType<typeof setInterval> => {
-    fetchQueueStatus()
-    return setInterval(fetchQueueStatus, intervalMs)
-  }
-  return {
-    queueStatus,
-    isLoading,
-    error,
-    formattedWaitTime,
-    fetchQueueStatus,
-    startPolling,
-  }
-})
-````
-
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -20891,6 +20789,43 @@ export class RegisterDto {
 }
 ````
 
+## File: backend/src/services/services.service.ts
+````typescript
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Service } from "./entities/service.entity";
+@Injectable()
+export class ServicesService {
+  constructor(
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>
+  ) {}
+  async findOne(id: string): Promise<Service> {
+    const service = await this.serviceRepository.findOne({
+      where: { id },
+    });
+    if (!service) {
+      throw new NotFoundException(`Service with ID ${id} not found`);
+    }
+    return service;
+  }
+  async findAll(): Promise<Service[]> {
+    return this.serviceRepository.find();
+  }
+  async findByEmployee(employeeId: string): Promise<Service[]> {
+    return this.serviceRepository.find({
+      where: {
+        employees: {
+          id: employeeId,
+        },
+      },
+      relations: ["employees"],
+    });
+  }
+}
+````
+
 ## File: backend/src/users/enums/role.enum.spec.ts
 ````typescript
 import { Role } from "./role.enum";
@@ -21192,6 +21127,71 @@ describe("DashboardView", () => {
     expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
   });
 });
+````
+
+## File: frontend/customer/src/stores/waiting.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+interface QueueStatus {
+  peopleWaiting: number
+  estimatedWaitTime: number // in minutes
+  lastUpdated: string
+}
+export const useWaitingStore = defineStore('waiting', () => {
+  const queueStatus = ref<QueueStatus>({
+    peopleWaiting: 0,
+    estimatedWaitTime: 0,
+    lastUpdated: new Date().toISOString(),
+  })
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const formattedWaitTime = computed(() => {
+    const hours = Math.floor(queueStatus.value.estimatedWaitTime / 60)
+    const minutes = queueStatus.value.estimatedWaitTime % 60
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`
+    }
+    return `${minutes}min`
+  })
+  const fetchQueueStatus = async () => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch('http://localhost:3000/bookings/upcoming/count', {
+        headers: {
+          accept: '*/*',
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch queue status')
+      }
+      const count = await response.json()
+      queueStatus.value = {
+        peopleWaiting: count,
+        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
+        lastUpdated: new Date().toISOString(),
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch queue status'
+    } finally {
+      isLoading.value = false
+    }
+  }
+  // Start polling for queue status
+  const startPolling = (intervalMs: number = 60000): ReturnType<typeof setInterval> => {
+    void fetchQueueStatus()
+    return setInterval(fetchQueueStatus, intervalMs)
+  }
+  return {
+    queueStatus,
+    isLoading,
+    error,
+    formattedWaitTime,
+    fetchQueueStatus,
+    startPolling,
+  }
+})
 ````
 
 ## File: frontend/admin/.env.example
