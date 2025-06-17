@@ -20932,6 +20932,92 @@ describe("Role Enum", () => {
 node_modules
 ````
 
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "bcrypt": "^5.1.1",
+    "cache-manager": "6.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "dotenv": "^16.4.5",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.2.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/cache-manager": "^5.0.0",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.1",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.2"
+  }
+}
+````
+
 ## File: frontend/admin/src/components/base/Button.vue
 ````vue
 <template>
@@ -21106,92 +21192,6 @@ describe("DashboardView", () => {
     expect(mockStore.fetchDashboardStats).toHaveBeenCalledTimes(1);
   });
 });
-````
-
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.0.1",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/mapped-types": "^2.0.6",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
-    "bcrypt": "^5.1.1",
-    "cache-manager": "6.4.3",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
-    "dotenv": "^16.4.5",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^9.2.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^5.0.2",
-    "@types/cache-manager": "^5.0.0",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.0",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^9.15.0",
-    "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "jest": "^29.7.0",
-    "prettier": "^3.4.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.2"
-  }
-}
 ````
 
 ## File: frontend/admin/.env.example
@@ -21793,7 +21793,7 @@ export const useAuthStore = defineStore("auth", {
     "autoprefixer": "^10.4.20",
     "cypress": "^14.0.0",
     "eslint": "^9.14.0",
-    "eslint-plugin-cypress": "^4.1.0",
+    "eslint-plugin-cypress": "^5.0.0",
     "eslint-plugin-vue": "^9.30.0",
     "jsdom": "^26.0.0",
     "npm-run-all2": "^8.0.0",
