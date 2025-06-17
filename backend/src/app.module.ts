@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { join } from "path";
+
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
@@ -10,7 +12,7 @@ import { EmployeesModule } from "./employees/employees.module";
 import { ServicesModule } from "./services/services.module";
 import { OrdersModule } from "./orders/orders.module";
 import { ShopsModule } from "./shops/shops.module";
-import { join } from "path";
+
 
 @Module({
   imports: [
