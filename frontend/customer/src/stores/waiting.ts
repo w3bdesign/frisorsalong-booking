@@ -43,7 +43,7 @@ export const useWaitingStore = defineStore('waiting', () => {
       const count = await response.json()
       queueStatus.value = {
         peopleWaiting: count,
-        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
+        estimatedWaitTime: count * 30,
         lastUpdated: new Date().toISOString(),
       }
     } catch (err) {
