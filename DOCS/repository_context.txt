@@ -19358,24 +19358,6 @@ export default {
 }
 ````
 
-## File: frontend/customer/tsconfig.app.json
-````json
-{
-  "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
-  "exclude": ["src/**/__tests__/*"],
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
-}
-````
-
 ## File: frontend/customer/tsconfig.json
 ````json
 {
@@ -19408,29 +19390,6 @@ export default {
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "exclude": ["node_modules"]
-}
-````
-
-## File: frontend/customer/tsconfig.node.json
-````json
-{
-  "extends": "@tsconfig/node22/tsconfig.json",
-  "include": [
-    "vite.config.*",
-    "vitest.config.*",
-    "cypress.config.*",
-    "nightwatch.conf.*",
-    "playwright.config.*"
-  ],
-  "compilerOptions": {
-    "composite": true,
-    "noEmit": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["node"]
-  }
 }
 ````
 
@@ -21129,6 +21088,64 @@ describe("DashboardView", () => {
 });
 ````
 
+## File: frontend/customer/tsconfig.app.json
+````json
+{
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  "exclude": ["src/**/__tests__/*"],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+````
+
+## File: frontend/customer/tsconfig.node.json
+````json
+{
+  "extends": "@tsconfig/node22/tsconfig.json",
+  "include": [
+    "vite.config.*",
+    "vitest.config.*",
+    "cypress.config.*",
+    "nightwatch.conf.*",
+    "playwright.config.*"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  }
+}
+````
+
+## File: frontend/admin/.env.example
+````
+# Example environment variables for the Hair Salon Booking Admin Dashboard
+
+# Base URL for the backend API
+VITE_API_URL=http://localhost:3000/api
+````
+
 ## File: frontend/customer/src/stores/waiting.ts
 ````typescript
 import { defineStore } from 'pinia'
@@ -21158,7 +21175,7 @@ export const useWaitingStore = defineStore('waiting', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await fetch('http://localhost:3000/bookings/upcoming/count', {
+      const response = await fetch('/bookings/upcoming/count', {
         headers: {
           accept: '*/*',
         },
@@ -21192,14 +21209,6 @@ export const useWaitingStore = defineStore('waiting', () => {
     startPolling,
   }
 })
-````
-
-## File: frontend/admin/.env.example
-````
-# Example environment variables for the Hair Salon Booking Admin Dashboard
-
-# Base URL for the backend API
-VITE_API_URL=http://localhost:3000/api
 ````
 
 ## File: backend/src/auth/auth.service.spec.ts
