@@ -31,7 +31,7 @@ export const useWaitingStore = defineStore('waiting', () => {
     error.value = null
 
     try {
-      const response = await fetch('http://localhost:3000/bookings/upcoming/count', {
+      const response = await fetch('/bookings/upcoming/count', {
         headers: {
           accept: '*/*',
         },
