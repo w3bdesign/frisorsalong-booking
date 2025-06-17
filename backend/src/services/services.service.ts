@@ -7,7 +7,7 @@ import { Service } from "./entities/service.entity";
 export class ServicesService {
   constructor(
     @InjectRepository(Service)
-    private readonly serviceRepository: Repository<Service>,
+    private readonly serviceRepository: Repository<Service>
   ) {}
 
   async findOne(id: string): Promise<Service> {
