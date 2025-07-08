@@ -79,11 +79,28 @@ describe("run-seeds", () => {
       );
     });
 
-    it("should handle DataSource creation errors", () => {
+    it("should handle DataSource creation errors", async () => {
       process.env.DATABASE_URL = "invalid-url";
-      expect(() => createDataSource()).toThrow(
+      jest.resetModules();
+      jest.doMock("typeorm", () => {
+        const actual = jest.requireActual("typeorm");
+        return {
+          ...actual,
+          DataSource: class extends actual.DataSource {
+            constructor(options: PostgresConnectionOptions) {
+              if (options.url === "invalid-url") {
+                throw new Error("Invalid URL format");
+              }
+              super(options);
+            }
+          }
+        };
+      });
+      const { createDataSource: createDataSourceMocked } = await import("./run-seeds");
+      expect(() => createDataSourceMocked()).toThrow(
         "Failed to create DataSource: Invalid URL format"
       );
+      jest.dontMock("typeorm");
     });
   });
 
