@@ -139,7 +139,10 @@ describe('JwtStrategy', () => {
 
       await expect(strategy.validate(mockRequest, mockPayload))
         .rejects
-        .toThrow(UnauthorizedException);
+        .toThrow(expect.objectContaining({
+          name: 'UnauthorizedException',
+          message: 'Database connection failed'
+        }));
 
       expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
         where: { id: mockPayload.sub },
