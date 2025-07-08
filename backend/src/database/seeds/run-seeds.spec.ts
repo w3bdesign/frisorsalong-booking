@@ -1,13 +1,3 @@
-import { DataSource } from "typeorm";
-import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
-import { createDataSource, runSeeds } from "./run-seeds";
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-
-import { DataSource as TypeORMDataSource } from "typeorm";
-
 jest.mock("typeorm", () => {
   const actualModule = jest.requireActual<typeof import("typeorm")>("typeorm");
 
@@ -25,7 +15,7 @@ jest.mock("typeorm", () => {
     DataSource: jest
       .fn()
       .mockImplementation(
-        (options: PostgresConnectionOptions): TypeORMDataSource =>
+        (options: PostgresConnectionOptions) =>
           new MockDataSource(options)
       ),
   };
@@ -38,6 +28,16 @@ jest.mock("./create-admin-user.seed");
 jest.mock("./create-initial-data.seed");
 jest.mock("./create-sample-bookings.seed");
 jest.mock("./create-sample-orders.seed");
+
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+
+import { DataSource as TypeORMDataSource } from "typeorm";
 
 describe("run-seeds", () => {
   // Create a minimal mock of DataSource with required properties
