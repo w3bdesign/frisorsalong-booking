@@ -1,29 +1,3 @@
-jest.mock("typeorm", () => {
-  const actualModule = jest.requireActual<typeof import("typeorm")>("typeorm");
-
-  class MockDataSource extends actualModule.DataSource {
-    constructor(options: PostgresConnectionOptions) {
-      if (options.url === "invalid-url") {
-        throw new Error("Invalid URL format");
-      }
-      super(options);
-    }
-  }
-
-  const mockedModule = {
-    ...actualModule,
-    DataSource: jest
-      .fn()
-      .mockImplementation(
-        (options: PostgresConnectionOptions) =>
-          new MockDataSource(options)
-      ),
-  };
-
-  return mockedModule;
-});
-
-// Mock the seed functions
 jest.mock("./create-admin-user.seed");
 jest.mock("./create-initial-data.seed");
 jest.mock("./create-sample-bookings.seed");
@@ -36,8 +10,6 @@ import { createAdminUser } from "./create-admin-user.seed";
 import { createInitialData } from "./create-initial-data.seed";
 import { createSampleBookings } from "./create-sample-bookings.seed";
 import { createSampleOrders } from "./create-sample-orders.seed";
-
-import { DataSource as TypeORMDataSource } from "typeorm";
 
 describe("run-seeds", () => {
   // Create a minimal mock of DataSource with required properties
