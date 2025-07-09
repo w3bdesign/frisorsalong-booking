@@ -137,6 +137,9 @@ describe('JwtStrategy', () => {
       const dbError = new Error('Database connection failed');
       mockUsersRepository.findOne.mockRejectedValue(dbError);
 
+      // Suppress console.error for this test
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       await expect(strategy.validate(mockRequest, mockPayload))
         .rejects
         .toThrow(UnauthorizedException);
@@ -145,6 +148,9 @@ describe('JwtStrategy', () => {
         where: { id: mockPayload.sub },
         select: ['id', 'email', 'firstName', 'lastName', 'role'],
       });
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
   });
 });
