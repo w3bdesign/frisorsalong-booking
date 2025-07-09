@@ -116,13 +116,13 @@ importers:
         version: 10.1.5(eslint@9.29.0)
       eslint-plugin-prettier:
         specifier: ^5.2.1
-        version: 5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0))(eslint@9.29.0)(prettier@3.5.3)
+        version: 5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0))(eslint@9.29.0)(prettier@3.6.2)
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.15.32)(ts-node@10.9.2(@types/node@22.15.32)(typescript@5.8.3))
       prettier:
         specifier: ^3.4.1
-        version: 3.5.3
+        version: 3.6.2
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -2654,8 +2654,8 @@ packages:
     resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.5.3:
-    resolution: {integrity: sha512-QQtaxnoDJeAkDvDKWCLiwIXkTgRhwYDEQCghU9Z6q03iyek/rxRh/2lC3HB7P8sWT2xC/y5JDctPLBIGzHKbhw==}
+  prettier@3.6.2:
+    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -2930,10 +2930,12 @@ packages:
   superagent@10.2.1:
     resolution: {integrity: sha512-O+PCv11lgTNJUzy49teNAWLjBZfc+A1enOwTpLlH6/rsvKcTwcdTT8m9azGkVqM7HBl5jpyZ7KTPhHweokBcdg==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supertest@7.1.1:
     resolution: {integrity: sha512-aI59HBTlG9e2wTjxGJV+DygfNLgnWbGdZxiA/sgrnNNikIW8lbDvCtF6RnhZoJ82nU7qv7ZLjrvWqCEm52fAmw==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to supertest v7.1.3+, see release notes at https://github.com/forwardemail/supertest/releases/tag/v7.1.3 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
@@ -4999,10 +5001,10 @@ snapshots:
     dependencies:
       eslint: 9.29.0
 
-  eslint-plugin-prettier@5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0))(eslint@9.29.0)(prettier@3.5.3):
+  eslint-plugin-prettier@5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0))(eslint@9.29.0)(prettier@3.6.2):
     dependencies:
       eslint: 9.29.0
-      prettier: 3.5.3
+      prettier: 3.6.2
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.8
     optionalDependencies:
@@ -6234,7 +6236,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.5.3: {}
+  prettier@3.6.2: {}
 
   pretty-format@29.7.0:
     dependencies:
