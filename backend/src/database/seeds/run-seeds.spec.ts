@@ -6,31 +6,21 @@ import { createInitialData } from "./create-initial-data.seed";
 import { createSampleBookings } from "./create-sample-bookings.seed";
 import { createSampleOrders } from "./create-sample-orders.seed";
 
-import { DataSource as TypeORMDataSource } from "typeorm";
-
 jest.mock("typeorm", () => {
-  const actualModule = jest.requireActual<typeof import("typeorm")>("typeorm");
-
-  class MockDataSource extends actualModule.DataSource {
-    constructor(options: PostgresConnectionOptions) {
-      if (options.url === "invalid-url") {
+  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
+  return {
+    ...actualTypeorm,
+    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
+      if (options?.url === "invalid-url") {
         throw new Error("Invalid URL format");
       }
-      super(options);
-    }
-  }
-
-  const mockedModule = {
-    ...actualModule,
-    DataSource: jest
-      .fn()
-      .mockImplementation(
-        (options: PostgresConnectionOptions): TypeORMDataSource =>
-          new MockDataSource(options)
-      ),
+      return {
+        options,
+        initialize: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+    }),
   };
-
-  return mockedModule;
 });
 
 // Mock the seed functions
