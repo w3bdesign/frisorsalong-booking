@@ -1391,6 +1391,76 @@ export * from "./login.dto";
 export * from "./register.dto";
 ````
 
+## File: backend/src/auth/dto/login.dto.ts
+````typescript
+import { ApiProperty } from "@nestjs/swagger";
+import { IsEmail, IsString, MinLength } from "class-validator";
+export class LoginDto {
+  @ApiProperty({
+    example: "user@example.com",
+    description: "User email address",
+  })
+  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
+  email: string;
+  @ApiProperty({
+    example: "Password123!",
+    description: "User password (min 8 characters)",
+  })
+  @IsString()
+  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
+  password: string;
+}
+````
+
+## File: backend/src/auth/dto/register.dto.ts
+````typescript
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsEnum,
+  IsOptional,
+} from "class-validator";
+import { UserRole } from "../../users/entities/user.entity";
+export class RegisterDto {
+  @ApiProperty({
+    example: "user@example.com",
+    description: "User email address",
+  })
+  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
+  email: string;
+  @ApiProperty({
+    example: "Password123!",
+    description: "User password (min 8 characters)",
+  })
+  @IsString()
+  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
+  password: string;
+  @ApiProperty({
+    example: "John",
+    description: "User first name",
+  })
+  @IsString()
+  firstName: string;
+  @ApiProperty({
+    example: "Doe",
+    description: "User last name",
+  })
+  @IsString()
+  lastName: string;
+  @ApiProperty({
+    enum: UserRole,
+    example: UserRole.CUSTOMER,
+    description: "User role",
+    default: UserRole.CUSTOMER,
+  })
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole = UserRole.CUSTOMER;
+}
+````
+
 ## File: backend/src/auth/enums/role.enum.spec.ts
 ````typescript
 import { Role } from './role.enum';
@@ -20438,76 +20508,6 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/dto/login.dto.ts
-````typescript
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
-export class LoginDto {
-  @ApiProperty({
-    example: "user@example.com",
-    description: "User email address",
-  })
-  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
-  email: string;
-  @ApiProperty({
-    example: "Password123!",
-    description: "User password (min 8 characters)",
-  })
-  @IsString()
-  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
-  password: string;
-}
-````
-
-## File: backend/src/auth/dto/register.dto.ts
-````typescript
-import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  IsEnum,
-  IsOptional,
-} from "class-validator";
-import { UserRole } from "../../users/entities/user.entity";
-export class RegisterDto {
-  @ApiProperty({
-    example: "user@example.com",
-    description: "User email address",
-  })
-  @IsEmail({}, { message: "Vennligst oppgi en gyldig e-postadresse" })
-  email: string;
-  @ApiProperty({
-    example: "Password123!",
-    description: "User password (min 8 characters)",
-  })
-  @IsString()
-  @MinLength(8, { message: "Passordet må være minst 8 tegn langt" })
-  password: string;
-  @ApiProperty({
-    example: "John",
-    description: "User first name",
-  })
-  @IsString()
-  firstName: string;
-  @ApiProperty({
-    example: "Doe",
-    description: "User last name",
-  })
-  @IsString()
-  lastName: string;
-  @ApiProperty({
-    enum: UserRole,
-    example: UserRole.CUSTOMER,
-    description: "User role",
-    default: UserRole.CUSTOMER,
-  })
-  @IsEnum(UserRole)
-  @IsOptional()
-  role?: UserRole = UserRole.CUSTOMER;
-}
-````
-
 ## File: backend/src/auth/strategies/jwt.strategy.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -20635,6 +20635,101 @@ describe('JwtStrategy', () => {
     });
   });
 });
+````
+
+## File: backend/src/auth/auth.service.ts
+````typescript
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (existingUser) {
+        throw new ConflictException("E-postadressen er allerede i bruk");
+      }
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under registrering");
+    }
+  }
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
+      if (!user) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under innlogging");
+    }
+  }
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token: string = this.jwtService.sign(payload);
+    return token;
+  }
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+}
 ````
 
 ## File: backend/src/database/seeds/run-seeds.spec.ts
@@ -21232,101 +21327,6 @@ describe("AuthService", () => {
     });
   });
 });
-````
-
-## File: backend/src/auth/auth.service.ts
-````typescript
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
-import { User } from "../users/entities/user.entity";
-@Injectable()
-export class AuthService {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
-      if (existingUser) {
-        throw new ConflictException("E-postadressen er allerede i bruk");
-      }
-      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-      const user = await this.usersService.create({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under registrering");
-    }
-  }
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under innlogging");
-    }
-  }
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-    const token: string = this.jwtService.sign(payload);
-    return token;
-  }
-  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-}
 ````
 
 ## File: backend/package.json
