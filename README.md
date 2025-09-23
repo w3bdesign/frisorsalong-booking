@@ -273,6 +273,22 @@ CACHE_TTL=300
 - 🔐 Environment variable protection
 - 🛡️ SQL injection prevention through TypeORM
 
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
+
+These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
 ## Contributing
 
 1. Fork the repository
