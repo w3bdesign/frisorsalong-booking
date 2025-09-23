@@ -65,7 +65,7 @@ importers:
         version: 9.36.0(jiti@1.21.6)
       eslint-plugin-cypress:
         specifier: ^5.0.0
-        version: 5.1.0(eslint@9.36.0(jiti@1.21.6))
+        version: 5.1.1(eslint@9.36.0(jiti@1.21.6))
       eslint-plugin-vue:
         specifier: ^9.30.0
         version: 9.33.0(eslint@9.36.0(jiti@1.21.6))
@@ -1473,8 +1473,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-cypress@5.1.0:
-    resolution: {integrity: sha512-tdLXm4aq9vX2hTtKJTUFD3gdNseMKqsf8+P6hI4TtOPdz1LU4xvTpQBd1++qPAsPZP2lyYh71B5mvzu2lBr4Ow==}
+  eslint-plugin-cypress@5.1.1:
+    resolution: {integrity: sha512-LxTmZf1LLh9EklZBVvKNEZj71X9tCJnlYDviAJGsOgEVc6jz+tBODSpm02CS/9eJOfRqGsmVyvIw7LHXQ13RaA==}
     peerDependencies:
       eslint: '>=9'
 
@@ -1749,8 +1749,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@16.2.0:
-    resolution: {integrity: sha512-O+7l9tPdHCU320IigZZPj5zmRCFG9xHmx9cU8FqU2Rp+JN714seHV+2S9+JslCpY4gJwU2vOGox0wzgae/MCEg==}
+  globals@16.4.0:
+    resolution: {integrity: sha512-ob/2LcVVaVGCYN+r14cnwnoDPUufjiYgSqRhiFD0Q1iI4Odora5RE8Iv1D24hAz5oMophRGkGz+yuvQmmUMnMw==}
     engines: {node: '>=18'}
 
   gopd@1.2.0:
@@ -4525,10 +4525,10 @@ snapshots:
     dependencies:
       eslint: 9.36.0(jiti@1.21.6)
 
-  eslint-plugin-cypress@5.1.0(eslint@9.36.0(jiti@1.21.6)):
+  eslint-plugin-cypress@5.1.1(eslint@9.36.0(jiti@1.21.6)):
     dependencies:
       eslint: 9.36.0(jiti@1.21.6)
-      globals: 16.2.0
+      globals: 16.4.0
 
   eslint-plugin-prettier@5.2.3(eslint-config-prettier@10.0.1(eslint@9.36.0(jiti@1.21.6)))(eslint@9.36.0(jiti@1.21.6))(prettier@3.6.2):
     dependencies:
@@ -4877,7 +4877,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@16.2.0: {}
+  globals@16.4.0: {}
 
   gopd@1.2.0: {}
 
