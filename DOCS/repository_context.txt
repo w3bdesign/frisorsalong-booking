@@ -40,6 +40,15 @@ The content is organized as follows:
   workflows/
     codecov.yml
     repomix.yml
+.roo/
+  rules-architect/
+    AGENTS.md
+  rules-ask/
+    AGENTS.md
+  rules-code/
+    AGENTS.md
+  rules-debug/
+    AGENTS.md
 backend/
   docs/
     ARCHITECTURE.md
@@ -348,6 +357,7 @@ frontend/
     vitest.config.ts
 .gitattributes
 .gitignore
+AGENTS.md
 codacy-fixes.txt
 codecov.yml
 CRITICAL.md
@@ -20952,300 +20962,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## File: README.md
-````markdown
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-
-# Hair Salon Booking System
-
-A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
-
-## Test Coverage
-
-| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
-
-## Frontend
-
-![Admin Panel](screenshot/admin.png)
-
-## Backend
-
-![API Documentation](screenshot/swagger.png)
-
----
-
-## Features
-
-- 🔐 Secure JWT-based Authentication & Authorization
-- 👥 Role-based User Management (Admin, Employee, Customer)
-- 📅 Advanced Booking System
-  - ⏰ Smart scheduling with service duration-based time slots
-  - 🕒 Automatic end time calculation based on service duration
-  - ✅ Real-time employee availability checking
-  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
-  - ❌ Booking cancellation with reason tracking
-  - 📈 Upcoming bookings dashboard
-- 💇‍♀️ Service Management
-  - ⏱️ Service duration and pricing
-  - 🔄 Employee-service relationship mapping
-  - 📋 Service availability per employee
-- 👨‍💼 Employee Management & Scheduling
-  - 📆 Advanced availability tracking
-  - 🎯 Service specialization assignment
-  - 📊 Workload management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-- 🎨 Modern Admin Dashboard with Vue 3
-- 📱 Responsive Design with Tailwind CSS
-- 🧪 Comprehensive Test Coverage
-  - ✅ Unit tests with Jest and Vitest
-  - 📊 Continuous coverage reporting
-
-## System Architecture
-
-The system follows a modular architecture separating frontend, backend, and database layers:
-
-### Backend (NestJS)
-
-- **Framework**: NestJS with TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: JWT with Passport
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: Jest
-
-### Frontend (Vue 3)
-
-- **Framework**: Vue 3 with TypeScript
-- **State Management**: Pinia
-- **Routing**: Vue Router
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-│   ├── src/
-│   │   ├── auth/         # Authentication & authorization
-│   │   ├── bookings/     # Booking management
-│   │   ├── config/       # Configuration modules
-│   │   ├── database/     # Migrations & seeds
-│   │   ├── employees/    # Employee management
-│   │   ├── services/     # Service management
-│   │   └── users/        # User management
-│   └── test/             # E2E tests
-├── frontend/
-│   ├── admin/            # Admin dashboard (Vue 3)
-│   └── customer/         # Customer portal (Vue 3)
-└── docs/                 # Project documentation
-```
-
-## Prerequisites
-
-- Node.js (v20 or higher)
-- pnpm
-- PostgreSQL
-- Docker
-
-## Getting Started
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-2. Install dependencies:
-
-```bash
-pnpm install
-```
-
-3. Configure environment variables:
-
-```bash
-cp .env.example .env
-# Update the values in .env according to your setup
-```
-
-4. Run database migrations:
-
-```bash
-pnpm migration:run
-```
-
-5. Seed initial data:
-
-```bash
-pnpm seed
-```
-
-6. Start the development server:
-
-```bash
-pnpm start:dev
-```
-
-The API will be available at `http://localhost:3000` with Swagger documentation at `http://localhost:3000/api`
-
-### Frontend Setup
-
-1. Navigate to the admin frontend directory:
-
-```bash
-cd frontend/admin
-```
-
-2. Install dependencies:
-
-```bash
-pnpm install
-```
-
-3. Start the development server:
-
-```bash
-pnpm dev
-```
-
-The admin dashboard will be available at `http://localhost:5173`
-
-### Using Docker
-
-1. Build and run the Docker containers:
-
-```bash
-docker-compose up --build
-```
-
-2. Access the services:
-
-- Backend API: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3001`
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-
-```bash
-git checkout -b feature/your-feature-name
-```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit using conventional commits:
-
-```
-feat: add new feature
-fix: resolve bug
-docs: update documentation
-style: formatting changes
-refactor: code restructuring
-test: add tests
-chore: maintenance
-```
-
-5. Create a pull request to `develop`
-
-## Testing
-
-### Backend
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-### Frontend
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```
-http://localhost:3000/api
-```
-
-## Environment Variables
-
-### Backend (.env)
-
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=1h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CACHE_TTL=300
-```
-
-## Security
-
-- 🔒 All endpoints are protected with JWT authentication
-- 👮 Role-based access control (RBAC) implementation
-- ✅ Input validation using class-validator
-- 🚦 Rate limiting for API endpoints
-- 🌐 CORS configuration
-- 🔑 Secure password hashing with bcrypt
-- 🔐 Environment variable protection
-- 🛡️ SQL injection prevention through TypeORM
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Architecture Documentation
-
-For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-````
-
 ## File: renovate.json
 ````json
 {
@@ -21528,6 +21244,458 @@ jobs:
           fi
 ````
 
+## File: .roo/rules-architect/AGENTS.md
+````markdown
+# Project Architecture Rules (Non-Obvious Only)
+
+## Multi-Tenant Design
+- Shop isolation via `x-shop-code` header validation (ShopCodeGuard)
+- Request object extended with shop property via custom RequestWithShop interface
+- Shop-based access control rather than URL-based multi-tenancy
+
+## Authentication Architecture
+- JWT strategy returns plain objects to prevent circular serialization issues
+- Role-based access: admin/employee for admin panel, user role blocked
+- Session expiration handled via axios interceptors, not middleware
+
+## Database Architecture Constraints
+- Seeding has circular dependencies - strict execution order required
+- TypeORM migrations explicitly listed (not auto-discovered) in typeorm.config.ts
+- All environments use SSL with rejectUnauthorized: false for compatibility
+
+## Frontend Architecture
+- Admin frontend: Vue 3 + Pinia + Tailwind with role-based access
+- Customer frontend: Vue 3 + Pinia for booking display
+- Both frontends consume same backend API with different authentication flows
+
+## Error Handling Strategy
+- Localized Norwegian error messages in admin frontend
+- Backend includes extensive debug logging in JWT strategy (production-ready)
+- HTTP status precedence: client errors use localized messages, server errors prefer backend messages
+
+## Testing Architecture
+- Jest configured with rootDir as 'src' affects all path resolution
+- Tests co-located with source files for better maintainability
+- Coverage enforced at 80% threshold across all metrics
+
+## Deployment Constraints
+- Docker Compose includes PostgreSQL + Redis + backend + frontend services
+- Global API prefix '/api' affects all frontend API calls
+- Environment-specific database logging and SSL configurations
+````
+
+## File: .roo/rules-ask/AGENTS.md
+````markdown
+# Project Documentation Rules (Non-Obvious Only)
+
+## Architecture Context
+- Monorepo with backend/ (NestJS) and frontend/ (admin Vue.js, customer Vue.js) 
+- Backend uses TypeORM with PostgreSQL, frontend admin uses Pinia state management
+- All API routes prefixed with `/api` - affects URL construction in frontends
+- Shop-based multi-tenancy via `x-shop-code` header (not URL-based)
+
+## Authentication Flow
+- Admin panel only allows "admin" and "employee" roles (blocks "user" role)
+- JWT tokens return plain objects in strategy to avoid serialization issues
+- Session management via localStorage with `admin_token` key specifically
+
+## Database Patterns
+- Seeding order matters: admin user → services/employees → bookings → orders
+- Migrations are explicitly hardcoded paths in typeorm.config.ts (not auto-discovered)
+- Entities use pattern `src/**/*.entity{.ts,.js}` from project root
+
+## Error Messages
+- Frontend admin uses Norwegian error messages with status code mapping
+- Backend JWT strategy includes extensive logging for production troubleshooting
+- Session expiration handled automatically in axios interceptors
+
+## Testing Architecture  
+- Backend Jest runs from 'src' directory with module mapping
+- Tests co-located with source files using .spec.ts suffix
+- Coverage threshold enforced at 80% across all metrics
+
+## Development Environment
+- Swagger documentation at `/api-docs` with persistent authorization
+- CORS enabled with credentials for cross-origin requests
+- SSL disabled for development (rejectUnauthorized: false)
+````
+
+## File: .roo/rules-debug/AGENTS.md
+````markdown
+# Project Debug Rules (Non-Obvious Only)
+
+## Debugging Environment
+- JWT strategy logs extensively to console (lines 54-82) - intentional production debugging
+- Database connection logs only in development (NODE_ENV=development)
+- Swagger docs at `/api-docs` with persistent authorization for API testing
+
+## Critical Debugging Commands
+- `npm run seed` from backend/ directory to reset test data
+- `npm run test:debug` for backend debugging with --inspect-brk
+- `npm run start:debug` runs NestJS with debug flag and watch mode
+
+## Database Debugging
+- TypeORM logging controlled by NODE_ENV environment variable
+- SSL settings affect connection troubleshooting (rejectUnauthorized: false)
+- Migration files hardcoded - check typeorm.config.ts lines 12-34 for exact paths
+
+## Frontend Debugging
+- Admin panel session expiration triggers automatic logout (main.ts:19-30)
+- Norwegian error messages may hide underlying API errors (auth.ts:118-129)
+- `admin_token` localStorage key specifically used (not generic `token`)
+
+## Testing Debug
+- Jest runs from 'src' rootDir - affects module resolution
+- Coverage reports go to '../coverage' from src directory
+- Test files must be co-located with source files (.spec.ts suffix)
+````
+
+## File: AGENTS.md
+````markdown
+# AGENTS.md
+
+This file provides guidance to agents when working with code in this repository.
+
+## Critical Commands
+- `npm run seed` - Run database seeds (must run from backend/) in specific order: admin → initial data → bookings → orders
+- `npm run seed:admin-password` - Update admin password specifically
+- `npm run migration:run` - Run TypeORM migrations (migrations are hardcoded in typeorm.config.ts)
+- `npm run lint:strict` - Enforce zero ESLint warnings (used in CI)
+
+## Non-Standard Patterns
+- JWT strategy includes extensive console.log debugging (lines 54-82 in jwt.strategy.ts) - intentional for production troubleshooting
+- Admin frontend requires `x-shop-code` header for shop-specific operations via ShopCodeGuard
+- Admin panel blocks regular "user" role - only "admin" and "employee" roles can access (auth.ts:91-95)
+- Custom RequestWithShop interface extends Express Request to include shop property
+- Database seeding has strict dependency order: createAdminUser → createInitialData → createSampleBookings → createSampleOrders
+
+## Error Handling
+- Frontend uses Norwegian error messages with custom status code mapping (auth.ts:118-129)
+- Backend JWT validation returns plain objects, not entities (jwt.strategy.ts:84-90) to avoid serialization issues
+- Session expiration triggers automatic logout and redirect to login
+
+## Testing Requirements
+- Jest coverage threshold enforced at 80% for branches/functions/lines/statements
+- Tests must use `.spec.ts` suffix and be in same directory as source files
+- Backend uses module path mapping: `src/(.*)` → `<rootDir>/$1`
+
+## Architecture Constraints
+- TypeORM entities use hardcoded migration paths in typeorm.config.ts (lines 12-34)
+- All API routes prefixed with `/api` globally
+- Frontend admin uses localStorage key `admin_token` specifically (not generic `token`)
+- Swagger docs available at `/api-docs` with persistent authorization
+````
+
+## File: README.md
+````markdown
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
+# Hair Salon Booking System
+
+A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+
+## Test Coverage
+
+| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
+
+## Frontend
+
+![Admin Panel](screenshot/admin.png)
+
+## Backend
+
+![API Documentation](screenshot/swagger.png)
+
+---
+
+## Features
+
+- 🔐 Secure JWT-based Authentication & Authorization
+- 👥 Role-based User Management (Admin, Employee, Customer)
+- 📅 Advanced Booking System
+  - ⏰ Smart scheduling with service duration-based time slots
+  - 🕒 Automatic end time calculation based on service duration
+  - ✅ Real-time employee availability checking
+  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
+  - ❌ Booking cancellation with reason tracking
+  - 📈 Upcoming bookings dashboard
+- 💇‍♀️ Service Management
+  - ⏱️ Service duration and pricing
+  - 🔄 Employee-service relationship mapping
+  - 📋 Service availability per employee
+- 👨‍💼 Employee Management & Scheduling
+  - 📆 Advanced availability tracking
+  - 🎯 Service specialization assignment
+  - 📊 Workload management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+- 🎨 Modern Admin Dashboard with Vue 3
+- 📱 Responsive Design with Tailwind CSS
+- 🧪 Comprehensive Test Coverage
+  - ✅ Unit tests with Jest and Vitest
+  - 📊 Continuous coverage reporting
+
+## System Architecture
+
+The system follows a modular architecture separating frontend, backend, and database layers:
+
+### Backend (NestJS)
+
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with Passport
+- **API Documentation**: Swagger/OpenAPI
+- **Testing**: Jest
+
+### Frontend (Vue 3)
+
+- **Framework**: Vue 3 with TypeScript
+- **State Management**: Pinia
+- **Routing**: Vue Router
+- **Styling**: Tailwind CSS
+- **Testing**: Vitest
+
+## Project Structure
+
+```
+├── backend/               # NestJS backend application
+│   ├── src/
+│   │   ├── auth/         # Authentication & authorization
+│   │   ├── bookings/     # Booking management
+│   │   ├── config/       # Configuration modules
+│   │   ├── database/     # Migrations & seeds
+│   │   ├── employees/    # Employee management
+│   │   ├── services/     # Service management
+│   │   └── users/        # User management
+│   └── test/             # E2E tests
+├── frontend/
+│   ├── admin/            # Admin dashboard (Vue 3)
+│   └── customer/         # Customer portal (Vue 3)
+└── docs/                 # Project documentation
+```
+
+## Prerequisites
+
+- Node.js (v20 or higher)
+- pnpm
+- PostgreSQL
+- Docker
+
+## Getting Started
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+2. Install dependencies:
+
+```bash
+pnpm install
+```
+
+3. Configure environment variables:
+
+```bash
+cp .env.example .env
+# Update the values in .env according to your setup
+```
+
+4. Run database migrations:
+
+```bash
+pnpm migration:run
+```
+
+5. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+6. Start the development server:
+
+```bash
+pnpm start:dev
+```
+
+The API will be available at `http://localhost:3000` with Swagger documentation at `http://localhost:3000/api`
+
+### Frontend Setup
+
+1. Navigate to the admin frontend directory:
+
+```bash
+cd frontend/admin
+```
+
+2. Install dependencies:
+
+```bash
+pnpm install
+```
+
+3. Start the development server:
+
+```bash
+pnpm dev
+```
+
+The admin dashboard will be available at `http://localhost:5173`
+
+### Using Docker
+
+1. Build and run the Docker containers:
+
+```bash
+docker-compose up --build
+```
+
+2. Access the services:
+
+- Backend API: `http://localhost:3000`
+- Admin Dashboard: `http://localhost:3001`
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit using conventional commits:
+
+```
+feat: add new feature
+fix: resolve bug
+docs: update documentation
+style: formatting changes
+refactor: code restructuring
+test: add tests
+chore: maintenance
+```
+
+5. Create a pull request to `develop`
+
+## Testing
+
+### Backend
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+### Frontend
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```
+http://localhost:3000/api
+```
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+# Application
+NODE_ENV=development
+PORT=3000
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=1h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CACHE_TTL=300
+```
+
+## Security
+
+- 🔒 All endpoints are protected with JWT authentication
+- 👮 Role-based access control (RBAC) implementation
+- ✅ Input validation using class-validator
+- 🚦 Rate limiting for API endpoints
+- 🌐 CORS configuration
+- 🔑 Secure password hashing with bcrypt
+- 🔐 Environment variable protection
+- 🛡️ SQL injection prevention through TypeORM
+
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
+
+These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Architecture Documentation
+
+For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -21621,6 +21789,36 @@ jobs:
           directory: ./frontend/customer/coverage
           flags: frontend-customer
           fail_ci_if_error: true
+````
+
+## File: .roo/rules-code/AGENTS.md
+````markdown
+# Project Coding Rules (Non-Obvious Only)
+
+## Database Seeding
+- Seeds must run in exact order: admin → initial data → bookings → orders (circular dependencies)
+- Always use `npm run seed` from backend/ directory, NOT root
+- Seed files use createDataSource() factory pattern instead of standard TypeORM imports
+
+## Authentication Patterns
+- JWT strategy deliberately returns plain objects (lines 84-90) to prevent serialization issues
+- ShopCodeGuard requires `x-shop-code` header - adds shop property to Request object via custom interface
+- Admin token stored as `admin_token` in localStorage (not generic `token`)
+
+## Error Handling
+- Norwegian error messages hardcoded in frontend auth store (lines 118-129)
+- AxiosError handling has specific precedence: status codes → backend messages → fallback messages
+- Session expiration auto-triggers logout in axios interceptors
+
+## Testing Constraints  
+- Jest rootDir set to 'src' - affects all module paths and coverage calculation
+- Tests must be `.spec.ts` suffix in same directory as source files
+- Module mapping `src/(.*)` assumes tests run from backend/src/ context
+
+## TypeORM Specifics
+- Migration paths hardcoded in typeorm.config.ts lines 12-34 (not auto-discovered)
+- Entities pattern: `src/**/*.entity{.ts,.js}` from project root
+- SSL rejectUnauthorized: false set for all environments
 ````
 
 ## File: backend/package.json
@@ -21758,7 +21956,7 @@ jobs:
     "tailwindcss": "^3.4.15",
     "typescript": "~5.9.0",
     "vite": "^7.0.0",
-    "vite-plugin-vue-devtools": "^7.5.4",
+    "vite-plugin-vue-devtools": "^8.0.0",
     "vitest": "^3.0.0",
     "vue-tsc": "^3.0.0"
   }
@@ -21804,7 +22002,7 @@ jobs:
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.15.0",
     "eslint-plugin-vue": "^9.31.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^26.1.0",
     "prettier": "^3.3.3",
     "typescript": "~5.9.0",
     "vite": "^7.0.0",
