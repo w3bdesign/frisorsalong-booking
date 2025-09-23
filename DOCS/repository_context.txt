@@ -1786,6 +1786,135 @@ export interface JwtPayload {
 }
 ````
 
+## File: backend/src/auth/strategies/jwt.strategy.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { UnauthorizedException } from '@nestjs/common';
+import { JwtStrategy } from './jwt.strategy';
+import { User, UserRole } from '../../users/entities/user.entity';
+import { Request } from 'express';
+interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+type MockConfigService = {
+  get: jest.Mock<string | undefined, [string]>;
+};
+describe('JwtStrategy', () => {
+  let strategy: JwtStrategy;
+  let configService: MockConfigService;
+  const mockConfigService: MockConfigService = {
+    get: jest.fn((key: string) => key === 'JWT_SECRET' ? 'test-secret' : undefined),
+  };
+  const mockUsersRepository = {
+    findOne: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        JwtStrategy,
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUsersRepository,
+        },
+      ],
+    }).compile();
+    strategy = module.get<JwtStrategy>(JwtStrategy);
+    configService = module.get(ConfigService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it('should be defined', () => {
+    expect(strategy).toBeDefined();
+  });
+  it('should use the secret from config service', () => {
+    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
+    expect(configService.get('JWT_SECRET')).toBe('test-secret');
+  });
+  describe('validate', () => {
+    const mockRequest = {
+      headers: {
+        authorization: 'Bearer test-token'
+      }
+    } as Request;
+    const mockPayload: JwtPayload = {
+      sub: 'user-123',
+      email: 'test@example.com'
+    };
+    const mockUser: Partial<User> = {
+      id: 'user-123',
+      email: 'test@example.com',
+      firstName: 'John',
+      lastName: 'Doe',
+      role: UserRole.CUSTOMER,
+    };
+    it('should return user when payload is valid', async () => {
+      mockUsersRepository.findOne.mockResolvedValue(mockUser);
+      const result = await strategy.validate(mockRequest, mockPayload);
+      expect(result).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        role: mockUser.role,
+      });
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+    });
+    it('should throw UnauthorizedException when user is not found', async () => {
+      mockUsersRepository.findOne.mockResolvedValue(null);
+      await expect(strategy.validate(mockRequest, mockPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('User not found'));
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+    });
+    it('should throw UnauthorizedException when payload is invalid', async () => {
+      const invalidPayload = {} as JwtPayload;
+      await expect(strategy.validate(mockRequest, invalidPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('Invalid token payload'));
+      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
+    });
+    it('should throw UnauthorizedException when payload is missing required fields', async () => {
+      const incompletePayload: Partial<JwtPayload> = { iat: 123456789 };
+      await expect(strategy.validate(mockRequest, incompletePayload as JwtPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('Invalid token payload'));
+      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
+    });
+    it('should handle repository errors gracefully', async () => {
+      const dbError = new Error('Database connection failed');
+      mockUsersRepository.findOne.mockRejectedValue(dbError);
+      // Suppress console.error for this test
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(strategy.validate(mockRequest, mockPayload))
+        .rejects
+        .toThrow(UnauthorizedException);
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
+    });
+  });
+});
+````
+
 ## File: backend/src/auth/strategies/jwt.strategy.ts
 ````typescript
 import { Injectable, UnauthorizedException } from "@nestjs/common";
@@ -6306,6 +6435,154 @@ export class CreateServicesSeed implements Seeder {
     await serviceRepository.save(services);
   }
 }
+````
+
+## File: backend/src/database/seeds/run-seeds.spec.ts
+````typescript
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+jest.mock("typeorm", () => {
+  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
+  return {
+    ...actualTypeorm,
+    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
+      if (options?.url === "invalid-url") {
+        throw new Error("Invalid URL format");
+      }
+      return {
+        options,
+        initialize: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
+// Mock the seed functions
+jest.mock("./create-admin-user.seed");
+jest.mock("./create-initial-data.seed");
+jest.mock("./create-sample-bookings.seed");
+jest.mock("./create-sample-orders.seed");
+describe("run-seeds", () => {
+  // Create a minimal mock of DataSource with required properties
+  const createMockDataSource = () =>
+    ({
+      name: "default",
+      options: {} as PostgresConnectionOptions,
+      isInitialized: false,
+      initialize: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined),
+      isConnected: false,
+      close: jest.fn().mockResolvedValue(undefined),
+      connect: jest.fn().mockResolvedValue(undefined),
+      createEntityManager: jest.fn(),
+      createQueryRunner: jest.fn(),
+      getMetadata: jest.fn(),
+      hasMetadata: jest.fn(),
+      getRepository: jest.fn(),
+      getTreeRepository: jest.fn(),
+      getMongoRepository: jest.fn(),
+      transaction: jest.fn(),
+      driver: {},
+      manager: {},
+      mongoManager: undefined,
+      sqljsManager: undefined,
+      namingStrategy: {},
+      entityMetadatas: [],
+      subscribers: [],
+      migrations: [],
+      logger: console,
+      metadataTableName: "typeorm_metadata",
+      queryResultCache: null,
+      relationLoader: {},
+      relationIdLoader: {},
+    }) as unknown as DataSource;
+  const mockDataSource = createMockDataSource();
+  const originalEnv = process.env;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    console.log = jest.fn();
+    console.error = jest.fn();
+  });
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+  describe("createDataSource", () => {
+    it("should create a DataSource when DATABASE_URL is set", () => {
+      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
+      const dataSource = createDataSource();
+      expect(dataSource).toBeDefined();
+      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
+        process.env.DATABASE_URL
+      );
+    });
+    it("should throw error when DATABASE_URL is not set", () => {
+      delete process.env.DATABASE_URL;
+      expect(() => createDataSource()).toThrow(
+        "DATABASE_URL environment variable is not set"
+      );
+    });
+    it("should handle DataSource creation errors", () => {
+      process.env.DATABASE_URL = "invalid-url";
+      expect(() => createDataSource()).toThrow(
+        "Failed to create DataSource: Invalid URL format"
+      );
+    });
+  });
+  describe("runSeeds", () => {
+    it("should run all seeds successfully", async () => {
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createInitialData as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      const result = await runSeeds(mockDataSource);
+      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
+      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
+      expect(result).toBe(true);
+    });
+    it("should throw error for invalid DataSource", async () => {
+      const invalidDataSource = undefined as unknown as DataSource;
+      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
+        "Invalid DataSource provided"
+      );
+    });
+    it("should handle initialization error", async () => {
+      const errorDataSource = createMockDataSource();
+      errorDataSource.initialize = jest
+        .fn()
+        .mockRejectedValue(new Error("Init failed"));
+      await expect(runSeeds(errorDataSource)).rejects.toThrow(
+        "Seed operation failed: Init failed"
+      );
+    });
+    it("should handle seed operation errors", async () => {
+      const mockError = new Error("Seed operation failed");
+      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: Seed operation failed"
+      );
+    });
+    it("should handle non-Error objects in catch blocks", async () => {
+      // Mock createInitialData to reject with a string
+      (createInitialData as jest.Mock).mockRejectedValue("String error");
+      // Reset other mocks to resolve successfully
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: String error"
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/database/seeds/run-seeds.ts
@@ -21251,283 +21528,6 @@ jobs:
           fi
 ````
 
-## File: backend/src/auth/strategies/jwt.strategy.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { UnauthorizedException } from '@nestjs/common';
-import { JwtStrategy } from './jwt.strategy';
-import { User, UserRole } from '../../users/entities/user.entity';
-import { Request } from 'express';
-interface JwtPayload {
-  sub: string;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
-type MockConfigService = {
-  get: jest.Mock<string | undefined, [string]>;
-};
-describe('JwtStrategy', () => {
-  let strategy: JwtStrategy;
-  let configService: MockConfigService;
-  const mockConfigService: MockConfigService = {
-    get: jest.fn((key: string) => key === 'JWT_SECRET' ? 'test-secret' : undefined),
-  };
-  const mockUsersRepository = {
-    findOne: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JwtStrategy,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUsersRepository,
-        },
-      ],
-    }).compile();
-    strategy = module.get<JwtStrategy>(JwtStrategy);
-    configService = module.get(ConfigService);
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  it('should be defined', () => {
-    expect(strategy).toBeDefined();
-  });
-  it('should use the secret from config service', () => {
-    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
-    expect(configService.get('JWT_SECRET')).toBe('test-secret');
-  });
-  describe('validate', () => {
-    const mockRequest = {
-      headers: {
-        authorization: 'Bearer test-token'
-      }
-    } as Request;
-    const mockPayload: JwtPayload = {
-      sub: 'user-123',
-      email: 'test@example.com'
-    };
-    const mockUser: Partial<User> = {
-      id: 'user-123',
-      email: 'test@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      role: UserRole.CUSTOMER,
-    };
-    it('should return user when payload is valid', async () => {
-      mockUsersRepository.findOne.mockResolvedValue(mockUser);
-      const result = await strategy.validate(mockRequest, mockPayload);
-      expect(result).toEqual({
-        id: mockUser.id,
-        email: mockUser.email,
-        firstName: mockUser.firstName,
-        lastName: mockUser.lastName,
-        role: mockUser.role,
-      });
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-    });
-    it('should throw UnauthorizedException when user is not found', async () => {
-      mockUsersRepository.findOne.mockResolvedValue(null);
-      await expect(strategy.validate(mockRequest, mockPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('User not found'));
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-    });
-    it('should throw UnauthorizedException when payload is invalid', async () => {
-      const invalidPayload = {} as JwtPayload;
-      await expect(strategy.validate(mockRequest, invalidPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('Invalid token payload'));
-      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
-    });
-    it('should throw UnauthorizedException when payload is missing required fields', async () => {
-      const incompletePayload: Partial<JwtPayload> = { iat: 123456789 };
-      await expect(strategy.validate(mockRequest, incompletePayload as JwtPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('Invalid token payload'));
-      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
-    });
-    it('should handle repository errors gracefully', async () => {
-      const dbError = new Error('Database connection failed');
-      mockUsersRepository.findOne.mockRejectedValue(dbError);
-      // Suppress console.error for this test
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      await expect(strategy.validate(mockRequest, mockPayload))
-        .rejects
-        .toThrow(UnauthorizedException);
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-      // Restore console.error
-      consoleErrorSpy.mockRestore();
-    });
-  });
-});
-````
-
-## File: backend/src/database/seeds/run-seeds.spec.ts
-````typescript
-import { DataSource } from "typeorm";
-import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
-import { createDataSource, runSeeds } from "./run-seeds";
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-jest.mock("typeorm", () => {
-  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
-  return {
-    ...actualTypeorm,
-    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
-      if (options?.url === "invalid-url") {
-        throw new Error("Invalid URL format");
-      }
-      return {
-        options,
-        initialize: jest.fn().mockResolvedValue(undefined),
-        destroy: jest.fn().mockResolvedValue(undefined),
-      };
-    }),
-  };
-});
-// Mock the seed functions
-jest.mock("./create-admin-user.seed");
-jest.mock("./create-initial-data.seed");
-jest.mock("./create-sample-bookings.seed");
-jest.mock("./create-sample-orders.seed");
-describe("run-seeds", () => {
-  // Create a minimal mock of DataSource with required properties
-  const createMockDataSource = () =>
-    ({
-      name: "default",
-      options: {} as PostgresConnectionOptions,
-      isInitialized: false,
-      initialize: jest.fn().mockResolvedValue(undefined),
-      destroy: jest.fn().mockResolvedValue(undefined),
-      isConnected: false,
-      close: jest.fn().mockResolvedValue(undefined),
-      connect: jest.fn().mockResolvedValue(undefined),
-      createEntityManager: jest.fn(),
-      createQueryRunner: jest.fn(),
-      getMetadata: jest.fn(),
-      hasMetadata: jest.fn(),
-      getRepository: jest.fn(),
-      getTreeRepository: jest.fn(),
-      getMongoRepository: jest.fn(),
-      transaction: jest.fn(),
-      driver: {},
-      manager: {},
-      mongoManager: undefined,
-      sqljsManager: undefined,
-      namingStrategy: {},
-      entityMetadatas: [],
-      subscribers: [],
-      migrations: [],
-      logger: console,
-      metadataTableName: "typeorm_metadata",
-      queryResultCache: null,
-      relationLoader: {},
-      relationIdLoader: {},
-    }) as unknown as DataSource;
-  const mockDataSource = createMockDataSource();
-  const originalEnv = process.env;
-  beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    process.env = { ...originalEnv };
-    console.log = jest.fn();
-    console.error = jest.fn();
-  });
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-  describe("createDataSource", () => {
-    it("should create a DataSource when DATABASE_URL is set", () => {
-      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
-      const dataSource = createDataSource();
-      expect(dataSource).toBeDefined();
-      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
-        process.env.DATABASE_URL
-      );
-    });
-    it("should throw error when DATABASE_URL is not set", () => {
-      delete process.env.DATABASE_URL;
-      expect(() => createDataSource()).toThrow(
-        "DATABASE_URL environment variable is not set"
-      );
-    });
-    it("should handle DataSource creation errors", () => {
-      process.env.DATABASE_URL = "invalid-url";
-      expect(() => createDataSource()).toThrow(
-        "Failed to create DataSource: Invalid URL format"
-      );
-    });
-  });
-  describe("runSeeds", () => {
-    it("should run all seeds successfully", async () => {
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createInitialData as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      const result = await runSeeds(mockDataSource);
-      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
-      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
-      expect(result).toBe(true);
-    });
-    it("should throw error for invalid DataSource", async () => {
-      const invalidDataSource = undefined as unknown as DataSource;
-      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
-        "Invalid DataSource provided"
-      );
-    });
-    it("should handle initialization error", async () => {
-      const errorDataSource = createMockDataSource();
-      errorDataSource.initialize = jest
-        .fn()
-        .mockRejectedValue(new Error("Init failed"));
-      await expect(runSeeds(errorDataSource)).rejects.toThrow(
-        "Seed operation failed: Init failed"
-      );
-    });
-    it("should handle seed operation errors", async () => {
-      const mockError = new Error("Seed operation failed");
-      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: Seed operation failed"
-      );
-    });
-    it("should handle non-Error objects in catch blocks", async () => {
-      // Mock createInitialData to reject with a string
-      (createInitialData as jest.Mock).mockRejectedValue("String error");
-      // Reset other mocks to resolve successfully
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: String error"
-      );
-    });
-  });
-});
-````
-
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -21641,7 +21641,7 @@ jobs:
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest",
+    "test": "jest --passWithNoTests --coverage",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
@@ -21670,7 +21670,7 @@ jobs:
     "bcrypt": "^6.0.0",
     "cache-manager": "6.4.3",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
+    "class-validator": "^0.14.2",
     "dotenv": "^17.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -21680,7 +21680,7 @@ jobs:
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
-    "@faker-js/faker": "^9.2.0",
+    "@faker-js/faker": "^10.0.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
@@ -21744,7 +21744,7 @@ jobs:
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.1.3",
     "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.7.0",
+    "@vue/tsconfig": "^0.8.0",
     "autoprefixer": "^10.4.20",
     "cypress": "^14.0.0",
     "eslint": "^9.14.0",
@@ -21756,7 +21756,7 @@ jobs:
     "prettier": "^3.3.3",
     "start-server-and-test": "^2.0.8",
     "tailwindcss": "^3.4.15",
-    "typescript": "~5.8.0",
+    "typescript": "~5.9.0",
     "vite": "^7.0.0",
     "vite-plugin-vue-devtools": "^7.5.4",
     "vitest": "^3.0.0",
@@ -21806,7 +21806,7 @@ jobs:
     "eslint-plugin-vue": "^9.31.0",
     "jsdom": "^26.0.0",
     "prettier": "^3.3.3",
-    "typescript": "~5.8.0",
+    "typescript": "~5.9.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0",
     "vue-tsc": "^3.0.0"
