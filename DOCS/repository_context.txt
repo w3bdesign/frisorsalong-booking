@@ -40,6 +40,15 @@ The content is organized as follows:
   workflows/
     codecov.yml
     repomix.yml
+.roo/
+  rules-architect/
+    AGENTS.md
+  rules-ask/
+    AGENTS.md
+  rules-code/
+    AGENTS.md
+  rules-debug/
+    AGENTS.md
 backend/
   docs/
     ARCHITECTURE.md
@@ -348,6 +357,7 @@ frontend/
     vitest.config.ts
 .gitattributes
 .gitignore
+AGENTS.md
 codacy-fixes.txt
 codecov.yml
 CRITICAL.md
@@ -20952,6 +20962,525 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
+## File: renovate.json
+````json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ]
+}
+````
+
+## File: TODO.md
+````markdown
+# TODO
+
+## General
+
+-   Thorough security review
+-   Scalability assessment
+-   Comprehensive testing implementation
+-   Automated deployment with CI/CD pipeline
+-   Application monitoring and logging
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Security Enhancements
+
+- Authentication and Authorization
+    - Implement bcrypt for password hashing.
+    - Implement JWT refresh tokens for secure API access.
+    - Implement role-based access control (RBAC) to restrict resources based on user roles.
+- Input Validation
+    - Use class-validator to sanitize and validate all user inputs.
+    - Prevent SQL injection and XSS attacks.
+- Data Protection
+    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
+- Rate Limiting
+    - Implement rate limiting to protect against brute-force attacks.
+- Audit Logging
+    - Maintain logs of critical actions for auditing purposes.
+
+## Scalability Improvements
+
+- Stateless Backend
+    - Design the backend to be stateless to facilitate horizontal scaling.
+- Load Balancing
+    - Use a load balancer to distribute traffic across multiple server instances.
+- Caching
+    - Implement caching for frequent read operations using Redis.
+- Database Optimization
+    - Use indexing and query optimization techniques.
+    - Consider read replicas for PostgreSQL.
+- Asynchronous Processing
+    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
+
+## Testing Improvements
+
+- Unit Tests
+    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
+- Integration Tests
+    - Implement integration tests for API endpoints and database operations.
+- End-to-End Tests
+    - Create end-to-end tests for critical user flows using Cypress.
+
+## Deployment Automation
+
+- CI/CD Pipeline
+    - Set up a CI/CD pipeline using GitHub Actions or similar.
+    - Automate building, testing, and deployment processes.
+- Infrastructure as Code (IaC)
+    - Use Terraform or similar to manage infrastructure.
+
+## Monitoring and Logging
+
+- Application Monitoring
+    - Use tools like Prometheus and Grafana to monitor application performance.
+- Error Tracking
+    - Implement Sentry or similar for error logging.
+- Health Checks
+    - Set up endpoint and infrastructure health checks.
+
+## Existing Issues
+
+- Address the CRITICAL issues listed in ISSUES.md
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Develop the appointment booking interface.
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Non-Functional Requirements (can be implemented in the future, not important)
+
+- Scalability
+
+  - Ensure the system can handle increased load and scale appropriately.
+
+- Performance
+
+  - Optimize the system for fast load times and responsive interactions.
+
+- Security
+
+  - Implement robust authentication and authorization mechanisms.
+  - Protect user data and ensure compliance with data protection regulations.
+
+- Reliability
+
+  - Ensure high availability and fault tolerance.
+
+## Deployment Plan
+
+- Development Environment
+
+  - Set up local development environments with hot-reloading for rapid development.
+
+- Testing/Staging Environment
+
+  - Mirror production environment for testing features before release.
+
+- Production Environment
+
+  - Set up live environment with robust monitoring and backup strategies.
+
+- CI/CD Pipeline
+
+  - Automate code building, testing, and deployment using CI/CD tools.
+
+- Monitoring and Logging
+  - Implement application monitoring, error tracking, and health checks.
+````
+
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test -- --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
+````
+
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
+## File: .roo/rules-architect/AGENTS.md
+````markdown
+# Project Architecture Rules (Non-Obvious Only)
+
+## Multi-Tenant Design
+- Shop isolation via `x-shop-code` header validation (ShopCodeGuard)
+- Request object extended with shop property via custom RequestWithShop interface
+- Shop-based access control rather than URL-based multi-tenancy
+
+## Authentication Architecture
+- JWT strategy returns plain objects to prevent circular serialization issues
+- Role-based access: admin/employee for admin panel, user role blocked
+- Session expiration handled via axios interceptors, not middleware
+
+## Database Architecture Constraints
+- Seeding has circular dependencies - strict execution order required
+- TypeORM migrations explicitly listed (not auto-discovered) in typeorm.config.ts
+- All environments use SSL with rejectUnauthorized: false for compatibility
+
+## Frontend Architecture
+- Admin frontend: Vue 3 + Pinia + Tailwind with role-based access
+- Customer frontend: Vue 3 + Pinia for booking display
+- Both frontends consume same backend API with different authentication flows
+
+## Error Handling Strategy
+- Localized Norwegian error messages in admin frontend
+- Backend includes extensive debug logging in JWT strategy (production-ready)
+- HTTP status precedence: client errors use localized messages, server errors prefer backend messages
+
+## Testing Architecture
+- Jest configured with rootDir as 'src' affects all path resolution
+- Tests co-located with source files for better maintainability
+- Coverage enforced at 80% threshold across all metrics
+
+## Deployment Constraints
+- Docker Compose includes PostgreSQL + Redis + backend + frontend services
+- Global API prefix '/api' affects all frontend API calls
+- Environment-specific database logging and SSL configurations
+````
+
+## File: .roo/rules-ask/AGENTS.md
+````markdown
+# Project Documentation Rules (Non-Obvious Only)
+
+## Architecture Context
+- Monorepo with backend/ (NestJS) and frontend/ (admin Vue.js, customer Vue.js) 
+- Backend uses TypeORM with PostgreSQL, frontend admin uses Pinia state management
+- All API routes prefixed with `/api` - affects URL construction in frontends
+- Shop-based multi-tenancy via `x-shop-code` header (not URL-based)
+
+## Authentication Flow
+- Admin panel only allows "admin" and "employee" roles (blocks "user" role)
+- JWT tokens return plain objects in strategy to avoid serialization issues
+- Session management via localStorage with `admin_token` key specifically
+
+## Database Patterns
+- Seeding order matters: admin user → services/employees → bookings → orders
+- Migrations are explicitly hardcoded paths in typeorm.config.ts (not auto-discovered)
+- Entities use pattern `src/**/*.entity{.ts,.js}` from project root
+
+## Error Messages
+- Frontend admin uses Norwegian error messages with status code mapping
+- Backend JWT strategy includes extensive logging for production troubleshooting
+- Session expiration handled automatically in axios interceptors
+
+## Testing Architecture  
+- Backend Jest runs from 'src' directory with module mapping
+- Tests co-located with source files using .spec.ts suffix
+- Coverage threshold enforced at 80% across all metrics
+
+## Development Environment
+- Swagger documentation at `/api-docs` with persistent authorization
+- CORS enabled with credentials for cross-origin requests
+- SSL disabled for development (rejectUnauthorized: false)
+````
+
+## File: .roo/rules-debug/AGENTS.md
+````markdown
+# Project Debug Rules (Non-Obvious Only)
+
+## Debugging Environment
+- JWT strategy logs extensively to console (lines 54-82) - intentional production debugging
+- Database connection logs only in development (NODE_ENV=development)
+- Swagger docs at `/api-docs` with persistent authorization for API testing
+
+## Critical Debugging Commands
+- `npm run seed` from backend/ directory to reset test data
+- `npm run test:debug` for backend debugging with --inspect-brk
+- `npm run start:debug` runs NestJS with debug flag and watch mode
+
+## Database Debugging
+- TypeORM logging controlled by NODE_ENV environment variable
+- SSL settings affect connection troubleshooting (rejectUnauthorized: false)
+- Migration files hardcoded - check typeorm.config.ts lines 12-34 for exact paths
+
+## Frontend Debugging
+- Admin panel session expiration triggers automatic logout (main.ts:19-30)
+- Norwegian error messages may hide underlying API errors (auth.ts:118-129)
+- `admin_token` localStorage key specifically used (not generic `token`)
+
+## Testing Debug
+- Jest runs from 'src' rootDir - affects module resolution
+- Coverage reports go to '../coverage' from src directory
+- Test files must be co-located with source files (.spec.ts suffix)
+````
+
+## File: AGENTS.md
+````markdown
+# AGENTS.md
+
+This file provides guidance to agents when working with code in this repository.
+
+## Critical Commands
+- `npm run seed` - Run database seeds (must run from backend/) in specific order: admin → initial data → bookings → orders
+- `npm run seed:admin-password` - Update admin password specifically
+- `npm run migration:run` - Run TypeORM migrations (migrations are hardcoded in typeorm.config.ts)
+- `npm run lint:strict` - Enforce zero ESLint warnings (used in CI)
+
+## Non-Standard Patterns
+- JWT strategy includes extensive console.log debugging (lines 54-82 in jwt.strategy.ts) - intentional for production troubleshooting
+- Admin frontend requires `x-shop-code` header for shop-specific operations via ShopCodeGuard
+- Admin panel blocks regular "user" role - only "admin" and "employee" roles can access (auth.ts:91-95)
+- Custom RequestWithShop interface extends Express Request to include shop property
+- Database seeding has strict dependency order: createAdminUser → createInitialData → createSampleBookings → createSampleOrders
+
+## Error Handling
+- Frontend uses Norwegian error messages with custom status code mapping (auth.ts:118-129)
+- Backend JWT validation returns plain objects, not entities (jwt.strategy.ts:84-90) to avoid serialization issues
+- Session expiration triggers automatic logout and redirect to login
+
+## Testing Requirements
+- Jest coverage threshold enforced at 80% for branches/functions/lines/statements
+- Tests must use `.spec.ts` suffix and be in same directory as source files
+- Backend uses module path mapping: `src/(.*)` → `<rootDir>/$1`
+
+## Architecture Constraints
+- TypeORM entities use hardcoded migration paths in typeorm.config.ts (lines 12-34)
+- All API routes prefixed with `/api` globally
+- Frontend admin uses localStorage key `admin_token` specifically (not generic `token`)
+- Swagger docs available at `/api-docs` with persistent authorization
+````
+
 ## File: README.md
 ````markdown
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
@@ -21229,6 +21758,22 @@ CACHE_TTL=300
 - 🔐 Environment variable protection
 - 🛡️ SQL injection prevention through TypeORM
 
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
+
+These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
 ## Contributing
 
 1. Fork the repository
@@ -21246,381 +21791,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ````
 
-## File: renovate.json
-````json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
-}
-````
-
-## File: TODO.md
+## File: .roo/rules-code/AGENTS.md
 ````markdown
-# TODO
-
-## General
-
--   Thorough security review
--   Scalability assessment
--   Comprehensive testing implementation
--   Automated deployment with CI/CD pipeline
--   Application monitoring and logging
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Security Enhancements
-
-- Authentication and Authorization
-    - Implement bcrypt for password hashing.
-    - Implement JWT refresh tokens for secure API access.
-    - Implement role-based access control (RBAC) to restrict resources based on user roles.
-- Input Validation
-    - Use class-validator to sanitize and validate all user inputs.
-    - Prevent SQL injection and XSS attacks.
-- Data Protection
-    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
-- Rate Limiting
-    - Implement rate limiting to protect against brute-force attacks.
-- Audit Logging
-    - Maintain logs of critical actions for auditing purposes.
-
-## Scalability Improvements
-
-- Stateless Backend
-    - Design the backend to be stateless to facilitate horizontal scaling.
-- Load Balancing
-    - Use a load balancer to distribute traffic across multiple server instances.
-- Caching
-    - Implement caching for frequent read operations using Redis.
-- Database Optimization
-    - Use indexing and query optimization techniques.
-    - Consider read replicas for PostgreSQL.
-- Asynchronous Processing
-    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
-
-## Testing Improvements
-
-- Unit Tests
-    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
-- Integration Tests
-    - Implement integration tests for API endpoints and database operations.
-- End-to-End Tests
-    - Create end-to-end tests for critical user flows using Cypress.
-
-## Deployment Automation
-
-- CI/CD Pipeline
-    - Set up a CI/CD pipeline using GitHub Actions or similar.
-    - Automate building, testing, and deployment processes.
-- Infrastructure as Code (IaC)
-    - Use Terraform or similar to manage infrastructure.
-
-## Monitoring and Logging
-
-- Application Monitoring
-    - Use tools like Prometheus and Grafana to monitor application performance.
-- Error Tracking
-    - Implement Sentry or similar for error logging.
-- Health Checks
-    - Set up endpoint and infrastructure health checks.
-
-## Existing Issues
-
-- Address the CRITICAL issues listed in ISSUES.md
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Develop the appointment booking interface.
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Non-Functional Requirements (can be implemented in the future, not important)
-
-- Scalability
-
-  - Ensure the system can handle increased load and scale appropriately.
-
-- Performance
-
-  - Optimize the system for fast load times and responsive interactions.
-
-- Security
-
-  - Implement robust authentication and authorization mechanisms.
-  - Protect user data and ensure compliance with data protection regulations.
-
-- Reliability
-
-  - Ensure high availability and fault tolerance.
-
-## Deployment Plan
-
-- Development Environment
-
-  - Set up local development environments with hot-reloading for rapid development.
-
-- Testing/Staging Environment
-
-  - Mirror production environment for testing features before release.
-
-- Production Environment
-
-  - Set up live environment with robust monitoring and backup strategies.
-
-- CI/CD Pipeline
-
-  - Automate code building, testing, and deployment using CI/CD tools.
-
-- Monitoring and Logging
-  - Implement application monitoring, error tracking, and health checks.
-````
-
-## File: .github/workflows/repomix.yml
-````yaml
-name: Repository Documentation
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
-        run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
-        run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
-````
-
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test -- --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
+# Project Coding Rules (Non-Obvious Only)
+
+## Database Seeding
+- Seeds must run in exact order: admin → initial data → bookings → orders (circular dependencies)
+- Always use `npm run seed` from backend/ directory, NOT root
+- Seed files use createDataSource() factory pattern instead of standard TypeORM imports
+
+## Authentication Patterns
+- JWT strategy deliberately returns plain objects (lines 84-90) to prevent serialization issues
+- ShopCodeGuard requires `x-shop-code` header - adds shop property to Request object via custom interface
+- Admin token stored as `admin_token` in localStorage (not generic `token`)
+
+## Error Handling
+- Norwegian error messages hardcoded in frontend auth store (lines 118-129)
+- AxiosError handling has specific precedence: status codes → backend messages → fallback messages
+- Session expiration auto-triggers logout in axios interceptors
+
+## Testing Constraints  
+- Jest rootDir set to 'src' - affects all module paths and coverage calculation
+- Tests must be `.spec.ts` suffix in same directory as source files
+- Module mapping `src/(.*)` assumes tests run from backend/src/ context
+
+## TypeORM Specifics
+- Migration paths hardcoded in typeorm.config.ts lines 12-34 (not auto-discovered)
+- Entities pattern: `src/**/*.entity{.ts,.js}` from project root
+- SSL rejectUnauthorized: false set for all environments
 ````
 
 ## File: backend/package.json
@@ -21686,7 +21884,7 @@ jobs:
     "@nestjs/testing": "^11.0.0",
     "@types/bcrypt": "^6.0.0",    
     "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
@@ -21695,7 +21893,7 @@ jobs:
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "jest": "^29.7.0",
+    "jest": "^30.0.0",
     "prettier": "^3.4.1",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
@@ -21704,63 +21902,6 @@ jobs:
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"
-  }
-}
-````
-
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^3.0.0",
-    "vue": "^3.5.13",
-    "vue-router": "^4.4.5"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.0",
-    "@tsconfig/node22": "^22.0.0",
-    "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.9.2",
-    "@vitejs/plugin-vue": "^5.1.4",
-    "@vitest/coverage-v8": "3.2.4",
-    "@vitest/eslint-plugin": "1.3.12",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.0",
-    "autoprefixer": "^10.4.20",
-    "cypress": "^14.0.0",
-    "eslint": "^9.14.0",
-    "eslint-plugin-cypress": "^5.0.0",
-    "eslint-plugin-vue": "^9.30.0",
-    "jsdom": "^26.0.0",
-    "npm-run-all2": "^8.0.0",
-    "postcss": "^8.4.49",
-    "prettier": "^3.3.3",
-    "start-server-and-test": "^2.0.8",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.0",
-    "vite": "^7.0.0",
-    "vite-plugin-vue-devtools": "^7.5.4",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^3.0.0"
   }
 }
 ````
@@ -21803,11 +21944,68 @@ jobs:
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.15.0",
-    "eslint-plugin-vue": "^9.31.0",
-    "jsdom": "^26.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "jsdom": "^26.1.0",
     "prettier": "^3.3.3",
     "typescript": "~5.9.0",
     "vite": "^7.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^3.0.0"
+  }
+}
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.0",
+    "@tsconfig/node22": "^22.0.0",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.9.2",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "@vitest/coverage-v8": "3.2.4",
+    "@vitest/eslint-plugin": "1.3.13",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.0",
+    "autoprefixer": "^10.4.20",
+    "cypress": "^15.0.0",
+    "eslint": "^9.14.0",
+    "eslint-plugin-cypress": "^5.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "jsdom": "^26.0.0",
+    "npm-run-all2": "^8.0.0",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "start-server-and-test": "^2.0.8",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.9.0",
+    "vite": "^7.0.0",
+    "vite-plugin-vue-devtools": "^8.0.0",
     "vitest": "^3.0.0",
     "vue-tsc": "^3.0.0"
   }
