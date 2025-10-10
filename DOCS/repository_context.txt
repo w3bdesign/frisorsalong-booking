@@ -371,6 +371,187 @@ TODO.md
 
 # Files
 
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test -- --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
+````
+
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
 ## File: backend/docs/ARCHITECTURE.md
 ````markdown
 # Hair Salon Booking System Planning Document
@@ -20949,187 +21130,6 @@ SOFTWARE.
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test -- --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
-````
-
-## File: .github/workflows/repomix.yml
-````yaml
-name: Repository Documentation
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
-        run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
-        run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
-````
-
 ## File: .roo/rules-architect/AGENTS.md
 ````markdown
 # Project Architecture Rules (Non-Obvious Only)
@@ -21234,6 +21234,91 @@ jobs:
 - Jest runs from 'src' rootDir - affects module resolution
 - Coverage reports go to '../coverage' from src directory
 - Test files must be co-located with source files (.spec.ts suffix)
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "6.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.1",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.2"
+  }
+}
 ````
 
 ## File: AGENTS.md
@@ -21610,91 +21695,6 @@ For detailed information about the system architecture, please refer to [docs/AR
 - Migration paths hardcoded in typeorm.config.ts lines 12-34 (not auto-discovered)
 - Entities pattern: `src/**/*.entity{.ts,.js}` from project root
 - SSL rejectUnauthorized: false set for all environments
-````
-
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.0.1",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/mapped-types": "^2.0.6",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "6.4.3",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.2",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22.10.0",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^9.15.0",
-    "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "jest": "^30.0.0",
-    "prettier": "^3.4.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.2"
-  }
-}
 ````
 
 ## File: frontend/admin/package.json
