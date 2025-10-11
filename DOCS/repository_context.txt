@@ -552,6 +552,102 @@ jobs:
           fi
 ````
 
+## File: .roo/rules-ask/AGENTS.md
+````markdown
+# Project Documentation Rules (Non-Obvious Only)
+
+## Architecture Context
+- Monorepo with backend/ (NestJS) and frontend/ (admin Vue.js, customer Vue.js) 
+- Backend uses TypeORM with PostgreSQL, frontend admin uses Pinia state management
+- All API routes prefixed with `/api` - affects URL construction in frontends
+- Shop-based multi-tenancy via `x-shop-code` header (not URL-based)
+
+## Authentication Flow
+- Admin panel only allows "admin" and "employee" roles (blocks "user" role)
+- JWT tokens return plain objects in strategy to avoid serialization issues
+- Session management via localStorage with `admin_token` key specifically
+
+## Database Patterns
+- Seeding order matters: admin user → services/employees → bookings → orders
+- Migrations are explicitly hardcoded paths in typeorm.config.ts (not auto-discovered)
+- Entities use pattern `src/**/*.entity{.ts,.js}` from project root
+
+## Error Messages
+- Frontend admin uses Norwegian error messages with status code mapping
+- Backend JWT strategy includes extensive logging for production troubleshooting
+- Session expiration handled automatically in axios interceptors
+
+## Testing Architecture  
+- Backend Jest runs from 'src' directory with module mapping
+- Tests co-located with source files using .spec.ts suffix
+- Coverage threshold enforced at 80% across all metrics
+
+## Development Environment
+- Swagger documentation at `/api-docs` with persistent authorization
+- CORS enabled with credentials for cross-origin requests
+- SSL disabled for development (rejectUnauthorized: false)
+````
+
+## File: .roo/rules-code/AGENTS.md
+````markdown
+# Project Coding Rules (Non-Obvious Only)
+
+## Database Seeding
+- Seeds must run in exact order: admin → initial data → bookings → orders (circular dependencies)
+- Always use `npm run seed` from backend/ directory, NOT root
+- Seed files use createDataSource() factory pattern instead of standard TypeORM imports
+
+## Authentication Patterns
+- JWT strategy deliberately returns plain objects (lines 84-90) to prevent serialization issues
+- ShopCodeGuard requires `x-shop-code` header - adds shop property to Request object via custom interface
+- Admin token stored as `admin_token` in localStorage (not generic `token`)
+
+## Error Handling
+- Norwegian error messages hardcoded in frontend auth store (lines 118-129)
+- AxiosError handling has specific precedence: status codes → backend messages → fallback messages
+- Session expiration auto-triggers logout in axios interceptors
+
+## Testing Constraints  
+- Jest rootDir set to 'src' - affects all module paths and coverage calculation
+- Tests must be `.spec.ts` suffix in same directory as source files
+- Module mapping `src/(.*)` assumes tests run from backend/src/ context
+
+## TypeORM Specifics
+- Migration paths hardcoded in typeorm.config.ts lines 12-34 (not auto-discovered)
+- Entities pattern: `src/**/*.entity{.ts,.js}` from project root
+- SSL rejectUnauthorized: false set for all environments
+````
+
+## File: .roo/rules-debug/AGENTS.md
+````markdown
+# Project Debug Rules (Non-Obvious Only)
+
+## Debugging Environment
+- JWT strategy logs extensively to console (lines 54-82) - intentional production debugging
+- Database connection logs only in development (NODE_ENV=development)
+- Swagger docs at `/api-docs` with persistent authorization for API testing
+
+## Critical Debugging Commands
+- `npm run seed` from backend/ directory to reset test data
+- `npm run test:debug` for backend debugging with --inspect-brk
+- `npm run start:debug` runs NestJS with debug flag and watch mode
+
+## Database Debugging
+- TypeORM logging controlled by NODE_ENV environment variable
+- SSL settings affect connection troubleshooting (rejectUnauthorized: false)
+- Migration files hardcoded - check typeorm.config.ts lines 12-34 for exact paths
+
+## Frontend Debugging
+- Admin panel session expiration triggers automatic logout (main.ts:19-30)
+- Norwegian error messages may hide underlying API errors (auth.ts:118-129)
+- `admin_token` localStorage key specifically used (not generic `token`)
+
+## Testing Debug
+- Jest runs from 'src' rootDir - affects module resolution
+- Coverage reports go to '../coverage' from src directory
+- Test files must be co-located with source files (.spec.ts suffix)
+````
+
 ## File: backend/docs/ARCHITECTURE.md
 ````markdown
 # Hair Salon Booking System Planning Document
@@ -20349,6 +20445,42 @@ dist
 .pnp.*
 ````
 
+## File: AGENTS.md
+````markdown
+# AGENTS.md
+
+This file provides guidance to agents when working with code in this repository.
+
+## Critical Commands
+- `npm run seed` - Run database seeds (must run from backend/) in specific order: admin → initial data → bookings → orders
+- `npm run seed:admin-password` - Update admin password specifically
+- `npm run migration:run` - Run TypeORM migrations (migrations are hardcoded in typeorm.config.ts)
+- `npm run lint:strict` - Enforce zero ESLint warnings (used in CI)
+
+## Non-Standard Patterns
+- JWT strategy includes extensive console.log debugging (lines 54-82 in jwt.strategy.ts) - intentional for production troubleshooting
+- Admin frontend requires `x-shop-code` header for shop-specific operations via ShopCodeGuard
+- Admin panel blocks regular "user" role - only "admin" and "employee" roles can access (auth.ts:91-95)
+- Custom RequestWithShop interface extends Express Request to include shop property
+- Database seeding has strict dependency order: createAdminUser → createInitialData → createSampleBookings → createSampleOrders
+
+## Error Handling
+- Frontend uses Norwegian error messages with custom status code mapping (auth.ts:118-129)
+- Backend JWT validation returns plain objects, not entities (jwt.strategy.ts:84-90) to avoid serialization issues
+- Session expiration triggers automatic logout and redirect to login
+
+## Testing Requirements
+- Jest coverage threshold enforced at 80% for branches/functions/lines/statements
+- Tests must use `.spec.ts` suffix and be in same directory as source files
+- Backend uses module path mapping: `src/(.*)` → `<rootDir>/$1`
+
+## Architecture Constraints
+- TypeORM entities use hardcoded migration paths in typeorm.config.ts (lines 12-34)
+- All API routes prefixed with `/api` globally
+- Frontend admin uses localStorage key `admin_token` specifically (not generic `token`)
+- Swagger docs available at `/api-docs` with persistent authorization
+````
+
 ## File: codacy-fixes.txt
 ````
 diff --git a/frontend/customer/docs/README.md b/frontend/customer/docs/README.md
@@ -21170,72 +21302,6 @@ SOFTWARE.
 - Environment-specific database logging and SSL configurations
 ````
 
-## File: .roo/rules-ask/AGENTS.md
-````markdown
-# Project Documentation Rules (Non-Obvious Only)
-
-## Architecture Context
-- Monorepo with backend/ (NestJS) and frontend/ (admin Vue.js, customer Vue.js) 
-- Backend uses TypeORM with PostgreSQL, frontend admin uses Pinia state management
-- All API routes prefixed with `/api` - affects URL construction in frontends
-- Shop-based multi-tenancy via `x-shop-code` header (not URL-based)
-
-## Authentication Flow
-- Admin panel only allows "admin" and "employee" roles (blocks "user" role)
-- JWT tokens return plain objects in strategy to avoid serialization issues
-- Session management via localStorage with `admin_token` key specifically
-
-## Database Patterns
-- Seeding order matters: admin user → services/employees → bookings → orders
-- Migrations are explicitly hardcoded paths in typeorm.config.ts (not auto-discovered)
-- Entities use pattern `src/**/*.entity{.ts,.js}` from project root
-
-## Error Messages
-- Frontend admin uses Norwegian error messages with status code mapping
-- Backend JWT strategy includes extensive logging for production troubleshooting
-- Session expiration handled automatically in axios interceptors
-
-## Testing Architecture  
-- Backend Jest runs from 'src' directory with module mapping
-- Tests co-located with source files using .spec.ts suffix
-- Coverage threshold enforced at 80% across all metrics
-
-## Development Environment
-- Swagger documentation at `/api-docs` with persistent authorization
-- CORS enabled with credentials for cross-origin requests
-- SSL disabled for development (rejectUnauthorized: false)
-````
-
-## File: .roo/rules-debug/AGENTS.md
-````markdown
-# Project Debug Rules (Non-Obvious Only)
-
-## Debugging Environment
-- JWT strategy logs extensively to console (lines 54-82) - intentional production debugging
-- Database connection logs only in development (NODE_ENV=development)
-- Swagger docs at `/api-docs` with persistent authorization for API testing
-
-## Critical Debugging Commands
-- `npm run seed` from backend/ directory to reset test data
-- `npm run test:debug` for backend debugging with --inspect-brk
-- `npm run start:debug` runs NestJS with debug flag and watch mode
-
-## Database Debugging
-- TypeORM logging controlled by NODE_ENV environment variable
-- SSL settings affect connection troubleshooting (rejectUnauthorized: false)
-- Migration files hardcoded - check typeorm.config.ts lines 12-34 for exact paths
-
-## Frontend Debugging
-- Admin panel session expiration triggers automatic logout (main.ts:19-30)
-- Norwegian error messages may hide underlying API errors (auth.ts:118-129)
-- `admin_token` localStorage key specifically used (not generic `token`)
-
-## Testing Debug
-- Jest runs from 'src' rootDir - affects module resolution
-- Coverage reports go to '../coverage' from src directory
-- Test files must be co-located with source files (.spec.ts suffix)
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -21319,42 +21385,6 @@ SOFTWARE.
     "typescript": "^5.7.2"
   }
 }
-````
-
-## File: AGENTS.md
-````markdown
-# AGENTS.md
-
-This file provides guidance to agents when working with code in this repository.
-
-## Critical Commands
-- `npm run seed` - Run database seeds (must run from backend/) in specific order: admin → initial data → bookings → orders
-- `npm run seed:admin-password` - Update admin password specifically
-- `npm run migration:run` - Run TypeORM migrations (migrations are hardcoded in typeorm.config.ts)
-- `npm run lint:strict` - Enforce zero ESLint warnings (used in CI)
-
-## Non-Standard Patterns
-- JWT strategy includes extensive console.log debugging (lines 54-82 in jwt.strategy.ts) - intentional for production troubleshooting
-- Admin frontend requires `x-shop-code` header for shop-specific operations via ShopCodeGuard
-- Admin panel blocks regular "user" role - only "admin" and "employee" roles can access (auth.ts:91-95)
-- Custom RequestWithShop interface extends Express Request to include shop property
-- Database seeding has strict dependency order: createAdminUser → createInitialData → createSampleBookings → createSampleOrders
-
-## Error Handling
-- Frontend uses Norwegian error messages with custom status code mapping (auth.ts:118-129)
-- Backend JWT validation returns plain objects, not entities (jwt.strategy.ts:84-90) to avoid serialization issues
-- Session expiration triggers automatic logout and redirect to login
-
-## Testing Requirements
-- Jest coverage threshold enforced at 80% for branches/functions/lines/statements
-- Tests must use `.spec.ts` suffix and be in same directory as source files
-- Backend uses module path mapping: `src/(.*)` → `<rootDir>/$1`
-
-## Architecture Constraints
-- TypeORM entities use hardcoded migration paths in typeorm.config.ts (lines 12-34)
-- All API routes prefixed with `/api` globally
-- Frontend admin uses localStorage key `admin_token` specifically (not generic `token`)
-- Swagger docs available at `/api-docs` with persistent authorization
 ````
 
 ## File: README.md
@@ -21665,36 +21695,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Architecture Documentation
 
 For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-````
-
-## File: .roo/rules-code/AGENTS.md
-````markdown
-# Project Coding Rules (Non-Obvious Only)
-
-## Database Seeding
-- Seeds must run in exact order: admin → initial data → bookings → orders (circular dependencies)
-- Always use `npm run seed` from backend/ directory, NOT root
-- Seed files use createDataSource() factory pattern instead of standard TypeORM imports
-
-## Authentication Patterns
-- JWT strategy deliberately returns plain objects (lines 84-90) to prevent serialization issues
-- ShopCodeGuard requires `x-shop-code` header - adds shop property to Request object via custom interface
-- Admin token stored as `admin_token` in localStorage (not generic `token`)
-
-## Error Handling
-- Norwegian error messages hardcoded in frontend auth store (lines 118-129)
-- AxiosError handling has specific precedence: status codes → backend messages → fallback messages
-- Session expiration auto-triggers logout in axios interceptors
-
-## Testing Constraints  
-- Jest rootDir set to 'src' - affects all module paths and coverage calculation
-- Tests must be `.spec.ts` suffix in same directory as source files
-- Module mapping `src/(.*)` assumes tests run from backend/src/ context
-
-## TypeORM Specifics
-- Migration paths hardcoded in typeorm.config.ts lines 12-34 (not auto-discovered)
-- Entities pattern: `src/**/*.entity{.ts,.js}` from project root
-- SSL rejectUnauthorized: false set for all environments
 ````
 
 ## File: frontend/admin/package.json
