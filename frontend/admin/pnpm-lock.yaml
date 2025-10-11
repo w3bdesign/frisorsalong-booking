@@ -38,7 +38,7 @@ importers:
     devDependencies:
       '@rushstack/eslint-patch':
         specifier: ^1.12.0
-        version: 1.12.0
+        version: 1.13.0
       '@tsconfig/node20':
         specifier: ^20.1.6
         version: 20.1.6
@@ -517,8 +517,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rushstack/eslint-patch@1.12.0':
-    resolution: {integrity: sha512-5EwMtOqvJMMa3HbmxLlF74e+3/HhwBTMcvt3nqVJgGCozO6hzIPOBlwm8mGVNR9SN2IJpxSnlxczyDjcn7qIyw==}
+  '@rushstack/eslint-patch@1.13.0':
+    resolution: {integrity: sha512-2ih5qGw5SZJ+2fLZxP6Lr6Na2NTIgPRL/7Kmyuw0uIyBQnuhQ8fi8fzUTd38eIQmqp+GYLC00cI6WgtqHxBwmw==}
 
   '@tsconfig/node20@20.1.6':
     resolution: {integrity: sha512-sz+Hqx9zwZDpZIV871WSbUzSqNIsXzghZydypnfgzPKLltVJfkINfUeTct31n/tTSa9ZE1ZOfKdRre1uHHquYQ==}
@@ -2313,7 +2313,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.52.2':
     optional: true
 
-  '@rushstack/eslint-patch@1.12.0': {}
+  '@rushstack/eslint-patch@1.13.0': {}
 
   '@tsconfig/node20@20.1.6': {}
 
