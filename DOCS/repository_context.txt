@@ -552,6 +552,46 @@ jobs:
           fi
 ````
 
+## File: .roo/rules-architect/AGENTS.md
+````markdown
+# Project Architecture Rules (Non-Obvious Only)
+
+## Multi-Tenant Design
+- Shop isolation via `x-shop-code` header validation (ShopCodeGuard)
+- Request object extended with shop property via custom RequestWithShop interface
+- Shop-based access control rather than URL-based multi-tenancy
+
+## Authentication Architecture
+- JWT strategy returns plain objects to prevent circular serialization issues
+- Role-based access: admin/employee for admin panel, user role blocked
+- Session expiration handled via axios interceptors, not middleware
+
+## Database Architecture Constraints
+- Seeding has circular dependencies - strict execution order required
+- TypeORM migrations explicitly listed (not auto-discovered) in typeorm.config.ts
+- All environments use SSL with rejectUnauthorized: false for compatibility
+
+## Frontend Architecture
+- Admin frontend: Vue 3 + Pinia + Tailwind with role-based access
+- Customer frontend: Vue 3 + Pinia for booking display
+- Both frontends consume same backend API with different authentication flows
+
+## Error Handling Strategy
+- Localized Norwegian error messages in admin frontend
+- Backend includes extensive debug logging in JWT strategy (production-ready)
+- HTTP status precedence: client errors use localized messages, server errors prefer backend messages
+
+## Testing Architecture
+- Jest configured with rootDir as 'src' affects all path resolution
+- Tests co-located with source files for better maintainability
+- Coverage enforced at 80% threshold across all metrics
+
+## Deployment Constraints
+- Docker Compose includes PostgreSQL + Redis + backend + frontend services
+- Global API prefix '/api' affects all frontend API calls
+- Environment-specific database logging and SSL configurations
+````
+
 ## File: .roo/rules-ask/AGENTS.md
 ````markdown
 # Project Documentation Rules (Non-Obvious Only)
@@ -21066,327 +21106,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## File: renovate.json
-````json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
-}
-````
-
-## File: TODO.md
-````markdown
-# TODO
-
-## General
-
--   Thorough security review
--   Scalability assessment
--   Comprehensive testing implementation
--   Automated deployment with CI/CD pipeline
--   Application monitoring and logging
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Security Enhancements
-
-- Authentication and Authorization
-    - Implement bcrypt for password hashing.
-    - Implement JWT refresh tokens for secure API access.
-    - Implement role-based access control (RBAC) to restrict resources based on user roles.
-- Input Validation
-    - Use class-validator to sanitize and validate all user inputs.
-    - Prevent SQL injection and XSS attacks.
-- Data Protection
-    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
-- Rate Limiting
-    - Implement rate limiting to protect against brute-force attacks.
-- Audit Logging
-    - Maintain logs of critical actions for auditing purposes.
-
-## Scalability Improvements
-
-- Stateless Backend
-    - Design the backend to be stateless to facilitate horizontal scaling.
-- Load Balancing
-    - Use a load balancer to distribute traffic across multiple server instances.
-- Caching
-    - Implement caching for frequent read operations using Redis.
-- Database Optimization
-    - Use indexing and query optimization techniques.
-    - Consider read replicas for PostgreSQL.
-- Asynchronous Processing
-    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
-
-## Testing Improvements
-
-- Unit Tests
-    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
-- Integration Tests
-    - Implement integration tests for API endpoints and database operations.
-- End-to-End Tests
-    - Create end-to-end tests for critical user flows using Cypress.
-
-## Deployment Automation
-
-- CI/CD Pipeline
-    - Set up a CI/CD pipeline using GitHub Actions or similar.
-    - Automate building, testing, and deployment processes.
-- Infrastructure as Code (IaC)
-    - Use Terraform or similar to manage infrastructure.
-
-## Monitoring and Logging
-
-- Application Monitoring
-    - Use tools like Prometheus and Grafana to monitor application performance.
-- Error Tracking
-    - Implement Sentry or similar for error logging.
-- Health Checks
-    - Set up endpoint and infrastructure health checks.
-
-## Existing Issues
-
-- Address the CRITICAL issues listed in ISSUES.md
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Develop the appointment booking interface.
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Non-Functional Requirements (can be implemented in the future, not important)
-
-- Scalability
-
-  - Ensure the system can handle increased load and scale appropriately.
-
-- Performance
-
-  - Optimize the system for fast load times and responsive interactions.
-
-- Security
-
-  - Implement robust authentication and authorization mechanisms.
-  - Protect user data and ensure compliance with data protection regulations.
-
-- Reliability
-
-  - Ensure high availability and fault tolerance.
-
-## Deployment Plan
-
-- Development Environment
-
-  - Set up local development environments with hot-reloading for rapid development.
-
-- Testing/Staging Environment
-
-  - Mirror production environment for testing features before release.
-
-- Production Environment
-
-  - Set up live environment with robust monitoring and backup strategies.
-
-- CI/CD Pipeline
-
-  - Automate code building, testing, and deployment using CI/CD tools.
-
-- Monitoring and Logging
-  - Implement application monitoring, error tracking, and health checks.
-````
-
-## File: .roo/rules-architect/AGENTS.md
-````markdown
-# Project Architecture Rules (Non-Obvious Only)
-
-## Multi-Tenant Design
-- Shop isolation via `x-shop-code` header validation (ShopCodeGuard)
-- Request object extended with shop property via custom RequestWithShop interface
-- Shop-based access control rather than URL-based multi-tenancy
-
-## Authentication Architecture
-- JWT strategy returns plain objects to prevent circular serialization issues
-- Role-based access: admin/employee for admin panel, user role blocked
-- Session expiration handled via axios interceptors, not middleware
-
-## Database Architecture Constraints
-- Seeding has circular dependencies - strict execution order required
-- TypeORM migrations explicitly listed (not auto-discovered) in typeorm.config.ts
-- All environments use SSL with rejectUnauthorized: false for compatibility
-
-## Frontend Architecture
-- Admin frontend: Vue 3 + Pinia + Tailwind with role-based access
-- Customer frontend: Vue 3 + Pinia for booking display
-- Both frontends consume same backend API with different authentication flows
-
-## Error Handling Strategy
-- Localized Norwegian error messages in admin frontend
-- Backend includes extensive debug logging in JWT strategy (production-ready)
-- HTTP status precedence: client errors use localized messages, server errors prefer backend messages
-
-## Testing Architecture
-- Jest configured with rootDir as 'src' affects all path resolution
-- Tests co-located with source files for better maintainability
-- Coverage enforced at 80% threshold across all metrics
-
-## Deployment Constraints
-- Docker Compose includes PostgreSQL + Redis + backend + frontend services
-- Global API prefix '/api' affects all frontend API calls
-- Environment-specific database logging and SSL configurations
-````
-
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.0.1",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/mapped-types": "^2.0.6",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "6.4.3",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.2",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22.10.0",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^9.15.0",
-    "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "jest": "^30.0.0",
-    "prettier": "^3.4.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.2"
-  }
-}
-````
-
 ## File: README.md
 ````markdown
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
@@ -21695,6 +21414,287 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Architecture Documentation
 
 For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
+## File: renovate.json
+````json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ]
+}
+````
+
+## File: TODO.md
+````markdown
+# TODO
+
+## General
+
+-   Thorough security review
+-   Scalability assessment
+-   Comprehensive testing implementation
+-   Automated deployment with CI/CD pipeline
+-   Application monitoring and logging
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Security Enhancements
+
+- Authentication and Authorization
+    - Implement bcrypt for password hashing.
+    - Implement JWT refresh tokens for secure API access.
+    - Implement role-based access control (RBAC) to restrict resources based on user roles.
+- Input Validation
+    - Use class-validator to sanitize and validate all user inputs.
+    - Prevent SQL injection and XSS attacks.
+- Data Protection
+    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
+- Rate Limiting
+    - Implement rate limiting to protect against brute-force attacks.
+- Audit Logging
+    - Maintain logs of critical actions for auditing purposes.
+
+## Scalability Improvements
+
+- Stateless Backend
+    - Design the backend to be stateless to facilitate horizontal scaling.
+- Load Balancing
+    - Use a load balancer to distribute traffic across multiple server instances.
+- Caching
+    - Implement caching for frequent read operations using Redis.
+- Database Optimization
+    - Use indexing and query optimization techniques.
+    - Consider read replicas for PostgreSQL.
+- Asynchronous Processing
+    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
+
+## Testing Improvements
+
+- Unit Tests
+    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
+- Integration Tests
+    - Implement integration tests for API endpoints and database operations.
+- End-to-End Tests
+    - Create end-to-end tests for critical user flows using Cypress.
+
+## Deployment Automation
+
+- CI/CD Pipeline
+    - Set up a CI/CD pipeline using GitHub Actions or similar.
+    - Automate building, testing, and deployment processes.
+- Infrastructure as Code (IaC)
+    - Use Terraform or similar to manage infrastructure.
+
+## Monitoring and Logging
+
+- Application Monitoring
+    - Use tools like Prometheus and Grafana to monitor application performance.
+- Error Tracking
+    - Implement Sentry or similar for error logging.
+- Health Checks
+    - Set up endpoint and infrastructure health checks.
+
+## Existing Issues
+
+- Address the CRITICAL issues listed in ISSUES.md
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Develop the appointment booking interface.
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Non-Functional Requirements (can be implemented in the future, not important)
+
+- Scalability
+
+  - Ensure the system can handle increased load and scale appropriately.
+
+- Performance
+
+  - Optimize the system for fast load times and responsive interactions.
+
+- Security
+
+  - Implement robust authentication and authorization mechanisms.
+  - Protect user data and ensure compliance with data protection regulations.
+
+- Reliability
+
+  - Ensure high availability and fault tolerance.
+
+## Deployment Plan
+
+- Development Environment
+
+  - Set up local development environments with hot-reloading for rapid development.
+
+- Testing/Staging Environment
+
+  - Mirror production environment for testing features before release.
+
+- Production Environment
+
+  - Set up live environment with robust monitoring and backup strategies.
+
+- CI/CD Pipeline
+
+  - Automate code building, testing, and deployment using CI/CD tools.
+
+- Monitoring and Logging
+  - Implement application monitoring, error tracking, and health checks.
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "6.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.1",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.2"
+  }
+}
 ````
 
 ## File: frontend/admin/package.json
