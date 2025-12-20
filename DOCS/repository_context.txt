@@ -21650,55 +21650,6 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^2.9.41",
-    "autoprefixer": "^10.4.20",
-    "axios": "^1.12.2",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.3",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.21",
-    "vue-router": "^4.5.1"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.12.0",
-    "@tsconfig/node20": "^20.1.6",
-    "@types/jsdom": "^27.0.0",
-    "@types/node": "^24.5.2",
-    "@vitejs/plugin-vue": "^5.2.0",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.1",
-    "eslint": "^9.15.0",
-    "eslint-plugin-vue": "^10.0.0",
-    "jsdom": "^27.0.0",
-    "prettier": "^3.3.3",
-    "typescript": "~5.9.0",
-    "vite": "^7.0.0",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^3.0.0"
-  }
-}
-````
-
 ## File: docker-compose.yml
 ````yaml
 version: '3.8'
@@ -21750,6 +21701,55 @@ services:
       - "6379:6379"
 volumes:
   postgres_data:
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^2.9.41",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.12.2",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.21",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.12.0",
+    "@tsconfig/node22": "^22.0.0",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^24.5.2",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
+    "eslint": "^9.15.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "jsdom": "^27.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^3.0.0"
+  }
+}
 ````
 
 ## File: frontend/customer/package.json
