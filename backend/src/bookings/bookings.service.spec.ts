@@ -400,8 +400,8 @@ describe("BookingsService", () => {
             phoneNumber: "0987654321",
             createdAt: new Date(),
             updatedAt: new Date(),
-            hashPassword: async () => {},
-            validatePassword: async () => true,
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
           } as User,
           service: {
             id: "service2",
