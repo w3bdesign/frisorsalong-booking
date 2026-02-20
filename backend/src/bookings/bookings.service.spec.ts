@@ -373,8 +373,8 @@ describe("BookingsService", () => {
             phoneNumber: "1234567890",
             createdAt: new Date(),
             updatedAt: new Date(),
-            hashPassword: async () => Promise.resolve(),
-            validatePassword: async () => Promise.resolve(true),
+            hashPassword: async () => {},
+            validatePassword: async () => true,
           } as User,
           service: {
             id: "service1",
@@ -400,8 +400,8 @@ describe("BookingsService", () => {
             phoneNumber: "0987654321",
             createdAt: new Date(),
             updatedAt: new Date(),
-            hashPassword: async () => Promise.resolve(),
-            validatePassword: async () => Promise.resolve(true),
+            hashPassword: async () => {},
+            validatePassword: async () => true,
           } as User,
           service: {
             id: "service2",
