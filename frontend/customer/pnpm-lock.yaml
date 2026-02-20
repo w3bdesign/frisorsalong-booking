@@ -34,8 +34,8 @@ importers:
         specifier: ^22.9.2
         version: 22.19.11
       '@vitejs/plugin-vue':
-        specifier: ^5.1.4
-        version: 5.2.4(vite@7.2.6(@types/node@22.19.11)(jiti@1.21.7)(yaml@2.6.1))(vue@3.5.22(typescript@5.9.3))
+        specifier: ^6.0.0
+        version: 6.0.4(vite@7.2.6(@types/node@22.19.11)(jiti@1.21.7)(yaml@2.6.1))(vue@3.5.22(typescript@5.9.3))
       '@vitest/coverage-v8':
         specifier: 3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.11)(jiti@1.21.7)(jsdom@27.0.1(postcss@8.5.6))(yaml@2.6.1))
@@ -628,6 +628,9 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
+  '@rolldown/pluginutils@1.0.0-rc.2':
+    resolution: {integrity: sha512-izyXV/v+cHiRfozX62W9htOAvwMo4/bXKDrQ+vom1L1qRuexPock/7VZDAhnpHCLNejd3NJ6hiab+tO0D44Rgw==}
+
   '@rollup/rollup-android-arm-eabi@4.53.3':
     resolution: {integrity: sha512-mRSi+4cBjrRLoaal2PnqH82Wqyb+d3HsPUN/W+WslCXsZsyHa9ZeQQX/pQsZaVIWDkPcpV6jJ+3KLbTbgnwv8w==}
     cpu: [arm]
@@ -888,11 +891,11 @@ packages:
     resolution: {integrity: sha512-ptkmIf2iDkNUjdeu2bQqhFPV1m6qTnFFjg7PPDjxKWaMaP0Z6I9l30Jr3g5QqbZGdw8YdYvLp+XnqnWWZOg/NA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@vitejs/plugin-vue@5.2.4':
-    resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
-    engines: {node: ^18.0.0 || >=20.0.0}
+  '@vitejs/plugin-vue@6.0.4':
+    resolution: {integrity: sha512-uM5iXipgYIn13UUQCZNdWkYk+sysBeA97d5mHsAoAt1u/wpN3+zxOmsVJWosuzX+IMGRzeYUNytztrYznboIkQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      vite: ^5.0.0 || ^6.0.0
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
       vue: ^3.2.25
 
   '@vitest/coverage-v8@3.2.4':
@@ -3646,6 +3649,8 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
+  '@rolldown/pluginutils@1.0.0-rc.2': {}
+
   '@rollup/rollup-android-arm-eabi@4.53.3':
     optional: true
 
@@ -3895,8 +3900,9 @@ snapshots:
       '@typescript-eslint/types': 8.46.1
       eslint-visitor-keys: 4.2.1
 
-  '@vitejs/plugin-vue@5.2.4(vite@7.2.6(@types/node@22.19.11)(jiti@1.21.7)(yaml@2.6.1))(vue@3.5.22(typescript@5.9.3))':
+  '@vitejs/plugin-vue@6.0.4(vite@7.2.6(@types/node@22.19.11)(jiti@1.21.7)(yaml@2.6.1))(vue@3.5.22(typescript@5.9.3))':
     dependencies:
+      '@rolldown/pluginutils': 1.0.0-rc.2
       vite: 7.2.6(@types/node@22.19.11)(jiti@1.21.7)(yaml@2.6.1)
       vue: 3.5.22(typescript@5.9.3)
 
