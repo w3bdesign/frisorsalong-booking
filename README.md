@@ -284,6 +284,7 @@ This project includes AI assistant guidance files to help code assistants be imm
 - [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
 
 These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+
 - Critical command execution order (database seeding dependencies)
 - Authentication patterns and JWT token handling
 - Testing requirements and configuration specifics
