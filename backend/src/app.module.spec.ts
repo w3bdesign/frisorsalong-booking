@@ -55,7 +55,7 @@ jest.mock("@nestjs/typeorm", () => ({
 import { Test } from "@nestjs/testing";
 import { AppModule } from "./app.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { join } from "path";
+import { join } from "node:path";
 
 // Mock repositories
 const mockRepository = {
