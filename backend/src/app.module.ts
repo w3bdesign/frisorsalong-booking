@@ -10,7 +10,7 @@ import { EmployeesModule } from "./employees/employees.module";
 import { ServicesModule } from "./services/services.module";
 import { OrdersModule } from "./orders/orders.module";
 import { ShopsModule } from "./shops/shops.module";
-import { join } from "path";
+import { join } from "node:path";
 
 @Module({
   imports: [
