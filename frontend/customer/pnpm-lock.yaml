@@ -65,7 +65,7 @@ importers:
         version: 9.39.3(jiti@1.21.7)
       eslint-plugin-cypress:
         specifier: ^5.0.0
-        version: 5.2.1(eslint@9.39.3(jiti@1.21.7))
+        version: 5.3.0(eslint@9.39.3(jiti@1.21.7))
       eslint-plugin-vue:
         specifier: ^10.0.0
         version: 10.5.0(@typescript-eslint/parser@8.36.0(eslint@9.39.3(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.3(jiti@1.21.7))(vue-eslint-parser@10.2.0(eslint@9.39.3(jiti@1.21.7)))
@@ -1562,8 +1562,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-cypress@5.2.1:
-    resolution: {integrity: sha512-HTJLbcd7fwJ4agbHinZ4FUIl38bUTJT3BmH8zdgS2V32LETmPqCtWHi3xlgZ2vpX0aW6kQoHCVVqHm8NxZJ9sA==}
+  eslint-plugin-cypress@5.3.0:
+    resolution: {integrity: sha512-qjHF2Sdi3VkXSMnfQeUqsbYnessgc6T2dus/Q1U+e5102GpPy9eLd8MWW2Xp2SS9bMpPNLnSHwktMhCKr0dIBg==}
     peerDependencies:
       eslint: '>=9'
 
@@ -4682,7 +4682,7 @@ snapshots:
     dependencies:
       eslint: 9.39.3(jiti@1.21.7)
 
-  eslint-plugin-cypress@5.2.1(eslint@9.39.3(jiti@1.21.7)):
+  eslint-plugin-cypress@5.3.0(eslint@9.39.3(jiti@1.21.7)):
     dependencies:
       eslint: 9.39.3(jiti@1.21.7)
       globals: 16.5.0
