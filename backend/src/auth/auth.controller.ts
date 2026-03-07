@@ -1,14 +1,18 @@
-import { Controller, Post, Body } from "@nestjs/common";
+import { Controller, Post, Get, Body, UseGuards } from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBody,
+  ApiBearerAuth,
   getSchemaPath,
 } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse } from "./interfaces/auth.interface";
+import { AuthResponse, UserResponse } from "./interfaces/auth.interface";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { GetUser } from "./decorators/get-user.decorator";
+import { User } from "../users/entities/user.entity";
 
 @ApiTags("Authentication")
 @Controller("auth")
@@ -77,5 +81,23 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
     return this.authService.login(loginDto);
+  }
+
+  @Get("profile")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get current user profile" })
+  @ApiResponse({
+    status: 200,
+    description: "Returns the authenticated user's profile",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized - invalid or expired token",
+  })
+  getProfile(@GetUser() user: User): UserResponse {
+    // The JwtStrategy already validates the token and fetches user data.
+    // The user object attached to the request does not contain the password.
+    return user as UserResponse;
   }
 }
