@@ -1,9 +1,8 @@
 import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import { useAuthStore } from "./auth";
+import api from "../lib/api";
 import type { Order } from "../types";
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 interface OrdersState {
   orders: Order[];
@@ -64,17 +63,16 @@ export const useOrdersStore = defineStore("orders", {
         this.error = null;
 
         const authStore = useAuthStore();
-        let endpoint = `${API_URL}/orders`;
+        let endpoint = "/orders";
 
         // If user is an employee, use the employee-specific endpoint
         if (!authStore.isAdmin && authStore.user?.id) {
-          endpoint = `${API_URL}/orders/employee/${authStore.user.id}`;
+          endpoint = `/orders/employee/${authStore.user.id}`;
         }
 
-        const response = await axios.get<Order[]>(endpoint);
+        const response = await api.get<Order[]>(endpoint);
         this.orders = response.data;
       } catch (error) {
-        console.error("Error fetching orders:", error);
         if (error instanceof AxiosError && error.response?.status === 403) {
           this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
         } else {
