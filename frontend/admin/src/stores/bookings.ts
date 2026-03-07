@@ -1,8 +1,6 @@
 import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
-import { useAuthStore } from "./auth";
 import { useOrdersStore } from "./orders";
-import router from "../router";
+import api, { extractErrorMessage } from "../lib/api";
 import type { BookingView } from "../types";
 
 interface BookingsState {
@@ -35,101 +33,41 @@ export const useBookingStore = defineStore("bookings", {
     },
 
     async fetchDashboardStats(forceRefresh = false) {
-      // Return cached data if it's still fresh
       if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false; // Ensure loading is false when using cache
+        this.isLoading = false;
         return;
       }
 
       try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-
-        // Only set loading to true if we're actually fetching
         this.isLoading = true;
 
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-
-        const response = await axios.get<BookingView[]>(
-          `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
-        );
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
         
-        // Store the bookings directly
         this.bookings = response.data;
         this.lastFetched = Date.now();
         this.calculateMetrics();
-
-        console.log('Fetched bookings:', this.bookings);
       } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke hente bestillinger";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke hente bestillinger";
-        }
-        console.error("Error fetching bookings:", error);
+        this.error = extractErrorMessage(error, "Kunne ikke hente bestillinger");
       } finally {
         this.isLoading = false;
       }
     },
 
     async fetchUpcomingBookings(forceRefresh = false) {
-      // Return cached data if it's still fresh
       if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false; // Ensure loading is false when using cache
+        this.isLoading = false;
         return;
       }
 
       try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-
-        // Only set loading to true if we're actually fetching
         this.isLoading = true;
 
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-
-        const response = await axios.get<BookingView[]>(
-          `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
-        );
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
         
-        // Store the bookings directly
         this.bookings = response.data;
         this.lastFetched = Date.now();
-
-        console.log('Fetched upcoming bookings:', this.bookings);
       } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke hente kommende bestillinger";
-          }
-        } else {
-          this.error =
-            error instanceof Error
-              ? error.message
-              : "Kunne ikke hente kommende bestillinger";
-        }
-        console.error("Error fetching upcoming bookings:", error);
+        this.error = extractErrorMessage(error, "Kunne ikke hente kommende bestillinger");
       } finally {
         this.isLoading = false;
       }
@@ -137,20 +75,9 @@ export const useBookingStore = defineStore("bookings", {
 
     async completeBooking(id: number | string) {
       try {
-        const authStore = useAuthStore();
         const ordersStore = useOrdersStore();
-        
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
 
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-
-        console.log('Completing booking:', id);
-        const response = await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
-        console.log('Complete booking response:', response.data);
+        await api.put(`/bookings/${id}/complete`);
         
         // Force refresh both bookings and orders
         await Promise.all([
@@ -160,91 +87,33 @@ export const useBookingStore = defineStore("bookings", {
         
         return true;
       } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke fullføre bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke fullføre bestilling";
-        }
-        console.error("Error completing booking:", error);
+        this.error = extractErrorMessage(error, "Kunne ikke fullføre bestilling");
         return false;
       }
     },
 
     async cancelBooking(id: number | string) {
       try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
-
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-
-        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/cancel`);
+        await api.put(`/bookings/${id}/cancel`);
         
         // Force refresh the bookings list after cancellation
         await this.fetchDashboardStats(true);
         return true;
       } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke kansellere bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke kansellere bestilling";
-        }
-        console.error("Error canceling booking:", error);
+        this.error = extractErrorMessage(error, "Kunne ikke kansellere bestilling");
         return false;
       }
     },
 
     async updateBooking(id: number | string, data: Partial<BookingView>) {
       try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
-
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-
-        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}`, data);
+        await api.put(`/bookings/${id}`, data);
         
         // Force refresh the bookings list after update
         await this.fetchDashboardStats(true);
         return true;
       } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke oppdatere bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke oppdatere bestilling";
-        }
-        console.error("Error updating booking:", error);
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere bestilling");
         return false;
       }
     },

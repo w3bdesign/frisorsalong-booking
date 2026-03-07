@@ -118,7 +118,6 @@ const handleSubmit = async () => {
     serviceId: selectedService.value.id,
     firstName: firstName.value,
     phoneNumber: phoneNumber.value || undefined,
-    startTime: new Date().toISOString(),
   })
 
   // Navigate to payment page

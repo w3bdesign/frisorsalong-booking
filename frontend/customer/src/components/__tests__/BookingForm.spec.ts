@@ -48,11 +48,11 @@ describe('BookingForm', () => {
 
     // Setup default store mocks
     vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: mockService,
+      selectedService: ref(mockService),
     } as any)
 
     vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
+      isLoading: ref(false),
       error: ref(null),
       setPendingBooking: vi.fn(),
     } as any)
@@ -60,7 +60,7 @@ describe('BookingForm', () => {
 
   it('shows message when no service is selected', () => {
     vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: null,
+      selectedService: ref(null),
     } as any)
 
     const wrapper = mount(BookingForm)
@@ -84,7 +84,7 @@ describe('BookingForm', () => {
   it('handles form submission correctly', async () => {
     const mockSetPendingBooking = vi.fn()
     vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
+      isLoading: ref(false),
       error: ref(null),
       setPendingBooking: mockSetPendingBooking,
     } as any)
@@ -102,14 +102,13 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: '+4712345678',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })
 
   it('shows loading state during submission', async () => {
     vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: true,
+      isLoading: ref(true),
       error: ref(null),
       setPendingBooking: vi.fn(),
     } as any)
@@ -127,7 +126,7 @@ describe('BookingForm', () => {
   it('validates phone number format', async () => {
     const mockSetPendingBooking = vi.fn()
     vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
+      isLoading: ref(false),
       error: ref(null),
       setPendingBooking: mockSetPendingBooking,
     } as any)
@@ -146,7 +145,6 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: 'invalid',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
 
@@ -158,7 +156,6 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: '+4712345678',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })

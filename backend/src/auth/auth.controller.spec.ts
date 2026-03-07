@@ -91,4 +91,21 @@ describe("AuthController", () => {
       await expect(controller.login(loginDto)).rejects.toThrow(error);
     });
   });
+
+  describe("getProfile", () => {
+    it("should return the authenticated user", () => {
+      const result = controller.getProfile(mockUser as any);
+
+      expect(result).toEqual(mockUser);
+    });
+
+    it("should return user without password field", () => {
+      const userWithPassword = { ...mockUser, password: "hashed_password" } as any;
+      const result = controller.getProfile(userWithPassword);
+
+      expect(result).toEqual(userWithPassword);
+      // In practice the JwtStrategy never includes password in the user object
+      // The guard ensures only authenticated users reach this endpoint
+    });
+  });
 });

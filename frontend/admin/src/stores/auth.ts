@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
+import api from "../lib/api";
 
 interface AuthState {
   token: string | null;
@@ -31,26 +32,6 @@ interface ErrorResponse {
   message?: string | string[];
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Set up axios interceptor for error handling
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 403) {
-      error.message =
-        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Initialize axios headers if token exists
-const token = localStorage.getItem("admin_token");
-if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
     token: localStorage.getItem("admin_token"),
@@ -73,15 +54,8 @@ export const useAuthStore = defineStore("auth", {
         this.isLoading = true;
         this.error = null;
 
-        // Validate API_URL
-        if (!API_URL) {
-          throw new Error(
-            "Systemvariabler er ikke satt: Kontakt systemadministrator"
-          );
-        }
-
-        const response = await axios.post<AuthResponse>(
-          `${API_URL}/auth/login`,
+        const response = await api.post<AuthResponse>(
+          "/auth/login",
           credentials
         );
 
@@ -100,9 +74,6 @@ export const useAuthStore = defineStore("auth", {
 
         // Store token in localStorage
         localStorage.setItem("admin_token", token);
-
-        // Set default Authorization header for future requests
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
         return true;
       } catch (error) {
@@ -168,9 +139,6 @@ export const useAuthStore = defineStore("auth", {
       }
 
       if (error instanceof Error) {
-        if (error.message?.includes("Systemvariabler er ikke satt")) {
-          return error.message;
-        }
         return error.message;
       }
 
@@ -186,9 +154,6 @@ export const useAuthStore = defineStore("auth", {
 
       // Remove token from localStorage
       localStorage.removeItem("admin_token");
-
-      // Remove Authorization header
-      delete axios.defaults.headers.common["Authorization"];
     },
 
     async checkAuth(): Promise<boolean> {
@@ -198,17 +163,13 @@ export const useAuthStore = defineStore("auth", {
         return false;
       }
 
-      // Set the Authorization header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       this.token = token;
       this.isAuthenticated = true;
 
       // If we don't have user data yet, fetch the profile to restore it
       if (!this.user) {
         try {
-          const response = await axios.get<User>(
-            `${API_URL}/auth/profile`
-          );
+          const response = await api.get<User>("/auth/profile");
           this.user = response.data;
         } catch {
           // Token is invalid or expired — log out
