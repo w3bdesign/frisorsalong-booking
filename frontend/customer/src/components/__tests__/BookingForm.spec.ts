@@ -102,7 +102,6 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: '+4712345678',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })
@@ -146,7 +145,6 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: 'invalid',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
 
@@ -158,7 +156,6 @@ describe('BookingForm', () => {
       serviceId: mockService.id,
       firstName: 'Test Customer',
       phoneNumber: '+4712345678',
-      startTime: expect.any(String),
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
   })
