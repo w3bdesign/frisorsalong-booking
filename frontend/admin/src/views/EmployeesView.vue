@@ -366,10 +366,11 @@ const closeModal = () => {
 }
 
 const closePasswordModal = () => {
+  const message = isPasswordReset.value ? 'Passord tilbakestilt' : 'Ansatt opprettet'
   showPasswordModal.value = false
   temporaryPassword.value = ''
   isPasswordReset.value = false
-  showToastMessage(isPasswordReset.value ? 'Passord tilbakestilt' : 'Ansatt opprettet')
+  showToastMessage(message)
 }
 
 const handleSubmit = async () => {
