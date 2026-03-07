@@ -3885,16 +3885,6 @@ describe('Cache Config', () => {
 });
 ````
 
-## File: backend/src/config/cache.config.ts
-````typescript
-import { registerAs } from "@nestjs/config";
-export default registerAs("cache", () => ({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
-  ttl: parseInt(process.env.CACHE_TTL, 10) || 5 * 60, // 5 minutes
-}));
-````
-
 ## File: backend/src/config/database.config.spec.ts
 ````typescript
 import databaseConfig from './database.config';
@@ -12550,39 +12540,6 @@ const sizeClasses = {
 </script>
 ````
 
-## File: frontend/admin/src/components/base/Card.vue
-````vue
-<template>
-  <div class="bg-white rounded-lg shadow p-6">
-    <div class="flex items-center">
-      <div 
-        :class="[
-          'p-3 rounded-full',
-          `bg-${props.color}-100 text-${props.color}-600`
-        ]"
-      >
-        <slot name="icon"></slot>
-      </div>
-      <div class="ml-4">
-        <h3 class="text-lg font-medium text-gray-900">{{ props.title }}</h3>
-        <p 
-          class="mt-1 text-3xl font-semibold"
-          :class="`text-${props.color}-600`"
-        >
-          {{ props.value }}
-        </p>
-      </div>
-    </div>
-  </div>
-</template>
-<script setup lang="ts">
-import type { CardProps } from '@/types/components';
-const props = withDefaults(defineProps<CardProps>(), {
-  color: 'indigo'
-});
-</script>
-````
-
 ## File: frontend/admin/src/components/BookingDetailsModal.vue
 ````vue
 <template>
@@ -13254,190 +13211,6 @@ describe("Auth Store", () => {
       expect(store.error).toBeNull();
     });
   });
-});
-````
-
-## File: frontend/admin/src/stores/auth.ts
-````typescript
-import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-interface ErrorResponse {
-  message?: string | string[];
-}
-const API_URL = import.meta.env.VITE_API_URL;
-// Set up axios interceptor for error handling
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 403) {
-      error.message =
-        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
-    }
-    return Promise.reject(error);
-  }
-);
-// Initialize axios headers if token exists
-const token = localStorage.getItem("admin_token");
-if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
-    isLoading: false,
-  }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) =>
-      state.user?.role === "admin" || state.user?.role === "employee",
-  },
-  actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
-      try {
-        this.isLoading = true;
-        this.error = null;
-        // Validate API_URL
-        if (!API_URL) {
-          throw new Error(
-            "Systemvariabler er ikke satt: Kontakt systemadministrator"
-          );
-        }
-        const response = await axios.post<AuthResponse>(
-          `${API_URL}/auth/login`,
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error(
-            "Ingen tilgang: Krever ansatt- eller administratortilgang"
-          );
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        // Set default Authorization header for future requests
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return true;
-      } catch (error) {
-        console.error("Login error:", error);
-        this.error = this.resolveLoginError(error);
-        return false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    getHttpStatusErrorMessage(status: number): string {
-      switch (status) {
-        case 401:
-          return "Feil e-postadresse eller passord";
-        case 403:
-          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-        case 404:
-          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-        case 500:
-          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-        default:
-          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-    },
-    extractBackendMessage(message: string | string[]): string {
-      return Array.isArray(message) ? message.join(", ") : message;
-    },
-    handleAxiosError(error: AxiosError<ErrorResponse>): string {
-      // Handle specific HTTP status codes first
-      if (error.response?.status) {
-        const statusMessage = this.getHttpStatusErrorMessage(
-          error.response.status
-        );
-        if (error.response.status >= 400 && error.response.status < 500) {
-          return statusMessage; // Use localized message for client errors
-        }
-        // For server errors, try backend message first, then fallback to localized
-        if (error.response?.data?.message) {
-          return this.extractBackendMessage(error.response.data.message);
-        }
-        return statusMessage;
-      }
-      // No status code, try backend message
-      if (error.response?.data?.message) {
-        return this.extractBackendMessage(error.response.data.message);
-      }
-      // Handle network/connection errors
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    resolveLoginError(error: unknown): string {
-      if (error instanceof AxiosError) {
-        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
-      }
-      if (error instanceof Error) {
-        if (error.message?.includes("Systemvariabler er ikke satt")) {
-          return error.message;
-        }
-        return error.message;
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-      // Remove Authorization header
-      delete axios.defaults.headers.common["Authorization"];
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
-        return false;
-      }
-      // Set the Authorization header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      // If we have a token, consider the user authenticated
-      // The token will be validated on API requests
-      this.token = token;
-      this.isAuthenticated = true;
-      return true;
-    },
-    clearError() {
-      this.error = null;
-    },
-  },
 });
 ````
 
@@ -14747,397 +14520,6 @@ const closeModal = () => {
 onMounted(() => {
   bookingStore.fetchDashboardStats();
 });
-</script>
-````
-
-## File: frontend/admin/src/views/EmployeesView.vue
-````vue
-<template>
-  <div class="p-6 max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">Ansatte</h1>
-      <Button
-        @click="showAddModal = true"
-        variant="primary"
-      >
-        Legg til ansatt
-      </Button>
-    </div>
-    <!-- Toast Notification -->
-    <div 
-      v-if="showToast" 
-      class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50 flex items-center shadow-lg"
-    >
-      <div class="mr-2">✓</div>
-      <p>{{ toastMessage }}</p>
-    </div>
-    <!-- Loading and Error States -->
-    <div v-if="employeesStore.loading" class="text-center py-4">
-      Laster ansatte...
-    </div>
-    <div v-else-if="employeesStore.error" class="text-red-500 py-4">
-      {{ employeesStore.error }}
-    </div>
-    <!-- Employees Table -->
-    <div v-else class="bg-white rounded-lg shadow overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Navn</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-post</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spesialiseringer</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Handlinger</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="employee in employeesStore.employees" :key="employee.id">
-            <td class="px-6 py-4 whitespace-nowrap">
-              {{ employee.user.firstName }} {{ employee.user.lastName }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              {{ employee.user.email }}
-            </td>
-            <td class="px-6 py-4">
-              <span 
-                v-for="spec in employee.specializations" 
-                :key="spec"
-                class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2"
-              >
-                {{ spec }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span
-                :class="[
-                  'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                  employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                ]"
-              >
-                {{ employee.isActive ? 'Aktiv' : 'Inaktiv' }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-              <Button
-                @click="editEmployee(employee)"
-                variant="secondary"
-                size="sm"
-              >
-                Rediger
-              </Button>
-              <Button
-                @click="resetEmployeePassword(employee)"
-                variant="secondary"
-                size="sm"
-              >
-                Tilbakestill passord
-              </Button>
-              <Button
-                @click="confirmDelete(employee)"
-                variant="danger"
-                size="sm"
-              >
-                Slett
-              </Button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!-- Add/Edit Employee Modal -->
-    <div v-if="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div class="bg-white p-6 rounded-lg w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ showEditModal ? 'Rediger ansatt' : 'Legg til ny ansatt' }}
-        </h2>
-        <form @submit.prevent="handleSubmit">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Fornavn</label>
-              <input
-                v-model="employeeForm.firstName"
-                type="text"
-                required
-                :disabled="isSubmitting"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Etternavn</label>
-              <input
-                v-model="employeeForm.lastName"
-                type="text"
-                required
-                :disabled="isSubmitting"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">E-post</label>
-              <input
-                v-model="employeeForm.email"
-                type="email"
-                required
-                :disabled="isSubmitting"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Spesialiseringer</label>
-              <input
-                v-model="specializationsInput"
-                type="text"
-                :disabled="isSubmitting"
-                placeholder="Skriv inn spesialiseringer adskilt med komma"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Status</label>
-              <select
-                v-model="employeeForm.isActive"
-                :disabled="isSubmitting"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option :value="true">Aktiv</option>
-                <option :value="false">Inaktiv</option>
-              </select>
-            </div>
-          </div>
-          <div class="mt-6 flex justify-end space-x-3">
-            <Button
-              type="button"
-              @click="closeModal"
-              :disabled="isSubmitting"
-              variant="secondary"
-            >
-              Avbryt
-            </Button>
-            <Button
-              type="submit"
-              :disabled="isSubmitting"
-              :loading="isSubmitting"
-              variant="primary"
-            >
-              {{ showEditModal ? 'Oppdater' : 'Legg til' }}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div class="bg-white p-6 rounded-lg w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Bekreft sletting</h2>
-        <p>Er du sikker på at du vil slette denne ansatte?</p>
-        <div class="mt-6 flex justify-end space-x-3">
-          <Button
-            @click="showDeleteModal = false"
-            variant="secondary"
-          >
-            Avbryt
-          </Button>
-          <Button
-            @click="deleteSelectedEmployee"
-            variant="danger"
-          >
-            Slett
-          </Button>
-        </div>
-      </div>
-    </div>
-    <!-- Password Modal -->
-    <div v-if="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg w-full max-w-md">
-        <div class="flex items-center mb-4">
-          <div class="bg-green-100 rounded-full p-2 mr-3">
-            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-          <h2 class="text-xl font-bold">{{ isPasswordReset ? 'Nytt passord generert' : 'Ansatt opprettet' }}</h2>
-        </div>
-        <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
-          <p class="text-yellow-800 mb-2">
-            {{ isPasswordReset 
-              ? 'Dette er det nye midlertidige passordet for den ansatte.'
-              : 'Dette er det midlertidige passordet for den nye ansatte.' 
-            }}
-            Vennligst del dette med den ansatte på en sikker måte.
-            Passordet vil kun vises denne ene gangen.
-          </p>
-          <div class="relative">
-            <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center select-all">
-              {{ temporaryPassword }}
-            </div>
-            <Button
-              @click="copyPassword"
-              variant="secondary"
-              size="sm"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2"
-              title="Kopier passord"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-              </svg>
-            </Button>
-          </div>
-          <p v-if="showCopiedMessage" class="text-green-600 text-sm mt-2 text-center">
-            Passord kopiert!
-          </p>
-        </div>
-        <div class="mt-6 flex justify-end">
-          <Button
-            @click="closePasswordModal"
-            variant="primary"
-          >
-            OK
-          </Button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useEmployeesStore } from '../stores/employees'
-import type { Employee } from '../types'
-import Button from '../components/base/Button.vue'
-const employeesStore = useEmployeesStore()
-const showAddModal = ref(false)
-const showEditModal = ref(false)
-const showDeleteModal = ref(false)
-const showPasswordModal = ref(false)
-const showToast = ref(false)
-const toastMessage = ref('')
-const selectedEmployee = ref<Employee | null>(null)
-const specializationsInput = ref('')
-const temporaryPassword = ref('')
-const isSubmitting = ref(false)
-const isPasswordReset = ref(false)
-const showCopiedMessage = ref(false)
-const employeeForm = ref({
-  firstName: '',
-  lastName: '',
-  email: '',
-  isActive: true,
-  specializations: [] as string[]
-})
-onMounted(async () => {
-  await employeesStore.fetchEmployees()
-})
-const showToastMessage = (message: string) => {
-  toastMessage.value = message
-  showToast.value = true
-  setTimeout(() => {
-    showToast.value = false
-  }, 3000)
-}
-const editEmployee = (employee: Employee) => {
-  selectedEmployee.value = employee
-  employeeForm.value = {
-    firstName: employee.user.firstName,
-    lastName: employee.user.lastName,
-    email: employee.user.email,
-    isActive: employee.isActive,
-    specializations: [...employee.specializations]
-  }
-  specializationsInput.value = employee.specializations.join(', ')
-  showEditModal.value = true
-}
-const resetEmployeePassword = async (employee: Employee) => {
-  try {
-    const result = await employeesStore.resetPassword(employee.id)
-    temporaryPassword.value = result.temporaryPassword
-    isPasswordReset.value = true
-    showPasswordModal.value = true
-  } catch (error) {
-    if (error instanceof Error) {
-      showToastMessage(error.message)
-    } else {
-      showToastMessage('Kunne ikke tilbakestille passord')
-    }
-  }
-}
-const copyPassword = async () => {
-  try {
-    await navigator.clipboard.writeText(temporaryPassword.value)
-    showCopiedMessage.value = true
-    setTimeout(() => {
-      showCopiedMessage.value = false
-    }, 2000)
-  } catch (err) {
-    showToastMessage('Kunne ikke kopiere passord')
-  }
-}
-const confirmDelete = (employee: Employee) => {
-  selectedEmployee.value = employee
-  showDeleteModal.value = true
-}
-const deleteSelectedEmployee = async () => {
-  if (selectedEmployee.value) {
-    await employeesStore.deleteEmployee(selectedEmployee.value.id)
-    showDeleteModal.value = false
-    selectedEmployee.value = null
-    showToastMessage('Ansatt slettet')
-  }
-}
-const closeModal = () => {
-  if (!isSubmitting.value) {
-    showAddModal.value = false
-    showEditModal.value = false
-    selectedEmployee.value = null
-    employeeForm.value = {
-      firstName: '',
-      lastName: '',
-      email: '',
-      isActive: true,
-      specializations: []
-    }
-    specializationsInput.value = ''
-  }
-}
-const closePasswordModal = () => {
-  showPasswordModal.value = false
-  temporaryPassword.value = ''
-  isPasswordReset.value = false
-  showToastMessage(isPasswordReset.value ? 'Passord tilbakestilt' : 'Ansatt opprettet')
-}
-const handleSubmit = async () => {
-  if (isSubmitting.value) return;
-  isSubmitting.value = true
-  try {
-    const employeeData = {
-      ...employeeForm.value,
-      specializations: specializationsInput.value.split(',').map(s => s.trim()).filter(Boolean)
-    }
-    if (showEditModal.value && selectedEmployee.value) {
-      await employeesStore.updateEmployee(selectedEmployee.value.id, employeeData)
-      showEditModal.value = false
-      showToastMessage('Ansatt oppdatert')
-    } else {
-      const result = await employeesStore.createEmployee(employeeData)
-      if (result.temporaryPassword) {
-        temporaryPassword.value = result.temporaryPassword
-        isPasswordReset.value = false
-        showPasswordModal.value = true
-      }
-    }
-  } catch (error) {
-    console.error('Kunne ikke lagre ansatt:', error)
-    if (error instanceof Error) {
-      showToastMessage(error.message)
-    } else {
-      showToastMessage('Kunne ikke lagre ansatt')
-    }
-  } finally {
-    isSubmitting.value = false
-    if (!showEditModal.value) {
-      showAddModal.value = false
-    }
-  }
-}
 </script>
 ````
 
@@ -17762,268 +17144,6 @@ describe('WaitingTimeDisplay', () => {
 })
 ````
 
-## File: frontend/customer/src/components/BookingForm.vue
-````vue
-<template>
-  <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
-    <div v-if="!selectedService" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
-      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
-    </div>
-    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
-      <!-- Service Summary -->
-      <div class="card bg-gradient-to-br from-white to-gray-50">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
-        <div class="flex justify-between items-start">
-          <div>
-            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
-            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
-          </div>
-          <p class="text-xl font-bold text-gradient">
-            {{
-              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
-                parseFloat(selectedService.price),
-              )
-            }}
-          </p>
-        </div>
-      </div>
-      <!-- Queue Status -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
-              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
-            </div>
-            <div class="text-sm text-gray-500">
-              {{ displayStore.activeEmployees.length }} frisører på jobb
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Customer Info -->
-      <div class="card space-y-6">
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
-          <input
-            type="text"
-            v-model="firstName"
-            required
-            placeholder="Fornavn"
-            class="input text-lg"
-          />
-        </div>
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
-          <input
-            type="tel"
-            v-model="phoneNumber"
-            placeholder="+47 XXX XX XXX"
-            class="input text-lg"
-            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
-          />
-          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
-        </div>
-      </div>
-      <!-- Submit Button -->
-      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
-        <span v-if="isLoading">Behandler...</span>
-        <span v-else>Fortsett til betaling</span>
-      </button>
-    </form>
-  </div>
-</template>
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useServicesStore } from '../stores/services'
-import { useBookingStore } from '../stores/booking'
-import { useDisplayStore } from '../stores/display'
-const router = useRouter()
-const servicesStore = useServicesStore()
-const bookingStore = useBookingStore()
-const displayStore = useDisplayStore()
-const { selectedService } = servicesStore
-const { isLoading, error } = bookingStore
-// Form data
-const firstName = ref('')
-const phoneNumber = ref('')
-// Calculate wait time based on queue and selected service
-const calculateWaitTime = computed(() => {
-  if (!selectedService || !displayStore.waitingSlots.length) return 0
-  // Base wait time from current queue
-  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
-    return total + (slot.estimatedTime || 0)
-  }, 0)
-  // Add selected service duration
-  return queueWaitTime + selectedService.duration
-})
-const handleSubmit = async () => {
-  if (!selectedService || !firstName.value) return
-  // Set pending booking and navigate to payment
-  bookingStore.setPendingBooking({
-    serviceId: selectedService.id,
-    firstName: firstName.value,
-    phoneNumber: phoneNumber.value || undefined,
-    startTime: new Date().toISOString(),
-  })
-  // Navigate to payment page
-  router.push('/payment')
-}
-</script>
-````
-
-## File: frontend/customer/src/components/PaymentForm.vue
-````vue
-<template>
-  <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center py-6">Betaling</h2>
-    <div v-if="!pendingBooking" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">Ingen aktiv bestilling funnet</p>
-      <button @click="$router.push('/')" class="btn-secondary">Tilbake til tjenester</button>
-    </div>
-    <div v-else>
-      <!-- Payment Terminal Screen -->
-      <div v-if="!isPaid" class="card bg-gradient-to-br from-white to-gray-50 space-y-8">
-        <div class="text-center">
-          <div
-            class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-8 w-8 text-primary-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-              />
-            </svg>
-          </div>
-          <div class="text-5xl font-bold text-gradient mb-4">
-            {{
-              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
-                parseFloat(selectedService?.price || '0'),
-              )
-            }}
-          </div>
-          <p class="text-gray-600">Klar for betaling</p>
-        </div>
-        <div class="pt-4">
-          <button
-            @click="handlePayment"
-            :disabled="isLoading || isProcessing"
-            class="w-full btn-primary text-lg py-6"
-          >
-            <span v-if="isLoading || isProcessing" class="flex items-center justify-center">
-              <svg
-                class="animate-spin h-5 w-5 mr-3"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              Behandler...
-            </span>
-            <span v-else>Trykk for å betale</span>
-          </button>
-        </div>
-        <p class="text-center text-sm text-gray-500">
-          Trykk på knappen for å simulere kortbetaling
-        </p>
-      </div>
-      <!-- Success Screen -->
-      <div v-else class="card bg-gradient-to-br from-white to-gray-50 space-y-8 text-center">
-        <div class="text-green-500">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-20 w-20 mx-auto"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Betaling vellykket!</h3>
-          <p class="text-gray-600">Din bestilling er bekreftet</p>
-          <p class="text-xl font-medium text-primary-600 mt-2">
-            {{ pendingBooking.firstName }}
-          </p>
-        </div>
-        <div class="pt-4">
-          <button @click="$router.push('/')" class="btn-secondary">Tilbake til forsiden</button>
-        </div>
-      </div>
-      <div
-        v-if="error"
-        class="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-center"
-      >
-        {{ error }}
-      </div>
-    </div>
-  </div>
-</template>
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useBookingStore } from '../stores/booking'
-import { useServicesStore } from '../stores/services'
-const router = useRouter()
-const bookingStore = useBookingStore()
-const servicesStore = useServicesStore()
-const { pendingBooking, isLoading, error } = bookingStore
-const { selectedService } = servicesStore
-const isPaid = ref(false)
-const isProcessing = ref(false)
-// Simulate payment processing and create booking
-const handlePayment = async () => {
-  if (!pendingBooking || isProcessing.value) return
-  try {
-    isProcessing.value = true
-    // Simulate payment processing delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    // Create booking with payment confirmation
-    await bookingStore.createWalkInBooking({
-      ...pendingBooking,
-      isPaid: true,
-    })
-    isPaid.value = true
-  } catch (err) {
-    console.error('Payment failed:', err)
-  } finally {
-    isProcessing.value = false
-  }
-}
-</script>
-````
-
 ## File: frontend/customer/src/components/ServiceList.vue
 ````vue
 <template>
@@ -18988,62 +18108,6 @@ export const useDisplayStore = defineStore('display', () => {
     startPolling,
     stopPolling,
     cleanup,
-  }
-})
-````
-
-## File: frontend/customer/src/stores/services.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-export interface Service {
-  id: string
-  name: string
-  description: string
-  duration: number
-  price: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-export const useServicesStore = defineStore('services', () => {
-  // Initialize state
-  const services = ref<Service[]>([])
-  const isLoading = ref(true)  // Initialize as true
-  const error = ref<string | null>(null)
-  const selectedService = ref<Service | null>(null)
-  const fetchServices = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/services')
-      if (!response.ok) {
-        throw new Error('Failed to fetch services')
-      }
-      services.value = await response.json()
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch services'
-      services.value = []
-    } finally {
-      isLoading.value = false
-    }
-  }
-  const selectService = (service: Service) => {
-    selectedService.value = service
-  }
-  const clearSelection = () => {
-    selectedService.value = null
-  }
-  // Schedule the initial fetch using setImmediate to match the test's timing
-  setImmediate(() => {
-    fetchServices()
-  })
-  return {
-    services,
-    isLoading,
-    error,
-    selectedService,
-    fetchServices,
-    selectService,
-    clearSelection,
   }
 })
 ````
@@ -21144,6 +20208,16 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: backend/src/config/cache.config.ts
+````typescript
+import { registerAs } from "@nestjs/config";
+export default registerAs("cache", () => ({
+  host: process.env.REDIS_HOST || "localhost",
+  port: Number.parseInt(process.env.REDIS_PORT, 10) || 6379,
+  ttl: Number.parseInt(process.env.CACHE_TTL, 10) || 5 * 60, // 5 minutes
+}));
+````
+
 ## File: backend/src/app.module.ts
 ````typescript
 import { Module } from "@nestjs/common";
@@ -21237,6 +20311,960 @@ module.exports = [
 ];
 ````
 
+## File: frontend/admin/src/components/base/Card.vue
+````vue
+<template>
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex items-center">
+      <div
+        :class="[
+          'p-3 rounded-full',
+          iconColorClasses[props.color]
+        ]"
+      >
+        <slot name="icon"></slot>
+      </div>
+      <div class="ml-4">
+        <h3 class="text-lg font-medium text-gray-900">{{ props.title }}</h3>
+        <p
+          class="mt-1 text-3xl font-semibold"
+          :class="valueColorClasses[props.color]"
+        >
+          {{ props.value }}
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import type { CardProps, CardColor } from '@/types/components';
+const props = withDefaults(defineProps<CardProps>(), {
+  color: 'indigo'
+});
+const iconColorClasses: Record<CardColor, string> = {
+  indigo: 'bg-indigo-100 text-indigo-600',
+  green: 'bg-green-100 text-green-600',
+  blue: 'bg-blue-100 text-blue-600',
+  red: 'bg-red-100 text-red-600',
+  yellow: 'bg-yellow-100 text-yellow-600',
+};
+const valueColorClasses: Record<CardColor, string> = {
+  indigo: 'text-indigo-600',
+  green: 'text-green-600',
+  blue: 'text-blue-600',
+  red: 'text-red-600',
+  yellow: 'text-yellow-600',
+};
+</script>
+````
+
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import axios, { AxiosError } from "axios";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
+}
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+interface ErrorResponse {
+  message?: string | string[];
+}
+const API_URL = import.meta.env.VITE_API_URL;
+// Set up axios interceptor for error handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403) {
+      error.message =
+        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
+// Initialize axios headers if token exists
+const token = localStorage.getItem("admin_token");
+if (token) {
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        // Validate API_URL
+        if (!API_URL) {
+          throw new Error(
+            "Systemvariabler er ikke satt: Kontakt systemadministrator"
+          );
+        }
+        const response = await axios.post<AuthResponse>(
+          `${API_URL}/auth/login`,
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        // Set default Authorization header for future requests
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        return true;
+      } catch (error) {
+        console.error("Login error:", error);
+        this.error = this.resolveLoginError(error);
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    getHttpStatusErrorMessage(status: number): string {
+      switch (status) {
+        case 401:
+          return "Feil e-postadresse eller passord";
+        case 403:
+          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+        case 404:
+          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+        case 500:
+          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+        default:
+          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+    },
+    extractBackendMessage(message: string | string[]): string {
+      return Array.isArray(message) ? message.join(", ") : message;
+    },
+    handleAxiosError(error: AxiosError<ErrorResponse>): string {
+      // Handle specific HTTP status codes first
+      if (error.response?.status) {
+        const statusMessage = this.getHttpStatusErrorMessage(
+          error.response.status
+        );
+        if (error.response.status >= 400 && error.response.status < 500) {
+          return statusMessage; // Use localized message for client errors
+        }
+        // For server errors, try backend message first, then fallback to localized
+        if (error.response?.data?.message) {
+          return this.extractBackendMessage(error.response.data.message);
+        }
+        return statusMessage;
+      }
+      // No status code, try backend message
+      if (error.response?.data?.message) {
+        return this.extractBackendMessage(error.response.data.message);
+      }
+      // Handle network/connection errors
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    resolveLoginError(error: unknown): string {
+      if (error instanceof AxiosError) {
+        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
+      }
+      if (error instanceof Error) {
+        if (error.message?.includes("Systemvariabler er ikke satt")) {
+          return error.message;
+        }
+        return error.message;
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+      // Remove Authorization header
+      delete axios.defaults.headers.common["Authorization"];
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      // Set the Authorization header
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      this.token = token;
+      this.isAuthenticated = true;
+      // If we don't have user data yet, fetch the profile to restore it
+      if (!this.user) {
+        try {
+          const response = await axios.get<User>(
+            `${API_URL}/auth/profile`
+          );
+          this.user = response.data;
+        } catch {
+          // Token is invalid or expired — log out
+          this.logout();
+          return false;
+        }
+      }
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
+});
+````
+
+## File: frontend/admin/src/views/EmployeesView.vue
+````vue
+<template>
+  <div class="p-6 max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Ansatte</h1>
+      <Button
+        @click="showAddModal = true"
+        variant="primary"
+      >
+        Legg til ansatt
+      </Button>
+    </div>
+    <!-- Toast Notification -->
+    <div 
+      v-if="showToast" 
+      class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50 flex items-center shadow-lg"
+    >
+      <div class="mr-2">✓</div>
+      <p>{{ toastMessage }}</p>
+    </div>
+    <!-- Loading and Error States -->
+    <div v-if="employeesStore.loading" class="text-center py-4">
+      Laster ansatte...
+    </div>
+    <div v-else-if="employeesStore.error" class="text-red-500 py-4">
+      {{ employeesStore.error }}
+    </div>
+    <!-- Employees Table -->
+    <div v-else class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Navn</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-post</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spesialiseringer</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Handlinger</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr v-for="employee in employeesStore.employees" :key="employee.id">
+            <td class="px-6 py-4 whitespace-nowrap">
+              {{ employee.user.firstName }} {{ employee.user.lastName }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              {{ employee.user.email }}
+            </td>
+            <td class="px-6 py-4">
+              <span 
+                v-for="spec in employee.specializations" 
+                :key="spec"
+                class="inline-block bg-gray-100 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2"
+              >
+                {{ spec }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span
+                :class="[
+                  'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
+                  employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                ]"
+              >
+                {{ employee.isActive ? 'Aktiv' : 'Inaktiv' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+              <Button
+                @click="editEmployee(employee)"
+                variant="secondary"
+                size="sm"
+              >
+                Rediger
+              </Button>
+              <Button
+                @click="resetEmployeePassword(employee)"
+                variant="secondary"
+                size="sm"
+              >
+                Tilbakestill passord
+              </Button>
+              <Button
+                @click="confirmDelete(employee)"
+                variant="danger"
+                size="sm"
+              >
+                Slett
+              </Button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Add/Edit Employee Modal -->
+    <div v-if="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">
+          {{ showEditModal ? 'Rediger ansatt' : 'Legg til ny ansatt' }}
+        </h2>
+        <form @submit.prevent="handleSubmit">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Fornavn</label>
+              <input
+                v-model="employeeForm.firstName"
+                type="text"
+                required
+                :disabled="isSubmitting"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Etternavn</label>
+              <input
+                v-model="employeeForm.lastName"
+                type="text"
+                required
+                :disabled="isSubmitting"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">E-post</label>
+              <input
+                v-model="employeeForm.email"
+                type="email"
+                required
+                :disabled="isSubmitting"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Spesialiseringer</label>
+              <input
+                v-model="specializationsInput"
+                type="text"
+                :disabled="isSubmitting"
+                placeholder="Skriv inn spesialiseringer adskilt med komma"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Status</label>
+              <select
+                v-model="employeeForm.isActive"
+                :disabled="isSubmitting"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option :value="true">Aktiv</option>
+                <option :value="false">Inaktiv</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end space-x-3">
+            <Button
+              type="button"
+              @click="closeModal"
+              :disabled="isSubmitting"
+              variant="secondary"
+            >
+              Avbryt
+            </Button>
+            <Button
+              type="submit"
+              :disabled="isSubmitting"
+              :loading="isSubmitting"
+              variant="primary"
+            >
+              {{ showEditModal ? 'Oppdater' : 'Legg til' }}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Bekreft sletting</h2>
+        <p>Er du sikker på at du vil slette denne ansatte?</p>
+        <div class="mt-6 flex justify-end space-x-3">
+          <Button
+            @click="showDeleteModal = false"
+            variant="secondary"
+          >
+            Avbryt
+          </Button>
+          <Button
+            @click="deleteSelectedEmployee"
+            variant="danger"
+          >
+            Slett
+          </Button>
+        </div>
+      </div>
+    </div>
+    <!-- Password Modal -->
+    <div v-if="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <div class="flex items-center mb-4">
+          <div class="bg-green-100 rounded-full p-2 mr-3">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold">{{ isPasswordReset ? 'Nytt passord generert' : 'Ansatt opprettet' }}</h2>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
+          <p class="text-yellow-800 mb-2">
+            {{ isPasswordReset 
+              ? 'Dette er det nye midlertidige passordet for den ansatte.'
+              : 'Dette er det midlertidige passordet for den nye ansatte.' 
+            }}
+            Vennligst del dette med den ansatte på en sikker måte.
+            Passordet vil kun vises denne ene gangen.
+          </p>
+          <div class="relative">
+            <div class="bg-white p-3 rounded border border-yellow-300 font-mono text-lg text-center select-all">
+              {{ temporaryPassword }}
+            </div>
+            <Button
+              @click="copyPassword"
+              variant="secondary"
+              size="sm"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2"
+              title="Kopier passord"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+              </svg>
+            </Button>
+          </div>
+          <p v-if="showCopiedMessage" class="text-green-600 text-sm mt-2 text-center">
+            Passord kopiert!
+          </p>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <Button
+            @click="closePasswordModal"
+            variant="primary"
+          >
+            OK
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useEmployeesStore } from '../stores/employees'
+import type { Employee } from '../types'
+import Button from '../components/base/Button.vue'
+const employeesStore = useEmployeesStore()
+const showAddModal = ref(false)
+const showEditModal = ref(false)
+const showDeleteModal = ref(false)
+const showPasswordModal = ref(false)
+const showToast = ref(false)
+const toastMessage = ref('')
+const selectedEmployee = ref<Employee | null>(null)
+const specializationsInput = ref('')
+const temporaryPassword = ref('')
+const isSubmitting = ref(false)
+const isPasswordReset = ref(false)
+const showCopiedMessage = ref(false)
+const employeeForm = ref({
+  firstName: '',
+  lastName: '',
+  email: '',
+  isActive: true,
+  specializations: [] as string[]
+})
+onMounted(async () => {
+  await employeesStore.fetchEmployees()
+})
+const showToastMessage = (message: string) => {
+  toastMessage.value = message
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
+const editEmployee = (employee: Employee) => {
+  selectedEmployee.value = employee
+  employeeForm.value = {
+    firstName: employee.user.firstName,
+    lastName: employee.user.lastName,
+    email: employee.user.email,
+    isActive: employee.isActive,
+    specializations: [...employee.specializations]
+  }
+  specializationsInput.value = employee.specializations.join(', ')
+  showEditModal.value = true
+}
+const resetEmployeePassword = async (employee: Employee) => {
+  try {
+    const result = await employeesStore.resetPassword(employee.id)
+    temporaryPassword.value = result.temporaryPassword
+    isPasswordReset.value = true
+    showPasswordModal.value = true
+  } catch (error) {
+    if (error instanceof Error) {
+      showToastMessage(error.message)
+    } else {
+      showToastMessage('Kunne ikke tilbakestille passord')
+    }
+  }
+}
+const copyPassword = async () => {
+  try {
+    await navigator.clipboard.writeText(temporaryPassword.value)
+    showCopiedMessage.value = true
+    setTimeout(() => {
+      showCopiedMessage.value = false
+    }, 2000)
+  } catch (err) {
+    showToastMessage('Kunne ikke kopiere passord')
+  }
+}
+const confirmDelete = (employee: Employee) => {
+  selectedEmployee.value = employee
+  showDeleteModal.value = true
+}
+const deleteSelectedEmployee = async () => {
+  if (selectedEmployee.value) {
+    await employeesStore.deleteEmployee(selectedEmployee.value.id)
+    showDeleteModal.value = false
+    selectedEmployee.value = null
+    showToastMessage('Ansatt slettet')
+  }
+}
+const closeModal = () => {
+  if (!isSubmitting.value) {
+    showAddModal.value = false
+    showEditModal.value = false
+    selectedEmployee.value = null
+    employeeForm.value = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      isActive: true,
+      specializations: []
+    }
+    specializationsInput.value = ''
+  }
+}
+const closePasswordModal = () => {
+  const message = isPasswordReset.value ? 'Passord tilbakestilt' : 'Ansatt opprettet'
+  showPasswordModal.value = false
+  temporaryPassword.value = ''
+  isPasswordReset.value = false
+  showToastMessage(message)
+}
+const handleSubmit = async () => {
+  if (isSubmitting.value) return;
+  isSubmitting.value = true
+  try {
+    const employeeData = {
+      ...employeeForm.value,
+      specializations: specializationsInput.value.split(',').map(s => s.trim()).filter(Boolean)
+    }
+    if (showEditModal.value && selectedEmployee.value) {
+      await employeesStore.updateEmployee(selectedEmployee.value.id, employeeData)
+      showEditModal.value = false
+      showToastMessage('Ansatt oppdatert')
+    } else {
+      const result = await employeesStore.createEmployee(employeeData)
+      if (result.temporaryPassword) {
+        temporaryPassword.value = result.temporaryPassword
+        isPasswordReset.value = false
+        showPasswordModal.value = true
+      }
+    }
+  } catch (error) {
+    console.error('Kunne ikke lagre ansatt:', error)
+    if (error instanceof Error) {
+      showToastMessage(error.message)
+    } else {
+      showToastMessage('Kunne ikke lagre ansatt')
+    }
+  } finally {
+    isSubmitting.value = false
+    if (!showEditModal.value) {
+      showAddModal.value = false
+    }
+  }
+}
+</script>
+````
+
+## File: frontend/customer/src/components/BookingForm.vue
+````vue
+<template>
+  <div class="max-w-lg mx-auto">
+    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
+    <div v-if="!selectedService" class="card text-center py-12">
+      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
+      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
+    </div>
+    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
+      <!-- Service Summary -->
+      <div class="card bg-gradient-to-br from-white to-gray-50">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
+            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
+          </div>
+          <p class="text-xl font-bold text-gradient">
+            {{
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService.price),
+              )
+            }}
+          </p>
+        </div>
+      </div>
+      <!-- Queue Status -->
+      <div class="card">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
+              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
+            </div>
+            <div class="text-sm text-gray-500">
+              {{ displayStore.activeEmployees.length }} frisører på jobb
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Customer Info -->
+      <div class="card space-y-6">
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
+          <input
+            type="text"
+            v-model="firstName"
+            required
+            placeholder="Fornavn"
+            class="input text-lg"
+          />
+        </div>
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
+          <input
+            type="tel"
+            v-model="phoneNumber"
+            placeholder="+47 XXX XX XXX"
+            class="input text-lg"
+            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
+          />
+          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+        </div>
+      </div>
+      <!-- Submit Button -->
+      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
+        <span v-if="isLoading">Behandler...</span>
+        <span v-else>Fortsett til betaling</span>
+      </button>
+    </form>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useServicesStore } from '../stores/services'
+import { useBookingStore } from '../stores/booking'
+import { useDisplayStore } from '../stores/display'
+const router = useRouter()
+const servicesStore = useServicesStore()
+const bookingStore = useBookingStore()
+const displayStore = useDisplayStore()
+const { selectedService } = storeToRefs(servicesStore)
+const { isLoading, error } = storeToRefs(bookingStore)
+// Form data
+const firstName = ref('')
+const phoneNumber = ref('')
+// Calculate wait time based on queue and selected service
+const calculateWaitTime = computed(() => {
+  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
+  // Base wait time from current queue
+  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
+    return total + (slot.estimatedTime || 0)
+  }, 0)
+  // Add selected service duration
+  return queueWaitTime + selectedService.value.duration
+})
+const handleSubmit = async () => {
+  if (!selectedService.value || !firstName.value) return
+  // Set pending booking and navigate to payment
+  bookingStore.setPendingBooking({
+    serviceId: selectedService.value.id,
+    firstName: firstName.value,
+    phoneNumber: phoneNumber.value || undefined,
+    startTime: new Date().toISOString(),
+  })
+  // Navigate to payment page
+  router.push('/payment')
+}
+</script>
+````
+
+## File: frontend/customer/src/components/PaymentForm.vue
+````vue
+<template>
+  <div class="max-w-lg mx-auto">
+    <h2 class="heading-1 text-gradient text-center py-6">Betaling</h2>
+    <div v-if="!pendingBooking" class="card text-center py-12">
+      <p class="text-gray-600 mb-6">Ingen aktiv bestilling funnet</p>
+      <button @click="$router.push('/')" class="btn-secondary">Tilbake til tjenester</button>
+    </div>
+    <div v-else>
+      <!-- Payment Terminal Screen -->
+      <div v-if="!isPaid" class="card bg-gradient-to-br from-white to-gray-50 space-y-8">
+        <div class="text-center">
+          <div
+            class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-8 w-8 text-primary-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+          </div>
+          <div class="text-5xl font-bold text-gradient mb-4">
+            {{
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService?.price || '0'),
+              )
+            }}
+          </div>
+          <p class="text-gray-600">Klar for betaling</p>
+        </div>
+        <div class="pt-4">
+          <button
+            @click="handlePayment"
+            :disabled="isLoading || isProcessing"
+            class="w-full btn-primary text-lg py-6"
+          >
+            <span v-if="isLoading || isProcessing" class="flex items-center justify-center">
+              <svg
+                class="animate-spin h-5 w-5 mr-3"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Behandler...
+            </span>
+            <span v-else>Trykk for å betale</span>
+          </button>
+        </div>
+        <p class="text-center text-sm text-gray-500">
+          Trykk på knappen for å simulere kortbetaling
+        </p>
+      </div>
+      <!-- Success Screen -->
+      <div v-else class="card bg-gradient-to-br from-white to-gray-50 space-y-8 text-center">
+        <div class="text-green-500">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-20 w-20 mx-auto"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-2">Betaling vellykket!</h3>
+          <p class="text-gray-600">Din bestilling er bekreftet</p>
+          <p class="text-xl font-medium text-primary-600 mt-2">
+            {{ pendingBooking.firstName }}
+          </p>
+        </div>
+        <div class="pt-4">
+          <button @click="$router.push('/')" class="btn-secondary">Tilbake til forsiden</button>
+        </div>
+      </div>
+      <div
+        v-if="error"
+        class="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-center"
+      >
+        {{ error }}
+      </div>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useBookingStore } from '../stores/booking'
+import { useServicesStore } from '../stores/services'
+const router = useRouter()
+const bookingStore = useBookingStore()
+const servicesStore = useServicesStore()
+const { pendingBooking, isLoading, error } = storeToRefs(bookingStore)
+const { selectedService } = storeToRefs(servicesStore)
+const isPaid = ref(false)
+const isProcessing = ref(false)
+// Simulate payment processing and create booking
+const handlePayment = async () => {
+  if (!pendingBooking.value || isProcessing.value) return
+  try {
+    isProcessing.value = true
+    // Simulate payment processing delay
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    // Create booking with payment confirmation
+    await bookingStore.createWalkInBooking({
+      ...pendingBooking.value,
+      isPaid: true,
+    })
+    isPaid.value = true
+  } catch (err) {
+    console.error('Payment failed:', err)
+  } finally {
+    isProcessing.value = false
+  }
+}
+</script>
+````
+
+## File: frontend/customer/src/stores/services.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+export interface Service {
+  id: string
+  name: string
+  description: string
+  duration: number
+  price: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+export const useServicesStore = defineStore('services', () => {
+  // Initialize state
+  const services = ref<Service[]>([])
+  const isLoading = ref(true)  // Initialize as true
+  const error = ref<string | null>(null)
+  const selectedService = ref<Service | null>(null)
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/services')
+      if (!response.ok) {
+        throw new Error('Failed to fetch services')
+      }
+      services.value = await response.json()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch services'
+      services.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+  const selectService = (service: Service) => {
+    selectedService.value = service
+  }
+  const clearSelection = () => {
+    selectedService.value = null
+  }
+  // Schedule the initial fetch on next microtask tick
+  queueMicrotask(() => {
+    fetchServices()
+  })
+  return {
+    services,
+    isLoading,
+    error,
+    selectedService,
+    fetchServices,
+    selectService,
+    clearSelection,
+  }
+})
+````
+
 ## File: frontend/admin/package.json
 ````json
 {
@@ -21274,7 +21302,7 @@ module.exports = [
     "@vue/eslint-config-typescript": "^14.1.3",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.1",
-    "eslint": "^9.15.0",
+    "eslint": "^10.0.0",
     "eslint-plugin-vue": "^10.0.0",
     "jsdom": "^27.0.0",
     "prettier": "^3.3.3",
@@ -21325,7 +21353,7 @@ module.exports = [
     "@vue/tsconfig": "^0.8.0",
     "autoprefixer": "^10.4.20",
     "cypress": "^15.0.0",
-    "eslint": "^9.14.0",
+    "eslint": "^10.0.0",
     "eslint-plugin-cypress": "^5.0.0",
     "eslint-plugin-vue": "^10.0.0",
     "jsdom": "^27.0.0",
@@ -21794,7 +21822,7 @@ describe("BookingsService", () => {
     "@types/supertest": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^9.15.0",
+    "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-prettier": "^5.2.1",
     "jest": "^30.0.0",
