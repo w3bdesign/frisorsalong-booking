@@ -42,8 +42,8 @@ export const useServicesStore = defineStore('services', () => {
     selectedService.value = null
   }
 
-  // Schedule the initial fetch using setImmediate to match the test's timing
-  setImmediate(() => {
+  // Schedule the initial fetch on next microtask tick
+  queueMicrotask(() => {
     fetchServices()
   })
 
