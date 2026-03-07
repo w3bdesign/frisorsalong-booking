@@ -200,11 +200,22 @@ export const useAuthStore = defineStore("auth", {
 
       // Set the Authorization header
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // If we have a token, consider the user authenticated
-      // The token will be validated on API requests
       this.token = token;
       this.isAuthenticated = true;
+
+      // If we don't have user data yet, fetch the profile to restore it
+      if (!this.user) {
+        try {
+          const response = await axios.get<User>(
+            `${API_URL}/auth/profile`
+          );
+          this.user = response.data;
+        } catch {
+          // Token is invalid or expired — log out
+          this.logout();
+          return false;
+        }
+      }
 
       return true;
     },
