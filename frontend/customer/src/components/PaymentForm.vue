@@ -123,6 +123,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useBookingStore } from '../stores/booking'
 import { useServicesStore } from '../stores/services'
@@ -131,15 +132,15 @@ const router = useRouter()
 const bookingStore = useBookingStore()
 const servicesStore = useServicesStore()
 
-const { pendingBooking, isLoading, error } = bookingStore
-const { selectedService } = servicesStore
+const { pendingBooking, isLoading, error } = storeToRefs(bookingStore)
+const { selectedService } = storeToRefs(servicesStore)
 
 const isPaid = ref(false)
 const isProcessing = ref(false)
 
 // Simulate payment processing and create booking
 const handlePayment = async () => {
-  if (!pendingBooking || isProcessing.value) return
+  if (!pendingBooking.value || isProcessing.value) return
 
   try {
     isProcessing.value = true
@@ -148,7 +149,7 @@ const handlePayment = async () => {
 
     // Create booking with payment confirmation
     await bookingStore.createWalkInBooking({
-      ...pendingBooking,
+      ...pendingBooking.value,
       isPaid: true,
     })
 
