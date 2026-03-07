@@ -79,6 +79,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useServicesStore } from '../stores/services'
 import { useBookingStore } from '../stores/booking'
@@ -89,8 +90,8 @@ const servicesStore = useServicesStore()
 const bookingStore = useBookingStore()
 const displayStore = useDisplayStore()
 
-const { selectedService } = servicesStore
-const { isLoading, error } = bookingStore
+const { selectedService } = storeToRefs(servicesStore)
+const { isLoading, error } = storeToRefs(bookingStore)
 
 // Form data
 const firstName = ref('')
@@ -98,7 +99,7 @@ const phoneNumber = ref('')
 
 // Calculate wait time based on queue and selected service
 const calculateWaitTime = computed(() => {
-  if (!selectedService || !displayStore.waitingSlots.length) return 0
+  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
 
   // Base wait time from current queue
   const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
@@ -106,15 +107,15 @@ const calculateWaitTime = computed(() => {
   }, 0)
 
   // Add selected service duration
-  return queueWaitTime + selectedService.duration
+  return queueWaitTime + selectedService.value.duration
 })
 
 const handleSubmit = async () => {
-  if (!selectedService || !firstName.value) return
+  if (!selectedService.value || !firstName.value) return
 
   // Set pending booking and navigate to payment
   bookingStore.setPendingBooking({
-    serviceId: selectedService.id,
+    serviceId: selectedService.value.id,
     firstName: firstName.value,
     phoneNumber: phoneNumber.value || undefined,
     startTime: new Date().toISOString(),
