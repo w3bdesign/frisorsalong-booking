@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import PaymentForm from '../PaymentForm.vue'
 import { useBookingStore } from '../../stores/booking'
@@ -41,16 +42,16 @@ describe('PaymentForm', () => {
     vi.clearAllMocks()
     mockRouter.push.mockClear()
 
-    // Setup default store mocks
+    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
     vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: null,
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(null),
       createWalkInBooking: vi.fn().mockResolvedValue({}),
     } as any)
 
     vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: mockService,
+      selectedService: ref(mockService),
     } as any)
 
     // Reset timers
@@ -76,9 +77,9 @@ describe('PaymentForm', () => {
 
   it('shows message when no booking is found', () => {
     vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: null,
-      isLoading: false,
-      error: null,
+      pendingBooking: ref(null),
+      isLoading: ref(false),
+      error: ref(null),
       createWalkInBooking: vi.fn(),
     } as any)
 
@@ -130,9 +131,9 @@ describe('PaymentForm', () => {
   it('displays error message when payment fails', async () => {
     const mockError = 'Payment failed'
     vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: mockError,
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(mockError),
       createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
     } as any)
 
@@ -162,7 +163,7 @@ describe('PaymentForm', () => {
 
   it('handles missing service price gracefully', () => {
     vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: null,
+      selectedService: ref(null),
     } as any)
 
     const wrapper = mountComponent()

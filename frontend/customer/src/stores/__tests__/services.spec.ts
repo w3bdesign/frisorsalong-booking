@@ -59,20 +59,30 @@ describe('Services Store', () => {
   });
 
   it('has correct empty initial state', async () => {
-    // Initial state should show loading
-    expect(store.isLoading).toBeTruthy();
-    expect(store.services).toEqual([]);
-    expect(store.error).toBeNull();
-    expect(store.selectedService).toBeNull();
+    // Stub queueMicrotask to prevent auto-fetch from running before assertions
+    const originalQueueMicrotask = globalThis.queueMicrotask;
+    globalThis.queueMicrotask = vi.fn();
 
-    // Wait for the initial fetch to complete
-    await waitForInitialFetch();
+    // Create a fresh store with auto-fetch suppressed
+    setActivePinia(createPinia());
+    mockFetchSuccess([]);
+    const freshStore = useServicesStore();
+
+    // Initial state should show loading (before auto-fetch)
+    expect(freshStore.isLoading).toBeTruthy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
+
+    // Restore queueMicrotask and manually run fetch
+    globalThis.queueMicrotask = originalQueueMicrotask;
+    await freshStore.fetchServices();
 
     // After fetch completes
-    expect(store.isLoading).toBeFalsy();
-    expect(store.services).toEqual([]);
-    expect(store.error).toBeNull();
-    expect(store.selectedService).toBeNull();
+    expect(freshStore.isLoading).toBeFalsy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
   });
 
   it('fetches services successfully', async () => {
