@@ -247,6 +247,8 @@ frontend/
         BookingEditModal.vue
         HelloWorld.vue
         OrdersChart.vue
+      lib/
+        api.ts
       router/
         index.ts
       stores/
@@ -2174,168 +2176,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       typeof (user as SafeUser).lastName === 'string' &&
       typeof (user as SafeUser).role === 'string'
     );
-  }
-}
-````
-
-## File: backend/src/auth/auth.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { AuthController } from "./auth.controller";
-import { AuthService } from "./auth.service";
-import { UserRole } from "../users/entities/user.entity";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
-describe("AuthController", () => {
-  let controller: AuthController;
-  const mockUser = {
-    id: "1",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    role: UserRole.CUSTOMER,
-  };
-  const mockAuthResponse = {
-    user: mockUser,
-    token: "jwt_token",
-  };
-  const mockAuthService = {
-    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
-    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        {
-          provide: AuthService,
-          useValue: mockAuthService,
-        },
-      ],
-    }).compile();
-    controller = module.get<AuthController>(AuthController);
-    // Clear mock calls between tests
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("register", () => {
-    const registerDto: RegisterDto = {
-      email: "test@example.com",
-      password: "password123",
-      firstName: "Test",
-      lastName: "User",
-      role: UserRole.CUSTOMER,
-    };
-    it("should successfully register a new user", async () => {
-      const result = await controller.register(registerDto);
-      expect(result).toEqual(mockAuthResponse);
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
-    });
-    it("should pass through service errors", async () => {
-      const error = new Error("Registration failed");
-      mockAuthService.register.mockRejectedValueOnce(error);
-      await expect(controller.register(registerDto)).rejects.toThrow(error);
-    });
-  });
-  describe("login", () => {
-    const loginDto: LoginDto = {
-      email: "test@example.com",
-      password: "password123",
-    };
-    it("should successfully login a user", async () => {
-      const result = await controller.login(loginDto);
-      expect(result).toEqual(mockAuthResponse);
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
-    });
-    it("should pass through service errors", async () => {
-      const error = new Error("Login failed");
-      mockAuthService.login.mockRejectedValueOnce(error);
-      await expect(controller.login(loginDto)).rejects.toThrow(error);
-    });
-  });
-});
-````
-
-## File: backend/src/auth/auth.controller.ts
-````typescript
-import { Controller, Post, Body } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-  getSchemaPath,
-} from "@nestjs/swagger";
-import { AuthService } from "./auth.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse } from "./interfaces/auth.interface";
-@ApiTags("Authentication")
-@Controller("auth")
-export class AuthController {
-  constructor(private readonly authService: AuthService) {}
-  @Post("register")
-  @ApiOperation({ summary: "Register a new user" })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({
-    status: 201,
-    description: "User successfully registered",
-    schema: {
-      properties: {
-        user: {
-          $ref: getSchemaPath(RegisterDto),
-          properties: {
-            id: { type: "string" },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        token: { type: "string" },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 409,
-    description: "Email already exists",
-  })
-  @ApiResponse({
-    status: 500,
-    description: "Internal server error",
-  })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(registerDto);
-  }
-  @Post("login")
-  @ApiOperation({ summary: "Login user" })
-  @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: "User successfully logged in",
-    schema: {
-      properties: {
-        user: {
-          $ref: getSchemaPath(RegisterDto),
-          properties: {
-            id: { type: "string" },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        token: { type: "string" },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: "Invalid credentials",
-  })
-  @ApiResponse({
-    status: 500,
-    description: "Internal server error",
-  })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
-    return this.authService.login(loginDto);
   }
 }
 ````
@@ -12872,680 +12712,6 @@ router.beforeEach(async (to, from, next) => {
 export default router;
 ````
 
-## File: frontend/admin/src/stores/__tests__/auth.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { useAuthStore } from "../auth";
-import axios, { AxiosError } from "axios";
-vi.mock("axios");
-describe("Auth Store", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    localStorage.clear();
-    vi.clearAllMocks();
-  });
-  describe("Initial State", () => {
-    it("should have correct initial state", () => {
-      const store = useAuthStore();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(store.isLoading).toBeFalsy();
-    });
-    it("should initialize with token from localStorage", () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-    });
-  });
-  describe("Login", () => {
-    const mockCredentials = {
-      email: "admin@test.com",
-      password: "password123",
-    };
-    const mockAdminResponse = {
-      data: {
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-      },
-    };
-    it("should successfully login admin user", async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce(mockAdminResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.user).toEqual(mockAdminResponse.data.user);
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBe("test-token");
-      expect(axios.defaults.headers.common["Authorization"]).toBe(
-        "Bearer test-token"
-      );
-    });
-    it("should handle login error with invalid credentials", async () => {
-      const mockError = new AxiosError("Unauthorized");
-      mockError.response = {
-        status: 401,
-        statusText: "Unauthorized",
-        data: { message: "Invalid credentials" },
-        headers: {},
-        config: {
-          url: "/auth/login",
-          method: "post"
-        }
-      } as Partial<AxiosResponse>;
-      vi.mocked(axios.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe("Feil e-postadresse eller passord");
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should handle server connection error", async () => {
-      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
-      mockError.code = "ECONNREFUSED";
-      vi.mocked(axios.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-  });
-  describe("Logout", () => {
-    it("should clear auth state and localStorage", () => {
-      const store = useAuthStore();
-      // Setup initial authenticated state
-      localStorage.setItem("admin_token", "test-token");
-      store.$patch({
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-        isAuthenticated: true,
-      });
-      store.logout();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-      expect(axios.defaults.headers.common["Authorization"]).toBeUndefined();
-    });
-  });
-  describe("Check Auth", () => {
-    it("should handle valid token", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(axios.defaults.headers.common["Authorization"]).toBe(
-        "Bearer test-token"
-      );
-    });
-    it("should handle invalid token", async () => {
-      // Don't set token in localStorage
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should handle missing token", async () => {
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-  });
-  describe("Error Handling", () => {
-    it("should clear error message", () => {
-      const store = useAuthStore();
-      // Set an error
-      store.$patch({ error: "Test error" });
-      expect(store.error).toBe("Test error");
-      // Clear error
-      store.clearError();
-      expect(store.error).toBeNull();
-    });
-  });
-});
-````
-
-## File: frontend/admin/src/stores/bookings.ts
-````typescript
-import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
-import { useAuthStore } from "./auth";
-import { useOrdersStore } from "./orders";
-import router from "../router";
-import type { BookingView } from "../types";
-interface BookingsState {
-  bookings: BookingView[];
-  totalBookings: number;
-  todayBookings: number;
-  upcomingBookings: number;
-  isLoading: boolean;
-  error: string | null;
-  lastFetched: number | null;
-}
-const CACHE_DURATION = 60000; // 60 seconds
-export const useBookingStore = defineStore("bookings", {
-  state: (): BookingsState => ({
-    bookings: [],
-    totalBookings: 0,
-    todayBookings: 0,
-    upcomingBookings: 0,
-    isLoading: false,
-    error: null,
-    lastFetched: null,
-  }),
-  actions: {
-    shouldRefetch(): boolean {
-      if (!this.lastFetched) return true;
-      return Date.now() - this.lastFetched > CACHE_DURATION;
-    },
-    async fetchDashboardStats(forceRefresh = false) {
-      // Return cached data if it's still fresh
-      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false; // Ensure loading is false when using cache
-        return;
-      }
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-        // Only set loading to true if we're actually fetching
-        this.isLoading = true;
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.get<BookingView[]>(
-          `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
-        );
-        // Store the bookings directly
-        this.bookings = response.data;
-        this.lastFetched = Date.now();
-        this.calculateMetrics();
-        console.log('Fetched bookings:', this.bookings);
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke hente bestillinger";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke hente bestillinger";
-        }
-        console.error("Error fetching bookings:", error);
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    async fetchUpcomingBookings(forceRefresh = false) {
-      // Return cached data if it's still fresh
-      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false; // Ensure loading is false when using cache
-        return;
-      }
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-        // Only set loading to true if we're actually fetching
-        this.isLoading = true;
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.get<BookingView[]>(
-          `${import.meta.env.VITE_API_URL}/bookings/upcoming`,
-        );
-        // Store the bookings directly
-        this.bookings = response.data;
-        this.lastFetched = Date.now();
-        console.log('Fetched upcoming bookings:', this.bookings);
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke hente kommende bestillinger";
-          }
-        } else {
-          this.error =
-            error instanceof Error
-              ? error.message
-              : "Kunne ikke hente kommende bestillinger";
-        }
-        console.error("Error fetching upcoming bookings:", error);
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    async completeBooking(id: number | string) {
-      try {
-        const authStore = useAuthStore();
-        const ordersStore = useOrdersStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        console.log('Completing booking:', id);
-        const response = await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/complete`);
-        console.log('Complete booking response:', response.data);
-        // Force refresh both bookings and orders
-        await Promise.all([
-          this.fetchDashboardStats(true),
-          ordersStore.fetchOrders(true)
-        ]);
-        return true;
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke fullføre bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke fullføre bestilling";
-        }
-        console.error("Error completing booking:", error);
-        return false;
-      }
-    },
-    async cancelBooking(id: number | string) {
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}/cancel`);
-        // Force refresh the bookings list after cancellation
-        await this.fetchDashboardStats(true);
-        return true;
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke kansellere bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke kansellere bestilling";
-        }
-        console.error("Error canceling booking:", error);
-        return false;
-      }
-    },
-    async updateBooking(id: number | string, data: Partial<BookingView>) {
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return false;
-        }
-        // Ensure the Authorization header is set
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        await axios.put(`${import.meta.env.VITE_API_URL}/bookings/${id}`, data);
-        // Force refresh the bookings list after update
-        await this.fetchDashboardStats(true);
-        return true;
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke oppdatere bestilling";
-          }
-        } else {
-          this.error =
-            error instanceof Error ? error.message : "Kunne ikke oppdatere bestilling";
-        }
-        console.error("Error updating booking:", error);
-        return false;
-      }
-    },
-    calculateMetrics() {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      this.totalBookings = this.bookings.length;
-      this.todayBookings = this.bookings.filter(
-        (booking) =>
-          new Date(booking.startTime).toDateString() === today.toDateString(),
-      ).length;
-      this.upcomingBookings = this.bookings.length; // All bookings from /bookings/upcoming are upcoming
-    },
-  },
-});
-````
-
-## File: frontend/admin/src/stores/employees.ts
-````typescript
-import { defineStore } from 'pinia'
-import axios, { AxiosError } from 'axios'
-import { useAuthStore } from './auth'
-import router from '../router'
-import type { Employee } from '../types'
-interface EmployeeState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
-}
-interface CreateEmployeeResponse {
-  employee: Employee;
-  temporaryPassword: string;
-}
-interface ResetPasswordResponse {
-  temporaryPassword: string;
-}
-export const useEmployeesStore = defineStore('employees', {
-  state: (): EmployeeState => ({
-    employees: [],
-    loading: false,
-    error: null
-  }),
-  getters: {
-    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
-    getEmployeeById: (state) => (id: string) => 
-      state.employees.find(emp => emp.id === id)
-  },
-  actions: {
-    async fetchEmployees() {
-      this.loading = true
-      this.error = null
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/employees`)
-        this.employees = response.data
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke hente ansatte";
-          }
-        } else {
-          this.error = error instanceof Error ? error.message : "Kunne ikke hente ansatte";
-        }
-      } finally {
-        this.loading = false
-      }
-    },
-    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          throw new Error("Ikke autentisert");
-        }
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.post<CreateEmployeeResponse>(`${import.meta.env.VITE_API_URL}/employees`, employeeData)
-        console.log('Create employee response:', {
-          ...response.data,
-          temporaryPassword: response.data.temporaryPassword ? '[HIDDEN]' : undefined
-        });
-        if (response.data.employee) {
-          this.employees.push(response.data.employee);
-        }
-        return response.data;
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke opprette ansatt";
-          }
-        } else {
-          this.error = error instanceof Error ? error.message : "Kunne ikke opprette ansatt";
-        }
-        throw error;
-      } finally {
-        this.loading = false
-      }
-    },
-    async resetPassword(id: string): Promise<ResetPasswordResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          throw new Error("Ikke autentisert");
-        }
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.post<ResetPasswordResponse>(
-          `${import.meta.env.VITE_API_URL}/employees/${id}/reset-password`
-        );
-        return response.data;
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke tilbakestille passord";
-          }
-        } else {
-          this.error = error instanceof Error ? error.message : "Kunne ikke tilbakestille passord";
-        }
-        throw error;
-      } finally {
-        this.loading = false
-      }
-    },
-    async updateEmployee(id: string, employeeData: Partial<Employee>) {
-      this.loading = true
-      this.error = null
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        const response = await axios.patch(`${import.meta.env.VITE_API_URL}/employees/${id}`, employeeData)
-        const index = this.employees.findIndex(emp => emp.id === id)
-        if (index !== -1) {
-          this.employees[index] = response.data
-        }
-        return response.data
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke oppdatere ansatt";
-          }
-        } else {
-          this.error = error instanceof Error ? error.message : "Kunne ikke oppdatere ansatt";
-        }
-        throw error;
-      } finally {
-        this.loading = false
-      }
-    },
-    async deleteEmployee(id: string) {
-      this.loading = true
-      this.error = null
-      try {
-        const authStore = useAuthStore();
-        if (!authStore.isAuthenticated || !authStore.token) {
-          router.push({ name: "Login" });
-          return;
-        }
-        axios.defaults.headers.common["Authorization"] = `Bearer ${authStore.token}`;
-        await axios.delete(`${import.meta.env.VITE_API_URL}/employees/${id}`)
-        this.employees = this.employees.filter(emp => emp.id !== id)
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error instanceof AxiosError) {
-          if (error.response?.status === 401) {
-            const authStore = useAuthStore();
-            authStore.logout();
-            router.push({ name: "Login" });
-            this.error = "Økt utløpt. Vennligst logg inn igjen.";
-          } else {
-            this.error = error.response?.data?.message || "Kunne ikke slette ansatt";
-          }
-        } else {
-          this.error = error instanceof Error ? error.message : "Kunne ikke slette ansatt";
-        }
-        throw error;
-      } finally {
-        this.loading = false
-      }
-    }
-  }
-})
-````
-
-## File: frontend/admin/src/stores/orders.ts
-````typescript
-import { defineStore } from "pinia";
-import axios, { AxiosError } from "axios";
-import { useAuthStore } from "./auth";
-import type { Order } from "../types";
-const API_URL = import.meta.env.VITE_API_URL;
-interface OrdersState {
-  orders: Order[];
-  loading: boolean;
-  error: string | null;
-}
-interface EmployeeStats {
-  id: string;
-  count: number;
-  revenue: number;
-}
-export const useOrdersStore = defineStore("orders", {
-  state: (): OrdersState => ({
-    orders: [],
-    loading: false,
-    error: null,
-  }),
-  getters: {
-    getOrdersByEmployee: (state) => (employeeId: string) => {
-      return state.orders.filter(
-        (order) => order.booking.employee.id === employeeId
-      );
-    },
-    getEmployeeStats: (state) => {
-      const stats = new Map<string, EmployeeStats>();
-      state.orders.forEach((order) => {
-        const employeeId = order.booking.employee.id;
-        const amount = parseFloat(order.totalAmount);
-        if (!stats.has(employeeId)) {
-          stats.set(employeeId, {
-            id: employeeId,
-            count: 0,
-            revenue: 0,
-          });
-        }
-        const employeeStats = stats.get(employeeId)!;
-        employeeStats.count++;
-        employeeStats.revenue += amount;
-      });
-      return Array.from(stats.values());
-    },
-  },
-  actions: {
-    async fetchOrders(forceRefresh = false) {
-      try {
-        if (this.loading && !forceRefresh) return;
-        this.loading = true;
-        this.error = null;
-        const authStore = useAuthStore();
-        let endpoint = `${API_URL}/orders`;
-        // If user is an employee, use the employee-specific endpoint
-        if (!authStore.isAdmin && authStore.user?.id) {
-          endpoint = `${API_URL}/orders/employee/${authStore.user.id}`;
-        }
-        const response = await axios.get<Order[]>(endpoint);
-        this.orders = response.data;
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        if (error instanceof AxiosError && error.response?.status === 403) {
-          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
-        } else {
-          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
-        }
-      } finally {
-        this.loading = false;
-      }
-    },
-  },
-});
-````
-
 ## File: frontend/admin/src/types/components/button.ts
 ````typescript
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
@@ -14909,37 +14075,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-````
-
-## File: frontend/admin/src/main.ts
-````typescript
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import axios from "axios";
-import router from "./router";
-import { useAuthStore } from "./stores/auth";
-import App from "./App.vue";
-import "./style.css";
-const app = createApp(App);
-const pinia = createPinia();
-// Configure plugins
-app.use(pinia);
-app.use(router);
-// Add axios response interceptor for session expiration
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.data?.message === "Økt utløpt. Vennligst logg inn igjen." ||
-        error.response?.status === 401) {
-      const authStore = useAuthStore();
-      authStore.logout();
-      router.push("/login");
-    }
-    return Promise.reject(error);
-  }
-);
-// Mount app
-app.mount("#app");
 ````
 
 ## File: frontend/admin/src/style.css
@@ -16308,315 +15443,6 @@ body {
 }
 ````
 
-## File: frontend/customer/src/components/__tests__/BookingForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
-import BookingForm from '../BookingForm.vue'
-import { useServicesStore } from '../../stores/services'
-import { useBookingStore } from '../../stores/booking'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(() => ({
-    waitingSlots: [],
-    waitingCount: 0,
-    activeEmployees: [{ id: '1', name: 'Employee 1' }],
-  })),
-}))
-describe('BookingForm', () => {
-  const mockService = {
-    id: '1',
-    name: 'Haircut',
-    duration: 30,
-    price: '350',
-  }
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    // Reset all mocks
-    vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: mockService,
-    } as any)
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
-      error: ref(null),
-      setPendingBooking: vi.fn(),
-    } as any)
-  })
-  it('shows message when no service is selected', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: null,
-    } as any)
-    const wrapper = mount(BookingForm)
-    expect(wrapper.text()).toContain('Vennligst velg en tjeneste først')
-    expect(wrapper.find('button').text()).toBe('Se tjenester')
-  })
-  it('displays selected service details', () => {
-    const wrapper = mount(BookingForm)
-    expect(wrapper.text()).toContain(mockService.name)
-    expect(wrapper.text()).toContain(`Varighet: ${mockService.duration} minutter`)
-    // The price is formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('handles form submission correctly', async () => {
-    const mockSetPendingBooking = vi.fn()
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
-      error: ref(null),
-      setPendingBooking: mockSetPendingBooking,
-    } as any)
-    const wrapper = mount(BookingForm)
-    // Fill in form data
-    await wrapper.find('input[type="text"]').setValue('Test Customer')
-    await wrapper.find('input[type="tel"]').setValue('+4712345678')
-    // Submit form
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: '+4712345678',
-      startTime: expect.any(String),
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-  })
-  it('shows loading state during submission', async () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: true,
-      error: ref(null),
-      setPendingBooking: vi.fn(),
-    } as any)
-    const wrapper = mount(BookingForm)
-    expect(wrapper.find('button[type="submit"]').text()).toBe('Behandler...')
-  })
-  it('disables submit button when no name is entered', () => {
-    const wrapper = mount(BookingForm)
-    const submitButton = wrapper.find('button[type="submit"]')
-    expect(submitButton.attributes('disabled')).toBeDefined()
-  })
-  it('validates phone number format', async () => {
-    const mockSetPendingBooking = vi.fn()
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: false,
-      error: ref(null),
-      setPendingBooking: mockSetPendingBooking,
-    } as any)
-    const wrapper = mount(BookingForm)
-    // Fill in name first
-    await wrapper.find('input[type="text"]').setValue('Test Customer')
-    // Test invalid phone number
-    const input = wrapper.find('input[type="tel"]')
-    await input.setValue('invalid')
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: 'invalid',
-      startTime: expect.any(String),
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-    // Test valid phone number
-    await input.setValue('+4712345678')
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: '+4712345678',
-      startTime: expect.any(String),
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-  })
-})
-````
-
-## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import PaymentForm from '../PaymentForm.vue'
-import { useBookingStore } from '../../stores/booking'
-import { useServicesStore } from '../../stores/services'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-describe('PaymentForm', () => {
-  const mockPendingBooking = {
-    serviceId: '1',
-    firstName: 'Test Customer',
-    phoneNumber: '+4712345678',
-  }
-  const mockService = {
-    id: '1',
-    name: 'Haircut',
-    duration: 30,
-    price: '350',
-  }
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: null,
-      createWalkInBooking: vi.fn().mockResolvedValue({}),
-    } as any)
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: mockService,
-    } as any)
-    // Reset timers
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-  const mountComponent = () => {
-    return mount(PaymentForm, {
-      global: {
-        provide: {
-          router: mockRouter,
-        },
-        mocks: {
-          $router: mockRouter,
-        },
-      },
-    })
-  }
-  it('shows message when no booking is found', () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: null,
-      isLoading: false,
-      error: null,
-      createWalkInBooking: vi.fn(),
-    } as any)
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
-    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
-  })
-  it('displays payment amount correctly', () => {
-    const wrapper = mountComponent()
-    // Price should be formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows loading state during payment processing', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.animate-spin').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Behandler...')
-  })
-  it('shows success message after payment', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    // Wait for payment delay
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    // Wait for store operation
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Betaling vellykket!')
-    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
-  })
-  it('displays error message when payment fails', async () => {
-    const mockError = 'Payment failed'
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: mockPendingBooking,
-      isLoading: false,
-      error: mockError,
-      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
-    } as any)
-    const wrapper = mountComponent()
-    // Attempt payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
-  })
-  it('navigates back to home after successful payment', async () => {
-    const wrapper = mountComponent()
-    // Complete payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Click return button
-    await wrapper.find('button.btn-secondary').trigger('click')
-    expect(mockRouter.push).toHaveBeenCalledWith('/')
-  })
-  it('handles missing service price gracefully', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: null,
-    } as any)
-    const wrapper = mountComponent()
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(0)
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows payment button in correct states', async () => {
-    const wrapper = mountComponent()
-    // Initial state
-    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
-    // During payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
-    // After payment
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Success state should show secondary button
-    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
-    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
-  })
-  it('shows payment instructions', () => {
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
-  })
-})
-````
-
 ## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -17441,112 +16267,6 @@ describe('Display Store', () => {
     expect(store.hasAvailableSlot).toBe(true)
   })
 })
-````
-
-## File: frontend/customer/src/stores/__tests__/services.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useServicesStore } from '../services'
-import type { Service } from '../types'
-// Test data
-const createMockService = (overrides: Partial<Service> = {}): Service => ({
-  id: '1',
-  name: 'Haircut',
-  description: 'Basic haircut',
-  duration: 30,
-  price: '300',
-  isActive: true,
-  createdAt: '2023-01-01',
-  updatedAt: '2023-01-01',
-  ...overrides,
-});
-// Helper functions
-const mockFetchSuccess = (response: Service[] = []) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(response),
-    }),
-  );
-};
-const mockFetchError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: false,
-      json: () => Promise.resolve({ message }),
-    }),
-  );
-};
-const mockNetworkError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() => 
-    Promise.reject(new Error(message))
-  );
-};
-const waitForInitialFetch = () => new Promise((resolve) => setImmediate(resolve));
-describe('Services Store', () => {
-  let store: ReturnType<typeof useServicesStore>;
-  const mockService = createMockService();
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    vi.clearAllMocks();
-    mockFetchSuccess([]); // Default to empty services list
-    store = useServicesStore();
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-  it('has correct empty initial state', async () => {
-    // Initial state should show loading
-    expect(store.isLoading).toBeTruthy();
-    expect(store.services).toEqual([]);
-    expect(store.error).toBeNull();
-    expect(store.selectedService).toBeNull();
-    // Wait for the initial fetch to complete
-    await waitForInitialFetch();
-    // After fetch completes
-    expect(store.isLoading).toBeFalsy();
-    expect(store.services).toEqual([]);
-    expect(store.error).toBeNull();
-    expect(store.selectedService).toBeNull();
-  });
-  it('fetches services successfully', async () => {
-    mockFetchSuccess([mockService]);
-    await store.fetchServices();
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services');
-    expect(store.services).toEqual([mockService]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBeNull();
-  });
-  it('handles fetch error', async () => {
-    mockFetchError('Failed to fetch services');
-    await store.fetchServices();
-    expect(store.services).toEqual([]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBe('Failed to fetch services');
-  });
-  it('handles network error', async () => {
-    mockNetworkError('Network error');
-    await store.fetchServices();
-    expect(store.services).toEqual([]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBe('Network error');
-  });
-  it('selects a service', async () => {
-    await waitForInitialFetch();
-    store.selectService(mockService);
-    expect(store.selectedService).toEqual(mockService);
-  });
-  it('clears selected service', async () => {
-    await waitForInitialFetch();
-    // First select a service
-    store.selectService(mockService);
-    expect(store.selectedService).toEqual(mockService);
-    // Then clear it
-    store.clearSelection();
-    expect(store.selectedService).toBeNull();
-  });
-});
 ````
 
 ## File: frontend/customer/src/stores/__tests__/waiting.spec.ts
@@ -18763,140 +17483,6 @@ export default mergeConfig(
 ````
 # Auto detect text files and perform LF normalization
 * text=auto
-````
-
-## File: .gitignore
-````
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Directory for instrumented libs generated by jscoverage/JSCover
-lib-cov
-
-# Coverage directory used by tools like istanbul
-coverage
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
-
-# Bower dependency directory (https://bower.io/)
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# Snowpack dependency directory (https://snowpack.dev/)
-web_modules/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-out
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Gatsby files
-.cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
-
-# vuepress build output
-.vuepress/dist
-
-# vuepress v2.x temp and cache directory
-.temp
-.cache
-
-# Docusaurus cache and generated files
-.docusaurus
-
-# Serverless directories
-.serverless/
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# yarn v2
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
 ````
 
 ## File: AGENTS.md
@@ -20208,6 +18794,202 @@ jobs:
           fi
 ````
 
+## File: backend/src/auth/auth.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { AuthController } from "./auth.controller";
+import { AuthService } from "./auth.service";
+import { UserRole } from "../users/entities/user.entity";
+import { RegisterDto } from "./dto/register.dto";
+import { LoginDto } from "./dto/login.dto";
+describe("AuthController", () => {
+  let controller: AuthController;
+  const mockUser = {
+    id: "1",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User",
+    role: UserRole.CUSTOMER,
+  };
+  const mockAuthResponse = {
+    user: mockUser,
+    token: "jwt_token",
+  };
+  const mockAuthService = {
+    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AuthController],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: mockAuthService,
+        },
+      ],
+    }).compile();
+    controller = module.get<AuthController>(AuthController);
+    // Clear mock calls between tests
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("register", () => {
+    const registerDto: RegisterDto = {
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+      role: UserRole.CUSTOMER,
+    };
+    it("should successfully register a new user", async () => {
+      const result = await controller.register(registerDto);
+      expect(result).toEqual(mockAuthResponse);
+      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
+    });
+    it("should pass through service errors", async () => {
+      const error = new Error("Registration failed");
+      mockAuthService.register.mockRejectedValueOnce(error);
+      await expect(controller.register(registerDto)).rejects.toThrow(error);
+    });
+  });
+  describe("login", () => {
+    const loginDto: LoginDto = {
+      email: "test@example.com",
+      password: "password123",
+    };
+    it("should successfully login a user", async () => {
+      const result = await controller.login(loginDto);
+      expect(result).toEqual(mockAuthResponse);
+      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+    });
+    it("should pass through service errors", async () => {
+      const error = new Error("Login failed");
+      mockAuthService.login.mockRejectedValueOnce(error);
+      await expect(controller.login(loginDto)).rejects.toThrow(error);
+    });
+  });
+  describe("getProfile", () => {
+    it("should return the authenticated user", () => {
+      const result = controller.getProfile(mockUser as any);
+      expect(result).toEqual(mockUser);
+    });
+    it("should return user without password field", () => {
+      const userWithPassword = { ...mockUser, password: "hashed_password" } as any;
+      const result = controller.getProfile(userWithPassword);
+      expect(result).toEqual(userWithPassword);
+      // In practice the JwtStrategy never includes password in the user object
+      // The guard ensures only authenticated users reach this endpoint
+    });
+  });
+});
+````
+
+## File: backend/src/auth/auth.controller.ts
+````typescript
+import { Controller, Post, Get, Body, UseGuards } from "@nestjs/common";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+  getSchemaPath,
+} from "@nestjs/swagger";
+import { AuthService } from "./auth.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, UserResponse } from "./interfaces/auth.interface";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { GetUser } from "./decorators/get-user.decorator";
+import { User } from "../users/entities/user.entity";
+@ApiTags("Authentication")
+@Controller("auth")
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+  @Post("register")
+  @ApiOperation({ summary: "Register a new user" })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: "User successfully registered",
+    schema: {
+      properties: {
+        user: {
+          $ref: getSchemaPath(RegisterDto),
+          properties: {
+            id: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        token: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Email already exists",
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+  })
+  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
+    return this.authService.register(registerDto);
+  }
+  @Post("login")
+  @ApiOperation({ summary: "Login user" })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: "User successfully logged in",
+    schema: {
+      properties: {
+        user: {
+          $ref: getSchemaPath(RegisterDto),
+          properties: {
+            id: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        token: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Invalid credentials",
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
+    return this.authService.login(loginDto);
+  }
+  @Get("profile")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get current user profile" })
+  @ApiResponse({
+    status: 200,
+    description: "Returns the authenticated user's profile",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized - invalid or expired token",
+  })
+  getProfile(@GetUser() user: User): UserResponse {
+    // The JwtStrategy already validates the token and fetches user data.
+    // The user object attached to the request does not contain the password.
+    return user as UserResponse;
+  }
+}
+````
+
 ## File: backend/src/config/cache.config.ts
 ````typescript
 import { registerAs } from "@nestjs/config";
@@ -20358,40 +19140,37 @@ const valueColorClasses: Record<CardColor, string> = {
 </script>
 ````
 
-## File: frontend/admin/src/stores/auth.ts
+## File: frontend/admin/src/lib/api.ts
 ````typescript
-import { defineStore } from "pinia";
 import axios, { AxiosError } from "axios";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-interface ErrorResponse {
-  message?: string | string[];
-}
+import router from "../router";
 const API_URL = import.meta.env.VITE_API_URL;
-// Set up axios interceptor for error handling
-axios.interceptors.response.use(
+/**
+ * Pre-configured axios instance for all API calls.
+ * - Automatically attaches the auth token from localStorage
+ * - Handles 401 responses by logging out and redirecting to login
+ * - Handles 403 responses with a Norwegian error message
+ */
+const api = axios.create({
+  baseURL: API_URL,
+});
+// Request interceptor: attach token on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+// Response interceptor: handle auth errors globally
+api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("admin_token");
+      delete axios.defaults.headers.common["Authorization"];
+      router.push({ name: "Login" });
+    }
     if (error.response?.status === 403) {
       error.message =
         "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
@@ -20399,155 +19178,540 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-// Initialize axios headers if token exists
-const token = localStorage.getItem("admin_token");
-if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+export interface ApiErrorResponse {
+  message?: string | string[];
 }
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
+/**
+ * Extracts a user-friendly Norwegian error message from an API error.
+ * Use this in store catch blocks to set `this.error` or `error.value`.
+ */
+export function extractErrorMessage(
+  error: unknown,
+  fallback: string
+): string {
+  if (error instanceof AxiosError) {
+    // 401 is handled globally by the interceptor
+    if (error.response?.status === 401) {
+      return "Økt utløpt. Vennligst logg inn igjen.";
+    }
+    const data = error.response?.data as ApiErrorResponse | undefined;
+    if (data?.message) {
+      return Array.isArray(data.message)
+        ? data.message.join(", ")
+        : data.message;
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+}
+export default api;
+````
+
+## File: frontend/admin/src/stores/__tests__/auth.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { useAuthStore } from "../auth";
+import { AxiosError } from "axios";
+import api from "../../lib/api";
+vi.mock("../../lib/api", () => {
+  return {
+    default: {
+      post: vi.fn(),
+      get: vi.fn(),
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+    },
+  };
+});
+describe("Auth Store", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+  describe("Initial State", () => {
+    it("should have correct initial state", () => {
+      const store = useAuthStore();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(store.isLoading).toBeFalsy();
+    });
+    it("should initialize with token from localStorage", () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+    });
+  });
+  describe("Login", () => {
+    const mockCredentials = {
+      email: "admin@test.com",
+      password: "password123",
+    };
+    const mockAdminResponse = {
+      data: {
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+      },
+    };
+    it("should successfully login admin user", async () => {
+      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.user).toEqual(mockAdminResponse.data.user);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBe("test-token");
+    });
+    it("should reject regular user login", async () => {
+      const mockUserResponse = {
+        data: {
+          token: "test-token",
+          user: {
+            id: "2",
+            email: "user@test.com",
+            role: "user",
+            firstName: "Regular",
+            lastName: "User",
+          },
+        },
+      };
+      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Ingen tilgang: Krever ansatt- eller administratortilgang"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+    it("should handle login error with invalid credentials", async () => {
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          url: "/auth/login",
+          method: "post",
+        },
+      } as any;
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("Feil e-postadresse eller passord");
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should handle server connection error", async () => {
+      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
+      mockError.code = "ECONNREFUSED";
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
+  describe("Logout", () => {
+    it("should clear auth state and localStorage", () => {
+      const store = useAuthStore();
+      // Setup initial authenticated state
+      localStorage.setItem("admin_token", "test-token");
+      store.$patch({
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+        isAuthenticated: true,
+      });
+      store.logout();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+  });
+  describe("Check Auth", () => {
+    const mockUserProfile = {
+      id: "1",
+      email: "admin@test.com",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin" as const,
+    };
+    it("should fetch profile and return true when token is valid", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.user).toEqual(mockUserProfile);
+      expect(api.get).toHaveBeenCalledWith("/auth/profile");
+    });
+    it("should not re-fetch profile if user data already exists", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      store.$patch({ user: mockUserProfile });
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+    it("should logout when profile fetch fails (expired token)", async () => {
+      localStorage.setItem("admin_token", "expired-token");
+      vi.mocked(api.get).mockRejectedValueOnce(
+        new AxiosError("Unauthorized", "401")
+      );
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should return false when no token in localStorage", async () => {
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+  });
+  describe("Error Handling", () => {
+    it("should clear error message", () => {
+      const store = useAuthStore();
+      // Set an error
+      store.$patch({ error: "Test error" });
+      expect(store.error).toBe("Test error");
+      // Clear error
+      store.clearError();
+      expect(store.error).toBeNull();
+    });
+  });
+});
+````
+
+## File: frontend/admin/src/stores/bookings.ts
+````typescript
+import { defineStore } from "pinia";
+import { useOrdersStore } from "./orders";
+import api, { extractErrorMessage } from "../lib/api";
+import type { BookingView } from "../types";
+interface BookingsState {
+  bookings: BookingView[];
+  totalBookings: number;
+  todayBookings: number;
+  upcomingBookings: number;
+  isLoading: boolean;
+  error: string | null;
+  lastFetched: number | null;
+}
+const CACHE_DURATION = 60000; // 60 seconds
+export const useBookingStore = defineStore("bookings", {
+  state: (): BookingsState => ({
+    bookings: [],
+    totalBookings: 0,
+    todayBookings: 0,
+    upcomingBookings: 0,
     isLoading: false,
+    error: null,
+    lastFetched: null,
   }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) =>
-      state.user?.role === "admin" || state.user?.role === "employee",
-  },
   actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
+    shouldRefetch(): boolean {
+      if (!this.lastFetched) return true;
+      return Date.now() - this.lastFetched > CACHE_DURATION;
+    },
+    async fetchDashboardStats(forceRefresh = false) {
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false;
+        return;
+      }
       try {
         this.isLoading = true;
-        this.error = null;
-        // Validate API_URL
-        if (!API_URL) {
-          throw new Error(
-            "Systemvariabler er ikke satt: Kontakt systemadministrator"
-          );
-        }
-        const response = await axios.post<AuthResponse>(
-          `${API_URL}/auth/login`,
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error(
-            "Ingen tilgang: Krever ansatt- eller administratortilgang"
-          );
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        // Set default Authorization header for future requests
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return true;
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
+        this.bookings = response.data;
+        this.lastFetched = Date.now();
+        this.calculateMetrics();
       } catch (error) {
-        console.error("Login error:", error);
-        this.error = this.resolveLoginError(error);
-        return false;
+        this.error = extractErrorMessage(error, "Kunne ikke hente bestillinger");
       } finally {
         this.isLoading = false;
       }
     },
-    getHttpStatusErrorMessage(status: number): string {
-      switch (status) {
-        case 401:
-          return "Feil e-postadresse eller passord";
-        case 403:
-          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-        case 404:
-          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-        case 500:
-          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-        default:
-          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+    async fetchUpcomingBookings(forceRefresh = false) {
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false;
+        return;
+      }
+      try {
+        this.isLoading = true;
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
+        this.bookings = response.data;
+        this.lastFetched = Date.now();
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente kommende bestillinger");
+      } finally {
+        this.isLoading = false;
       }
     },
-    extractBackendMessage(message: string | string[]): string {
-      return Array.isArray(message) ? message.join(", ") : message;
-    },
-    handleAxiosError(error: AxiosError<ErrorResponse>): string {
-      // Handle specific HTTP status codes first
-      if (error.response?.status) {
-        const statusMessage = this.getHttpStatusErrorMessage(
-          error.response.status
-        );
-        if (error.response.status >= 400 && error.response.status < 500) {
-          return statusMessage; // Use localized message for client errors
-        }
-        // For server errors, try backend message first, then fallback to localized
-        if (error.response?.data?.message) {
-          return this.extractBackendMessage(error.response.data.message);
-        }
-        return statusMessage;
-      }
-      // No status code, try backend message
-      if (error.response?.data?.message) {
-        return this.extractBackendMessage(error.response.data.message);
-      }
-      // Handle network/connection errors
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    resolveLoginError(error: unknown): string {
-      if (error instanceof AxiosError) {
-        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
-      }
-      if (error instanceof Error) {
-        if (error.message?.includes("Systemvariabler er ikke satt")) {
-          return error.message;
-        }
-        return error.message;
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-      // Remove Authorization header
-      delete axios.defaults.headers.common["Authorization"];
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
+    async completeBooking(id: number | string) {
+      try {
+        const ordersStore = useOrdersStore();
+        await api.put(`/bookings/${id}/complete`);
+        // Force refresh both bookings and orders
+        await Promise.all([
+          this.fetchDashboardStats(true),
+          ordersStore.fetchOrders(true)
+        ]);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke fullføre bestilling");
         return false;
       }
-      // Set the Authorization header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      this.token = token;
-      this.isAuthenticated = true;
-      // If we don't have user data yet, fetch the profile to restore it
-      if (!this.user) {
-        try {
-          const response = await axios.get<User>(
-            `${API_URL}/auth/profile`
-          );
-          this.user = response.data;
-        } catch {
-          // Token is invalid or expired — log out
-          this.logout();
-          return false;
-        }
-      }
-      return true;
     },
-    clearError() {
-      this.error = null;
+    async cancelBooking(id: number | string) {
+      try {
+        await api.put(`/bookings/${id}/cancel`);
+        // Force refresh the bookings list after cancellation
+        await this.fetchDashboardStats(true);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke kansellere bestilling");
+        return false;
+      }
+    },
+    async updateBooking(id: number | string, data: Partial<BookingView>) {
+      try {
+        await api.put(`/bookings/${id}`, data);
+        // Force refresh the bookings list after update
+        await this.fetchDashboardStats(true);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere bestilling");
+        return false;
+      }
+    },
+    calculateMetrics() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      this.totalBookings = this.bookings.length;
+      this.todayBookings = this.bookings.filter(
+        (booking) =>
+          new Date(booking.startTime).toDateString() === today.toDateString(),
+      ).length;
+      this.upcomingBookings = this.bookings.length; // All bookings from /bookings/upcoming are upcoming
+    },
+  },
+});
+````
+
+## File: frontend/admin/src/stores/employees.ts
+````typescript
+import { defineStore } from 'pinia'
+import api, { extractErrorMessage } from '../lib/api'
+import type { Employee } from '../types'
+interface EmployeeState {
+  employees: Employee[]
+  loading: boolean
+  error: string | null
+}
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+export const useEmployeesStore = defineStore('employees', {
+  state: (): EmployeeState => ({
+    employees: [],
+    loading: false,
+    error: null
+  }),
+  getters: {
+    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
+    getEmployeeById: (state) => (id: string) => 
+      state.employees.find(emp => emp.id === id)
+  },
+  actions: {
+    async fetchEmployees() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get<Employee[]>('/employees')
+        this.employees = response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
+      } finally {
+        this.loading = false
+      }
+    },
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
+        if (response.data.employee) {
+          this.employees.push(response.data.employee)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resetPassword(id: string): Promise<ResetPasswordResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<ResetPasswordResponse>(
+          `/employees/${id}/reset-password`
+        )
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateEmployee(id: string, employeeData: Partial<Employee>) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.patch(`/employees/${id}`, employeeData)
+        const index = this.employees.findIndex(emp => emp.id === id)
+        if (index !== -1) {
+          this.employees[index] = response.data
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async deleteEmployee(id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/employees/${id}`)
+        this.employees = this.employees.filter(emp => emp.id !== id)
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
+````
+
+## File: frontend/admin/src/stores/orders.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import { useAuthStore } from "./auth";
+import api from "../lib/api";
+import type { Order } from "../types";
+interface OrdersState {
+  orders: Order[];
+  loading: boolean;
+  error: string | null;
+}
+interface EmployeeStats {
+  id: string;
+  count: number;
+  revenue: number;
+}
+export const useOrdersStore = defineStore("orders", {
+  state: (): OrdersState => ({
+    orders: [],
+    loading: false,
+    error: null,
+  }),
+  getters: {
+    getOrdersByEmployee: (state) => (employeeId: string) => {
+      return state.orders.filter(
+        (order) => order.booking.employee.id === employeeId
+      );
+    },
+    getEmployeeStats: (state) => {
+      const stats = new Map<string, EmployeeStats>();
+      state.orders.forEach((order) => {
+        const employeeId = order.booking.employee.id;
+        const amount = parseFloat(order.totalAmount);
+        if (!stats.has(employeeId)) {
+          stats.set(employeeId, {
+            id: employeeId,
+            count: 0,
+            revenue: 0,
+          });
+        }
+        const employeeStats = stats.get(employeeId)!;
+        employeeStats.count++;
+        employeeStats.revenue += amount;
+      });
+      return Array.from(stats.values());
+    },
+  },
+  actions: {
+    async fetchOrders(forceRefresh = false) {
+      try {
+        if (this.loading && !forceRefresh) return;
+        this.loading = true;
+        this.error = null;
+        const authStore = useAuthStore();
+        let endpoint = "/orders";
+        // If user is an employee, use the employee-specific endpoint
+        if (!authStore.isAdmin && authStore.user?.id) {
+          endpoint = `/orders/employee/${authStore.user.id}`;
+        }
+        const response = await api.get<Order[]>(endpoint);
+        this.orders = response.data;
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 403) {
+          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
+        } else {
+          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
+        }
+      } finally {
+        this.loading = false;
+      }
     },
   },
 });
@@ -20945,119 +20109,240 @@ const handleSubmit = async () => {
 </script>
 ````
 
-## File: frontend/customer/src/components/BookingForm.vue
-````vue
-<template>
-  <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
-    <div v-if="!selectedService" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
-      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
-    </div>
-    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
-      <!-- Service Summary -->
-      <div class="card bg-gradient-to-br from-white to-gray-50">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
-        <div class="flex justify-between items-start">
-          <div>
-            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
-            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
-          </div>
-          <p class="text-xl font-bold text-gradient">
-            {{
-              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
-                parseFloat(selectedService.price),
-              )
-            }}
-          </p>
-        </div>
-      </div>
-      <!-- Queue Status -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
-              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
-            </div>
-            <div class="text-sm text-gray-500">
-              {{ displayStore.activeEmployees.length }} frisører på jobb
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Customer Info -->
-      <div class="card space-y-6">
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
-          <input
-            type="text"
-            v-model="firstName"
-            required
-            placeholder="Fornavn"
-            class="input text-lg"
-          />
-        </div>
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
-          <input
-            type="tel"
-            v-model="phoneNumber"
-            placeholder="+47 XXX XX XXX"
-            class="input text-lg"
-            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
-          />
-          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
-        </div>
-      </div>
-      <!-- Submit Button -->
-      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
-        <span v-if="isLoading">Behandler...</span>
-        <span v-else>Fortsett til betaling</span>
-      </button>
-    </form>
-  </div>
-</template>
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
-import { useServicesStore } from '../stores/services'
-import { useBookingStore } from '../stores/booking'
-import { useDisplayStore } from '../stores/display'
-const router = useRouter()
-const servicesStore = useServicesStore()
-const bookingStore = useBookingStore()
-const displayStore = useDisplayStore()
-const { selectedService } = storeToRefs(servicesStore)
-const { isLoading, error } = storeToRefs(bookingStore)
-// Form data
-const firstName = ref('')
-const phoneNumber = ref('')
-// Calculate wait time based on queue and selected service
-const calculateWaitTime = computed(() => {
-  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
-  // Base wait time from current queue
-  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
-    return total + (slot.estimatedTime || 0)
-  }, 0)
-  // Add selected service duration
-  return queueWaitTime + selectedService.value.duration
-})
-const handleSubmit = async () => {
-  if (!selectedService.value || !firstName.value) return
-  // Set pending booking and navigate to payment
-  bookingStore.setPendingBooking({
-    serviceId: selectedService.value.id,
-    firstName: firstName.value,
-    phoneNumber: phoneNumber.value || undefined,
-    startTime: new Date().toISOString(),
-  })
-  // Navigate to payment page
-  router.push('/payment')
+## File: frontend/admin/src/main.ts
+````typescript
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import router from "./router";
+// Import the shared API client so its interceptors are registered at startup
+import "./lib/api";
+import App from "./App.vue";
+import "./style.css";
+const app = createApp(App);
+const pinia = createPinia();
+// Configure plugins
+app.use(pinia);
+app.use(router);
+// Mount app
+app.mount("#app");
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.12.2",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.21",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.12.0",
+    "@tsconfig/node22": "^22.0.0",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^24.5.2",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.1.3",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "jsdom": "^27.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^3.0.0"
+  }
 }
-</script>
+````
+
+## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import PaymentForm from '../PaymentForm.vue'
+import { useBookingStore } from '../../stores/booking'
+import { useServicesStore } from '../../stores/services'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+describe('PaymentForm', () => {
+  const mockPendingBooking = {
+    serviceId: '1',
+    firstName: 'Test Customer',
+    phoneNumber: '+4712345678',
+  }
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn().mockResolvedValue({}),
+    } as any)
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    // Reset timers
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const mountComponent = () => {
+    return mount(PaymentForm, {
+      global: {
+        provide: {
+          router: mockRouter,
+        },
+        mocks: {
+          $router: mockRouter,
+        },
+      },
+    })
+  }
+  it('shows message when no booking is found', () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(null),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn(),
+    } as any)
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
+    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
+  })
+  it('displays payment amount correctly', () => {
+    const wrapper = mountComponent()
+    // Price should be formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows loading state during payment processing', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.animate-spin').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Behandler...')
+  })
+  it('shows success message after payment', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    // Wait for payment delay
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Betaling vellykket!')
+    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
+  })
+  it('displays error message when payment fails', async () => {
+    const mockError = 'Payment failed'
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(mockError),
+      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
+    } as any)
+    const wrapper = mountComponent()
+    // Attempt payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
+  })
+  it('navigates back to home after successful payment', async () => {
+    const wrapper = mountComponent()
+    // Complete payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Click return button
+    await wrapper.find('button.btn-secondary').trigger('click')
+    expect(mockRouter.push).toHaveBeenCalledWith('/')
+  })
+  it('handles missing service price gracefully', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mountComponent()
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(0)
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows payment button in correct states', async () => {
+    const wrapper = mountComponent()
+    // Initial state
+    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
+    // During payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
+    // After payment
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Success state should show secondary button
+    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
+    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
+  })
+  it('shows payment instructions', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
+  })
+})
 ````
 
 ## File: frontend/customer/src/components/PaymentForm.vue
@@ -21209,6 +20494,120 @@ const handlePayment = async () => {
 </script>
 ````
 
+## File: frontend/customer/src/stores/__tests__/services.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useServicesStore } from '../services'
+import type { Service } from '../types'
+// Test data
+const createMockService = (overrides: Partial<Service> = {}): Service => ({
+  id: '1',
+  name: 'Haircut',
+  description: 'Basic haircut',
+  duration: 30,
+  price: '300',
+  isActive: true,
+  createdAt: '2023-01-01',
+  updatedAt: '2023-01-01',
+  ...overrides,
+});
+// Helper functions
+const mockFetchSuccess = (response: Service[] = []) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+    }),
+  );
+};
+const mockFetchError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ message }),
+    }),
+  );
+};
+const mockNetworkError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() => 
+    Promise.reject(new Error(message))
+  );
+};
+const waitForInitialFetch = () => new Promise((resolve) => setImmediate(resolve));
+describe('Services Store', () => {
+  let store: ReturnType<typeof useServicesStore>;
+  const mockService = createMockService();
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    mockFetchSuccess([]); // Default to empty services list
+    store = useServicesStore();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  it('has correct empty initial state', async () => {
+    // Stub queueMicrotask to prevent auto-fetch from running before assertions
+    const originalQueueMicrotask = globalThis.queueMicrotask;
+    globalThis.queueMicrotask = vi.fn();
+    // Create a fresh store with auto-fetch suppressed
+    setActivePinia(createPinia());
+    mockFetchSuccess([]);
+    const freshStore = useServicesStore();
+    // Initial state should show loading (before auto-fetch)
+    expect(freshStore.isLoading).toBeTruthy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
+    // Restore queueMicrotask and manually run fetch
+    globalThis.queueMicrotask = originalQueueMicrotask;
+    await freshStore.fetchServices();
+    // After fetch completes
+    expect(freshStore.isLoading).toBeFalsy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
+  });
+  it('fetches services successfully', async () => {
+    mockFetchSuccess([mockService]);
+    await store.fetchServices();
+    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services');
+    expect(store.services).toEqual([mockService]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBeNull();
+  });
+  it('handles fetch error', async () => {
+    mockFetchError('Failed to fetch services');
+    await store.fetchServices();
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Failed to fetch services');
+  });
+  it('handles network error', async () => {
+    mockNetworkError('Network error');
+    await store.fetchServices();
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Network error');
+  });
+  it('selects a service', async () => {
+    await waitForInitialFetch();
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
+  });
+  it('clears selected service', async () => {
+    await waitForInitialFetch();
+    // First select a service
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
+    // Then clear it
+    store.clearSelection();
+    expect(store.selectedService).toBeNull();
+  });
+});
+````
+
 ## File: frontend/customer/src/stores/services.ts
 ````typescript
 import { defineStore } from 'pinia'
@@ -21265,53 +20664,553 @@ export const useServicesStore = defineStore('services', () => {
 })
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.20",
-    "axios": "^1.12.2",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.3",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.21",
-    "vue-router": "^4.5.1"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.12.0",
-    "@tsconfig/node22": "^22.0.0",
-    "@types/jsdom": "^27.0.0",
-    "@types/node": "^24.5.2",
-    "@vitejs/plugin-vue": "^5.2.0",
-    "@vue/eslint-config-prettier": "^10.1.0",
-    "@vue/eslint-config-typescript": "^14.1.3",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.0.0",
-    "jsdom": "^27.0.0",
-    "prettier": "^3.3.3",
-    "typescript": "~5.9.0",
-    "vite": "^7.0.0",
-    "vitest": "^3.0.0",
-    "vue-tsc": "^3.0.0"
-  }
+## File: .gitignore
+````
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for instrumented libs generated by jscoverage/JSCover
+lib-cov
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Snowpack dependency directory (https://snowpack.dev/)
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# https://nextjs.org/blog/next-9-1#public-directory-support
+# public
+
+# vuepress build output
+.vuepress/dist
+
+# vuepress v2.x temp and cache directory
+.temp
+.cache
+
+# Docusaurus cache and generated files
+.docusaurus
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+/frontend/plans
+````
+
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import api from "../lib/api";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
 }
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+interface ErrorResponse {
+  message?: string | string[];
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        const response = await api.post<AuthResponse>(
+          "/auth/login",
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        return true;
+      } catch (error) {
+        console.error("Login error:", error);
+        this.error = this.resolveLoginError(error);
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    getHttpStatusErrorMessage(status: number): string {
+      switch (status) {
+        case 401:
+          return "Feil e-postadresse eller passord";
+        case 403:
+          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+        case 404:
+          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+        case 500:
+          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+        default:
+          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+    },
+    extractBackendMessage(message: string | string[]): string {
+      return Array.isArray(message) ? message.join(", ") : message;
+    },
+    handleAxiosError(error: AxiosError<ErrorResponse>): string {
+      // Handle specific HTTP status codes first
+      if (error.response?.status) {
+        const statusMessage = this.getHttpStatusErrorMessage(
+          error.response.status
+        );
+        if (error.response.status >= 400 && error.response.status < 500) {
+          return statusMessage; // Use localized message for client errors
+        }
+        // For server errors, try backend message first, then fallback to localized
+        if (error.response?.data?.message) {
+          return this.extractBackendMessage(error.response.data.message);
+        }
+        return statusMessage;
+      }
+      // No status code, try backend message
+      if (error.response?.data?.message) {
+        return this.extractBackendMessage(error.response.data.message);
+      }
+      // Handle network/connection errors
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    resolveLoginError(error: unknown): string {
+      if (error instanceof AxiosError) {
+        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
+      }
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      this.token = token;
+      this.isAuthenticated = true;
+      // If we don't have user data yet, fetch the profile to restore it
+      if (!this.user) {
+        try {
+          const response = await api.get<User>("/auth/profile");
+          this.user = response.data;
+        } catch {
+          // Token is invalid or expired — log out
+          this.logout();
+          return false;
+        }
+      }
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
+});
+````
+
+## File: frontend/customer/src/components/__tests__/BookingForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
+import BookingForm from '../BookingForm.vue'
+import { useServicesStore } from '../../stores/services'
+import { useBookingStore } from '../../stores/booking'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(() => ({
+    waitingSlots: [],
+    waitingCount: 0,
+    activeEmployees: [{ id: '1', name: 'Employee 1' }],
+  })),
+}))
+describe('BookingForm', () => {
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    // Reset all mocks
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: vi.fn(),
+    } as any)
+  })
+  it('shows message when no service is selected', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mount(BookingForm)
+    expect(wrapper.text()).toContain('Vennligst velg en tjeneste først')
+    expect(wrapper.find('button').text()).toBe('Se tjenester')
+  })
+  it('displays selected service details', () => {
+    const wrapper = mount(BookingForm)
+    expect(wrapper.text()).toContain(mockService.name)
+    expect(wrapper.text()).toContain(`Varighet: ${mockService.duration} minutter`)
+    // The price is formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('handles form submission correctly', async () => {
+    const mockSetPendingBooking = vi.fn()
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: mockSetPendingBooking,
+    } as any)
+    const wrapper = mount(BookingForm)
+    // Fill in form data
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
+    await wrapper.find('input[type="tel"]').setValue('+4712345678')
+    // Submit form
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: '+4712345678',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+  })
+  it('shows loading state during submission', async () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(true),
+      error: ref(null),
+      setPendingBooking: vi.fn(),
+    } as any)
+    const wrapper = mount(BookingForm)
+    expect(wrapper.find('button[type="submit"]').text()).toBe('Behandler...')
+  })
+  it('disables submit button when no name is entered', () => {
+    const wrapper = mount(BookingForm)
+    const submitButton = wrapper.find('button[type="submit"]')
+    expect(submitButton.attributes('disabled')).toBeDefined()
+  })
+  it('validates phone number format', async () => {
+    const mockSetPendingBooking = vi.fn()
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: mockSetPendingBooking,
+    } as any)
+    const wrapper = mount(BookingForm)
+    // Fill in name first
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
+    // Test invalid phone number
+    const input = wrapper.find('input[type="tel"]')
+    await input.setValue('invalid')
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: 'invalid',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+    // Test valid phone number
+    await input.setValue('+4712345678')
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: '+4712345678',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+  })
+})
+````
+
+## File: frontend/customer/src/components/BookingForm.vue
+````vue
+<template>
+  <div class="max-w-lg mx-auto">
+    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
+    <div v-if="!selectedService" class="card text-center py-12">
+      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
+      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
+    </div>
+    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
+      <!-- Service Summary -->
+      <div class="card bg-gradient-to-br from-white to-gray-50">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
+            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
+          </div>
+          <p class="text-xl font-bold text-gradient">
+            {{
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService.price),
+              )
+            }}
+          </p>
+        </div>
+      </div>
+      <!-- Queue Status -->
+      <div class="card">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
+              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
+            </div>
+            <div class="text-sm text-gray-500">
+              {{ displayStore.activeEmployees.length }} frisører på jobb
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Customer Info -->
+      <div class="card space-y-6">
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
+          <input
+            type="text"
+            v-model="firstName"
+            required
+            placeholder="Fornavn"
+            class="input text-lg"
+          />
+        </div>
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
+          <input
+            type="tel"
+            v-model="phoneNumber"
+            placeholder="+47 XXX XX XXX"
+            class="input text-lg"
+            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
+          />
+          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+        </div>
+      </div>
+      <!-- Submit Button -->
+      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
+        <span v-if="isLoading">Behandler...</span>
+        <span v-else>Fortsett til betaling</span>
+      </button>
+    </form>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useServicesStore } from '../stores/services'
+import { useBookingStore } from '../stores/booking'
+import { useDisplayStore } from '../stores/display'
+const router = useRouter()
+const servicesStore = useServicesStore()
+const bookingStore = useBookingStore()
+const displayStore = useDisplayStore()
+const { selectedService } = storeToRefs(servicesStore)
+const { isLoading, error } = storeToRefs(bookingStore)
+// Form data
+const firstName = ref('')
+const phoneNumber = ref('')
+// Calculate wait time based on queue and selected service
+const calculateWaitTime = computed(() => {
+  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
+  // Base wait time from current queue
+  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
+    return total + (slot.estimatedTime || 0)
+  }, 0)
+  // Add selected service duration
+  return queueWaitTime + selectedService.value.duration
+})
+const handleSubmit = async () => {
+  if (!selectedService.value || !firstName.value) return
+  // Set pending booking and navigate to payment
+  bookingStore.setPendingBooking({
+    serviceId: selectedService.value.id,
+    firstName: firstName.value,
+    phoneNumber: phoneNumber.value || undefined,
+  })
+  // Navigate to payment page
+  router.push('/payment')
+}
+</script>
 ````
 
 ## File: frontend/customer/package.json
