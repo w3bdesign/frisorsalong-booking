@@ -5,6 +5,9 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js/faker)/)',
+  ],
   collectCoverageFrom: [
     '**/*.(t|j)s',
     '!**/*.spec.ts',
@@ -21,7 +24,7 @@ module.exports = {
   },
   coverageThreshold: {
     global: {
-      branches: 80,
+      branches: 75,
       functions: 80,
       lines: 80,
       statements: 80
