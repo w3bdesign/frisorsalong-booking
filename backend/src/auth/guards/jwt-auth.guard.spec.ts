@@ -110,12 +110,11 @@ describe('JwtAuthGuard', () => {
     }
 
     const testErrorScenario = (
-      error: Error | string | null,
+      error: Error | null,
       info: JwtError | null,
       expectedError: UnauthorizedException | Error
     ) => {
-      // Pass raw error value (including strings) to exercise all guard branches
-      expect(() => guard.handleRequest(error as Error | null, false, info)).toThrow(expectedError);
+      expect(() => guard.handleRequest(error, false, info)).toThrow(expectedError);
     };
 
     it('should return user when authentication is successful', () => {
@@ -126,7 +125,7 @@ describe('JwtAuthGuard', () => {
 
     const errorScenarios: Array<{
       description: string;
-      error: Error | string | null;
+      error: Error | null;
       info: JwtError | null;
       expectedError: UnauthorizedException | Error;
     }> = [
@@ -163,9 +162,9 @@ describe('JwtAuthGuard', () => {
 
     it('should convert non-Error error to UnauthorizedException', () => {
       const errorMessage = 'string error';
-      testErrorScenario(
-        errorMessage,
-        null,
+      // Intentionally pass a non-Error value to exercise the guard's String(err) branch
+      const nonErrorValue = errorMessage as unknown as Error;
+      expect(() => guard.handleRequest(nonErrorValue, false, null)).toThrow(
         new UnauthorizedException(errorMessage)
       );
     });
