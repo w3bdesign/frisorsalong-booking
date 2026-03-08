@@ -14,6 +14,7 @@ module.exports = {
     '!**/coverage/**',
   ],
   coverageDirectory: '../coverage',
+  coverageReporters: ['text', 'lcov', 'clover'],
   testEnvironment: 'node',
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/$1',
