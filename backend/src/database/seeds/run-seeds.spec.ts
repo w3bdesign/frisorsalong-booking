@@ -23,11 +23,20 @@ jest.mock("typeorm", () => {
   };
 });
 
-// Mock the seed functions
-jest.mock("./create-admin-user.seed");
-jest.mock("./create-initial-data.seed");
-jest.mock("./create-sample-bookings.seed");
-jest.mock("./create-sample-orders.seed");
+// Mock the seed functions with explicit factories to avoid loading actual modules
+// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
+jest.mock("./create-admin-user.seed", () => ({
+  createAdminUser: jest.fn(),
+}));
+jest.mock("./create-initial-data.seed", () => ({
+  createInitialData: jest.fn(),
+}));
+jest.mock("./create-sample-bookings.seed", () => ({
+  createSampleBookings: jest.fn(),
+}));
+jest.mock("./create-sample-orders.seed", () => ({
+  createSampleOrders: jest.fn(),
+}));
 
 describe("run-seeds", () => {
   // Create a minimal mock of DataSource with required properties
