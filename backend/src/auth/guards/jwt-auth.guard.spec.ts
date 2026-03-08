@@ -114,8 +114,8 @@ describe('JwtAuthGuard', () => {
       info: JwtError | null,
       expectedError: UnauthorizedException | Error
     ) => {
-      const finalError = typeof error === 'string' ? new Error(error) : error;
-      expect(() => guard.handleRequest(finalError, false, info)).toThrow(expectedError);
+      // Pass raw error value (including strings) to exercise all guard branches
+      expect(() => guard.handleRequest(error as Error | null, false, info)).toThrow(expectedError);
     };
 
     it('should return user when authentication is successful', () => {
