@@ -100,13 +100,18 @@ describe("AuthController", () => {
 
   describe("getProfile", () => {
     it("should return the authenticated user", () => {
-      const result = controller.getProfile(mockUser as any);
+      const result = controller.getProfile(mockUser);
 
       expect(result).toEqual(mockUser);
     });
 
     it("should return user without password field", () => {
-      const userWithPassword = { ...mockUser, password: "hashed_password" } as any;
+      const userWithPassword: User = {
+        ...mockUser,
+        password: "hashed_password",
+        hashPassword: jest.fn(),
+        validatePassword: jest.fn(),
+      };
       const result = controller.getProfile(userWithPassword);
 
       expect(result).toEqual(userWithPassword);
