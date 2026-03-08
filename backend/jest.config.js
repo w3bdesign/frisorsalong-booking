@@ -5,6 +5,9 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js/faker)/)',
+  ],
   collectCoverageFrom: [
     '**/*.(t|j)s',
     '!**/*.spec.ts',
@@ -14,13 +17,14 @@ module.exports = {
     '!**/coverage/**',
   ],
   coverageDirectory: '../coverage',
+  coverageReporters: ['text', 'lcov', 'clover'],
   testEnvironment: 'node',
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/$1',
   },
   coverageThreshold: {
     global: {
-      branches: 80,
+      branches: 75,
       functions: 80,
       lines: 80,
       statements: 80

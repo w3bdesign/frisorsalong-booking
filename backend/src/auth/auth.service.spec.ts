@@ -78,7 +78,7 @@ describe("AuthService", () => {
     it("should throw ConflictException if email already exists", async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
 
-      await expect(service.register(registerDto)).rejects.toThrowError(
+      await expect(service.register(registerDto)).rejects.toThrow(
         expect.objectContaining({
           message: "E-postadressen er allerede i bruk",
         })
@@ -110,7 +110,7 @@ describe("AuthService", () => {
     it("should throw UnauthorizedException if user not found", async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(null);
 
-      await expect(service.login(loginDto)).rejects.toThrowError(
+      await expect(service.login(loginDto)).rejects.toThrow(
         expect.objectContaining({
           message: "Ugyldige innloggingsdetaljer",
         })
@@ -121,7 +121,7 @@ describe("AuthService", () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.login(loginDto)).rejects.toThrowError(
+      await expect(service.login(loginDto)).rejects.toThrow(
         expect.objectContaining({
           message: "Ugyldige innloggingsdetaljer",
         })

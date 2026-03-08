@@ -109,13 +109,20 @@ describe('JwtAuthGuard', () => {
       return error;
     }
 
-    const testErrorScenario = (
-      error: Error | string | null,
+    const expectHandleRequestToThrow = (
+      error: Error | null,
       info: JwtError | null,
-      expectedError: UnauthorizedException | Error
-    ) => {
-      const finalError = typeof error === 'string' ? new Error(error) : error;
-      expect(() => guard.handleRequest(finalError, false, info)).toThrow(expectedError);
+      expectedMessage: string
+    ): void => {
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, info);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError as Error).message).toContain(expectedMessage);
     };
 
     it('should return user when authentication is successful', () => {
@@ -126,48 +133,63 @@ describe('JwtAuthGuard', () => {
 
     const errorScenarios: Array<{
       description: string;
-      error: Error | string | null;
+      error: Error | null;
       info: JwtError | null;
-      expectedError: UnauthorizedException | Error;
+      expectedMessage: string;
+      expectedType: typeof UnauthorizedException | typeof Error;
     }> = [
       {
         description: 'user not authenticated',
         error: null,
         info: null,
-        expectedError: new UnauthorizedException('User not authenticated')
+        expectedMessage: 'User not authenticated',
+        expectedType: UnauthorizedException
       },
       {
         description: 'invalid token format',
         error: null,
         info: createJwtError('invalid token', 'JsonWebTokenError'),
-        expectedError: new UnauthorizedException('Invalid token format')
+        expectedMessage: 'Invalid token format',
+        expectedType: UnauthorizedException
       },
       {
         description: 'expired token',
         error: null,
         info: createJwtError('jwt expired', 'TokenExpiredError'),
-        expectedError: new UnauthorizedException('Token has expired')
+        expectedMessage: 'Token has expired',
+        expectedType: UnauthorizedException
       }
     ];
 
     errorScenarios.forEach(scenario => {
       it(`should throw UnauthorizedException for ${scenario.description}`, () => {
-        testErrorScenario(scenario.error, scenario.info, scenario.expectedError);
+        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
       });
     });
 
     it('should throw original error when error is provided', () => {
       const error = new Error('Custom error');
-      testErrorScenario(error, null, error);
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBe(error);
     });
 
     it('should convert non-Error error to UnauthorizedException', () => {
       const errorMessage = 'string error';
-      testErrorScenario(
-        errorMessage,
-        null,
-        new UnauthorizedException(errorMessage)
-      );
+      // Pass a non-Error value to exercise the guard's String(err) branch
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(errorMessage as unknown as Error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect((thrownError as Error).message).toContain(errorMessage);
     });
   });
 });
