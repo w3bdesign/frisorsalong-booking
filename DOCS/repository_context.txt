@@ -1515,162 +1515,6 @@ export * from "./jwt-auth.guard";
 export * from "./roles.guard";
 ````
 
-## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
-````typescript
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { Test, TestingModule } from '@nestjs/testing';
-describe('JwtAuthGuard', () => {
-  let guard: JwtAuthGuard;
-  interface RequestMock {
-    headers: {
-      authorization?: string | string[];
-    };
-  }
-  const createMockContext = (request: RequestMock): ExecutionContext => ({
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-    getHandler: jest.fn(),
-    getClass: jest.fn(),
-    getArgs: jest.fn(),
-    getArgByIndex: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-  } as unknown as ExecutionContext);
-  const testUnauthorizedScenario = (
-    scenario: {
-      headers: { authorization?: string | string[] },
-      expectedError: string
-    }
-  ) => {
-    const context = createMockContext({ headers: scenario.headers });
-    expect(() => guard.canActivate(context)).toThrow(
-      new UnauthorizedException(scenario.expectedError)
-    );
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard],
-    }).compile();
-    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-  });
-  describe('canActivate', () => {
-    const authorizationScenarios = [
-      {
-        description: 'missing Authorization header',
-        headers: {},
-        expectedError: 'Missing Authorization header'
-      },
-      {
-        description: 'non-string Authorization header',
-        headers: { authorization: ['Bearer token'] },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'wrong auth type',
-        headers: { authorization: 'Basic token' },
-        expectedError: 'Authorization header must start with "Bearer "'
-      },
-      {
-        description: 'wrong format',
-        headers: { authorization: 'Bearer token extra' },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'missing token',
-        headers: { authorization: 'Bearer ' },
-        expectedError: 'Token not provided'
-      }
-    ];
-    authorizationScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
-        testUnauthorizedScenario(scenario);
-      });
-    });
-    it('should call super.canActivate when token is valid', () => {
-      const context = createMockContext({
-        headers: { authorization: 'Bearer valid-token' }
-      });
-      const superCanActivateSpy = jest
-        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
-        .mockImplementation(() => true);
-      const result = guard.canActivate(context);
-      expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
-    });
-  });
-  describe('handleRequest', () => {
-    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
-    interface JwtError extends Error {
-      name: JwtErrorName;
-    }
-    function createJwtError(message: string, name: JwtErrorName): JwtError {
-      const error = new Error(message) as JwtError;
-      error.name = name;
-      return error;
-    }
-    const testErrorScenario = (
-      error: Error | string | null,
-      info: JwtError | null,
-      expectedError: UnauthorizedException | Error
-    ) => {
-      const finalError = typeof error === 'string' ? new Error(error) : error;
-      expect(() => guard.handleRequest(finalError, false, info)).toThrow(expectedError);
-    };
-    it('should return user when authentication is successful', () => {
-      const user = { id: '1', email: 'test@example.com' };
-      const result = guard.handleRequest(null, user, null);
-      expect(result).toBe(user);
-    });
-    const errorScenarios: Array<{
-      description: string;
-      error: Error | string | null;
-      info: JwtError | null;
-      expectedError: UnauthorizedException | Error;
-    }> = [
-      {
-        description: 'user not authenticated',
-        error: null,
-        info: null,
-        expectedError: new UnauthorizedException('User not authenticated')
-      },
-      {
-        description: 'invalid token format',
-        error: null,
-        info: createJwtError('invalid token', 'JsonWebTokenError'),
-        expectedError: new UnauthorizedException('Invalid token format')
-      },
-      {
-        description: 'expired token',
-        error: null,
-        info: createJwtError('jwt expired', 'TokenExpiredError'),
-        expectedError: new UnauthorizedException('Token has expired')
-      }
-    ];
-    errorScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
-        testErrorScenario(scenario.error, scenario.info, scenario.expectedError);
-      });
-    });
-    it('should throw original error when error is provided', () => {
-      const error = new Error('Custom error');
-      testErrorScenario(error, null, error);
-    });
-    it('should convert non-Error error to UnauthorizedException', () => {
-      const errorMessage = 'string error';
-      testErrorScenario(
-        errorMessage,
-        null,
-        new UnauthorizedException(errorMessage)
-      );
-    });
-  });
-});
-````
-
 ## File: backend/src/auth/guards/jwt-auth.guard.ts
 ````typescript
 import { Injectable, ExecutionContext, UnauthorizedException, Logger } from "@nestjs/common";
@@ -2322,117 +2166,6 @@ import { User } from "../users/entities/user.entity";
   exports: [AuthService, JwtStrategy, RolesGuard, JwtModule, PassportModule],
 })
 export class AuthModule {}
-````
-
-## File: backend/src/auth/auth.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { AuthService } from "./auth.service";
-import { UsersService } from "../users/users.service";
-import { UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-jest.mock("bcrypt", () => ({
-  compare: jest.fn(),
-  hash: jest.fn(),
-}));
-describe("AuthService", () => {
-  let service: AuthService;
-  const mockUser = {
-    id: "1",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    password: "hashedPassword",
-    role: UserRole.CUSTOMER,
-  };
-  const mockUsersService = {
-    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
-    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-  };
-  const mockJwtService = {
-    sign: jest.fn().mockReturnValue("jwt_token"),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: JwtService,
-          useValue: mockJwtService,
-        },
-      ],
-    }).compile();
-    service = module.get<AuthService>(AuthService);
-    // Clear mock calls between tests
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-  describe("register", () => {
-    const registerDto = {
-      email: "test@example.com",
-      password: "password123",
-      firstName: "Test",
-      lastName: "User",
-      role: UserRole.CUSTOMER,
-    };
-    it("should successfully register a new user", async () => {
-      const result = await service.register(registerDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-      expect(mockUsersService.create).toHaveBeenCalled();
-    });
-    it("should throw ConflictException if email already exists", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      await expect(service.register(registerDto)).rejects.toThrowError(
-        expect.objectContaining({
-          message: "E-postadressen er allerede i bruk",
-        })
-      );
-    });
-  });
-  describe("login", () => {
-    const loginDto = {
-      email: "test@example.com",
-      password: "password123",
-    };
-    beforeEach(() => {
-      // Setup bcrypt mock before each test
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    });
-    it("should successfully login a user", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      const result = await service.login(loginDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-    });
-    it("should throw UnauthorizedException if user not found", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(null);
-      await expect(service.login(loginDto)).rejects.toThrowError(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
-      );
-    });
-    it("should throw UnauthorizedException if password is invalid", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(service.login(loginDto)).rejects.toThrowError(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/auth/auth.service.ts
@@ -3226,6 +2959,388 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
   exports: [BookingsService, TypeOrmModule],
 })
 export class BookingsModule {}
+````
+
+## File: backend/src/bookings/bookings.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { User, UserRole } from "../users/entities/user.entity";
+describe("BookingsService", () => {
+  let service: BookingsService;
+  interface MockUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    phoneNumber: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+  interface FindOneOptions {
+    where: { id: string };
+    relations: string[];
+  }
+  interface FindOptions {
+    where: unknown;
+    relations: string[];
+    order: { startTime: "ASC" | "DESC" };
+  }
+  interface MockBooking {
+    id: string;
+    customer?: Partial<MockUser>;
+    service?: { id: string; duration: number };
+    employee?: { id: string };
+    status?: BookingStatus;
+    startTime?: Date;
+    endTime?: Date;
+    notes?: string;
+    totalPrice?: number;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+  }
+  const mockBookingRepository = {
+    create: jest.fn().mockImplementation(
+      (dto: Partial<Booking>): MockBooking => ({
+        id: "booking1",
+        ...dto,
+      })
+    ),
+    save: jest
+      .fn()
+      .mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> =>
+          Promise.resolve({ id: "booking1", ...booking })
+      ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
+      ),
+    find: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
+      ),
+  };
+  const mockUsersService = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
+  const mockEmployeesService = {
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+    isAvailable: jest.fn(),
+  };
+  const mockServicesService = {
+    findOne: jest.fn(),
+  };
+  const mockOrdersService = {
+    create: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BookingsService,
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+        {
+          provide: ServicesService,
+          useValue: mockServicesService,
+        },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    service = module.get<BookingsService>(BookingsService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  describe("createWalkIn", () => {
+    const mockShop = {
+      id: "shop1",
+      code: "SHOP1",
+      shopName: "Test Shop",
+      isActive: true,
+      dailyBookingLimit: 100,
+      lastBookingTime: new Date(),
+      todayBookingCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const mockEmployee = { id: "emp1", isActive: true };
+    const mockCustomer = { id: "cust1" };
+    const createWalkInDto: CreateWalkInBookingDto = {
+      serviceId: "service1",
+      firstName: "John",
+      phoneNumber: "1234567890",
+      isPaid: true,
+    };
+    it("should create a walk-in booking successfully", async () => {
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
+      mockBookingRepository.find.mockResolvedValue([]);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.createWalkIn(createWalkInDto, mockShop);
+      expect(result).toBeDefined();
+      expect(mockUsersService.create).toHaveBeenCalled();
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createWalkInDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when service not found", async () => {
+      mockServicesService.findOne.mockResolvedValue(null);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toThrow(NotFoundException);
+    });
+    it("should throw BadRequestException when no active employees", async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([]);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+  describe("create", () => {
+    const mockCustomer = { id: "cust1" };
+    const mockEmployee = { id: "emp1" };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const createBookingDto: CreateBookingDto = {
+      customerId: "cust1",
+      employeeId: "emp1",
+      serviceId: "service1",
+      startTime: new Date().toISOString(),
+      notes: "Test booking",
+    };
+    it("should create a booking successfully", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.create(createBookingDto);
+      expect(result).toBeDefined();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith(
+        createBookingDto.customerId
+      );
+      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.employeeId
+      );
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when customer not found", async () => {
+      mockUsersService.findOne.mockResolvedValue(null);
+      await expect(service.create(createBookingDto)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+    it("should throw BadRequestException when employee not available", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.create(createBookingDto)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+  describe("findOne", () => {
+    it("should return a booking when found", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      const result = await service.findOne("booking1");
+      expect(result).toBe(mockBooking);
+      const expectedOptions: FindOneOptions = {
+        where: { id: "booking1" },
+        relations: ["customer", "employee", "employee.user", "service"],
+      };
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
+        expectedOptions
+      );
+    });
+    it("should throw NotFoundException when booking not found", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne("booking1")).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+  describe("update", () => {
+    const mockBooking = {
+      id: "booking1",
+      service: { id: "service1" },
+      employee: { id: "emp1" },
+    };
+    const updateDto: UpdateBookingDto = {
+      startTime: new Date().toISOString(),
+    };
+    it("should update booking successfully", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const updatedBooking: MockBooking = {
+        id: mockBooking.id,
+        startTime: new Date(updateDto.startTime),
+        service: { id: mockBooking.service.id, duration: 30 },
+        employee: { id: mockBooking.employee.id },
+      };
+      mockBookingRepository.save.mockResolvedValue(updatedBooking);
+      const result = await service.update("booking1", updateDto);
+      expect(result).toBeDefined();
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw BadRequestException when employee not available for new time", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.update("booking1", updateDto)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+  describe("cancel", () => {
+    it("should cancel booking successfully", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      const reason = "Test reason";
+      const expectedSavedBooking = {
+        id: mockBooking.id,
+        status: BookingStatus.CANCELLED,
+        cancelledAt: expect.any(Date) as Date,
+        cancellationReason: reason,
+      };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
+      );
+      const result = await service.cancel("booking1", reason);
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.cancellationReason).toBe(reason);
+      expect(mockBookingRepository.save).toHaveBeenCalledWith(
+        expectedSavedBooking
+      );
+    });
+  });
+  describe("findUpcoming", () => {
+    it("should return upcoming bookings", async () => {
+      const mockBookings: MockBooking[] = [
+        { id: "booking1" },
+        { id: "booking2" },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.findUpcoming();
+      expect(result).toEqual(mockBookings);
+      const expectedFindOptions: FindOptions = {
+        where: expect.any(Object),
+        relations: ["customer", "employee", "employee.user", "service"],
+        order: { startTime: "ASC" },
+      };
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(
+        expectedFindOptions
+      );
+    });
+  });
+  describe("getUpcomingCount", () => {
+    it("should return upcoming count and customers", async () => {
+      const mockBookings: Partial<Booking>[] = [
+        {
+          id: "booking1",
+          customer: {
+            id: "user1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "1234567890",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service1",
+            name: "Haircut",
+            description: "Basic haircut",
+            duration: 30,
+            price: 50,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        {
+          id: "booking2",
+          customer: {
+            id: "user2",
+            firstName: "Jane",
+            lastName: "Doe",
+            email: "jane@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "0987654321",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service2",
+            name: "Styling",
+            description: "Hair styling",
+            duration: 45,
+            price: 75,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.getUpcomingCount();
+      expect(result.count).toBe(2);
+      expect(result.customers).toHaveLength(2);
+      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
+    });
+  });
+});
 ````
 
 ## File: backend/src/bookings/bookings.service.ts
@@ -6034,154 +6149,6 @@ export class CreateServicesSeed implements Seeder {
     await serviceRepository.save(services);
   }
 }
-````
-
-## File: backend/src/database/seeds/run-seeds.spec.ts
-````typescript
-import { DataSource } from "typeorm";
-import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
-import { createDataSource, runSeeds } from "./run-seeds";
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-jest.mock("typeorm", () => {
-  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
-  return {
-    ...actualTypeorm,
-    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
-      if (options?.url === "invalid-url") {
-        throw new Error("Invalid URL format");
-      }
-      return {
-        options,
-        initialize: jest.fn().mockResolvedValue(undefined),
-        destroy: jest.fn().mockResolvedValue(undefined),
-      };
-    }),
-  };
-});
-// Mock the seed functions
-jest.mock("./create-admin-user.seed");
-jest.mock("./create-initial-data.seed");
-jest.mock("./create-sample-bookings.seed");
-jest.mock("./create-sample-orders.seed");
-describe("run-seeds", () => {
-  // Create a minimal mock of DataSource with required properties
-  const createMockDataSource = () =>
-    ({
-      name: "default",
-      options: {} as PostgresConnectionOptions,
-      isInitialized: false,
-      initialize: jest.fn().mockResolvedValue(undefined),
-      destroy: jest.fn().mockResolvedValue(undefined),
-      isConnected: false,
-      close: jest.fn().mockResolvedValue(undefined),
-      connect: jest.fn().mockResolvedValue(undefined),
-      createEntityManager: jest.fn(),
-      createQueryRunner: jest.fn(),
-      getMetadata: jest.fn(),
-      hasMetadata: jest.fn(),
-      getRepository: jest.fn(),
-      getTreeRepository: jest.fn(),
-      getMongoRepository: jest.fn(),
-      transaction: jest.fn(),
-      driver: {},
-      manager: {},
-      mongoManager: undefined,
-      sqljsManager: undefined,
-      namingStrategy: {},
-      entityMetadatas: [],
-      subscribers: [],
-      migrations: [],
-      logger: console,
-      metadataTableName: "typeorm_metadata",
-      queryResultCache: null,
-      relationLoader: {},
-      relationIdLoader: {},
-    }) as unknown as DataSource;
-  const mockDataSource = createMockDataSource();
-  const originalEnv = process.env;
-  beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    process.env = { ...originalEnv };
-    console.log = jest.fn();
-    console.error = jest.fn();
-  });
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-  describe("createDataSource", () => {
-    it("should create a DataSource when DATABASE_URL is set", () => {
-      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
-      const dataSource = createDataSource();
-      expect(dataSource).toBeDefined();
-      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
-        process.env.DATABASE_URL
-      );
-    });
-    it("should throw error when DATABASE_URL is not set", () => {
-      delete process.env.DATABASE_URL;
-      expect(() => createDataSource()).toThrow(
-        "DATABASE_URL environment variable is not set"
-      );
-    });
-    it("should handle DataSource creation errors", () => {
-      process.env.DATABASE_URL = "invalid-url";
-      expect(() => createDataSource()).toThrow(
-        "Failed to create DataSource: Invalid URL format"
-      );
-    });
-  });
-  describe("runSeeds", () => {
-    it("should run all seeds successfully", async () => {
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createInitialData as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      const result = await runSeeds(mockDataSource);
-      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
-      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
-      expect(result).toBe(true);
-    });
-    it("should throw error for invalid DataSource", async () => {
-      const invalidDataSource = undefined as unknown as DataSource;
-      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
-        "Invalid DataSource provided"
-      );
-    });
-    it("should handle initialization error", async () => {
-      const errorDataSource = createMockDataSource();
-      errorDataSource.initialize = jest
-        .fn()
-        .mockRejectedValue(new Error("Init failed"));
-      await expect(runSeeds(errorDataSource)).rejects.toThrow(
-        "Seed operation failed: Init failed"
-      );
-    });
-    it("should handle seed operation errors", async () => {
-      const mockError = new Error("Seed operation failed");
-      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: Seed operation failed"
-      );
-    });
-    it("should handle non-Error objects in catch blocks", async () => {
-      // Mock createInitialData to reject with a string
-      (createInitialData as jest.Mock).mockRejectedValue("String error");
-      // Reset other mocks to resolve successfully
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: String error"
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/database/seeds/run-seeds.ts
@@ -10218,37 +10185,49 @@ describe("AppController (e2e)", () => {
 node_modules
 ````
 
-## File: backend/jest.config.js
+## File: backend/eslint.config.js
 ````javascript
-module.exports = {
-  moduleFileExtensions: ['js', 'json', 'ts'],
-  rootDir: 'src',
-  testRegex: '.*\\.spec\\.ts$',
-  transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: require("@typescript-eslint/parser"),
+      parserOptions: {
+        project: require("node:path").join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
+    },
+    rules: {
+      ...require("@typescript-eslint/eslint-plugin").configs["recommended"]
+        .rules,
+      ...require("@typescript-eslint/eslint-plugin").configs[
+        "recommended-requiring-type-checking"
+      ].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",   
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+    },
   },
-  collectCoverageFrom: [
-    '**/*.(t|j)s',
-    '!**/*.spec.ts',
-    '!**/*.test.ts',
-    '!**/node_modules/**',
-    '!**/dist/**',
-    '!**/coverage/**',
-  ],
-  coverageDirectory: '../coverage',
-  testEnvironment: 'node',
-  moduleNameMapper: {
-    '^src/(.*)$': '<rootDir>/$1',
-  },
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    }
-  }
-};
+];
 ````
 
 ## File: backend/nest-cli.json
@@ -17765,55 +17744,6 @@ volumes:
   postgres_data:
 ````
 
-## File: Dockerfile
-````dockerfile
-# Multi-stage Dockerfile for building and running both backend and frontend
-
-# Stage 1: Build backend
-FROM node:22 AS backend-builder
-WORKDIR /app/backend
-COPY backend/package.json backend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY backend .
-RUN pnpm build
-
-# Stage 2: Build frontend
-FROM node:22 AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY frontend/admin .
-RUN pnpm build
-
-# Stage 3: Run backend and frontend
-FROM node:22
-WORKDIR /app
-
-# Copy backend build
-COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder /app/backend/package.json ./backend/package.json
-
-# Copy frontend build
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
-
-# Install serve to serve the frontend
-RUN npm install -g serve
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose ports
-EXPOSE 3000
-EXPOSE 5173
-
-# Start both backend and frontend
-CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
-````
-
 ## File: ISSUES.md
 ````markdown
 CRITICAL
@@ -18613,187 +18543,6 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test -- --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
-````
-
-## File: .github/workflows/repomix.yml
-````yaml
-name: Repository Documentation
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
-        run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
-        run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
-````
-
 ## File: backend/src/auth/auth.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -18990,6 +18739,117 @@ export class AuthController {
 }
 ````
 
+## File: backend/src/auth/auth.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt", () => ({
+  compare: jest.fn(),
+  hash: jest.fn(),
+}));
+describe("AuthService", () => {
+  let service: AuthService;
+  const mockUser = {
+    id: "1",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User",
+    password: "hashedPassword",
+    role: UserRole.CUSTOMER,
+  };
+  const mockUsersService = {
+    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
+    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
+  };
+  const mockJwtService = {
+    sign: jest.fn().mockReturnValue("jwt_token"),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
+      ],
+    }).compile();
+    service = module.get<AuthService>(AuthService);
+    // Clear mock calls between tests
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(service).toBeDefined();
+  });
+  describe("register", () => {
+    const registerDto = {
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+      role: UserRole.CUSTOMER,
+    };
+    it("should successfully register a new user", async () => {
+      const result = await service.register(registerDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+      expect(mockUsersService.create).toHaveBeenCalled();
+    });
+    it("should throw ConflictException if email already exists", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      await expect(service.register(registerDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "E-postadressen er allerede i bruk",
+        })
+      );
+    });
+  });
+  describe("login", () => {
+    const loginDto = {
+      email: "test@example.com",
+      password: "password123",
+    };
+    beforeEach(() => {
+      // Setup bcrypt mock before each test
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    });
+    it("should successfully login a user", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      const result = await service.login(loginDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+    });
+    it("should throw UnauthorizedException if user not found", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(null);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+    it("should throw UnauthorizedException if password is invalid", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+  });
+});
+````
+
 ## File: backend/src/config/cache.config.ts
 ````typescript
 import { registerAs } from "@nestjs/config";
@@ -18998,6 +18858,163 @@ export default registerAs("cache", () => ({
   port: Number.parseInt(process.env.REDIS_PORT, 10) || 6379,
   ttl: Number.parseInt(process.env.CACHE_TTL, 10) || 5 * 60, // 5 minutes
 }));
+````
+
+## File: backend/src/database/seeds/run-seeds.spec.ts
+````typescript
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+jest.mock("typeorm", () => {
+  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
+  return {
+    ...actualTypeorm,
+    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
+      if (options?.url === "invalid-url") {
+        throw new Error("Invalid URL format");
+      }
+      return {
+        options,
+        initialize: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
+// Mock the seed functions with explicit factories to avoid loading actual modules
+// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
+jest.mock("./create-admin-user.seed", () => ({
+  createAdminUser: jest.fn(),
+}));
+jest.mock("./create-initial-data.seed", () => ({
+  createInitialData: jest.fn(),
+}));
+jest.mock("./create-sample-bookings.seed", () => ({
+  createSampleBookings: jest.fn(),
+}));
+jest.mock("./create-sample-orders.seed", () => ({
+  createSampleOrders: jest.fn(),
+}));
+describe("run-seeds", () => {
+  // Create a minimal mock of DataSource with required properties
+  const createMockDataSource = () =>
+    ({
+      name: "default",
+      options: {} as PostgresConnectionOptions,
+      isInitialized: false,
+      initialize: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined),
+      isConnected: false,
+      close: jest.fn().mockResolvedValue(undefined),
+      connect: jest.fn().mockResolvedValue(undefined),
+      createEntityManager: jest.fn(),
+      createQueryRunner: jest.fn(),
+      getMetadata: jest.fn(),
+      hasMetadata: jest.fn(),
+      getRepository: jest.fn(),
+      getTreeRepository: jest.fn(),
+      getMongoRepository: jest.fn(),
+      transaction: jest.fn(),
+      driver: {},
+      manager: {},
+      mongoManager: undefined,
+      sqljsManager: undefined,
+      namingStrategy: {},
+      entityMetadatas: [],
+      subscribers: [],
+      migrations: [],
+      logger: console,
+      metadataTableName: "typeorm_metadata",
+      queryResultCache: null,
+      relationLoader: {},
+      relationIdLoader: {},
+    }) as unknown as DataSource;
+  const mockDataSource = createMockDataSource();
+  const originalEnv = process.env;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    console.log = jest.fn();
+    console.error = jest.fn();
+  });
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+  describe("createDataSource", () => {
+    it("should create a DataSource when DATABASE_URL is set", () => {
+      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
+      const dataSource = createDataSource();
+      expect(dataSource).toBeDefined();
+      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
+        process.env.DATABASE_URL
+      );
+    });
+    it("should throw error when DATABASE_URL is not set", () => {
+      delete process.env.DATABASE_URL;
+      expect(() => createDataSource()).toThrow(
+        "DATABASE_URL environment variable is not set"
+      );
+    });
+    it("should handle DataSource creation errors", () => {
+      process.env.DATABASE_URL = "invalid-url";
+      expect(() => createDataSource()).toThrow(
+        "Failed to create DataSource: Invalid URL format"
+      );
+    });
+  });
+  describe("runSeeds", () => {
+    it("should run all seeds successfully", async () => {
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createInitialData as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      const result = await runSeeds(mockDataSource);
+      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
+      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
+      expect(result).toBe(true);
+    });
+    it("should throw error for invalid DataSource", async () => {
+      const invalidDataSource = undefined as unknown as DataSource;
+      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
+        "Invalid DataSource provided"
+      );
+    });
+    it("should handle initialization error", async () => {
+      const errorDataSource = createMockDataSource();
+      errorDataSource.initialize = jest
+        .fn()
+        .mockRejectedValue(new Error("Init failed"));
+      await expect(runSeeds(errorDataSource)).rejects.toThrow(
+        "Seed operation failed: Init failed"
+      );
+    });
+    it("should handle seed operation errors", async () => {
+      const mockError = new Error("Seed operation failed");
+      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: Seed operation failed"
+      );
+    });
+    it("should handle non-Error objects in catch blocks", async () => {
+      // Mock createInitialData to reject with a string
+      (createInitialData as jest.Mock).mockRejectedValue("String error");
+      // Reset other mocks to resolve successfully
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: String error"
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/app.module.ts
@@ -19046,51 +19063,6 @@ import { join } from "node:path";
   providers: [AppService],
 })
 export class AppModule {}
-````
-
-## File: backend/eslint.config.js
-````javascript
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: require("@typescript-eslint/parser"),
-      parserOptions: {
-        project: require("node:path").join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
-    },
-    rules: {
-      ...require("@typescript-eslint/eslint-plugin").configs["recommended"]
-        .rules,
-      ...require("@typescript-eslint/eslint-plugin").configs[
-        "recommended-requiring-type-checking"
-      ].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",   
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-    },
-  },
-];
 ````
 
 ## File: frontend/admin/src/components/base/Card.vue
@@ -20750,6 +20722,178 @@ dist
 /frontend/plans
 ````
 
+## File: Dockerfile
+````dockerfile
+# Multi-stage Dockerfile for building and running both backend and frontend
+
+# Stage 1: Build backend
+FROM node:24 AS backend-builder
+WORKDIR /app/backend
+COPY backend/package.json backend/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY backend .
+RUN pnpm build
+
+# Stage 2: Build frontend
+FROM node:24 AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY frontend/admin .
+RUN pnpm build
+
+# Stage 3: Run backend and frontend
+FROM node:24
+WORKDIR /app
+
+# Copy backend build
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/package.json
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Install serve to serve the frontend
+RUN npm install -g serve
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 5173
+
+# Start both backend and frontend
+CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
+````
+
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
+## File: backend/jest.config.js
+````javascript
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: 'src',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js/faker)/)',
+  ],
+  collectCoverageFrom: [
+    '**/*.(t|j)s',
+    '!**/*.spec.ts',
+    '!**/*.test.ts',
+    '!**/node_modules/**',
+    '!**/dist/**',
+    '!**/coverage/**',
+  ],
+  coverageDirectory: '../coverage',
+  coverageReporters: ['text', 'lcov', 'clover'],
+  testEnvironment: 'node',
+  moduleNameMapper: {
+    '^src/(.*)$': '<rootDir>/$1',
+  },
+  coverageThreshold: {
+    global: {
+      branches: 75,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  }
+};
+````
+
 ## File: frontend/admin/src/stores/auth.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -21213,383 +21357,274 @@ const handleSubmit = async () => {
 </script>
 ````
 
-## File: backend/src/bookings/bookings.service.spec.ts
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
+````
+
+## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { User, UserRole } from "../users/entities/user.entity";
-describe("BookingsService", () => {
-  let service: BookingsService;
-  interface MockUser {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    phoneNumber: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Test, TestingModule } from '@nestjs/testing';
+describe('JwtAuthGuard', () => {
+  let guard: JwtAuthGuard;
+  interface RequestMock {
+    headers: {
+      authorization?: string | string[];
+    };
   }
-  interface FindOneOptions {
-    where: { id: string };
-    relations: string[];
-  }
-  interface FindOptions {
-    where: unknown;
-    relations: string[];
-    order: { startTime: "ASC" | "DESC" };
-  }
-  interface MockBooking {
-    id: string;
-    customer?: Partial<MockUser>;
-    service?: { id: string; duration: number };
-    employee?: { id: string };
-    status?: BookingStatus;
-    startTime?: Date;
-    endTime?: Date;
-    notes?: string;
-    totalPrice?: number;
-    cancelledAt?: Date;
-    cancellationReason?: string;
-  }
-  const mockBookingRepository = {
-    create: jest.fn().mockImplementation(
-      (dto: Partial<Booking>): MockBooking => ({
-        id: "booking1",
-        ...dto,
-      })
-    ),
-    save: jest
-      .fn()
-      .mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> =>
-          Promise.resolve({ id: "booking1", ...booking })
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
-      ),
-    find: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
-      ),
-  };
-  const mockUsersService = {
-    create: jest.fn(),
-    findOne: jest.fn(),
-  };
-  const mockEmployeesService = {
-    findOne: jest.fn(),
-    findAll: jest.fn(),
-    isAvailable: jest.fn(),
-  };
-  const mockServicesService = {
-    findOne: jest.fn(),
-  };
-  const mockOrdersService = {
-    create: jest.fn(),
+  const createMockContext = (request: RequestMock): ExecutionContext => ({
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    getHandler: jest.fn(),
+    getClass: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  } as unknown as ExecutionContext);
+  const testUnauthorizedScenario = (
+    scenario: {
+      headers: { authorization?: string | string[] },
+      expectedError: string
+    }
+  ) => {
+    const context = createMockContext({ headers: scenario.headers });
+    expect(() => guard.canActivate(context)).toThrow(
+      new UnauthorizedException(scenario.expectedError)
+    );
   };
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BookingsService,
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
+      providers: [JwtAuthGuard],
     }).compile();
-    service = module.get<BookingsService>(BookingsService);
+    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
   });
-  afterEach(() => {
-    jest.clearAllMocks();
+  describe('canActivate', () => {
+    const authorizationScenarios = [
+      {
+        description: 'missing Authorization header',
+        headers: {},
+        expectedError: 'Missing Authorization header'
+      },
+      {
+        description: 'non-string Authorization header',
+        headers: { authorization: ['Bearer token'] },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'wrong auth type',
+        headers: { authorization: 'Basic token' },
+        expectedError: 'Authorization header must start with "Bearer "'
+      },
+      {
+        description: 'wrong format',
+        headers: { authorization: 'Bearer token extra' },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'missing token',
+        headers: { authorization: 'Bearer ' },
+        expectedError: 'Token not provided'
+      }
+    ];
+    authorizationScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
+        testUnauthorizedScenario(scenario);
+      });
+    });
+    it('should call super.canActivate when token is valid', () => {
+      const context = createMockContext({
+        headers: { authorization: 'Bearer valid-token' }
+      });
+      const superCanActivateSpy = jest
+        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
+        .mockImplementation(() => true);
+      const result = guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
+    });
   });
-  describe("createWalkIn", () => {
-    const mockShop = {
-      id: "shop1",
-      code: "SHOP1",
-      shopName: "Test Shop",
-      isActive: true,
-      dailyBookingLimit: 100,
-      lastBookingTime: new Date(),
-      todayBookingCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  describe('handleRequest', () => {
+    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
+    interface JwtError extends Error {
+      name: JwtErrorName;
+    }
+    function createJwtError(message: string, name: JwtErrorName): JwtError {
+      const error = new Error(message) as JwtError;
+      error.name = name;
+      return error;
+    }
+    const expectHandleRequestToThrow = (
+      error: Error | null,
+      info: JwtError | null,
+      expectedMessage: string
+    ): void => {
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, info);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError as Error).message).toContain(expectedMessage);
     };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const mockEmployee = { id: "emp1", isActive: true };
-    const mockCustomer = { id: "cust1" };
-    const createWalkInDto: CreateWalkInBookingDto = {
-      serviceId: "service1",
-      firstName: "John",
-      phoneNumber: "1234567890",
-      isPaid: true,
-    };
-    it("should create a walk-in booking successfully", async () => {
-      mockUsersService.create.mockResolvedValue(mockCustomer);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
-      mockBookingRepository.find.mockResolvedValue([]);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.createWalkIn(createWalkInDto, mockShop);
-      expect(result).toBeDefined();
-      expect(mockUsersService.create).toHaveBeenCalled();
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createWalkInDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
+    it('should return user when authentication is successful', () => {
+      const user = { id: '1', email: 'test@example.com' };
+      const result = guard.handleRequest(null, user, null);
+      expect(result).toBe(user);
     });
-    it("should throw NotFoundException when service not found", async () => {
-      mockServicesService.findOne.mockResolvedValue(null);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toThrow(NotFoundException);
+    const errorScenarios: Array<{
+      description: string;
+      error: Error | null;
+      info: JwtError | null;
+      expectedMessage: string;
+      expectedType: typeof UnauthorizedException | typeof Error;
+    }> = [
+      {
+        description: 'user not authenticated',
+        error: null,
+        info: null,
+        expectedMessage: 'User not authenticated',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'invalid token format',
+        error: null,
+        info: createJwtError('invalid token', 'JsonWebTokenError'),
+        expectedMessage: 'Invalid token format',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'expired token',
+        error: null,
+        info: createJwtError('jwt expired', 'TokenExpiredError'),
+        expectedMessage: 'Token has expired',
+        expectedType: UnauthorizedException
+      }
+    ];
+    errorScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
+        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
+      });
     });
-    it("should throw BadRequestException when no active employees", async () => {
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([]);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toThrow(BadRequestException);
+    it('should throw original error when error is provided', () => {
+      const error = new Error('Custom error');
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBe(error);
     });
-  });
-  describe("create", () => {
-    const mockCustomer = { id: "cust1" };
-    const mockEmployee = { id: "emp1" };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const createBookingDto: CreateBookingDto = {
-      customerId: "cust1",
-      employeeId: "emp1",
-      serviceId: "service1",
-      startTime: new Date().toISOString(),
-      notes: "Test booking",
-    };
-    it("should create a booking successfully", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.create(createBookingDto);
-      expect(result).toBeDefined();
-      expect(mockUsersService.findOne).toHaveBeenCalledWith(
-        createBookingDto.customerId
-      );
-      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.employeeId
-      );
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when customer not found", async () => {
-      mockUsersService.findOne.mockResolvedValue(null);
-      await expect(service.create(createBookingDto)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-    it("should throw BadRequestException when employee not available", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.create(createBookingDto)).rejects.toThrow(
-        BadRequestException
-      );
-    });
-  });
-  describe("findOne", () => {
-    it("should return a booking when found", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      const result = await service.findOne("booking1");
-      expect(result).toBe(mockBooking);
-      const expectedOptions: FindOneOptions = {
-        where: { id: "booking1" },
-        relations: ["customer", "employee", "employee.user", "service"],
-      };
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
-        expectedOptions
-      );
-    });
-    it("should throw NotFoundException when booking not found", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne("booking1")).rejects.toThrow(
-        NotFoundException
-      );
-    });
-  });
-  describe("update", () => {
-    const mockBooking = {
-      id: "booking1",
-      service: { id: "service1" },
-      employee: { id: "emp1" },
-    };
-    const updateDto: UpdateBookingDto = {
-      startTime: new Date().toISOString(),
-    };
-    it("should update booking successfully", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const updatedBooking: MockBooking = {
-        id: mockBooking.id,
-        startTime: new Date(updateDto.startTime),
-        service: { id: mockBooking.service.id, duration: 30 },
-        employee: { id: mockBooking.employee.id },
-      };
-      mockBookingRepository.save.mockResolvedValue(updatedBooking);
-      const result = await service.update("booking1", updateDto);
-      expect(result).toBeDefined();
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw BadRequestException when employee not available for new time", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.update("booking1", updateDto)).rejects.toThrow(
-        BadRequestException
-      );
-    });
-  });
-  describe("cancel", () => {
-    it("should cancel booking successfully", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      const reason = "Test reason";
-      const expectedSavedBooking = {
-        id: mockBooking.id,
-        status: BookingStatus.CANCELLED,
-        cancelledAt: expect.any(Date) as Date,
-        cancellationReason: reason,
-      };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
-      );
-      const result = await service.cancel("booking1", reason);
-      expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe(reason);
-      expect(mockBookingRepository.save).toHaveBeenCalledWith(
-        expectedSavedBooking
-      );
-    });
-  });
-  describe("findUpcoming", () => {
-    it("should return upcoming bookings", async () => {
-      const mockBookings: MockBooking[] = [
-        { id: "booking1" },
-        { id: "booking2" },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.findUpcoming();
-      expect(result).toEqual(mockBookings);
-      const expectedFindOptions: FindOptions = {
-        where: expect.any(Object),
-        relations: ["customer", "employee", "employee.user", "service"],
-        order: { startTime: "ASC" },
-      };
-      expect(mockBookingRepository.find).toHaveBeenCalledWith(
-        expectedFindOptions
-      );
-    });
-  });
-  describe("getUpcomingCount", () => {
-    it("should return upcoming count and customers", async () => {
-      const mockBookings: Partial<Booking>[] = [
-        {
-          id: "booking1",
-          customer: {
-            id: "user1",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "1234567890",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service1",
-            name: "Haircut",
-            description: "Basic haircut",
-            duration: 30,
-            price: 50,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-        {
-          id: "booking2",
-          customer: {
-            id: "user2",
-            firstName: "Jane",
-            lastName: "Doe",
-            email: "jane@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "0987654321",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service2",
-            name: "Styling",
-            description: "Hair styling",
-            duration: 45,
-            price: 75,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.getUpcomingCount();
-      expect(result.count).toBe(2);
-      expect(result.customers).toHaveLength(2);
-      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
+    it('should convert non-Error error to UnauthorizedException', () => {
+      const errorMessage = 'string error';
+      // Pass a non-Error value to exercise the guard's String(err) branch
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(errorMessage as unknown as Error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect((thrownError as Error).message).toContain(errorMessage);
     });
   });
 });
@@ -21624,7 +21659,7 @@ describe("BookingsService", () => {
     "@pinia/testing": "^1.0.0",
     "@tsconfig/node22": "^22.0.0",
     "@types/jsdom": "^27.0.0",
-    "@types/node": "^22.9.2",
+    "@types/node": "^24.0.0",
     "@vitejs/plugin-vue": "^5.1.4",
     "@vitest/coverage-v8": "3.2.4",
     "@vitest/eslint-plugin": "1.6.9",
@@ -21716,7 +21751,7 @@ describe("BookingsService", () => {
     "@types/bcrypt": "^6.0.0",    
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
