@@ -210,6 +210,7 @@ backend/
     app.e2e-spec.ts
     jest-e2e.json
   .gitignore
+  .npmrc
   eslint.config.js
   jest.config.js
   nest-cli.json
@@ -10447,58 +10448,6 @@ http://localhost:3000/api
 MIT
 ````
 
-## File: backend/renovate.json
-````json
-{
-  "extends": [
-    "config:recommended"
-  ],
-  "ignorePresets": [
-    ":prHourlyLimit2",
-    ":prConcurrentLimit20"
-  ],
-  "packageRules": [
-    {
-      "rangeStrategy": "bump",
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    },
-    {
-      "matchUpdateTypes": [
-        "minor",
-        "pin",
-        "digest"
-      ],
-      "automerge": true,
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    },
-    {
-      "matchUpdateTypes": [
-        "patch",
-        "lockFileMaintenance"
-      ],
-      "automerge": true,
-      "automergeType": "branch",
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    }
-  ]
-}
-````
-
 ## File: backend/tsconfig.build.json
 ````json
 {
@@ -18383,16 +18332,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ````
 
-## File: renovate.json
-````json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
-}
-````
-
 ## File: TODO.md
 ````markdown
 # TODO
@@ -18577,99 +18516,6 @@ For detailed information about the system architecture, please refer to [docs/AR
 
 - Monitoring and Logging
   - Implement application monitoring, error tracking, and health checks.
-````
-
-## File: backend/src/auth/auth.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { AuthController } from "./auth.controller";
-import { AuthService } from "./auth.service";
-import { UserRole } from "../users/entities/user.entity";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
-describe("AuthController", () => {
-  let controller: AuthController;
-  const mockUser = {
-    id: "1",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    role: UserRole.CUSTOMER,
-  };
-  const mockAuthResponse = {
-    user: mockUser,
-    token: "jwt_token",
-  };
-  const mockAuthService = {
-    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
-    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        {
-          provide: AuthService,
-          useValue: mockAuthService,
-        },
-      ],
-    }).compile();
-    controller = module.get<AuthController>(AuthController);
-    // Clear mock calls between tests
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("register", () => {
-    const registerDto: RegisterDto = {
-      email: "test@example.com",
-      password: "password123",
-      firstName: "Test",
-      lastName: "User",
-      role: UserRole.CUSTOMER,
-    };
-    it("should successfully register a new user", async () => {
-      const result = await controller.register(registerDto);
-      expect(result).toEqual(mockAuthResponse);
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
-    });
-    it("should pass through service errors", async () => {
-      const error = new Error("Registration failed");
-      mockAuthService.register.mockRejectedValueOnce(error);
-      await expect(controller.register(registerDto)).rejects.toThrow(error);
-    });
-  });
-  describe("login", () => {
-    const loginDto: LoginDto = {
-      email: "test@example.com",
-      password: "password123",
-    };
-    it("should successfully login a user", async () => {
-      const result = await controller.login(loginDto);
-      expect(result).toEqual(mockAuthResponse);
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
-    });
-    it("should pass through service errors", async () => {
-      const error = new Error("Login failed");
-      mockAuthService.login.mockRejectedValueOnce(error);
-      await expect(controller.login(loginDto)).rejects.toThrow(error);
-    });
-  });
-  describe("getProfile", () => {
-    it("should return the authenticated user", () => {
-      const result = controller.getProfile(mockUser as any);
-      expect(result).toEqual(mockUser);
-    });
-    it("should return user without password field", () => {
-      const userWithPassword = { ...mockUser, password: "hashed_password" } as any;
-      const result = controller.getProfile(userWithPassword);
-      expect(result).toEqual(userWithPassword);
-      // In practice the JwtStrategy never includes password in the user object
-      // The guard ensures only authenticated users reach this endpoint
-    });
-  });
-});
 ````
 
 ## File: backend/src/auth/auth.controller.ts
@@ -19041,6 +18887,64 @@ describe("run-seeds", () => {
     });
   });
 });
+````
+
+## File: backend/.npmrc
+````
+ignore-scripts=true
+````
+
+## File: backend/renovate.json
+````json
+{
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePresets": [
+    ":prHourlyLimit2",
+    ":prConcurrentLimit20"
+  ],
+  "packageRules": [
+    {
+      "rangeStrategy": "bump",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "pin",
+        "digest"
+      ],
+      "automerge": true,
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "patch",
+        "lockFileMaintenance"
+      ],
+      "automerge": true,
+      "automergeType": "branch",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    }
+  ],
+  "minimumReleaseAge": "3 days"
+}
 ````
 
 ## File: frontend/admin/src/components/base/Card.vue
@@ -20771,6 +20675,59 @@ EXPOSE 5173
 CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
 ````
 
+## File: renovate.json
+````json
+{
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePresets": [
+    ":prHourlyLimit2",
+    ":prConcurrentLimit20"
+  ],
+  "packageRules": [
+    {
+      "rangeStrategy": "bump",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "pin",
+        "digest"
+      ],
+      "automerge": true,
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "patch",
+        "lockFileMaintenance"
+      ],
+      "automerge": true,
+      "automergeType": "branch",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    }
+  ],
+  "minimumReleaseAge": "3 days"
+}
+````
+
 ## File: .github/workflows/repomix.yml
 ````yaml
 name: Repository Documentation
@@ -21481,6 +21438,110 @@ describe('JwtAuthGuard', () => {
       expect(thrownError).toBeDefined();
       expect(thrownError).toBeInstanceOf(UnauthorizedException);
       expect((thrownError as Error).message).toContain(errorMessage);
+    });
+  });
+});
+````
+
+## File: backend/src/auth/auth.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { AuthController } from "./auth.controller";
+import { AuthService } from "./auth.service";
+import { User, UserRole } from "../users/entities/user.entity";
+import { RegisterDto } from "./dto/register.dto";
+import { LoginDto } from "./dto/login.dto";
+describe("AuthController", () => {
+  let controller: AuthController;
+  const mockUser: User = {
+    id: "1",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User",
+    role: UserRole.CUSTOMER,
+    password: "hashed_password",
+    phoneNumber: "1234567890",
+    createdAt: new Date("2025-01-01"),
+    updatedAt: new Date("2025-01-01"),
+    hashPassword: jest.fn(),
+    validatePassword: jest.fn(),
+  };
+  const mockAuthResponse = {
+    user: mockUser,
+    token: "jwt_token",
+  };
+  const mockAuthService = {
+    register: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+    login: jest.fn().mockImplementation(() => Promise.resolve(mockAuthResponse)),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AuthController],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: mockAuthService,
+        },
+      ],
+    }).compile();
+    controller = module.get<AuthController>(AuthController);
+    // Clear mock calls between tests
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("register", () => {
+    const registerDto: RegisterDto = {
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+      role: UserRole.CUSTOMER,
+    };
+    it("should successfully register a new user", async () => {
+      const result = await controller.register(registerDto);
+      expect(result).toEqual(mockAuthResponse);
+      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
+    });
+    it("should pass through service errors", async () => {
+      const error = new Error("Registration failed");
+      mockAuthService.register.mockRejectedValueOnce(error);
+      await expect(controller.register(registerDto)).rejects.toThrow(error);
+    });
+  });
+  describe("login", () => {
+    const loginDto: LoginDto = {
+      email: "test@example.com",
+      password: "password123",
+    };
+    it("should successfully login a user", async () => {
+      const result = await controller.login(loginDto);
+      expect(result).toEqual(mockAuthResponse);
+      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+    });
+    it("should pass through service errors", async () => {
+      const error = new Error("Login failed");
+      mockAuthService.login.mockRejectedValueOnce(error);
+      await expect(controller.login(loginDto)).rejects.toThrow(error);
+    });
+  });
+  describe("getProfile", () => {
+    it("should return the authenticated user", () => {
+      const result = controller.getProfile(mockUser);
+      expect(result).toEqual(mockUser);
+    });
+    it("should return user without password field", () => {
+      const userWithPassword: User = {
+        ...mockUser,
+        password: "hashed_password",
+        hashPassword: jest.fn(),
+        validatePassword: jest.fn(),
+      };
+      const result = controller.getProfile(userWithPassword);
+      expect(result).toEqual(userWithPassword);
+      // In practice the JwtStrategy never includes password in the user object
+      // The guard ensures only authenticated users reach this endpoint
     });
   });
 });
