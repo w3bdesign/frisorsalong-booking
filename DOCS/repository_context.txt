@@ -21673,7 +21673,7 @@ jobs:
   "dependencies": {
     "@types/chart.js": "^4.0.0",
     "autoprefixer": "^10.4.20",
-    "axios": "^1.12.2",
+    "axios": "1.14.0",
     "chart.js": "^4.5.0",
     "pinia": "^3.0.3",
     "postcss": "^8.5.6",
