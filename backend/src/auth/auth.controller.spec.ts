@@ -1,19 +1,25 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { UserRole } from "../users/entities/user.entity";
+import { User, UserRole } from "../users/entities/user.entity";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 
 describe("AuthController", () => {
   let controller: AuthController;
 
-  const mockUser = {
+  const mockUser: User = {
     id: "1",
     email: "test@example.com",
     firstName: "Test",
     lastName: "User",
     role: UserRole.CUSTOMER,
+    password: "hashed_password",
+    phoneNumber: "1234567890",
+    createdAt: new Date("2025-01-01"),
+    updatedAt: new Date("2025-01-01"),
+    hashPassword: jest.fn(),
+    validatePassword: jest.fn(),
   };
 
   const mockAuthResponse = {
@@ -94,13 +100,18 @@ describe("AuthController", () => {
 
   describe("getProfile", () => {
     it("should return the authenticated user", () => {
-      const result = controller.getProfile(mockUser as any);
+      const result = controller.getProfile(mockUser);
 
       expect(result).toEqual(mockUser);
     });
 
     it("should return user without password field", () => {
-      const userWithPassword = { ...mockUser, password: "hashed_password" } as any;
+      const userWithPassword: User = {
+        ...mockUser,
+        password: "hashed_password",
+        hashPassword: jest.fn(),
+        validatePassword: jest.fn(),
+      };
       const result = controller.getProfile(userWithPassword);
 
       expect(result).toEqual(userWithPassword);
