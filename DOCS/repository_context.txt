@@ -279,6 +279,7 @@ frontend/
       vite-env.d.ts
     .env.example
     .gitignore
+    .npmrc
     index.html
     package.json
     postcss.config.js
@@ -345,6 +346,7 @@ frontend/
       main.ts
     .editorconfig
     .gitignore
+    .npmrc
     .prettierrc.json
     cypress.config.ts
     env.d.ts
@@ -19981,6 +19983,11 @@ app.use(router);
 app.mount("#app");
 ````
 
+## File: frontend/admin/.npmrc
+````
+ignore-scripts=true
+````
+
 ## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -20467,6 +20474,11 @@ export const useServicesStore = defineStore('services', () => {
     clearSelection,
   }
 })
+````
+
+## File: frontend/customer/.npmrc
+````
+ignore-scripts=true
 ````
 
 ## File: frontend/customer/tsconfig.node.json
