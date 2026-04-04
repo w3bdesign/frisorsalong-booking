@@ -2027,6 +2027,109 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 }
 ````
 
+## File: backend/src/auth/auth.controller.ts
+````typescript
+import { Controller, Post, Get, Body, UseGuards } from "@nestjs/common";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+  getSchemaPath,
+} from "@nestjs/swagger";
+import { AuthService } from "./auth.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, UserResponse } from "./interfaces/auth.interface";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { GetUser } from "./decorators/get-user.decorator";
+import { User } from "../users/entities/user.entity";
+@ApiTags("Authentication")
+@Controller("auth")
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+  @Post("register")
+  @ApiOperation({ summary: "Register a new user" })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: "User successfully registered",
+    schema: {
+      properties: {
+        user: {
+          $ref: getSchemaPath(RegisterDto),
+          properties: {
+            id: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        token: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Email already exists",
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+  })
+  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
+    return this.authService.register(registerDto);
+  }
+  @Post("login")
+  @ApiOperation({ summary: "Login user" })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: "User successfully logged in",
+    schema: {
+      properties: {
+        user: {
+          $ref: getSchemaPath(RegisterDto),
+          properties: {
+            id: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        token: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Invalid credentials",
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
+    return this.authService.login(loginDto);
+  }
+  @Get("profile")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get current user profile" })
+  @ApiResponse({
+    status: 200,
+    description: "Returns the authenticated user's profile",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized - invalid or expired token",
+  })
+  getProfile(@GetUser() user: User): UserResponse {
+    // The JwtStrategy already validates the token and fetches user data.
+    // The user object attached to the request does not contain the password.
+    return user as UserResponse;
+  }
+}
+````
+
 ## File: backend/src/auth/auth.module.spec.ts
 ````typescript
 import { PassportModule } from '@nestjs/passport';
@@ -19910,109 +20013,6 @@ jobs:
           fi
 ````
 
-## File: backend/src/auth/auth.controller.ts
-````typescript
-import { Controller, Post, Get, Body, UseGuards } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-  ApiBearerAuth,
-  getSchemaPath,
-} from "@nestjs/swagger";
-import { AuthService } from "./auth.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, UserResponse } from "./interfaces/auth.interface";
-import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-import { GetUser } from "./decorators/get-user.decorator";
-import { User } from "../users/entities/user.entity";
-@ApiTags("Authentication")
-@Controller("auth")
-export class AuthController {
-  constructor(private readonly authService: AuthService) {}
-  @Post("register")
-  @ApiOperation({ summary: "Register a new user" })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({
-    status: 201,
-    description: "User successfully registered",
-    schema: {
-      properties: {
-        user: {
-          $ref: getSchemaPath(RegisterDto),
-          properties: {
-            id: { type: "string" },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        token: { type: "string" },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 409,
-    description: "Email already exists",
-  })
-  @ApiResponse({
-    status: 500,
-    description: "Internal server error",
-  })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(registerDto);
-  }
-  @Post("login")
-  @ApiOperation({ summary: "Login user" })
-  @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: "User successfully logged in",
-    schema: {
-      properties: {
-        user: {
-          $ref: getSchemaPath(RegisterDto),
-          properties: {
-            id: { type: "string" },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        token: { type: "string" },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: "Invalid credentials",
-  })
-  @ApiResponse({
-    status: 500,
-    description: "Internal server error",
-  })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
-    return this.authService.login(loginDto);
-  }
-  @Get("profile")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: "Get current user profile" })
-  @ApiResponse({
-    status: 200,
-    description: "Returns the authenticated user's profile",
-  })
-  @ApiResponse({
-    status: 401,
-    description: "Unauthorized - invalid or expired token",
-  })
-  getProfile(@GetUser() user: User): UserResponse {
-    // The JwtStrategy already validates the token and fetches user data.
-    // The user object attached to the request does not contain the password.
-    return user as UserResponse;
-  }
-}
-````
-
 ## File: backend/src/auth/auth.service.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -20553,6 +20553,144 @@ describe("Auth Store", () => {
 ## File: frontend/admin/.npmrc
 ````
 ignore-scripts=true
+````
+
+## File: frontend/customer/src/components/__tests__/BookingForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
+import BookingForm from '../BookingForm.vue'
+import { useServicesStore } from '../../stores/services'
+import { useBookingStore } from '../../stores/booking'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(() => ({
+    waitingSlots: [],
+    waitingCount: 0,
+    activeEmployees: [{ id: '1', name: 'Employee 1' }],
+  })),
+}))
+describe('BookingForm', () => {
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    // Reset all mocks
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: vi.fn(),
+    } as any)
+  })
+  it('shows message when no service is selected', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mount(BookingForm)
+    expect(wrapper.text()).toContain('Vennligst velg en tjeneste først')
+    expect(wrapper.find('button').text()).toBe('Se tjenester')
+  })
+  it('displays selected service details', () => {
+    const wrapper = mount(BookingForm)
+    expect(wrapper.text()).toContain(mockService.name)
+    expect(wrapper.text()).toContain(`Varighet: ${mockService.duration} minutter`)
+    // The price is formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('handles form submission correctly', async () => {
+    const mockSetPendingBooking = vi.fn()
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: mockSetPendingBooking,
+    } as any)
+    const wrapper = mount(BookingForm)
+    // Fill in form data
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
+    await wrapper.find('input[type="tel"]').setValue('+4712345678')
+    // Submit form
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: '+4712345678',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+  })
+  it('shows loading state during submission', async () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(true),
+      error: ref(null),
+      setPendingBooking: vi.fn(),
+    } as any)
+    const wrapper = mount(BookingForm)
+    expect(wrapper.find('button[type="submit"]').text()).toBe('Behandler...')
+  })
+  it('disables submit button when no name is entered', () => {
+    const wrapper = mount(BookingForm)
+    const submitButton = wrapper.find('button[type="submit"]')
+    expect(submitButton.attributes('disabled')).toBeDefined()
+  })
+  it('validates phone number format', async () => {
+    const mockSetPendingBooking = vi.fn()
+    vi.mocked(useBookingStore).mockReturnValue({
+      isLoading: ref(false),
+      error: ref(null),
+      setPendingBooking: mockSetPendingBooking,
+    } as any)
+    const wrapper = mount(BookingForm)
+    // Fill in name first
+    await wrapper.find('input[type="text"]').setValue('Test Customer')
+    // Test invalid phone number
+    const input = wrapper.find('input[type="tel"]')
+    await input.setValue('invalid')
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: 'invalid',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+    // Test valid phone number
+    await input.setValue('+4712345678')
+    await wrapper.find('form').trigger('submit')
+    expect(mockSetPendingBooking).toHaveBeenCalledWith({
+      serviceId: mockService.id,
+      firstName: 'Test Customer',
+      phoneNumber: '+4712345678',
+    })
+    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
+  })
+})
 ````
 
 ## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
@@ -21139,144 +21277,6 @@ module.exports = {
 };
 ````
 
-## File: frontend/customer/src/components/__tests__/BookingForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
-import BookingForm from '../BookingForm.vue'
-import { useServicesStore } from '../../stores/services'
-import { useBookingStore } from '../../stores/booking'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(() => ({
-    waitingSlots: [],
-    waitingCount: 0,
-    activeEmployees: [{ id: '1', name: 'Employee 1' }],
-  })),
-}))
-describe('BookingForm', () => {
-  const mockService = {
-    id: '1',
-    name: 'Haircut',
-    duration: 30,
-    price: '350',
-  }
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    // Reset all mocks
-    vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(mockService),
-    } as any)
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: ref(false),
-      error: ref(null),
-      setPendingBooking: vi.fn(),
-    } as any)
-  })
-  it('shows message when no service is selected', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(null),
-    } as any)
-    const wrapper = mount(BookingForm)
-    expect(wrapper.text()).toContain('Vennligst velg en tjeneste først')
-    expect(wrapper.find('button').text()).toBe('Se tjenester')
-  })
-  it('displays selected service details', () => {
-    const wrapper = mount(BookingForm)
-    expect(wrapper.text()).toContain(mockService.name)
-    expect(wrapper.text()).toContain(`Varighet: ${mockService.duration} minutter`)
-    // The price is formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('handles form submission correctly', async () => {
-    const mockSetPendingBooking = vi.fn()
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: ref(false),
-      error: ref(null),
-      setPendingBooking: mockSetPendingBooking,
-    } as any)
-    const wrapper = mount(BookingForm)
-    // Fill in form data
-    await wrapper.find('input[type="text"]').setValue('Test Customer')
-    await wrapper.find('input[type="tel"]').setValue('+4712345678')
-    // Submit form
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: '+4712345678',
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-  })
-  it('shows loading state during submission', async () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: ref(true),
-      error: ref(null),
-      setPendingBooking: vi.fn(),
-    } as any)
-    const wrapper = mount(BookingForm)
-    expect(wrapper.find('button[type="submit"]').text()).toBe('Behandler...')
-  })
-  it('disables submit button when no name is entered', () => {
-    const wrapper = mount(BookingForm)
-    const submitButton = wrapper.find('button[type="submit"]')
-    expect(submitButton.attributes('disabled')).toBeDefined()
-  })
-  it('validates phone number format', async () => {
-    const mockSetPendingBooking = vi.fn()
-    vi.mocked(useBookingStore).mockReturnValue({
-      isLoading: ref(false),
-      error: ref(null),
-      setPendingBooking: mockSetPendingBooking,
-    } as any)
-    const wrapper = mount(BookingForm)
-    // Fill in name first
-    await wrapper.find('input[type="text"]').setValue('Test Customer')
-    // Test invalid phone number
-    const input = wrapper.find('input[type="tel"]')
-    await input.setValue('invalid')
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: 'invalid',
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-    // Test valid phone number
-    await input.setValue('+4712345678')
-    await wrapper.find('form').trigger('submit')
-    expect(mockSetPendingBooking).toHaveBeenCalledWith({
-      serviceId: mockService.id,
-      firstName: 'Test Customer',
-      phoneNumber: '+4712345678',
-    })
-    expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-  })
-})
-````
-
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -21828,7 +21828,7 @@ describe("AuthController", () => {
     "autoprefixer": "^10.4.20",
     "cypress": "^15.0.0",
     "eslint": "^10.0.0",
-    "eslint-plugin-cypress": "^5.0.0",
+    "eslint-plugin-cypress": "^5.3.0",
     "eslint-plugin-vue": "^10.0.0",
     "jsdom": "^28.0.0",
     "npm-run-all2": "^8.0.0",
