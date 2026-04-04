@@ -12677,6 +12677,75 @@ onMounted(() => {
 </script>
 ````
 
+## File: frontend/admin/src/lib/api.ts
+````typescript
+import axios, { AxiosError } from "axios";
+import router from "../router";
+const API_URL = import.meta.env.VITE_API_URL;
+/**
+ * Pre-configured axios instance for all API calls.
+ * - Automatically attaches the auth token from localStorage
+ * - Handles 401 responses by logging out and redirecting to login
+ * - Handles 403 responses with a Norwegian error message
+ */
+const api = axios.create({
+  baseURL: API_URL,
+});
+// Request interceptor: attach token on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+// Response interceptor: handle auth errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("admin_token");
+      delete axios.defaults.headers.common["Authorization"];
+      router.push({ name: "Login" });
+    }
+    if (error.response?.status === 403) {
+      error.message =
+        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
+    }
+    return Promise.reject(error);
+  }
+);
+export interface ApiErrorResponse {
+  message?: string | string[];
+}
+/**
+ * Extracts a user-friendly Norwegian error message from an API error.
+ * Use this in store catch blocks to set `this.error` or `error.value`.
+ */
+export function extractErrorMessage(
+  error: unknown,
+  fallback: string
+): string {
+  if (error instanceof AxiosError) {
+    // 401 is handled globally by the interceptor
+    if (error.response?.status === 401) {
+      return "Økt utløpt. Vennligst logg inn igjen.";
+    }
+    const data = error.response?.data as ApiErrorResponse | undefined;
+    if (data?.message) {
+      return Array.isArray(data.message)
+        ? data.message.join(", ")
+        : data.message;
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+}
+export default api;
+````
+
 ## File: frontend/admin/src/router/index.ts
 ````typescript
 import { createRouter, createWebHistory } from "vue-router";
@@ -12745,6 +12814,465 @@ router.beforeEach(async (to, from, next) => {
   next();
 });
 export default router;
+````
+
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import api from "../lib/api";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
+}
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+interface ErrorResponse {
+  message?: string | string[];
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        const response = await api.post<AuthResponse>(
+          "/auth/login",
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        return true;
+      } catch (error) {
+        console.error("Login error:", error);
+        this.error = this.resolveLoginError(error);
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    getHttpStatusErrorMessage(status: number): string {
+      switch (status) {
+        case 401:
+          return "Feil e-postadresse eller passord";
+        case 403:
+          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+        case 404:
+          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+        case 500:
+          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+        default:
+          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+    },
+    extractBackendMessage(message: string | string[]): string {
+      return Array.isArray(message) ? message.join(", ") : message;
+    },
+    handleAxiosError(error: AxiosError<ErrorResponse>): string {
+      // Handle specific HTTP status codes first
+      if (error.response?.status) {
+        const statusMessage = this.getHttpStatusErrorMessage(
+          error.response.status
+        );
+        if (error.response.status >= 400 && error.response.status < 500) {
+          return statusMessage; // Use localized message for client errors
+        }
+        // For server errors, try backend message first, then fallback to localized
+        if (error.response?.data?.message) {
+          return this.extractBackendMessage(error.response.data.message);
+        }
+        return statusMessage;
+      }
+      // No status code, try backend message
+      if (error.response?.data?.message) {
+        return this.extractBackendMessage(error.response.data.message);
+      }
+      // Handle network/connection errors
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    resolveLoginError(error: unknown): string {
+      if (error instanceof AxiosError) {
+        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
+      }
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return "En feil oppstod under innlogging. Vennligst prøv igjen";
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      this.token = token;
+      this.isAuthenticated = true;
+      // If we don't have user data yet, fetch the profile to restore it
+      if (!this.user) {
+        try {
+          const response = await api.get<User>("/auth/profile");
+          this.user = response.data;
+        } catch {
+          // Token is invalid or expired — log out
+          this.logout();
+          return false;
+        }
+      }
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
+});
+````
+
+## File: frontend/admin/src/stores/bookings.ts
+````typescript
+import { defineStore } from "pinia";
+import { useOrdersStore } from "./orders";
+import api, { extractErrorMessage } from "../lib/api";
+import type { BookingView } from "../types";
+interface BookingsState {
+  bookings: BookingView[];
+  totalBookings: number;
+  todayBookings: number;
+  upcomingBookings: number;
+  isLoading: boolean;
+  error: string | null;
+  lastFetched: number | null;
+}
+const CACHE_DURATION = 60000; // 60 seconds
+export const useBookingStore = defineStore("bookings", {
+  state: (): BookingsState => ({
+    bookings: [],
+    totalBookings: 0,
+    todayBookings: 0,
+    upcomingBookings: 0,
+    isLoading: false,
+    error: null,
+    lastFetched: null,
+  }),
+  actions: {
+    shouldRefetch(): boolean {
+      if (!this.lastFetched) return true;
+      return Date.now() - this.lastFetched > CACHE_DURATION;
+    },
+    async fetchDashboardStats(forceRefresh = false) {
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false;
+        return;
+      }
+      try {
+        this.isLoading = true;
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
+        this.bookings = response.data;
+        this.lastFetched = Date.now();
+        this.calculateMetrics();
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente bestillinger");
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async fetchUpcomingBookings(forceRefresh = false) {
+      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
+        this.isLoading = false;
+        return;
+      }
+      try {
+        this.isLoading = true;
+        const response = await api.get<BookingView[]>("/bookings/upcoming");
+        this.bookings = response.data;
+        this.lastFetched = Date.now();
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente kommende bestillinger");
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async completeBooking(id: number | string) {
+      try {
+        const ordersStore = useOrdersStore();
+        await api.put(`/bookings/${id}/complete`);
+        // Force refresh both bookings and orders
+        await Promise.all([
+          this.fetchDashboardStats(true),
+          ordersStore.fetchOrders(true)
+        ]);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke fullføre bestilling");
+        return false;
+      }
+    },
+    async cancelBooking(id: number | string) {
+      try {
+        await api.put(`/bookings/${id}/cancel`);
+        // Force refresh the bookings list after cancellation
+        await this.fetchDashboardStats(true);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke kansellere bestilling");
+        return false;
+      }
+    },
+    async updateBooking(id: number | string, data: Partial<BookingView>) {
+      try {
+        await api.put(`/bookings/${id}`, data);
+        // Force refresh the bookings list after update
+        await this.fetchDashboardStats(true);
+        return true;
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere bestilling");
+        return false;
+      }
+    },
+    calculateMetrics() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      this.totalBookings = this.bookings.length;
+      this.todayBookings = this.bookings.filter(
+        (booking) =>
+          new Date(booking.startTime).toDateString() === today.toDateString(),
+      ).length;
+      this.upcomingBookings = this.bookings.length; // All bookings from /bookings/upcoming are upcoming
+    },
+  },
+});
+````
+
+## File: frontend/admin/src/stores/employees.ts
+````typescript
+import { defineStore } from 'pinia'
+import api, { extractErrorMessage } from '../lib/api'
+import type { Employee } from '../types'
+interface EmployeeState {
+  employees: Employee[]
+  loading: boolean
+  error: string | null
+}
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+export const useEmployeesStore = defineStore('employees', {
+  state: (): EmployeeState => ({
+    employees: [],
+    loading: false,
+    error: null
+  }),
+  getters: {
+    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
+    getEmployeeById: (state) => (id: string) => 
+      state.employees.find(emp => emp.id === id)
+  },
+  actions: {
+    async fetchEmployees() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get<Employee[]>('/employees')
+        this.employees = response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
+      } finally {
+        this.loading = false
+      }
+    },
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
+        if (response.data.employee) {
+          this.employees.push(response.data.employee)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resetPassword(id: string): Promise<ResetPasswordResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<ResetPasswordResponse>(
+          `/employees/${id}/reset-password`
+        )
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateEmployee(id: string, employeeData: Partial<Employee>) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.patch(`/employees/${id}`, employeeData)
+        const index = this.employees.findIndex(emp => emp.id === id)
+        if (index !== -1) {
+          this.employees[index] = response.data
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async deleteEmployee(id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/employees/${id}`)
+        this.employees = this.employees.filter(emp => emp.id !== id)
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
+````
+
+## File: frontend/admin/src/stores/orders.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import { useAuthStore } from "./auth";
+import api from "../lib/api";
+import type { Order } from "../types";
+interface OrdersState {
+  orders: Order[];
+  loading: boolean;
+  error: string | null;
+}
+interface EmployeeStats {
+  id: string;
+  count: number;
+  revenue: number;
+}
+export const useOrdersStore = defineStore("orders", {
+  state: (): OrdersState => ({
+    orders: [],
+    loading: false,
+    error: null,
+  }),
+  getters: {
+    getOrdersByEmployee: (state) => (employeeId: string) => {
+      return state.orders.filter(
+        (order) => order.booking.employee.id === employeeId
+      );
+    },
+    getEmployeeStats: (state) => {
+      const stats = new Map<string, EmployeeStats>();
+      state.orders.forEach((order) => {
+        const employeeId = order.booking.employee.id;
+        const amount = parseFloat(order.totalAmount);
+        if (!stats.has(employeeId)) {
+          stats.set(employeeId, {
+            id: employeeId,
+            count: 0,
+            revenue: 0,
+          });
+        }
+        const employeeStats = stats.get(employeeId)!;
+        employeeStats.count++;
+        employeeStats.revenue += amount;
+      });
+      return Array.from(stats.values());
+    },
+  },
+  actions: {
+    async fetchOrders(forceRefresh = false) {
+      try {
+        if (this.loading && !forceRefresh) return;
+        this.loading = true;
+        this.error = null;
+        const authStore = useAuthStore();
+        let endpoint = "/orders";
+        // If user is an employee, use the employee-specific endpoint
+        if (!authStore.isAdmin && authStore.user?.id) {
+          endpoint = `/orders/employee/${authStore.user.id}`;
+        }
+        const response = await api.get<Order[]>(endpoint);
+        this.orders = response.data;
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 403) {
+          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
+        } else {
+          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+});
 ````
 
 ## File: frontend/admin/src/types/components/button.ts
@@ -14504,6 +15032,24 @@ interface ImportMeta {
 }
 ````
 
+## File: frontend/admin/src/main.ts
+````typescript
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import router from "./router";
+// Import the shared API client so its interceptors are registered at startup
+import "./lib/api";
+import App from "./App.vue";
+import "./style.css";
+const app = createApp(App);
+const pinia = createPinia();
+// Configure plugins
+app.use(pinia);
+app.use(router);
+// Mount app
+app.mount("#app");
+````
+
 ## File: frontend/admin/src/style.css
 ````css
 @tailwind base;
@@ -16214,6 +16760,120 @@ describe('WaitingTimeDisplay', () => {
     expect(wrapper.text()).toContain('13:34:56')
   })
 })
+````
+
+## File: frontend/customer/src/components/BookingForm.vue
+````vue
+<template>
+  <div class="max-w-lg mx-auto">
+    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
+    <div v-if="!selectedService" class="card text-center py-12">
+      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
+      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
+    </div>
+    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
+      <!-- Service Summary -->
+      <div class="card bg-gradient-to-br from-white to-gray-50">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
+            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
+          </div>
+          <p class="text-xl font-bold text-gradient">
+            {{
+              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
+                parseFloat(selectedService.price),
+              )
+            }}
+          </p>
+        </div>
+      </div>
+      <!-- Queue Status -->
+      <div class="card">
+        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
+              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
+            </div>
+            <div class="text-sm text-gray-500">
+              {{ displayStore.activeEmployees.length }} frisører på jobb
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Customer Info -->
+      <div class="card space-y-6">
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
+          <input
+            type="text"
+            v-model="firstName"
+            required
+            placeholder="Fornavn"
+            class="input text-lg"
+          />
+        </div>
+        <div>
+          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
+          <input
+            type="tel"
+            v-model="phoneNumber"
+            placeholder="+47 XXX XX XXX"
+            class="input text-lg"
+            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
+          />
+          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
+        </div>
+      </div>
+      <!-- Submit Button -->
+      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
+        <span v-if="isLoading">Behandler...</span>
+        <span v-else>Fortsett til betaling</span>
+      </button>
+    </form>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useServicesStore } from '../stores/services'
+import { useBookingStore } from '../stores/booking'
+import { useDisplayStore } from '../stores/display'
+const router = useRouter()
+const servicesStore = useServicesStore()
+const bookingStore = useBookingStore()
+const displayStore = useDisplayStore()
+const { selectedService } = storeToRefs(servicesStore)
+const { isLoading, error } = storeToRefs(bookingStore)
+// Form data
+const firstName = ref('')
+const phoneNumber = ref('')
+// Calculate wait time based on queue and selected service
+const calculateWaitTime = computed(() => {
+  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
+  // Base wait time from current queue
+  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
+    return total + (slot.estimatedTime || 0)
+  }, 0)
+  // Add selected service duration
+  return queueWaitTime + selectedService.value.duration
+})
+const handleSubmit = async () => {
+  if (!selectedService.value || !firstName.value) return
+  // Set pending booking and navigate to payment
+  bookingStore.setPendingBooking({
+    serviceId: selectedService.value.id,
+    firstName: firstName.value,
+    phoneNumber: phoneNumber.value || undefined,
+  })
+  // Navigate to payment page
+  router.push('/payment')
+}
+</script>
 ````
 
 ## File: frontend/customer/src/components/PaymentForm.vue
@@ -19679,75 +20339,6 @@ ignore-scripts=true
 }
 ````
 
-## File: frontend/admin/src/lib/api.ts
-````typescript
-import axios, { AxiosError } from "axios";
-import router from "../router";
-const API_URL = import.meta.env.VITE_API_URL;
-/**
- * Pre-configured axios instance for all API calls.
- * - Automatically attaches the auth token from localStorage
- * - Handles 401 responses by logging out and redirecting to login
- * - Handles 403 responses with a Norwegian error message
- */
-const api = axios.create({
-  baseURL: API_URL,
-});
-// Request interceptor: attach token on every request
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-// Response interceptor: handle auth errors globally
-api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("admin_token");
-      delete axios.defaults.headers.common["Authorization"];
-      router.push({ name: "Login" });
-    }
-    if (error.response?.status === 403) {
-      error.message =
-        "Ingen tilgang: Du har ikke tillatelse til å se denne ressursen";
-    }
-    return Promise.reject(error);
-  }
-);
-export interface ApiErrorResponse {
-  message?: string | string[];
-}
-/**
- * Extracts a user-friendly Norwegian error message from an API error.
- * Use this in store catch blocks to set `this.error` or `error.value`.
- */
-export function extractErrorMessage(
-  error: unknown,
-  fallback: string
-): string {
-  if (error instanceof AxiosError) {
-    // 401 is handled globally by the interceptor
-    if (error.response?.status === 401) {
-      return "Økt utløpt. Vennligst logg inn igjen.";
-    }
-    const data = error.response?.data as ApiErrorResponse | undefined;
-    if (data?.message) {
-      return Array.isArray(data.message)
-        ? data.message.join(", ")
-        : data.message;
-    }
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallback;
-}
-export default api;
-````
-
 ## File: frontend/admin/src/stores/__tests__/auth.spec.ts
 ````typescript
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -19959,483 +20550,6 @@ describe("Auth Store", () => {
 });
 ````
 
-## File: frontend/admin/src/stores/auth.ts
-````typescript
-import { defineStore } from "pinia";
-import { AxiosError } from "axios";
-import api from "../lib/api";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-interface ErrorResponse {
-  message?: string | string[];
-}
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
-    isLoading: false,
-  }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) =>
-      state.user?.role === "admin" || state.user?.role === "employee",
-  },
-  actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
-      try {
-        this.isLoading = true;
-        this.error = null;
-        const response = await api.post<AuthResponse>(
-          "/auth/login",
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error(
-            "Ingen tilgang: Krever ansatt- eller administratortilgang"
-          );
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        return true;
-      } catch (error) {
-        console.error("Login error:", error);
-        this.error = this.resolveLoginError(error);
-        return false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    getHttpStatusErrorMessage(status: number): string {
-      switch (status) {
-        case 401:
-          return "Feil e-postadresse eller passord";
-        case 403:
-          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-        case 404:
-          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-        case 500:
-          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-        default:
-          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-    },
-    extractBackendMessage(message: string | string[]): string {
-      return Array.isArray(message) ? message.join(", ") : message;
-    },
-    handleAxiosError(error: AxiosError<ErrorResponse>): string {
-      // Handle specific HTTP status codes first
-      if (error.response?.status) {
-        const statusMessage = this.getHttpStatusErrorMessage(
-          error.response.status
-        );
-        if (error.response.status >= 400 && error.response.status < 500) {
-          return statusMessage; // Use localized message for client errors
-        }
-        // For server errors, try backend message first, then fallback to localized
-        if (error.response?.data?.message) {
-          return this.extractBackendMessage(error.response.data.message);
-        }
-        return statusMessage;
-      }
-      // No status code, try backend message
-      if (error.response?.data?.message) {
-        return this.extractBackendMessage(error.response.data.message);
-      }
-      // Handle network/connection errors
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    resolveLoginError(error: unknown): string {
-      if (error instanceof AxiosError) {
-        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
-      }
-      if (error instanceof Error) {
-        return error.message;
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
-        return false;
-      }
-      this.token = token;
-      this.isAuthenticated = true;
-      // If we don't have user data yet, fetch the profile to restore it
-      if (!this.user) {
-        try {
-          const response = await api.get<User>("/auth/profile");
-          this.user = response.data;
-        } catch {
-          // Token is invalid or expired — log out
-          this.logout();
-          return false;
-        }
-      }
-      return true;
-    },
-    clearError() {
-      this.error = null;
-    },
-  },
-});
-````
-
-## File: frontend/admin/src/stores/bookings.ts
-````typescript
-import { defineStore } from "pinia";
-import { useOrdersStore } from "./orders";
-import api, { extractErrorMessage } from "../lib/api";
-import type { BookingView } from "../types";
-interface BookingsState {
-  bookings: BookingView[];
-  totalBookings: number;
-  todayBookings: number;
-  upcomingBookings: number;
-  isLoading: boolean;
-  error: string | null;
-  lastFetched: number | null;
-}
-const CACHE_DURATION = 60000; // 60 seconds
-export const useBookingStore = defineStore("bookings", {
-  state: (): BookingsState => ({
-    bookings: [],
-    totalBookings: 0,
-    todayBookings: 0,
-    upcomingBookings: 0,
-    isLoading: false,
-    error: null,
-    lastFetched: null,
-  }),
-  actions: {
-    shouldRefetch(): boolean {
-      if (!this.lastFetched) return true;
-      return Date.now() - this.lastFetched > CACHE_DURATION;
-    },
-    async fetchDashboardStats(forceRefresh = false) {
-      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false;
-        return;
-      }
-      try {
-        this.isLoading = true;
-        const response = await api.get<BookingView[]>("/bookings/upcoming");
-        this.bookings = response.data;
-        this.lastFetched = Date.now();
-        this.calculateMetrics();
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente bestillinger");
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    async fetchUpcomingBookings(forceRefresh = false) {
-      if (!forceRefresh && !this.shouldRefetch() && this.bookings.length > 0) {
-        this.isLoading = false;
-        return;
-      }
-      try {
-        this.isLoading = true;
-        const response = await api.get<BookingView[]>("/bookings/upcoming");
-        this.bookings = response.data;
-        this.lastFetched = Date.now();
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente kommende bestillinger");
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    async completeBooking(id: number | string) {
-      try {
-        const ordersStore = useOrdersStore();
-        await api.put(`/bookings/${id}/complete`);
-        // Force refresh both bookings and orders
-        await Promise.all([
-          this.fetchDashboardStats(true),
-          ordersStore.fetchOrders(true)
-        ]);
-        return true;
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke fullføre bestilling");
-        return false;
-      }
-    },
-    async cancelBooking(id: number | string) {
-      try {
-        await api.put(`/bookings/${id}/cancel`);
-        // Force refresh the bookings list after cancellation
-        await this.fetchDashboardStats(true);
-        return true;
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke kansellere bestilling");
-        return false;
-      }
-    },
-    async updateBooking(id: number | string, data: Partial<BookingView>) {
-      try {
-        await api.put(`/bookings/${id}`, data);
-        // Force refresh the bookings list after update
-        await this.fetchDashboardStats(true);
-        return true;
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke oppdatere bestilling");
-        return false;
-      }
-    },
-    calculateMetrics() {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      this.totalBookings = this.bookings.length;
-      this.todayBookings = this.bookings.filter(
-        (booking) =>
-          new Date(booking.startTime).toDateString() === today.toDateString(),
-      ).length;
-      this.upcomingBookings = this.bookings.length; // All bookings from /bookings/upcoming are upcoming
-    },
-  },
-});
-````
-
-## File: frontend/admin/src/stores/employees.ts
-````typescript
-import { defineStore } from 'pinia'
-import api, { extractErrorMessage } from '../lib/api'
-import type { Employee } from '../types'
-interface EmployeeState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
-}
-interface CreateEmployeeResponse {
-  employee: Employee;
-  temporaryPassword: string;
-}
-interface ResetPasswordResponse {
-  temporaryPassword: string;
-}
-export const useEmployeesStore = defineStore('employees', {
-  state: (): EmployeeState => ({
-    employees: [],
-    loading: false,
-    error: null
-  }),
-  getters: {
-    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
-    getEmployeeById: (state) => (id: string) => 
-      state.employees.find(emp => emp.id === id)
-  },
-  actions: {
-    async fetchEmployees() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.get<Employee[]>('/employees')
-        this.employees = response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
-      } finally {
-        this.loading = false
-      }
-    },
-    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
-        if (response.data.employee) {
-          this.employees.push(response.data.employee)
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async resetPassword(id: string): Promise<ResetPasswordResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<ResetPasswordResponse>(
-          `/employees/${id}/reset-password`
-        )
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async updateEmployee(id: string, employeeData: Partial<Employee>) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.patch(`/employees/${id}`, employeeData)
-        const index = this.employees.findIndex(emp => emp.id === id)
-        if (index !== -1) {
-          this.employees[index] = response.data
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async deleteEmployee(id: string) {
-      this.loading = true
-      this.error = null
-      try {
-        await api.delete(`/employees/${id}`)
-        this.employees = this.employees.filter(emp => emp.id !== id)
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    }
-  }
-})
-````
-
-## File: frontend/admin/src/stores/orders.ts
-````typescript
-import { defineStore } from "pinia";
-import { AxiosError } from "axios";
-import { useAuthStore } from "./auth";
-import api from "../lib/api";
-import type { Order } from "../types";
-interface OrdersState {
-  orders: Order[];
-  loading: boolean;
-  error: string | null;
-}
-interface EmployeeStats {
-  id: string;
-  count: number;
-  revenue: number;
-}
-export const useOrdersStore = defineStore("orders", {
-  state: (): OrdersState => ({
-    orders: [],
-    loading: false,
-    error: null,
-  }),
-  getters: {
-    getOrdersByEmployee: (state) => (employeeId: string) => {
-      return state.orders.filter(
-        (order) => order.booking.employee.id === employeeId
-      );
-    },
-    getEmployeeStats: (state) => {
-      const stats = new Map<string, EmployeeStats>();
-      state.orders.forEach((order) => {
-        const employeeId = order.booking.employee.id;
-        const amount = parseFloat(order.totalAmount);
-        if (!stats.has(employeeId)) {
-          stats.set(employeeId, {
-            id: employeeId,
-            count: 0,
-            revenue: 0,
-          });
-        }
-        const employeeStats = stats.get(employeeId)!;
-        employeeStats.count++;
-        employeeStats.revenue += amount;
-      });
-      return Array.from(stats.values());
-    },
-  },
-  actions: {
-    async fetchOrders(forceRefresh = false) {
-      try {
-        if (this.loading && !forceRefresh) return;
-        this.loading = true;
-        this.error = null;
-        const authStore = useAuthStore();
-        let endpoint = "/orders";
-        // If user is an employee, use the employee-specific endpoint
-        if (!authStore.isAdmin && authStore.user?.id) {
-          endpoint = `/orders/employee/${authStore.user.id}`;
-        }
-        const response = await api.get<Order[]>(endpoint);
-        this.orders = response.data;
-      } catch (error) {
-        if (error instanceof AxiosError && error.response?.status === 403) {
-          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
-        } else {
-          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
-        }
-      } finally {
-        this.loading = false;
-      }
-    },
-  },
-});
-````
-
-## File: frontend/admin/src/main.ts
-````typescript
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import router from "./router";
-// Import the shared API client so its interceptors are registered at startup
-import "./lib/api";
-import App from "./App.vue";
-import "./style.css";
-const app = createApp(App);
-const pinia = createPinia();
-// Configure plugins
-app.use(pinia);
-app.use(router);
-// Mount app
-app.mount("#app");
-````
-
 ## File: frontend/admin/.npmrc
 ````
 ignore-scripts=true
@@ -20608,120 +20722,6 @@ describe('PaymentForm', () => {
     expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
   })
 })
-````
-
-## File: frontend/customer/src/components/BookingForm.vue
-````vue
-<template>
-  <div class="max-w-lg mx-auto">
-    <h2 class="heading-1 text-gradient text-center py-6">Reserver time</h2>
-    <div v-if="!selectedService" class="card text-center py-12">
-      <p class="text-gray-600 mb-6">Vennligst velg en tjeneste først</p>
-      <button @click="$router.push('/')" class="btn-secondary">Se tjenester</button>
-    </div>
-    <form v-else @submit.prevent="handleSubmit" class="space-y-8">
-      <!-- Service Summary -->
-      <div class="card bg-gradient-to-br from-white to-gray-50">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Valgt tjeneste</h3>
-        <div class="flex justify-between items-start">
-          <div>
-            <p class="text-xl font-bold text-gray-900">{{ selectedService.name }}</p>
-            <p class="text-gray-600 mt-1">Varighet: {{ selectedService.duration }} minutter</p>
-          </div>
-          <p class="text-xl font-bold text-gradient">
-            {{
-              new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK' }).format(
-                parseFloat(selectedService.price),
-              )
-            }}
-          </p>
-        </div>
-      </div>
-      <!-- Queue Status -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-800 mb-4">Ventetid</h3>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xl font-bold text-gray-900">{{ calculateWaitTime }} minutter</p>
-              <p class="text-gray-600 mt-1">{{ displayStore.waitingCount ?? 0 }} personer venter</p>
-            </div>
-            <div class="text-sm text-gray-500">
-              {{ displayStore.activeEmployees.length }} frisører på jobb
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Customer Info -->
-      <div class="card space-y-6">
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt navn</h3>
-          <input
-            type="text"
-            v-model="firstName"
-            required
-            placeholder="Fornavn"
-            class="input text-lg"
-          />
-        </div>
-        <div>
-          <h3 class="text-lg font-medium text-gray-800 mb-4">Ditt telefonnummer (valgfritt)</h3>
-          <input
-            type="tel"
-            v-model="phoneNumber"
-            placeholder="+47 XXX XX XXX"
-            class="input text-lg"
-            :class="{ 'ring-2 ring-red-500 border-red-500': error }"
-          />
-          <p v-if="error" class="mt-2 text-sm text-red-600">{{ error }}</p>
-        </div>
-      </div>
-      <!-- Submit Button -->
-      <button type="submit" :disabled="isLoading || !firstName" class="btn-primary w-full text-lg">
-        <span v-if="isLoading">Behandler...</span>
-        <span v-else>Fortsett til betaling</span>
-      </button>
-    </form>
-  </div>
-</template>
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
-import { useServicesStore } from '../stores/services'
-import { useBookingStore } from '../stores/booking'
-import { useDisplayStore } from '../stores/display'
-const router = useRouter()
-const servicesStore = useServicesStore()
-const bookingStore = useBookingStore()
-const displayStore = useDisplayStore()
-const { selectedService } = storeToRefs(servicesStore)
-const { isLoading, error } = storeToRefs(bookingStore)
-// Form data
-const firstName = ref('')
-const phoneNumber = ref('')
-// Calculate wait time based on queue and selected service
-const calculateWaitTime = computed(() => {
-  if (!selectedService.value || !displayStore.waitingSlots.length) return 0
-  // Base wait time from current queue
-  const queueWaitTime = displayStore.waitingSlots.reduce((total, slot) => {
-    return total + (slot.estimatedTime || 0)
-  }, 0)
-  // Add selected service duration
-  return queueWaitTime + selectedService.value.duration
-})
-const handleSubmit = async () => {
-  if (!selectedService.value || !firstName.value) return
-  // Set pending booking and navigate to payment
-  bookingStore.setPendingBooking({
-    serviceId: selectedService.value.id,
-    firstName: firstName.value,
-    phoneNumber: phoneNumber.value || undefined,
-  })
-  // Navigate to payment page
-  router.push('/payment')
-}
-</script>
 ````
 
 ## File: frontend/customer/src/stores/__tests__/services.spec.ts
@@ -21775,7 +21775,7 @@ describe("AuthController", () => {
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.1",
+    "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.0.0",
     "eslint-plugin-vue": "^10.0.0",
     "jsdom": "^28.0.0",
@@ -21824,7 +21824,7 @@ describe("AuthController", () => {
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.0",
+    "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.4.20",
     "cypress": "^15.0.0",
     "eslint": "^10.0.0",
