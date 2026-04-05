@@ -73,7 +73,7 @@ importers:
         specifier: ^28.1.0
         version: 28.1.0
       npm-run-all2:
-        specifier: ^8.0.0
+        specifier: ^8.0.4
         version: 8.0.4
       postcss:
         specifier: ^8.4.49
@@ -5286,7 +5286,7 @@ snapshots:
       ansi-styles: 6.2.3
       cross-spawn: 7.0.6
       memorystream: 0.3.1
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       pidtree: 0.6.0
       read-package-json-fast: 4.0.0
       shell-quote: 1.8.3
