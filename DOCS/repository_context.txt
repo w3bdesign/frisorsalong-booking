@@ -16868,6 +16868,175 @@ describe('BookingForm', () => {
 })
 ````
 
+## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import PaymentForm from '../PaymentForm.vue'
+import { useBookingStore } from '../../stores/booking'
+import { useServicesStore } from '../../stores/services'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+describe('PaymentForm', () => {
+  const mockPendingBooking = {
+    serviceId: '1',
+    firstName: 'Test Customer',
+    phoneNumber: '+4712345678',
+  }
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn().mockResolvedValue({}),
+    } as any)
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    // Reset timers
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const mountComponent = () => {
+    return mount(PaymentForm, {
+      global: {
+        provide: {
+          router: mockRouter,
+        },
+        mocks: {
+          $router: mockRouter,
+        },
+      },
+    })
+  }
+  it('shows message when no booking is found', () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(null),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn(),
+    } as any)
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
+    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
+  })
+  it('displays payment amount correctly', () => {
+    const wrapper = mountComponent()
+    // Price should be formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows loading state during payment processing', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.animate-spin').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Behandler...')
+  })
+  it('shows success message after payment', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    // Wait for payment delay
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Betaling vellykket!')
+    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
+  })
+  it('displays error message when payment fails', async () => {
+    const mockError = 'Payment failed'
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(mockError),
+      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
+    } as any)
+    const wrapper = mountComponent()
+    // Attempt payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
+  })
+  it('navigates back to home after successful payment', async () => {
+    const wrapper = mountComponent()
+    // Complete payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Click return button
+    await wrapper.find('button.btn-secondary').trigger('click')
+    expect(mockRouter.push).toHaveBeenCalledWith('/')
+  })
+  it('handles missing service price gracefully', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mountComponent()
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(0)
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows payment button in correct states', async () => {
+    const wrapper = mountComponent()
+    // Initial state
+    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
+    // During payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
+    // After payment
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Success state should show secondary button
+    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
+    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
+  })
+  it('shows payment instructions', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
+  })
+})
+````
+
 ## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -17955,6 +18124,120 @@ describe('Display Store', () => {
     expect(store.hasAvailableSlot).toBe(true)
   })
 })
+````
+
+## File: frontend/customer/src/stores/__tests__/services.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useServicesStore } from '../services'
+import type { Service } from '../types'
+// Test data
+const createMockService = (overrides: Partial<Service> = {}): Service => ({
+  id: '1',
+  name: 'Haircut',
+  description: 'Basic haircut',
+  duration: 30,
+  price: '300',
+  isActive: true,
+  createdAt: '2023-01-01',
+  updatedAt: '2023-01-01',
+  ...overrides,
+});
+// Helper functions
+const mockFetchSuccess = (response: Service[] = []) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+    }),
+  );
+};
+const mockFetchError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ message }),
+    }),
+  );
+};
+const mockNetworkError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() => 
+    Promise.reject(new Error(message))
+  );
+};
+const waitForInitialFetch = () => new Promise((resolve) => setImmediate(resolve));
+describe('Services Store', () => {
+  let store: ReturnType<typeof useServicesStore>;
+  const mockService = createMockService();
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    mockFetchSuccess([]); // Default to empty services list
+    store = useServicesStore();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  it('has correct empty initial state', async () => {
+    // Stub queueMicrotask to prevent auto-fetch from running before assertions
+    const originalQueueMicrotask = globalThis.queueMicrotask;
+    globalThis.queueMicrotask = vi.fn();
+    // Create a fresh store with auto-fetch suppressed
+    setActivePinia(createPinia());
+    mockFetchSuccess([]);
+    const freshStore = useServicesStore();
+    // Initial state should show loading (before auto-fetch)
+    expect(freshStore.isLoading).toBeTruthy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
+    // Restore queueMicrotask and manually run fetch
+    globalThis.queueMicrotask = originalQueueMicrotask;
+    await freshStore.fetchServices();
+    // After fetch completes
+    expect(freshStore.isLoading).toBeFalsy();
+    expect(freshStore.services).toEqual([]);
+    expect(freshStore.error).toBeNull();
+    expect(freshStore.selectedService).toBeNull();
+  });
+  it('fetches services successfully', async () => {
+    mockFetchSuccess([mockService]);
+    await store.fetchServices();
+    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services');
+    expect(store.services).toEqual([mockService]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBeNull();
+  });
+  it('handles fetch error', async () => {
+    mockFetchError('Failed to fetch services');
+    await store.fetchServices();
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Failed to fetch services');
+  });
+  it('handles network error', async () => {
+    mockNetworkError('Network error');
+    await store.fetchServices();
+    expect(store.services).toEqual([]);
+    expect(store.isLoading).toBeFalsy();
+    expect(store.error).toBe('Network error');
+  });
+  it('selects a service', async () => {
+    await waitForInitialFetch();
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
+  });
+  it('clears selected service', async () => {
+    await waitForInitialFetch();
+    // First select a service
+    store.selectService(mockService);
+    expect(store.selectedService).toEqual(mockService);
+    // Then clear it
+    store.clearSelection();
+    expect(store.selectedService).toBeNull();
+  });
+});
 ````
 
 ## File: frontend/customer/src/stores/__tests__/waiting.spec.ts
@@ -20828,289 +21111,6 @@ ignore-scripts=true
 ignore-scripts=true
 ````
 
-## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
-import { createPinia, setActivePinia } from 'pinia'
-import PaymentForm from '../PaymentForm.vue'
-import { useBookingStore } from '../../stores/booking'
-import { useServicesStore } from '../../stores/services'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-describe('PaymentForm', () => {
-  const mockPendingBooking = {
-    serviceId: '1',
-    firstName: 'Test Customer',
-    phoneNumber: '+4712345678',
-  }
-  const mockService = {
-    id: '1',
-    name: 'Haircut',
-    duration: 30,
-    price: '350',
-  }
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn().mockResolvedValue({}),
-    } as any)
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(mockService),
-    } as any)
-    // Reset timers
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-  const mountComponent = () => {
-    return mount(PaymentForm, {
-      global: {
-        provide: {
-          router: mockRouter,
-        },
-        mocks: {
-          $router: mockRouter,
-        },
-      },
-    })
-  }
-  it('shows message when no booking is found', () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(null),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn(),
-    } as any)
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
-    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
-  })
-  it('displays payment amount correctly', () => {
-    const wrapper = mountComponent()
-    // Price should be formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows loading state during payment processing', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.animate-spin').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Behandler...')
-  })
-  it('shows success message after payment', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    // Wait for payment delay
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    // Wait for store operation
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Betaling vellykket!')
-    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
-  })
-  it('displays error message when payment fails', async () => {
-    const mockError = 'Payment failed'
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(mockError),
-      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
-    } as any)
-    const wrapper = mountComponent()
-    // Attempt payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
-  })
-  it('navigates back to home after successful payment', async () => {
-    const wrapper = mountComponent()
-    // Complete payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Click return button
-    await wrapper.find('button.btn-secondary').trigger('click')
-    expect(mockRouter.push).toHaveBeenCalledWith('/')
-  })
-  it('handles missing service price gracefully', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(null),
-    } as any)
-    const wrapper = mountComponent()
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(0)
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows payment button in correct states', async () => {
-    const wrapper = mountComponent()
-    // Initial state
-    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
-    // During payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
-    // After payment
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Success state should show secondary button
-    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
-    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
-  })
-  it('shows payment instructions', () => {
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
-  })
-})
-````
-
-## File: frontend/customer/src/stores/__tests__/services.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useServicesStore } from '../services'
-import type { Service } from '../types'
-// Test data
-const createMockService = (overrides: Partial<Service> = {}): Service => ({
-  id: '1',
-  name: 'Haircut',
-  description: 'Basic haircut',
-  duration: 30,
-  price: '300',
-  isActive: true,
-  createdAt: '2023-01-01',
-  updatedAt: '2023-01-01',
-  ...overrides,
-});
-// Helper functions
-const mockFetchSuccess = (response: Service[] = []) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(response),
-    }),
-  );
-};
-const mockFetchError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: false,
-      json: () => Promise.resolve({ message }),
-    }),
-  );
-};
-const mockNetworkError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() => 
-    Promise.reject(new Error(message))
-  );
-};
-const waitForInitialFetch = () => new Promise((resolve) => setImmediate(resolve));
-describe('Services Store', () => {
-  let store: ReturnType<typeof useServicesStore>;
-  const mockService = createMockService();
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    vi.clearAllMocks();
-    mockFetchSuccess([]); // Default to empty services list
-    store = useServicesStore();
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-  it('has correct empty initial state', async () => {
-    // Stub queueMicrotask to prevent auto-fetch from running before assertions
-    const originalQueueMicrotask = globalThis.queueMicrotask;
-    globalThis.queueMicrotask = vi.fn();
-    // Create a fresh store with auto-fetch suppressed
-    setActivePinia(createPinia());
-    mockFetchSuccess([]);
-    const freshStore = useServicesStore();
-    // Initial state should show loading (before auto-fetch)
-    expect(freshStore.isLoading).toBeTruthy();
-    expect(freshStore.services).toEqual([]);
-    expect(freshStore.error).toBeNull();
-    expect(freshStore.selectedService).toBeNull();
-    // Restore queueMicrotask and manually run fetch
-    globalThis.queueMicrotask = originalQueueMicrotask;
-    await freshStore.fetchServices();
-    // After fetch completes
-    expect(freshStore.isLoading).toBeFalsy();
-    expect(freshStore.services).toEqual([]);
-    expect(freshStore.error).toBeNull();
-    expect(freshStore.selectedService).toBeNull();
-  });
-  it('fetches services successfully', async () => {
-    mockFetchSuccess([mockService]);
-    await store.fetchServices();
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/services');
-    expect(store.services).toEqual([mockService]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBeNull();
-  });
-  it('handles fetch error', async () => {
-    mockFetchError('Failed to fetch services');
-    await store.fetchServices();
-    expect(store.services).toEqual([]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBe('Failed to fetch services');
-  });
-  it('handles network error', async () => {
-    mockNetworkError('Network error');
-    await store.fetchServices();
-    expect(store.services).toEqual([]);
-    expect(store.isLoading).toBeFalsy();
-    expect(store.error).toBe('Network error');
-  });
-  it('selects a service', async () => {
-    await waitForInitialFetch();
-    store.selectService(mockService);
-    expect(store.selectedService).toEqual(mockService);
-  });
-  it('clears selected service', async () => {
-    await waitForInitialFetch();
-    // First select a service
-    store.selectService(mockService);
-    expect(store.selectedService).toEqual(mockService);
-    // Then clear it
-    store.clearSelection();
-    expect(store.selectedService).toBeNull();
-  });
-});
-````
-
 ## File: frontend/customer/.npmrc
 ````
 ignore-scripts=true
@@ -21727,7 +21727,7 @@ describe('JwtAuthGuard', () => {
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "jest": "^30.3.0",
-    "prettier": "^3.4.1",
+    "prettier": "^3.8.1",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
@@ -21779,7 +21779,7 @@ describe('JwtAuthGuard', () => {
     "eslint": "^10.0.0",
     "eslint-plugin-vue": "^10.8.0",
     "jsdom": "^28.1.0",
-    "prettier": "^3.3.3",
+    "prettier": "^3.8.1",
     "typescript": "~5.9.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0",
@@ -21833,7 +21833,7 @@ describe('JwtAuthGuard', () => {
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
     "postcss": "^8.4.49",
-    "prettier": "^3.3.3",
+    "prettier": "^3.8.1",
     "start-server-and-test": "^2.0.8",
     "tailwindcss": "^3.4.15",
     "typescript": "~5.9.0",
