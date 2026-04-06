@@ -82,7 +82,7 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1
       start-server-and-test:
-        specifier: ^2.0.8
+        specifier: ^2.1.5
         version: 2.1.5
       tailwindcss:
         specifier: ^3.4.15
