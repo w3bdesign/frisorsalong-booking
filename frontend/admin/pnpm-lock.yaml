@@ -73,7 +73,7 @@ importers:
         specifier: ^28.1.0
         version: 28.1.0
       prettier:
-        specifier: ^3.3.3
+        specifier: ^3.8.1
         version: 3.8.1
       typescript:
         specifier: ~5.9.0
