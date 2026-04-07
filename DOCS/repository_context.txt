@@ -382,6 +382,92 @@ TODO.md
 
 # Files
 
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
 ## File: .roo/rules-architect/AGENTS.md
 ````markdown
 # Project Architecture Rules (Non-Obvious Only)
@@ -19905,6 +19991,55 @@ volumes:
   postgres_data:
 ````
 
+## File: Dockerfile
+````dockerfile
+# Multi-stage Dockerfile for building and running both backend and frontend
+
+# Stage 1: Build backend
+FROM node:24 AS backend-builder
+WORKDIR /app/backend
+COPY backend/package.json backend/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY backend .
+RUN pnpm build
+
+# Stage 2: Build frontend
+FROM node:24 AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY frontend/admin .
+RUN pnpm build
+
+# Stage 3: Run backend and frontend
+FROM node:24
+WORKDIR /app
+
+# Copy backend build
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/package.json
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Install serve to serve the frontend
+RUN npm install -g serve
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 5173
+
+# Start both backend and frontend
+CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
+````
+
 ## File: ISSUES.md
 ````markdown
 CRITICAL
@@ -20694,90 +20829,99 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: .github/workflows/repomix.yml
+## File: .github/workflows/codecov.yml
 ````yaml
-name: Repository Documentation
+name: Run Codecov tests and upload coverage
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
 jobs:
-  analyze:
+  backend-test:
+    name: Run backend tests and collect coverage
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
+          fetch-depth: 0
+      - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
         run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
         run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
 ````
 
 ## File: backend/src/auth/auth.service.spec.ts
@@ -21138,55 +21282,6 @@ ignore-scripts=true
 }
 ````
 
-## File: Dockerfile
-````dockerfile
-# Multi-stage Dockerfile for building and running both backend and frontend
-
-# Stage 1: Build backend
-FROM node:24 AS backend-builder
-WORKDIR /app/backend
-COPY backend/package.json backend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY backend .
-RUN pnpm build
-
-# Stage 2: Build frontend
-FROM node:24 AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY frontend/admin .
-RUN pnpm build
-
-# Stage 3: Run backend and frontend
-FROM node:24
-WORKDIR /app
-
-# Copy backend build
-COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder /app/backend/package.json ./backend/package.json
-
-# Copy frontend build
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
-
-# Install serve to serve the frontend
-RUN npm install -g serve
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose ports
-EXPOSE 3000
-EXPOSE 5173
-
-# Start both backend and frontend
-CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
-````
-
 ## File: renovate.json
 ````json
 {
@@ -21238,101 +21333,6 @@ CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
   ],
   "minimumReleaseAge": "3 days"
 }
-````
-
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
 ````
 
 ## File: backend/src/auth/auth.controller.spec.ts
@@ -21731,7 +21731,7 @@ describe('JwtAuthGuard', () => {
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.1",
+    "ts-loader": "^9.5.7",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"
