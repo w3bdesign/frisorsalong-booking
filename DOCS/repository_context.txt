@@ -21734,7 +21734,7 @@ describe('JwtAuthGuard', () => {
     "ts-loader": "^9.5.7",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }
 ````
@@ -21780,7 +21780,7 @@ describe('JwtAuthGuard', () => {
     "eslint-plugin-vue": "^10.8.0",
     "jsdom": "^28.1.0",
     "prettier": "^3.8.1",
-    "typescript": "~5.9.0",
+    "typescript": "~5.9.3",
     "vite": "^7.0.0",
     "vitest": "^3.0.0",
     "vue-tsc": "^3.0.0"
@@ -21836,7 +21836,7 @@ describe('JwtAuthGuard', () => {
     "prettier": "^3.8.1",
     "start-server-and-test": "^2.1.5",
     "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.0",
+    "typescript": "~5.9.3",
     "vite": "^7.0.0",
     "vite-plugin-vue-devtools": "^8.0.0",
     "vitest": "^3.0.0",
