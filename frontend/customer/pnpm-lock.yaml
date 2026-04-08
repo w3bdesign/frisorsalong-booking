@@ -91,7 +91,7 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.0.0
+        specifier: ^7.3.1
         version: 7.3.1(@types/node@24.12.2)(jiti@1.21.7)(yaml@2.8.3)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
@@ -4772,10 +4772,6 @@ snapshots:
     dependencies:
       pend: 1.2.0
 
-  fdir@6.5.0(picomatch@4.0.3):
-    optionalDependencies:
-      picomatch: 4.0.3
-
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
@@ -6005,8 +6001,8 @@ snapshots:
   vite@7.3.1(@types/node@24.12.2)(jiti@1.21.7)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.3
-      fdir: 6.5.0(picomatch@4.0.3)
-      picomatch: 4.0.3
+      fdir: 6.5.0(picomatch@4.0.4)
+      picomatch: 4.0.4
       postcss: 8.5.8
       rollup: 4.59.0
       tinyglobby: 0.2.15
