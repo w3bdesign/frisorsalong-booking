@@ -53,11 +53,7 @@ describe('UsersService', () => {
 
       const findOneMock = mockUserRepository.findOne as JestMock;
       const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      
-      if (!lastCall) {
-        throw new Error('Expected findOne to be called');
-      }
+      const lastCall = calls[calls.length - 1] as Array<unknown>;
 
       const lastCallArgs = lastCall[0] as FindOneOptions<User>;
       expect(lastCallArgs).toEqual({
@@ -68,7 +64,7 @@ describe('UsersService', () => {
     it('should throw NotFoundException when user not found', async () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -83,11 +79,7 @@ describe('UsersService', () => {
 
       const findOneMock = mockUserRepository.findOne as JestMock;
       const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      
-      if (!lastCall) {
-        throw new Error('Expected findOne to be called');
-      }
+      const lastCall = calls[calls.length - 1] as Array<unknown>;
 
       const lastCallArgs = lastCall[0] as FindOneOptions<User>;
       expect(lastCallArgs).toEqual({
@@ -124,12 +116,8 @@ describe('UsersService', () => {
       const createCalls = createMock.mock.calls as MockCalls;
       const saveCalls = saveMock.mock.calls as MockCalls;
       
-      const lastCreateCall = createCalls[createCalls.length - 1];
-      const lastSaveCall = saveCalls[saveCalls.length - 1];
-      
-      if (!lastCreateCall || !lastSaveCall) {
-        throw new Error('Expected create and save to be called');
-      }
+      const lastCreateCall = createCalls[createCalls.length - 1] as Array<unknown>;
+      const lastSaveCall = saveCalls[saveCalls.length - 1] as Array<unknown>;
 
       const lastCreateArgs = lastCreateCall[0] as Partial<User>;
       const lastSaveArgs = lastSaveCall[0] as Partial<User>;
@@ -159,12 +147,8 @@ describe('UsersService', () => {
       const updateCalls = updateMock.mock.calls as MockCalls;
       const findOneCalls = findOneMock.mock.calls as MockCalls;
 
-      const lastUpdateCall = updateCalls[updateCalls.length - 1];
-      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
-
-      if (!lastUpdateCall || !lastFindOneCall) {
-        throw new Error('Expected update and findOne to be called');
-      }
+      const lastUpdateCall = updateCalls[updateCalls.length - 1] as Array<unknown>;
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1] as Array<unknown>;
 
       expect(lastUpdateCall).toEqual(['user-1', updateData]);
       expect(lastFindOneCall[0]).toEqual({
@@ -176,7 +160,7 @@ describe('UsersService', () => {
       mockUserRepository.update.mockResolvedValue({ affected: 1 });
       mockUserRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.update('non-existent', updateData)).rejects.toThrow(
+      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
