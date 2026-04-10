@@ -61,38 +61,35 @@ describe('AuthModule', () => {
           imp.module === PassportModule
       );
       expect(passportModuleConfig).toBeDefined();
-      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig;
-      if (passportProvider) {
-        expect(passportProvider.useValue).toEqual({
-          defaultStrategy: 'jwt'
-        });
-      }
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
+      expect(passportProvider).toBeDefined();
+      expect(passportProvider?.useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
 
       // Check JwtModule
       const jwtModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
           imp.module === JwtModule
       );
       expect(jwtModuleConfig).toBeDefined();
-      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig;
-      if (jwtProvider) {
-        expect(jwtProvider.inject).toContain(ConfigService);
-      }
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
+      expect(jwtProvider).toBeDefined();
+      expect(jwtProvider?.inject).toContain(ConfigService);
 
       // Check TypeOrmModule
       const typeOrmModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
           imp.module === TypeOrmModule
       );
       expect(typeOrmModuleConfig).toBeDefined();
-      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig;
-      if (typeOrmProvider?.useValue) {
-        expect(typeOrmProvider.useValue.targetEntitySchema.target).toBe(User);
-      }
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
+      expect(typeOrmProvider?.useValue).toBeDefined();
+      expect(typeOrmProvider?.useValue?.targetEntitySchema?.target).toBe(User);
     });
 
     it('should have the correct providers', () => {
