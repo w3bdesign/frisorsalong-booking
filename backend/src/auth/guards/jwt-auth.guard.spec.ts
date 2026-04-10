@@ -122,7 +122,7 @@ describe('JwtAuthGuard', () => {
       }
       expect(thrownError).toBeDefined();
       expect(thrownError).toBeInstanceOf(Error);
-      expect((thrownError as Error).message).toContain(expectedMessage);
+      expect((thrownError).message).toContain(expectedMessage);
     };
 
     it('should return user when authentication is successful', () => {
@@ -189,7 +189,7 @@ describe('JwtAuthGuard', () => {
       }
       expect(thrownError).toBeDefined();
       expect(thrownError).toBeInstanceOf(UnauthorizedException);
-      expect((thrownError as Error).message).toContain(errorMessage);
+      expect((thrownError).message).toContain(errorMessage);
     });
   });
 });
