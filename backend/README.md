@@ -32,27 +32,31 @@ A robust backend system for managing hair salon bookings, built with NestJS. Thi
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
-2. Configure environment variables:
+1. Configure environment variables:
    - Copy `.env.example` to `.env`
    - Update the values according to your setup
 
 ## Database Setup
 
 1. Run migrations:
+
 ```bash
 pnpm migration:run
 ```
 
-2. Seed initial data:
+1. Seed initial data:
+
 ```bash
 pnpm seed
 ```
 
 To remove admin user:
+
 ```bash
 pnpm remove-admin
 ```
@@ -134,6 +138,7 @@ REDIS_PORT=6379
 ## API Documentation
 
 Once the application is running, you can access the Swagger documentation at:
+
 ```
 http://localhost:3000/api
 ```

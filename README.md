@@ -104,32 +104,32 @@ The system follows a modular architecture separating frontend, backend, and data
 cd backend
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-3. Configure environment variables:
+1. Configure environment variables:
 
 ```bash
 cp .env.example .env
 # Update the values in .env according to your setup
 ```
 
-4. Run database migrations:
+1. Run database migrations:
 
 ```bash
 pnpm migration:run
 ```
 
-5. Seed initial data:
+1. Seed initial data:
 
 ```bash
 pnpm seed
 ```
 
-6. Start the development server:
+1. Start the development server:
 
 ```bash
 pnpm start:dev
@@ -145,13 +145,13 @@ The API will be available at `http://localhost:3000` with Swagger documentation 
 cd frontend/admin
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-3. Start the development server:
+1. Start the development server:
 
 ```bash
 pnpm dev
@@ -167,7 +167,7 @@ The admin dashboard will be available at `http://localhost:5173`
 docker-compose up --build
 ```
 
-2. Access the services:
+1. Access the services:
 
 - Backend API: `http://localhost:3000`
 - Admin Dashboard: `http://localhost:3001`
@@ -189,11 +189,11 @@ docker-compose up --build
 git checkout -b feature/your-feature-name
 ```
 
-2. Make your changes following the conventions
+1. Make your changes following the conventions
 
-3. Write tests for your changes
+2. Write tests for your changes
 
-4. Commit using conventional commits:
+3. Commit using conventional commits:
 
 ```
 feat: add new feature
@@ -205,7 +205,7 @@ test: add tests
 chore: maintenance
 ```
 
-5. Create a pull request to `develop`
+1. Create a pull request to `develop`
 
 ## Testing
 
