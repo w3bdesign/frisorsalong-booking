@@ -79,9 +79,7 @@ describe("AuthService", () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "E-postadressen er allerede i bruk",
-        })
+        "E-postadressen er allerede i bruk"
       );
     });
   });
@@ -111,9 +109,7 @@ describe("AuthService", () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
+        "Ugyldige innloggingsdetaljer"
       );
     });
 
@@ -122,9 +118,7 @@ describe("AuthService", () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
+        "Ugyldige innloggingsdetaljer"
       );
     });
   });
