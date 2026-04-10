@@ -59,7 +59,7 @@ describe("ShopsService", () => {
     it("should throw UnauthorizedException for invalid shop code", async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.validateShopCode("INVALID")).rejects.toThrow(
+      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
         UnauthorizedException
       );
       expect(mockRepository.findOne).toHaveBeenCalledWith({
@@ -78,7 +78,7 @@ describe("ShopsService", () => {
 
       mockRepository.findOne.mockResolvedValue(mockShopCode);
 
-      await expect(service.validateShopCode("TEST123")).rejects.toThrow(
+      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
         UnauthorizedException
       );
       expect(mockRepository.findOne).toHaveBeenCalledWith({
