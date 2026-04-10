@@ -28,11 +28,12 @@ A modern admin dashboard for managing hair salon bookings, built with Vue 3. Thi
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
-2. Configure environment variables:
+1. Configure environment variables:
    - Copy `.env.example` to `.env`
    - Update the values according to your setup
 

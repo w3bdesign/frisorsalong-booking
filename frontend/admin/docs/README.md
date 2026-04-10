@@ -2,11 +2,14 @@
 
 ## Overview
 
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
 
 ## Project Structure
 
-```
+```text
 ├── backend/               # NestJS backend application
 ├── frontend/             # Vue 3 frontend application
 ├── docs/                 # Project documentation
@@ -43,11 +46,13 @@ This is a full-stack booking system for hair salons built using NestJS (backend)
 ### Backend Setup
 
 1. Navigate to the backend directory:
+
    ```bash
    cd backend
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
@@ -57,11 +62,13 @@ This is a full-stack booking system for hair salons built using NestJS (backend)
    - Update the variables with your configuration
 
 4. Run database migrations:
+
    ```bash
    npm run migration:run
    ```
 
 5. Start the development server:
+
    ```bash
    npm run start:dev
    ```
@@ -94,6 +101,7 @@ npm run test:cov
 ### Git Workflow
 
 1. Create a feature branch from `develop`:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -109,6 +117,7 @@ npm run test:cov
 ### Database Changes
 
 1. Create a new migration:
+
    ```bash
    npm run migration:create -- -n YourMigrationName
    ```
@@ -116,11 +125,13 @@ npm run test:cov
 2. Update the migration file with your changes
 
 3. Test the migration:
+
    ```bash
    npm run migration:run
    ```
 
 4. Test the rollback:
+
    ```bash
    npm run migration:revert
    ```
@@ -164,11 +175,13 @@ npm run test:cov
 ### Production
 
 1. Build the application:
+
    ```bash
    npm run build
    ```
 
 2. Start the production server:
+
    ```bash
    npm run start:prod
    ```
@@ -176,11 +189,13 @@ npm run test:cov
 ### Docker
 
 1. Build the Docker image:
+
    ```bash
    docker build -t hair-salon-booking .
    ```
 
 2. Run the container:
+
    ```bash
    docker run -p 3000:3000 hair-salon-booking
    ```
@@ -209,4 +224,5 @@ npm run test:cov
 
 ## License
 
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
