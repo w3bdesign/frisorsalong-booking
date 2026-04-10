@@ -154,7 +154,7 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if booking does not exist', async () => {
       jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.createFromBooking('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.createFromBooking('non-existent')).rejects.toBeInstanceOf(NotFoundException);
       expect(bookingRepository.findOne).toHaveBeenCalled();
     });
   });
@@ -223,7 +223,7 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if order does not exist', async () => {
       jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(NotFoundException);
       expect(orderRepository.findOne).toHaveBeenCalled();
     });
   });
@@ -256,7 +256,7 @@ describe('OrdersService', () => {
     it('should throw NotFoundException if order does not exist', async () => {
       jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
 
-      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
       expect(orderRepository.findOne).toHaveBeenCalled();
     });
   });
