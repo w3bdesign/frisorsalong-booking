@@ -53,7 +53,7 @@ describe('UsersService', () => {
 
       const findOneMock = mockUserRepository.findOne as JestMock;
       const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1] as Array<unknown>;
+      const lastCall = calls[calls.length - 1];
 
       const lastCallArgs = lastCall[0] as FindOneOptions<User>;
       expect(lastCallArgs).toEqual({
@@ -79,7 +79,7 @@ describe('UsersService', () => {
 
       const findOneMock = mockUserRepository.findOne as JestMock;
       const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1] as Array<unknown>;
+      const lastCall = calls[calls.length - 1];
 
       const lastCallArgs = lastCall[0] as FindOneOptions<User>;
       expect(lastCallArgs).toEqual({
@@ -116,8 +116,8 @@ describe('UsersService', () => {
       const createCalls = createMock.mock.calls as MockCalls;
       const saveCalls = saveMock.mock.calls as MockCalls;
       
-      const lastCreateCall = createCalls[createCalls.length - 1] as Array<unknown>;
-      const lastSaveCall = saveCalls[saveCalls.length - 1] as Array<unknown>;
+      const lastCreateCall = createCalls[createCalls.length - 1];
+      const lastSaveCall = saveCalls[saveCalls.length - 1];
 
       const lastCreateArgs = lastCreateCall[0] as Partial<User>;
       const lastSaveArgs = lastSaveCall[0] as Partial<User>;
@@ -147,8 +147,8 @@ describe('UsersService', () => {
       const updateCalls = updateMock.mock.calls as MockCalls;
       const findOneCalls = findOneMock.mock.calls as MockCalls;
 
-      const lastUpdateCall = updateCalls[updateCalls.length - 1] as Array<unknown>;
-      const lastFindOneCall = findOneCalls[findOneCalls.length - 1] as Array<unknown>;
+      const lastUpdateCall = updateCalls[updateCalls.length - 1];
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
 
       expect(lastUpdateCall).toEqual(['user-1', updateData]);
       expect(lastFindOneCall[0]).toEqual({
