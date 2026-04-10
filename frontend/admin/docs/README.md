@@ -2,11 +2,14 @@
 
 ## Overview
 
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
 
 ## Project Structure
 
-```
+```text
 ├── backend/               # NestJS backend application
 ├── frontend/             # Vue 3 frontend application
 ├── docs/                 # Project documentation
@@ -221,4 +224,5 @@ npm run test:cov
 
 ## License
 
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
