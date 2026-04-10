@@ -2455,6 +2455,117 @@ import { User } from "../users/entities/user.entity";
 export class AuthModule {}
 ````
 
+## File: backend/src/auth/auth.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt", () => ({
+  compare: jest.fn(),
+  hash: jest.fn(),
+}));
+describe("AuthService", () => {
+  let service: AuthService;
+  const mockUser = {
+    id: "1",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User",
+    password: "hashedPassword",
+    role: UserRole.CUSTOMER,
+  };
+  const mockUsersService = {
+    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
+    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
+  };
+  const mockJwtService = {
+    sign: jest.fn().mockReturnValue("jwt_token"),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
+      ],
+    }).compile();
+    service = module.get<AuthService>(AuthService);
+    // Clear mock calls between tests
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(service).toBeDefined();
+  });
+  describe("register", () => {
+    const registerDto = {
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+      role: UserRole.CUSTOMER,
+    };
+    it("should successfully register a new user", async () => {
+      const result = await service.register(registerDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+      expect(mockUsersService.create).toHaveBeenCalled();
+    });
+    it("should throw ConflictException if email already exists", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      await expect(service.register(registerDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "E-postadressen er allerede i bruk",
+        })
+      );
+    });
+  });
+  describe("login", () => {
+    const loginDto = {
+      email: "test@example.com",
+      password: "password123",
+    };
+    beforeEach(() => {
+      // Setup bcrypt mock before each test
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    });
+    it("should successfully login a user", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      const result = await service.login(loginDto);
+      expect(result).toHaveProperty("token");
+      expect(result).toHaveProperty("user");
+      expect(result.user).not.toHaveProperty("password");
+    });
+    it("should throw UnauthorizedException if user not found", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(null);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+    it("should throw UnauthorizedException if password is invalid", async () => {
+      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        expect.objectContaining({
+          message: "Ugyldige innloggingsdetaljer",
+        })
+      );
+    });
+  });
+});
+````
+
 ## File: backend/src/auth/auth.service.ts
 ````typescript
 import {
@@ -6446,6 +6557,163 @@ export class CreateServicesSeed implements Seeder {
     await serviceRepository.save(services);
   }
 }
+````
+
+## File: backend/src/database/seeds/run-seeds.spec.ts
+````typescript
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+jest.mock("typeorm", () => {
+  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
+  return {
+    ...actualTypeorm,
+    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
+      if (options?.url === "invalid-url") {
+        throw new Error("Invalid URL format");
+      }
+      return {
+        options,
+        initialize: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
+// Mock the seed functions with explicit factories to avoid loading actual modules
+// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
+jest.mock("./create-admin-user.seed", () => ({
+  createAdminUser: jest.fn(),
+}));
+jest.mock("./create-initial-data.seed", () => ({
+  createInitialData: jest.fn(),
+}));
+jest.mock("./create-sample-bookings.seed", () => ({
+  createSampleBookings: jest.fn(),
+}));
+jest.mock("./create-sample-orders.seed", () => ({
+  createSampleOrders: jest.fn(),
+}));
+describe("run-seeds", () => {
+  // Create a minimal mock of DataSource with required properties
+  const createMockDataSource = () =>
+    ({
+      name: "default",
+      options: {} as PostgresConnectionOptions,
+      isInitialized: false,
+      initialize: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined),
+      isConnected: false,
+      close: jest.fn().mockResolvedValue(undefined),
+      connect: jest.fn().mockResolvedValue(undefined),
+      createEntityManager: jest.fn(),
+      createQueryRunner: jest.fn(),
+      getMetadata: jest.fn(),
+      hasMetadata: jest.fn(),
+      getRepository: jest.fn(),
+      getTreeRepository: jest.fn(),
+      getMongoRepository: jest.fn(),
+      transaction: jest.fn(),
+      driver: {},
+      manager: {},
+      mongoManager: undefined,
+      sqljsManager: undefined,
+      namingStrategy: {},
+      entityMetadatas: [],
+      subscribers: [],
+      migrations: [],
+      logger: console,
+      metadataTableName: "typeorm_metadata",
+      queryResultCache: null,
+      relationLoader: {},
+      relationIdLoader: {},
+    }) as unknown as DataSource;
+  const mockDataSource = createMockDataSource();
+  const originalEnv = process.env;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    console.log = jest.fn();
+    console.error = jest.fn();
+  });
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+  describe("createDataSource", () => {
+    it("should create a DataSource when DATABASE_URL is set", () => {
+      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
+      const dataSource = createDataSource();
+      expect(dataSource).toBeDefined();
+      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
+        process.env.DATABASE_URL
+      );
+    });
+    it("should throw error when DATABASE_URL is not set", () => {
+      delete process.env.DATABASE_URL;
+      expect(() => createDataSource()).toThrow(
+        "DATABASE_URL environment variable is not set"
+      );
+    });
+    it("should handle DataSource creation errors", () => {
+      process.env.DATABASE_URL = "invalid-url";
+      expect(() => createDataSource()).toThrow(
+        "Failed to create DataSource: Invalid URL format"
+      );
+    });
+  });
+  describe("runSeeds", () => {
+    it("should run all seeds successfully", async () => {
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createInitialData as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      const result = await runSeeds(mockDataSource);
+      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
+      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
+      expect(result).toBe(true);
+    });
+    it("should throw error for invalid DataSource", async () => {
+      const invalidDataSource = undefined as unknown as DataSource;
+      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
+        "Invalid DataSource provided"
+      );
+    });
+    it("should handle initialization error", async () => {
+      const errorDataSource = createMockDataSource();
+      errorDataSource.initialize = jest
+        .fn()
+        .mockRejectedValue(new Error("Init failed"));
+      await expect(runSeeds(errorDataSource)).rejects.toThrow(
+        "Seed operation failed: Init failed"
+      );
+    });
+    it("should handle seed operation errors", async () => {
+      const mockError = new Error("Seed operation failed");
+      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: Seed operation failed"
+      );
+    });
+    it("should handle non-Error objects in catch blocks", async () => {
+      // Mock createInitialData to reject with a string
+      (createInitialData as jest.Mock).mockRejectedValue("String error");
+      // Reset other mocks to resolve successfully
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: String error"
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/database/seeds/run-seeds.ts
@@ -20961,269 +21229,179 @@ For detailed information about the system architecture, please refer to [docs/AR
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/auth.service.spec.ts
+## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { AuthService } from "./auth.service";
-import { UsersService } from "../users/users.service";
-import { UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-jest.mock("bcrypt", () => ({
-  compare: jest.fn(),
-  hash: jest.fn(),
-}));
-describe("AuthService", () => {
-  let service: AuthService;
-  const mockUser = {
-    id: "1",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    password: "hashedPassword",
-    role: UserRole.CUSTOMER,
-  };
-  const mockUsersService = {
-    findByEmail: jest.fn().mockImplementation(() => Promise.resolve(null)),
-    create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-  };
-  const mockJwtService = {
-    sign: jest.fn().mockReturnValue("jwt_token"),
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Test, TestingModule } from '@nestjs/testing';
+describe('JwtAuthGuard', () => {
+  let guard: JwtAuthGuard;
+  interface RequestMock {
+    headers: {
+      authorization?: string | string[];
+    };
+  }
+  const createMockContext = (request: RequestMock): ExecutionContext => ({
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    getHandler: jest.fn(),
+    getClass: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  } as unknown as ExecutionContext);
+  const testUnauthorizedScenario = (
+    scenario: {
+      headers: { authorization?: string | string[] },
+      expectedError: string
+    }
+  ) => {
+    const context = createMockContext({ headers: scenario.headers });
+    expect(() => guard.canActivate(context)).toThrow(
+      new UnauthorizedException(scenario.expectedError)
+    );
   };
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: JwtService,
-          useValue: mockJwtService,
-        },
-      ],
+      providers: [JwtAuthGuard],
     }).compile();
-    service = module.get<AuthService>(AuthService);
-    // Clear mock calls between tests
-    jest.clearAllMocks();
+    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
   });
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-  describe("register", () => {
-    const registerDto = {
-      email: "test@example.com",
-      password: "password123",
-      firstName: "Test",
-      lastName: "User",
-      role: UserRole.CUSTOMER,
-    };
-    it("should successfully register a new user", async () => {
-      const result = await service.register(registerDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-      expect(mockUsersService.create).toHaveBeenCalled();
-    });
-    it("should throw ConflictException if email already exists", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      await expect(service.register(registerDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "E-postadressen er allerede i bruk",
-        })
-      );
-    });
-  });
-  describe("login", () => {
-    const loginDto = {
-      email: "test@example.com",
-      password: "password123",
-    };
-    beforeEach(() => {
-      // Setup bcrypt mock before each test
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    });
-    it("should successfully login a user", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      const result = await service.login(loginDto);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      expect(result.user).not.toHaveProperty("password");
-    });
-    it("should throw UnauthorizedException if user not found", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(null);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
-      );
-    });
-    it("should throw UnauthorizedException if password is invalid", async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        expect.objectContaining({
-          message: "Ugyldige innloggingsdetaljer",
-        })
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/database/seeds/run-seeds.spec.ts
-````typescript
-import { DataSource } from "typeorm";
-import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
-import { createDataSource, runSeeds } from "./run-seeds";
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-jest.mock("typeorm", () => {
-  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
-  return {
-    ...actualTypeorm,
-    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
-      if (options?.url === "invalid-url") {
-        throw new Error("Invalid URL format");
+  describe('canActivate', () => {
+    const authorizationScenarios = [
+      {
+        description: 'missing Authorization header',
+        headers: {},
+        expectedError: 'Missing Authorization header'
+      },
+      {
+        description: 'non-string Authorization header',
+        headers: { authorization: ['Bearer token'] },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'wrong auth type',
+        headers: { authorization: 'Basic token' },
+        expectedError: 'Authorization header must start with "Bearer "'
+      },
+      {
+        description: 'wrong format',
+        headers: { authorization: 'Bearer token extra' },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'missing token',
+        headers: { authorization: 'Bearer ' },
+        expectedError: 'Token not provided'
       }
-      return {
-        options,
-        initialize: jest.fn().mockResolvedValue(undefined),
-        destroy: jest.fn().mockResolvedValue(undefined),
-      };
-    }),
-  };
-});
-// Mock the seed functions with explicit factories to avoid loading actual modules
-// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
-jest.mock("./create-admin-user.seed", () => ({
-  createAdminUser: jest.fn(),
-}));
-jest.mock("./create-initial-data.seed", () => ({
-  createInitialData: jest.fn(),
-}));
-jest.mock("./create-sample-bookings.seed", () => ({
-  createSampleBookings: jest.fn(),
-}));
-jest.mock("./create-sample-orders.seed", () => ({
-  createSampleOrders: jest.fn(),
-}));
-describe("run-seeds", () => {
-  // Create a minimal mock of DataSource with required properties
-  const createMockDataSource = () =>
-    ({
-      name: "default",
-      options: {} as PostgresConnectionOptions,
-      isInitialized: false,
-      initialize: jest.fn().mockResolvedValue(undefined),
-      destroy: jest.fn().mockResolvedValue(undefined),
-      isConnected: false,
-      close: jest.fn().mockResolvedValue(undefined),
-      connect: jest.fn().mockResolvedValue(undefined),
-      createEntityManager: jest.fn(),
-      createQueryRunner: jest.fn(),
-      getMetadata: jest.fn(),
-      hasMetadata: jest.fn(),
-      getRepository: jest.fn(),
-      getTreeRepository: jest.fn(),
-      getMongoRepository: jest.fn(),
-      transaction: jest.fn(),
-      driver: {},
-      manager: {},
-      mongoManager: undefined,
-      sqljsManager: undefined,
-      namingStrategy: {},
-      entityMetadatas: [],
-      subscribers: [],
-      migrations: [],
-      logger: console,
-      metadataTableName: "typeorm_metadata",
-      queryResultCache: null,
-      relationLoader: {},
-      relationIdLoader: {},
-    }) as unknown as DataSource;
-  const mockDataSource = createMockDataSource();
-  const originalEnv = process.env;
-  beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    process.env = { ...originalEnv };
-    console.log = jest.fn();
-    console.error = jest.fn();
-  });
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-  describe("createDataSource", () => {
-    it("should create a DataSource when DATABASE_URL is set", () => {
-      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
-      const dataSource = createDataSource();
-      expect(dataSource).toBeDefined();
-      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
-        process.env.DATABASE_URL
-      );
+    ];
+    authorizationScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
+        testUnauthorizedScenario(scenario);
+      });
     });
-    it("should throw error when DATABASE_URL is not set", () => {
-      delete process.env.DATABASE_URL;
-      expect(() => createDataSource()).toThrow(
-        "DATABASE_URL environment variable is not set"
-      );
-    });
-    it("should handle DataSource creation errors", () => {
-      process.env.DATABASE_URL = "invalid-url";
-      expect(() => createDataSource()).toThrow(
-        "Failed to create DataSource: Invalid URL format"
-      );
-    });
-  });
-  describe("runSeeds", () => {
-    it("should run all seeds successfully", async () => {
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createInitialData as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      const result = await runSeeds(mockDataSource);
-      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
-      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
+    it('should call super.canActivate when token is valid', () => {
+      const context = createMockContext({
+        headers: { authorization: 'Bearer valid-token' }
+      });
+      const superCanActivateSpy = jest
+        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
+        .mockImplementation(() => true);
+      const result = guard.canActivate(context);
       expect(result).toBe(true);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
     });
-    it("should throw error for invalid DataSource", async () => {
-      const invalidDataSource = undefined as unknown as DataSource;
-      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
-        "Invalid DataSource provided"
-      );
+  });
+  describe('handleRequest', () => {
+    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
+    interface JwtError extends Error {
+      name: JwtErrorName;
+    }
+    function createJwtError(message: string, name: JwtErrorName): JwtError {
+      const error = new Error(message) as JwtError;
+      error.name = name;
+      return error;
+    }
+    const expectHandleRequestToThrow = (
+      error: Error | null,
+      info: JwtError | null,
+      expectedMessage: string
+    ): void => {
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, info);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError as Error).message).toContain(expectedMessage);
+    };
+    it('should return user when authentication is successful', () => {
+      const user = { id: '1', email: 'test@example.com' };
+      const result = guard.handleRequest(null, user, null);
+      expect(result).toBe(user);
     });
-    it("should handle initialization error", async () => {
-      const errorDataSource = createMockDataSource();
-      errorDataSource.initialize = jest
-        .fn()
-        .mockRejectedValue(new Error("Init failed"));
-      await expect(runSeeds(errorDataSource)).rejects.toThrow(
-        "Seed operation failed: Init failed"
-      );
+    const errorScenarios: Array<{
+      description: string;
+      error: Error | null;
+      info: JwtError | null;
+      expectedMessage: string;
+      expectedType: typeof UnauthorizedException | typeof Error;
+    }> = [
+      {
+        description: 'user not authenticated',
+        error: null,
+        info: null,
+        expectedMessage: 'User not authenticated',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'invalid token format',
+        error: null,
+        info: createJwtError('invalid token', 'JsonWebTokenError'),
+        expectedMessage: 'Invalid token format',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'expired token',
+        error: null,
+        info: createJwtError('jwt expired', 'TokenExpiredError'),
+        expectedMessage: 'Token has expired',
+        expectedType: UnauthorizedException
+      }
+    ];
+    errorScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
+        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
+      });
     });
-    it("should handle seed operation errors", async () => {
-      const mockError = new Error("Seed operation failed");
-      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: Seed operation failed"
-      );
+    it('should throw original error when error is provided', () => {
+      const error = new Error('Custom error');
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBe(error);
     });
-    it("should handle non-Error objects in catch blocks", async () => {
-      // Mock createInitialData to reject with a string
-      (createInitialData as jest.Mock).mockRejectedValue("String error");
-      // Reset other mocks to resolve successfully
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: String error"
-      );
+    it('should convert non-Error error to UnauthorizedException', () => {
+      const errorMessage = 'string error';
+      // Pass a non-Error value to exercise the guard's String(err) branch
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(errorMessage as unknown as Error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect((thrownError as Error).message).toContain(errorMessage);
     });
   });
 });
@@ -21476,184 +21654,6 @@ describe("AuthController", () => {
 });
 ````
 
-## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
-````typescript
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { Test, TestingModule } from '@nestjs/testing';
-describe('JwtAuthGuard', () => {
-  let guard: JwtAuthGuard;
-  interface RequestMock {
-    headers: {
-      authorization?: string | string[];
-    };
-  }
-  const createMockContext = (request: RequestMock): ExecutionContext => ({
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-    getHandler: jest.fn(),
-    getClass: jest.fn(),
-    getArgs: jest.fn(),
-    getArgByIndex: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-  } as unknown as ExecutionContext);
-  const testUnauthorizedScenario = (
-    scenario: {
-      headers: { authorization?: string | string[] },
-      expectedError: string
-    }
-  ) => {
-    const context = createMockContext({ headers: scenario.headers });
-    expect(() => guard.canActivate(context)).toThrow(
-      new UnauthorizedException(scenario.expectedError)
-    );
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard],
-    }).compile();
-    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-  });
-  describe('canActivate', () => {
-    const authorizationScenarios = [
-      {
-        description: 'missing Authorization header',
-        headers: {},
-        expectedError: 'Missing Authorization header'
-      },
-      {
-        description: 'non-string Authorization header',
-        headers: { authorization: ['Bearer token'] },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'wrong auth type',
-        headers: { authorization: 'Basic token' },
-        expectedError: 'Authorization header must start with "Bearer "'
-      },
-      {
-        description: 'wrong format',
-        headers: { authorization: 'Bearer token extra' },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'missing token',
-        headers: { authorization: 'Bearer ' },
-        expectedError: 'Token not provided'
-      }
-    ];
-    authorizationScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
-        testUnauthorizedScenario(scenario);
-      });
-    });
-    it('should call super.canActivate when token is valid', () => {
-      const context = createMockContext({
-        headers: { authorization: 'Bearer valid-token' }
-      });
-      const superCanActivateSpy = jest
-        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
-        .mockImplementation(() => true);
-      const result = guard.canActivate(context);
-      expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
-    });
-  });
-  describe('handleRequest', () => {
-    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
-    interface JwtError extends Error {
-      name: JwtErrorName;
-    }
-    function createJwtError(message: string, name: JwtErrorName): JwtError {
-      const error = new Error(message) as JwtError;
-      error.name = name;
-      return error;
-    }
-    const expectHandleRequestToThrow = (
-      error: Error | null,
-      info: JwtError | null,
-      expectedMessage: string
-    ): void => {
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, info);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(Error);
-      expect((thrownError as Error).message).toContain(expectedMessage);
-    };
-    it('should return user when authentication is successful', () => {
-      const user = { id: '1', email: 'test@example.com' };
-      const result = guard.handleRequest(null, user, null);
-      expect(result).toBe(user);
-    });
-    const errorScenarios: Array<{
-      description: string;
-      error: Error | null;
-      info: JwtError | null;
-      expectedMessage: string;
-      expectedType: typeof UnauthorizedException | typeof Error;
-    }> = [
-      {
-        description: 'user not authenticated',
-        error: null,
-        info: null,
-        expectedMessage: 'User not authenticated',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'invalid token format',
-        error: null,
-        info: createJwtError('invalid token', 'JsonWebTokenError'),
-        expectedMessage: 'Invalid token format',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'expired token',
-        error: null,
-        info: createJwtError('jwt expired', 'TokenExpiredError'),
-        expectedMessage: 'Token has expired',
-        expectedType: UnauthorizedException
-      }
-    ];
-    errorScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
-        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
-      });
-    });
-    it('should throw original error when error is provided', () => {
-      const error = new Error('Custom error');
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBe(error);
-    });
-    it('should convert non-Error error to UnauthorizedException', () => {
-      const errorMessage = 'string error';
-      // Pass a non-Error value to exercise the guard's String(err) branch
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(errorMessage as unknown as Error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(UnauthorizedException);
-      expect((thrownError as Error).message).toContain(errorMessage);
-    });
-  });
-});
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -21767,11 +21767,11 @@ describe('JwtAuthGuard', () => {
     "vue-router": "^5.0.0"
   },
   "devDependencies": {
-    "@rushstack/eslint-patch": "^1.12.0",
+    "@rushstack/eslint-patch": "^1.16.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue": "^6.0.5",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.6",
@@ -21818,7 +21818,7 @@ describe('JwtAuthGuard', () => {
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue": "^6.0.5",
     "@vitest/coverage-v8": "3.2.4",
     "@vitest/eslint-plugin": "1.6.14",
     "@vue/eslint-config-prettier": "^10.2.0",
