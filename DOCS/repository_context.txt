@@ -1198,222 +1198,6 @@ This planning document outlines a comprehensive approach to developing a full-st
 - Monitor and optimize resource usage
 ````
 
-## File: backend/docs/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
-````
-
 ## File: backend/src/auth/decorators/get-user.decorator.spec.ts
 ````typescript
 import { ExecutionContext, Type } from "@nestjs/common";
@@ -10885,153 +10669,6 @@ module.exports = {
 }
 ````
 
-## File: backend/README.md
-````markdown
-# Hair Salon Booking System Backend
-
-A robust backend system for managing hair salon bookings, built with NestJS. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
-
-## Features
-
-- 🔐 JWT-based Authentication & Authorization
-- 👥 User Management
-- 📅 Booking System
-- 💇‍♀️ Service Management
-- 👨‍💼 Employee Management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-
-## Tech Stack
-
-- NestJS v10
-- TypeORM
-- PostgreSQL
-- Redis Cache
-- Passport JWT
-- Class Validator
-- Swagger UI
-
-## Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm
-- PostgreSQL
-- Redis
-
-## Installation
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the values according to your setup
-
-## Database Setup
-
-1. Run migrations:
-```bash
-pnpm migration:run
-```
-
-2. Seed initial data:
-```bash
-pnpm seed
-```
-
-To remove admin user:
-```bash
-pnpm remove-admin
-```
-
-## Running the Application
-
-```bash
-# Development
-pnpm start:dev
-
-# Production
-pnpm start:prod
-
-# Debug mode
-pnpm start:debug
-```
-
-## Testing
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-## Available Scripts
-
-- `pnpm start` - Start the application
-- `pnpm start:dev` - Start in watch mode
-- `pnpm build` - Build the application
-- `pnpm format` - Format code with Prettier
-- `pnpm lint` - Lint code with ESLint
-- `pnpm migration:generate` - Generate new migration
-- `pnpm migration:run` - Run migrations
-- `pnpm migration:revert` - Revert last migration
-- `pnpm seed` - Seed initial data
-- `pnpm remove-admin` - Remove admin user
-
-## Project Structure
-
-```
-src/
-├── auth/               # Authentication & authorization
-├── bookings/          # Booking management
-├── config/            # Configuration modules
-├── database/          # Migrations & seeds
-├── employees/         # Employee management
-├── services/          # Service management
-├── users/             # User management
-└── main.ts            # Application entry point
-```
-
-## Environment Variables
-
-Required environment variables in `.env`:
-
-```
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=your_database
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=24h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-## API Documentation
-
-Once the application is running, you can access the Swagger documentation at:
-```
-http://localhost:3000/api
-```
-
-## License
-
-MIT
-````
-
 ## File: backend/tsconfig.build.json
 ````json
 {
@@ -11606,222 +11243,6 @@ This planning document outlines a comprehensive approach to developing a full-st
 - Monitor and optimize resource usage
 ````
 
-## File: DOCS/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
-````
-
 ## File: frontend/admin/.vscode/extensions.json
 ````json
 {
@@ -12326,222 +11747,6 @@ This planning document outlines a comprehensive approach to developing a full-st
 - Optimize database queries
 - Implement pagination for lists
 - Monitor and optimize resource usage
-````
-
-## File: frontend/admin/docs/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
 ````
 
 ## File: frontend/admin/public/vite.svg
@@ -15945,113 +15150,6 @@ module.exports = {
 }
 ````
 
-## File: frontend/admin/README.md
-````markdown
-# Hair Salon Booking System Frontend (Admin Dashboard)
-
-A modern admin dashboard for managing hair salon bookings, built with Vue 3. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
-
-## Features
-
-- 🔐 JWT-based Authentication & Authorization
-- 👥 User Management
-- 📅 Booking System
-- 💇‍♀️ Service Management
-- 👨‍💼 Employee Management
-- 📚 API Documentation
-
-## Tech Stack
-
-- Vue 3
-- TypeScript
-- Pinia
-- Vue Router
-- Tailwind CSS
-- Axios
-
-## Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm
-
-## Installation
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the values according to your setup
-
-## Running the Application
-
-```bash
-# Development
-pnpm dev
-
-# Production
-pnpm build
-pnpm preview
-```
-
-## Testing
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## Available Scripts
-
-- `pnpm dev` - Start the development server
-- `pnpm build` - Build the application
-- `pnpm preview` - Preview the production build
-- `pnpm test` - Run unit tests
-- `pnpm test:unit` - Run component tests
-- `pnpm lint` - Lint code with ESLint
-- `pnpm format` - Format code with Prettier
-
-## Project Structure
-
-```
-src/
-├── assets/             # Static assets
-├── components/         # Vue components
-├── router/             # Vue Router configuration
-├── stores/             # Pinia stores
-├── views/              # Vue views
-├── App.vue             # Root component
-├── main.ts             # Application entry point
-└── style.css           # Global styles
-```
-
-## Environment Variables
-
-Required environment variables in `.env`:
-
-```
-# API
-VITE_API_URL=http://localhost:3000
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```
-http://localhost:3000/api
-```
-
-## License
-
-MIT
-````
-
 ## File: frontend/admin/renovate.json
 ````json
 {
@@ -16860,222 +15958,6 @@ This planning document outlines a comprehensive approach to developing a full-st
 - Optimize database queries
 - Implement pagination for lists
 - Monitor and optimize resource usage
-````
-
-## File: frontend/customer/docs/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using NestJS (backend) and Vue 3 (frontend). The system allows customers to book appointments, employees to manage their schedules, and administrators to oversee all operations.
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file at the root of the repository.
 ````
 
 ## File: frontend/customer/src/assets/base.css
@@ -20725,317 +19607,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## File: README.md
-````markdown
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-
-# Hair Salon Booking System
-
-A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
-
-## Test Coverage
-
-| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
-
-## Frontend
-
-![Admin Panel](screenshot/admin.png)
-
-## Backend
-
-![API Documentation](screenshot/swagger.png)
-
----
-
-## Features
-
-- 🔐 Secure JWT-based Authentication & Authorization
-- 👥 Role-based User Management (Admin, Employee, Customer)
-- 📅 Advanced Booking System
-  - ⏰ Smart scheduling with service duration-based time slots
-  - 🕒 Automatic end time calculation based on service duration
-  - ✅ Real-time employee availability checking
-  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
-  - ❌ Booking cancellation with reason tracking
-  - 📈 Upcoming bookings dashboard
-- 💇‍♀️ Service Management
-  - ⏱️ Service duration and pricing
-  - 🔄 Employee-service relationship mapping
-  - 📋 Service availability per employee
-- 👨‍💼 Employee Management & Scheduling
-  - 📆 Advanced availability tracking
-  - 🎯 Service specialization assignment
-  - 📊 Workload management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-- 🎨 Modern Admin Dashboard with Vue 3
-- 📱 Responsive Design with Tailwind CSS
-- 🧪 Comprehensive Test Coverage
-  - ✅ Unit tests with Jest and Vitest
-  - 📊 Continuous coverage reporting
-
-## System Architecture
-
-The system follows a modular architecture separating frontend, backend, and database layers:
-
-### Backend (NestJS)
-
-- **Framework**: NestJS with TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: JWT with Passport
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: Jest
-
-### Frontend (Vue 3)
-
-- **Framework**: Vue 3 with TypeScript
-- **State Management**: Pinia
-- **Routing**: Vue Router
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
-
-## Project Structure
-
-```
-├── backend/               # NestJS backend application
-│   ├── src/
-│   │   ├── auth/         # Authentication & authorization
-│   │   ├── bookings/     # Booking management
-│   │   ├── config/       # Configuration modules
-│   │   ├── database/     # Migrations & seeds
-│   │   ├── employees/    # Employee management
-│   │   ├── services/     # Service management
-│   │   └── users/        # User management
-│   └── test/             # E2E tests
-├── frontend/
-│   ├── admin/            # Admin dashboard (Vue 3)
-│   └── customer/         # Customer portal (Vue 3)
-└── docs/                 # Project documentation
-```
-
-## Prerequisites
-
-- Node.js (v20 or higher)
-- pnpm
-- PostgreSQL
-- Docker
-
-## Getting Started
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-2. Install dependencies:
-
-```bash
-pnpm install
-```
-
-3. Configure environment variables:
-
-```bash
-cp .env.example .env
-# Update the values in .env according to your setup
-```
-
-4. Run database migrations:
-
-```bash
-pnpm migration:run
-```
-
-5. Seed initial data:
-
-```bash
-pnpm seed
-```
-
-6. Start the development server:
-
-```bash
-pnpm start:dev
-```
-
-The API will be available at `http://localhost:3000` with Swagger documentation at `http://localhost:3000/api`
-
-### Frontend Setup
-
-1. Navigate to the admin frontend directory:
-
-```bash
-cd frontend/admin
-```
-
-2. Install dependencies:
-
-```bash
-pnpm install
-```
-
-3. Start the development server:
-
-```bash
-pnpm dev
-```
-
-The admin dashboard will be available at `http://localhost:5173`
-
-### Using Docker
-
-1. Build and run the Docker containers:
-
-```bash
-docker-compose up --build
-```
-
-2. Access the services:
-
-- Backend API: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3001`
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-
-```bash
-git checkout -b feature/your-feature-name
-```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit using conventional commits:
-
-```
-feat: add new feature
-fix: resolve bug
-docs: update documentation
-style: formatting changes
-refactor: code restructuring
-test: add tests
-chore: maintenance
-```
-
-5. Create a pull request to `develop`
-
-## Testing
-
-### Backend
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-### Frontend
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```
-http://localhost:3000/api
-```
-
-## Environment Variables
-
-### Backend (.env)
-
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=1h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CACHE_TTL=300
-```
-
-## Security
-
-- 🔒 All endpoints are protected with JWT authentication
-- 👮 Role-based access control (RBAC) implementation
-- ✅ Input validation using class-validator
-- 🚦 Rate limiting for API endpoints
-- 🌐 CORS configuration
-- 🔑 Secure password hashing with bcrypt
-- 🔐 Environment variable protection
-- 🛡️ SQL injection prevention through TypeORM
-
-## AI Assistant Guidance
-
-This project includes AI assistant guidance files to help code assistants be immediately productive:
-
-- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
-- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
-- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
-- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
-- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
-
-These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
-
-- Critical command execution order (database seeding dependencies)
-- Authentication patterns and JWT token handling
-- Testing requirements and configuration specifics
-- Architecture constraints and multi-tenant design patterns
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Architecture Documentation
-
-For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-````
-
 ## File: TODO.md
 ````markdown
 # TODO
@@ -21510,6 +20081,158 @@ describe("AuthService", () => {
 ignore-scripts=true
 ````
 
+## File: backend/README.md
+````markdown
+# Hair Salon Booking System Backend
+
+A robust backend system for managing hair salon bookings, built with NestJS. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+
+## Features
+
+- 🔐 JWT-based Authentication & Authorization
+- 👥 User Management
+- 📅 Booking System
+- 💇‍♀️ Service Management
+- 👨‍💼 Employee Management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+
+## Tech Stack
+
+- NestJS v10
+- TypeORM
+- PostgreSQL
+- Redis Cache
+- Passport JWT
+- Class Validator
+- Swagger UI
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- pnpm
+- PostgreSQL
+- Redis
+
+## Installation
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Configure environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the values according to your setup
+
+## Database Setup
+
+1. Run migrations:
+
+```bash
+pnpm migration:run
+```
+
+1. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+To remove admin user:
+
+```bash
+pnpm remove-admin
+```
+
+## Running the Application
+
+```bash
+# Development
+pnpm start:dev
+
+# Production
+pnpm start:prod
+
+# Debug mode
+pnpm start:debug
+```
+
+## Testing
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+## Available Scripts
+
+- `pnpm start` - Start the application
+- `pnpm start:dev` - Start in watch mode
+- `pnpm build` - Build the application
+- `pnpm format` - Format code with Prettier
+- `pnpm lint` - Lint code with ESLint
+- `pnpm migration:generate` - Generate new migration
+- `pnpm migration:run` - Run migrations
+- `pnpm migration:revert` - Revert last migration
+- `pnpm seed` - Seed initial data
+- `pnpm remove-admin` - Remove admin user
+
+## Project Structure
+
+```
+src/
+├── auth/               # Authentication & authorization
+├── bookings/          # Booking management
+├── config/            # Configuration modules
+├── database/          # Migrations & seeds
+├── employees/         # Employee management
+├── services/          # Service management
+├── users/             # User management
+└── main.ts            # Application entry point
+```
+
+## Environment Variables
+
+Required environment variables in `.env`:
+
+```
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=your_database
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=24h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+## API Documentation
+
+Once the application is running, you can access the Swagger documentation at:
+
+```
+http://localhost:3000/api
+```
+
+## License
+
+MIT
+````
+
 ## File: backend/renovate.json
 ````json
 {
@@ -21568,6 +20291,114 @@ ignore-scripts=true
 ignore-scripts=true
 ````
 
+## File: frontend/admin/README.md
+````markdown
+# Hair Salon Booking System Frontend (Admin Dashboard)
+
+A modern admin dashboard for managing hair salon bookings, built with Vue 3. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+
+## Features
+
+- 🔐 JWT-based Authentication & Authorization
+- 👥 User Management
+- 📅 Booking System
+- 💇‍♀️ Service Management
+- 👨‍💼 Employee Management
+- 📚 API Documentation
+
+## Tech Stack
+
+- Vue 3
+- TypeScript
+- Pinia
+- Vue Router
+- Tailwind CSS
+- Axios
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- pnpm
+
+## Installation
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Configure environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the values according to your setup
+
+## Running the Application
+
+```bash
+# Development
+pnpm dev
+
+# Production
+pnpm build
+pnpm preview
+```
+
+## Testing
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## Available Scripts
+
+- `pnpm dev` - Start the development server
+- `pnpm build` - Build the application
+- `pnpm preview` - Preview the production build
+- `pnpm test` - Run unit tests
+- `pnpm test:unit` - Run component tests
+- `pnpm lint` - Lint code with ESLint
+- `pnpm format` - Format code with Prettier
+
+## Project Structure
+
+```
+src/
+├── assets/             # Static assets
+├── components/         # Vue components
+├── router/             # Vue Router configuration
+├── stores/             # Pinia stores
+├── views/              # Vue views
+├── App.vue             # Root component
+├── main.ts             # Application entry point
+└── style.css           # Global styles
+```
+
+## Environment Variables
+
+Required environment variables in `.env`:
+
+```
+# API
+VITE_API_URL=http://localhost:3000
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```
+http://localhost:3000/api
+```
+
+## License
+
+MIT
+````
+
 ## File: frontend/customer/.npmrc
 ````
 ignore-scripts=true
@@ -21593,6 +20424,317 @@ ignore-scripts=true
     "types": ["node"]
   }
 }
+````
+
+## File: README.md
+````markdown
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
+# Hair Salon Booking System
+
+A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+
+## Test Coverage
+
+| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
+
+## Frontend
+
+![Admin Panel](screenshot/admin.png)
+
+## Backend
+
+![API Documentation](screenshot/swagger.png)
+
+---
+
+## Features
+
+- 🔐 Secure JWT-based Authentication & Authorization
+- 👥 Role-based User Management (Admin, Employee, Customer)
+- 📅 Advanced Booking System
+  - ⏰ Smart scheduling with service duration-based time slots
+  - 🕒 Automatic end time calculation based on service duration
+  - ✅ Real-time employee availability checking
+  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
+  - ❌ Booking cancellation with reason tracking
+  - 📈 Upcoming bookings dashboard
+- 💇‍♀️ Service Management
+  - ⏱️ Service duration and pricing
+  - 🔄 Employee-service relationship mapping
+  - 📋 Service availability per employee
+- 👨‍💼 Employee Management & Scheduling
+  - 📆 Advanced availability tracking
+  - 🎯 Service specialization assignment
+  - 📊 Workload management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+- 🎨 Modern Admin Dashboard with Vue 3
+- 📱 Responsive Design with Tailwind CSS
+- 🧪 Comprehensive Test Coverage
+  - ✅ Unit tests with Jest and Vitest
+  - 📊 Continuous coverage reporting
+
+## System Architecture
+
+The system follows a modular architecture separating frontend, backend, and database layers:
+
+### Backend (NestJS)
+
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with Passport
+- **API Documentation**: Swagger/OpenAPI
+- **Testing**: Jest
+
+### Frontend (Vue 3)
+
+- **Framework**: Vue 3 with TypeScript
+- **State Management**: Pinia
+- **Routing**: Vue Router
+- **Styling**: Tailwind CSS
+- **Testing**: Vitest
+
+## Project Structure
+
+```
+├── backend/               # NestJS backend application
+│   ├── src/
+│   │   ├── auth/         # Authentication & authorization
+│   │   ├── bookings/     # Booking management
+│   │   ├── config/       # Configuration modules
+│   │   ├── database/     # Migrations & seeds
+│   │   ├── employees/    # Employee management
+│   │   ├── services/     # Service management
+│   │   └── users/        # User management
+│   └── test/             # E2E tests
+├── frontend/
+│   ├── admin/            # Admin dashboard (Vue 3)
+│   └── customer/         # Customer portal (Vue 3)
+└── docs/                 # Project documentation
+```
+
+## Prerequisites
+
+- Node.js (v20 or higher)
+- pnpm
+- PostgreSQL
+- Docker
+
+## Getting Started
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Configure environment variables:
+
+```bash
+cp .env.example .env
+# Update the values in .env according to your setup
+```
+
+1. Run database migrations:
+
+```bash
+pnpm migration:run
+```
+
+1. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+1. Start the development server:
+
+```bash
+pnpm start:dev
+```
+
+The API will be available at `http://localhost:3000` with Swagger documentation at `http://localhost:3000/api`
+
+### Frontend Setup
+
+1. Navigate to the admin frontend directory:
+
+```bash
+cd frontend/admin
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Start the development server:
+
+```bash
+pnpm dev
+```
+
+The admin dashboard will be available at `http://localhost:5173`
+
+### Using Docker
+
+1. Build and run the Docker containers:
+
+```bash
+docker-compose up --build
+```
+
+1. Access the services:
+
+- Backend API: `http://localhost:3000`
+- Admin Dashboard: `http://localhost:3001`
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+1. Make your changes following the conventions
+
+2. Write tests for your changes
+
+3. Commit using conventional commits:
+
+```
+feat: add new feature
+fix: resolve bug
+docs: update documentation
+style: formatting changes
+refactor: code restructuring
+test: add tests
+chore: maintenance
+```
+
+1. Create a pull request to `develop`
+
+## Testing
+
+### Backend
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+### Frontend
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```
+http://localhost:3000/api
+```
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+# Application
+NODE_ENV=development
+PORT=3000
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=1h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CACHE_TTL=300
+```
+
+## Security
+
+- 🔒 All endpoints are protected with JWT authentication
+- 👮 Role-based access control (RBAC) implementation
+- ✅ Input validation using class-validator
+- 🚦 Rate limiting for API endpoints
+- 🌐 CORS configuration
+- 🔑 Secure password hashing with bcrypt
+- 🔐 Environment variable protection
+- 🛡️ SQL injection prevention through TypeORM
+
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
+
+These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Architecture Documentation
+
+For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ````
 
 ## File: renovate.json
@@ -21646,6 +20788,934 @@ ignore-scripts=true
   ],
   "minimumReleaseAge": "3 days"
 }
+````
+
+## File: backend/docs/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
+````
+
+## File: DOCS/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
+````
+
+## File: frontend/admin/docs/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
+````
+
+## File: frontend/customer/docs/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
 ````
 
 ## File: backend/package.json
