@@ -3476,17 +3476,6 @@ describe('JWT Config', () => {
 });
 ````
 
-## File: backend/src/config/jwt.config.ts
-````typescript
-import { registerAs } from '@nestjs/config';
-export default registerAs('jwt', () => ({
-  secret: process.env.JWT_SECRET,
-  signOptions: {
-    expiresIn: process.env.JWT_EXPIRATION || '1h',
-  },
-}));
-````
-
 ## File: backend/src/database/migrations/1731981975581-InitialMigration.spec.ts
 ````typescript
 import { QueryRunner } from 'typeorm';
@@ -7651,120 +7640,6 @@ import { AuthModule } from '../auth/auth.module';
 export class OrdersModule {}
 ````
 
-## File: backend/src/orders/orders.service.ts
-````typescript
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly employeesService: EmployeesService,
-  ) {}
-  async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'employee', 'service'],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking #${bookingId} not found`);
-    }
-    // Update booking status to completed
-    booking.status = BookingStatus.COMPLETED;
-    await this.bookingRepository.save(booking);
-    // Create order
-    const order = this.orderRepository.create({
-      booking,
-      completedAt: new Date(),
-      totalAmount: booking.totalPrice,
-    });
-    return this.orderRepository.save(order);
-  }
-  async findAll(): Promise<Order[]> {
-    return this.orderRepository.find({
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-  }
-  async findAllByEmployee(userId: string): Promise<Order[]> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    return this.orderRepository.find({
-      where: {
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-  }
-  async findOne(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-  async findOneByEmployee(id: string, userId: string): Promise<Order> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const order = await this.orderRepository.findOne({
-      where: {
-        id,
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-}
-````
-
 ## File: backend/src/services/entities/service.entity.spec.ts
 ````typescript
 import { Service } from './service.entity';
@@ -8170,68 +8045,6 @@ import { ShopCode } from "./entities/shop-code.entity";
 export class ShopsModule {}
 ````
 
-## File: backend/src/shops/shops.service.ts
-````typescript
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ShopCode } from "./entities/shop-code.entity";
-@Injectable()
-export class ShopsService {
-  constructor(
-    @InjectRepository(ShopCode)
-    private readonly shopCodeRepository: Repository<ShopCode>
-  ) {}
-  async validateShopCode(code: string): Promise<ShopCode> {
-    const shopCode = await this.shopCodeRepository.findOne({
-      where: { code, isActive: true },
-    });
-    if (!shopCode) {
-      throw new UnauthorizedException("Invalid shop code");
-    }
-    // Check rate limiting
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-    // Reset counter if it's a new day
-    if (!shopCode.lastBookingTime || shopCode.lastBookingTime < startOfDay) {
-      shopCode.todayBookingCount = 0;
-    }
-    // Check if daily limit is reached
-    if (shopCode.todayBookingCount >= shopCode.dailyBookingLimit) {
-      throw new UnauthorizedException("Daily booking limit reached");
-    }
-    // Update booking count and time
-    shopCode.todayBookingCount++;
-    shopCode.lastBookingTime = now;
-    await this.shopCodeRepository.save(shopCode);
-    return shopCode;
-  }
-  async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
-    // Generate a random code if none provided
-    const shopCode =
-      code || Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newShopCode = this.shopCodeRepository.create({
-      code: shopCode,
-      shopName,
-    });
-    return this.shopCodeRepository.save(newShopCode);
-  }
-  async deactivateShopCode(code: string): Promise<void> {
-    await this.shopCodeRepository.update({ code }, { isActive: false });
-  }
-  async updateDailyLimit(code: string, limit: number): Promise<void> {
-    await this.shopCodeRepository.update(
-      { code },
-      { dailyBookingLimit: limit }
-    );
-  }
-}
-````
-
 ## File: backend/src/users/entities/user.entity.spec.ts
 ````typescript
 import { User } from './user.entity';
@@ -8277,64 +8090,6 @@ describe('User Entity', () => {
     });
   });
 });
-````
-
-## File: backend/src/users/entities/user.entity.ts
-````typescript
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-} from "typeorm";
-import { Exclude } from "class-transformer";
-import * as bcrypt from "bcrypt";
-export enum UserRole {
-  CUSTOMER = "customer",
-  EMPLOYEE = "employee",
-  ADMIN = "admin",
-}
-@Entity("users")
-export class User {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
-  @Column({ length: 100 })
-  firstName: string;
-  @Column({ length: 100 })
-  lastName: string;
-  @Column({ unique: true })
-  email: string;
-  @Column()
-  @Exclude()
-  password: string;
-  @Column({
-    type: "enum",
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
-  })
-  role: UserRole;
-  @Column({ nullable: true })
-  phoneNumber: string;
-  @CreateDateColumn()
-  createdAt: Date;
-  @UpdateDateColumn()
-  updatedAt: Date;
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword(): Promise<void> {
-    // Only hash the password if it has been modified
-    if (this.password) {
-      const salt = await bcrypt.genSalt();
-      this.password = await bcrypt.hash(this.password, salt);
-    }
-  }
-  async validatePassword(password: string): Promise<boolean> {
-    return bcrypt.compare(password, this.password);
-  }
-}
 ````
 
 ## File: backend/src/users/enums/role.enum.spec.ts
@@ -8813,77 +8568,6 @@ describe("Bootstrap", () => {
 });
 ````
 
-## File: backend/src/main.ts
-````typescript
-import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-export async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  // Set global prefix for all routes
-  app.setGlobalPrefix('api');
-  app.enableCors({
-    origin: true,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    credentials: true,
-  });
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      disableErrorMessages: false,
-      validationError: {
-        target: false,
-        value: false,
-      },
-    }),
-  );
-  const config = new DocumentBuilder()
-    .setTitle("Hair Salon Booking API")
-    .setDescription("API documentation for the Hair Salon Booking System")
-    .setVersion("1.0")
-    .addBearerAuth(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth",
-    )
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api-docs", app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: "none",
-      filter: true,
-      showRequestDuration: true,
-    },
-  });
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(
-    `Swagger documentation is available at: http://localhost:${port}/api-docs`,
-  );
-}
-// Only call bootstrap if this file is being run directly
-if (require.main === module) {
-  bootstrap().catch(err => {
-    console.error('Failed to start application:', err);
-    process.exit(1);
-  });
-}
-````
-
 ## File: backend/test/app.e2e-spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -8932,51 +8616,6 @@ node_modules
 ## File: backend/.npmrc
 ````
 ignore-scripts=true
-````
-
-## File: backend/eslint.config.js
-````javascript
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: require("@typescript-eslint/parser"),
-      parserOptions: {
-        project: require("node:path").join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
-    },
-    rules: {
-      ...require("@typescript-eslint/eslint-plugin").configs["recommended"]
-        .rules,
-      ...require("@typescript-eslint/eslint-plugin").configs[
-        "recommended-requiring-type-checking"
-      ].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",   
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-    },
-  },
-];
 ````
 
 ## File: backend/jest.config.js
@@ -13426,22 +13065,6 @@ const handleLogout = () => {
 </style>
 ````
 
-## File: frontend/admin/src/env.d.ts
-````typescript
-/// <reference types="vite/client" />
-declare module "*.vue" {
-  import type { DefineComponent } from "vue";
-  const component: DefineComponent<{}, {}, any>;
-  export default component;
-}
-interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-}
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-````
-
 ## File: frontend/admin/src/main.ts
 ````typescript
 import { createApp } from "vue";
@@ -13533,6 +13156,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+````
+
+## File: frontend/admin/.npmrc
+````
+ignore-scripts=true
 ````
 
 ## File: frontend/admin/index.html
@@ -16934,6 +16562,11 @@ coverage
 *.tsbuildinfo
 ````
 
+## File: frontend/customer/.npmrc
+````
+ignore-scripts=true
+````
+
 ## File: frontend/customer/.prettierrc.json
 ````json
 {
@@ -18767,6 +18400,17 @@ describe("BookingsService", () => {
 });
 ````
 
+## File: backend/src/config/jwt.config.ts
+````typescript
+import { registerAs } from '@nestjs/config';
+export default registerAs('jwt', () => ({
+  secret: process.env.JWT_SECRET,
+  signOptions: {
+    expiresIn: process.env.JWT_EXPIRATION ?? '1h',
+  },
+}));
+````
+
 ## File: backend/src/employees/employees.service.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -19336,6 +18980,120 @@ describe('OrdersService', () => {
 });
 ````
 
+## File: backend/src/orders/orders.service.ts
+````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
+  ) {}
+  async createFromBooking(bookingId: string): Promise<Order> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking #${bookingId} not found`);
+    }
+    // Update booking status to completed
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
+    });
+    return this.orderRepository.save(order);
+  }
+  findAll(): Promise<Order[]> {
+    return this.orderRepository.find({
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+  }
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    return this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+  }
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+}
+````
+
 ## File: backend/src/services/services.service.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -19565,159 +19323,124 @@ export class ShopCodeGuard implements CanActivate {
 }
 ````
 
-## File: backend/src/shops/shops.service.spec.ts
+## File: backend/src/shops/shops.service.ts
 ````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ShopsService } from "./shops.service";
 import { ShopCode } from "./entities/shop-code.entity";
-import { UnauthorizedException } from "@nestjs/common";
-describe("ShopsService", () => {
-  let service: ShopsService;
-  const mockRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ShopsService,
-        {
-          provide: getRepositoryToken(ShopCode),
-          useValue: mockRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<ShopsService>(ShopsService);
-    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
-    jest.clearAllMocks();
-  });
-  describe("validateShopCode", () => {
-    it("should validate a shop code successfully", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result).toBeDefined();
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
+@Injectable()
+export class ShopsService {
+  constructor(
+    @InjectRepository(ShopCode)
+    private readonly shopCodeRepository: Repository<ShopCode>
+  ) {}
+  async validateShopCode(code: string): Promise<ShopCode> {
+    const shopCode = await this.shopCodeRepository.findOne({
+      where: { code, isActive: true },
     });
-    it("should throw UnauthorizedException for invalid shop code", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "INVALID", isActive: true },
-      });
+    if (!shopCode) {
+      throw new UnauthorizedException("Invalid shop code");
+    }
+    // Check rate limiting
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    // Reset counter if it's a new day
+    if (!shopCode.lastBookingTime || shopCode.lastBookingTime < startOfDay) {
+      shopCode.todayBookingCount = 0;
+    }
+    // Check if daily limit is reached
+    if (shopCode.todayBookingCount >= shopCode.dailyBookingLimit) {
+      throw new UnauthorizedException("Daily booking limit reached");
+    }
+    // Update booking count and time
+    shopCode.todayBookingCount++;
+    shopCode.lastBookingTime = now;
+    await this.shopCodeRepository.save(shopCode);
+    return shopCode;
+  }
+  createShopCode(shopName: string, code?: string): Promise<ShopCode> {
+    // Generate a random code if none provided
+    const shopCode =
+      code ?? Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newShopCode = this.shopCodeRepository.create({
+      code: shopCode,
+      shopName,
     });
-    it("should throw UnauthorizedException when daily limit is reached", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: new Date(),
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should reset counter for a new day", async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: yesterday,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("createShopCode", () => {
-    it("should create a shop code with provided code", async () => {
-      const mockShopCode: Partial<ShopCode> = {
-        code: "TEST123",
-        shopName: "Test Shop",
-      };
-      mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
-      const result = await service.createShopCode("Test Shop", "TEST123");
-      expect(result).toEqual(mockShopCode);
-      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
-    });
-    it("should create a shop code with auto-generated code", async () => {
-      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
-        ...data,
-        id: "test-id",
-        code: "ABC123", // Changed to 6 characters
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        shopName: data.shopName || "Test Shop"
-      }));
-      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
-      const result = await service.createShopCode("Test Shop");
-      expect(result).toBeDefined();
-      expect(result.shopName).toBe("Test Shop");
-      expect(result.code).toBeDefined();
-      expect(typeof result.code).toBe("string");
-      expect(result.code.length).toBe(6);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("deactivateShopCode", () => {
-    it("should deactivate a shop code", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.deactivateShopCode("TEST123");
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { isActive: false }
-      );
-    });
-  });
-  describe("updateDailyLimit", () => {
-    it("should update daily booking limit", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.updateDailyLimit("TEST123", 200);
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { dailyBookingLimit: 200 }
-      );
-    });
-  });
-});
+    return this.shopCodeRepository.save(newShopCode);
+  }
+  async deactivateShopCode(code: string): Promise<void> {
+    await this.shopCodeRepository.update({ code }, { isActive: false });
+  }
+  async updateDailyLimit(code: string, limit: number): Promise<void> {
+    await this.shopCodeRepository.update(
+      { code },
+      { dailyBookingLimit: limit }
+    );
+  }
+}
+````
+
+## File: backend/src/users/entities/user.entity.ts
+````typescript
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
+} from "typeorm";
+import { Exclude } from "class-transformer";
+import * as bcrypt from "bcrypt";
+export enum UserRole {
+  CUSTOMER = "customer",
+  EMPLOYEE = "employee",
+  ADMIN = "admin",
+}
+@Entity("users")
+export class User {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+  @Column({ length: 100 })
+  firstName: string;
+  @Column({ length: 100 })
+  lastName: string;
+  @Column({ unique: true })
+  email: string;
+  @Column()
+  @Exclude()
+  password: string;
+  @Column({
+    type: "enum",
+    enum: UserRole,
+    default: UserRole.CUSTOMER,
+  })
+  role: UserRole;
+  @Column({ nullable: true })
+  phoneNumber: string;
+  @CreateDateColumn()
+  createdAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
+  @BeforeInsert()
+  @BeforeUpdate()
+  async hashPassword(): Promise<void> {
+    // Only hash the password if it has been modified
+    if (this.password) {
+      const salt = await bcrypt.genSalt();
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+  }
+  validatePassword(password: string): Promise<boolean> {
+    return bcrypt.compare(password, this.password);
+  }
+}
 ````
 
 ## File: backend/src/app.controller.spec.ts
@@ -19774,14 +19497,139 @@ describe("AppController", () => {
 });
 ````
 
-## File: frontend/admin/.npmrc
-````
-ignore-scripts=true
+## File: backend/src/main.ts
+````typescript
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+export async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create(AppModule);
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: true,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true,
+  });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      disableErrorMessages: false,
+      validationError: {
+        target: false,
+        value: false,
+      },
+    }),
+  );
+  const config = new DocumentBuilder()
+    .setTitle("Hair Salon Booking API")
+    .setDescription("API documentation for the Hair Salon Booking System")
+    .setVersion("1.0")
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth",
+    )
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api-docs", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: "none",
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(
+    `Swagger documentation is available at: http://localhost:${port}/api-docs`,
+  );
+}
+// Only call bootstrap if this file is being run directly
+if (require.main === module) {
+  bootstrap().catch((err: unknown) => {
+    console.error('Failed to start application:', err);
+    process.exit(1);
+  });
+}
 ````
 
-## File: frontend/customer/.npmrc
+## File: backend/eslint.config.js
+````javascript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsParser = require("@typescript-eslint/parser");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",   
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+    },
+  },
+];
 ````
-ignore-scripts=true
+
+## File: frontend/admin/src/env.d.ts
+````typescript
+/// <reference types="vite/client" />
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+  const component: DefineComponent<object, object, unknown>;
+  export default component;
+}
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
 ````
 
 ## File: backend/docs/README.md
@@ -20296,6 +20144,161 @@ describe('AuthModule', () => {
       const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
       expect(controllers).toBeDefined();
       expect(controllers.length).toBe(1);
+    });
+  });
+});
+````
+
+## File: backend/src/shops/shops.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopsService } from "./shops.service";
+import { ShopCode } from "./entities/shop-code.entity";
+import { UnauthorizedException } from "@nestjs/common";
+describe("ShopsService", () => {
+  let service: ShopsService;
+  const mockRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopsService,
+        {
+          provide: getRepositoryToken(ShopCode),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<ShopsService>(ShopsService);
+    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
+    jest.clearAllMocks();
+  });
+  describe("validateShopCode", () => {
+    it("should validate a shop code successfully", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result).toBeDefined();
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException for invalid shop code", async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "INVALID", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException when daily limit is reached", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: new Date(),
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should reset counter for a new day", async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: yesterday,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("createShopCode", () => {
+    it("should create a shop code with provided code", async () => {
+      const mockShopCode: Partial<ShopCode> = {
+        code: "TEST123",
+        shopName: "Test Shop",
+      };
+      mockRepository.create.mockReturnValue(mockShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
+      const result = await service.createShopCode("Test Shop", "TEST123");
+      expect(result).toEqual(mockShopCode);
+      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
+      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
+    });
+    it("should create a shop code with auto-generated code", async () => {
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
+        ...data,
+        id: "test-id",
+        code: "ABC123", // Changed to 6 characters
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shopName: data.shopName ?? "Test Shop"
+      }));
+      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
+      const result = await service.createShopCode("Test Shop");
+      expect(result).toBeDefined();
+      expect(result.shopName).toBe("Test Shop");
+      expect(result.code).toBeDefined();
+      expect(typeof result.code).toBe("string");
+      expect(result.code.length).toBe(6);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("deactivateShopCode", () => {
+    it("should deactivate a shop code", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.deactivateShopCode("TEST123");
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { isActive: false }
+      );
+    });
+  });
+  describe("updateDailyLimit", () => {
+    it("should update daily booking limit", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.updateDailyLimit("TEST123", 200);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { dailyBookingLimit: 200 }
+      );
     });
   });
 });
