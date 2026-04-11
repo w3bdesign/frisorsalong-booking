@@ -139,7 +139,7 @@ describe("ShopsService", () => {
         lastBookingTime: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        shopName: data.shopName || "Test Shop"
+        shopName: data.shopName ?? "Test Shop"
       }));
       
       mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
