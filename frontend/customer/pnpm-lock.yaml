@@ -55,7 +55,7 @@ importers:
         specifier: ^0.9.1
         version: 0.9.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
       autoprefixer:
-        specifier: ^10.4.20
+        specifier: ^10.4.27
         version: 10.4.27(postcss@8.5.8)
       cypress:
         specifier: ^15.0.0
