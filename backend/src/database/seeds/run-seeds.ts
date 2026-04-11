@@ -8,6 +8,17 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 // Load environment variables
 config();
 
+/** Safely extract an error message from an unknown caught value */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+
 export const createDataSource = (): DataSource => {
   const options: DataSourceOptions = {
     type: 'postgres',
@@ -25,8 +36,8 @@ export const createDataSource = (): DataSource => {
 
   try {
     return new DataSource(options);
-  } catch (error) {
-    throw new Error(`Failed to create DataSource: ${error instanceof Error ? error.message : String(error)}`);
+  } catch (error: unknown) {
+    throw new Error(`Failed to create DataSource: ${getErrorMessage(error)}`);
   }
 };
 
@@ -57,8 +68,8 @@ export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
 
     console.log('All seeds completed successfully');
     return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
     console.error('Error running seeds:', errorMessage);
     throw new Error(`Seed operation failed: ${errorMessage}`);
   }
@@ -79,11 +90,11 @@ if (require.main === module) {
         process.exit(0);
       })
       .catch((error: unknown) => {
-        console.error('Seed process failed:', error instanceof Error ? error.message : String(error));
+        console.error('Seed process failed:', getErrorMessage(error));
         process.exit(1);
       });
-  } catch (error) {
-    console.error('Failed to create DataSource:', error instanceof Error ? error.message : String(error));
+  } catch (error: unknown) {
+    console.error('Failed to create DataSource:', getErrorMessage(error));
     process.exit(1);
   }
 }
