@@ -33,7 +33,7 @@ describe('JwtAuthGuard', () => {
   ) => {
     const context = createMockContext({ headers: scenario.headers });
     expect(() => guard.canActivate(context)).toThrow(
-      new UnauthorizedException(scenario.expectedError)
+      scenario.expectedError
     );
   };
 

@@ -1,6 +1,8 @@
 # Hair Salon Booking System Frontend (Admin Dashboard)
 
-A modern admin dashboard for managing hair salon bookings, built with Vue 3. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+A modern admin dashboard for managing hair salon bookings,
+built with Vue 3. This system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
 
 ## Features
 
@@ -33,7 +35,7 @@ A modern admin dashboard for managing hair salon bookings, built with Vue 3. Thi
 pnpm install
 ```
 
-1. Configure environment variables:
+2. Configure environment variables:
    - Copy `.env.example` to `.env`
    - Update the values according to your setup
 
@@ -70,7 +72,7 @@ pnpm test:unit
 
 ## Project Structure
 
-```
+```text
 src/
 ├── assets/             # Static assets
 ├── components/         # Vue components
@@ -86,7 +88,7 @@ src/
 
 Required environment variables in `.env`:
 
-```
+```env
 # API
 VITE_API_URL=http://localhost:3000
 ```
@@ -95,7 +97,7 @@ VITE_API_URL=http://localhost:3000
 
 The API documentation is available through Swagger UI when running the backend:
 
-```
+```text
 http://localhost:3000/api
 ```
 

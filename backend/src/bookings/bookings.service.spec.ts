@@ -176,7 +176,7 @@ describe("BookingsService", () => {
 
       await expect(
         service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it("should throw BadRequestException when no active employees", async () => {
@@ -185,7 +185,7 @@ describe("BookingsService", () => {
 
       await expect(
         service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -228,7 +228,7 @@ describe("BookingsService", () => {
     it("should throw NotFoundException when customer not found", async () => {
       mockUsersService.findOne.mockResolvedValue(null);
 
-      await expect(service.create(createBookingDto)).rejects.toThrow(
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
         NotFoundException
       );
     });
@@ -239,7 +239,7 @@ describe("BookingsService", () => {
       mockServicesService.findOne.mockResolvedValue(mockService);
       mockEmployeesService.isAvailable.mockResolvedValue(false);
 
-      await expect(service.create(createBookingDto)).rejects.toThrow(
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
         BadRequestException
       );
     });
@@ -265,7 +265,7 @@ describe("BookingsService", () => {
     it("should throw NotFoundException when booking not found", async () => {
       mockBookingRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne("booking1")).rejects.toThrow(
+      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
         NotFoundException
       );
     });
@@ -304,7 +304,7 @@ describe("BookingsService", () => {
       mockServicesService.findOne.mockResolvedValue({ duration: 30 });
       mockEmployeesService.isAvailable.mockResolvedValue(false);
 
-      await expect(service.update("booking1", updateDto)).rejects.toThrow(
+      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
         BadRequestException
       );
     });

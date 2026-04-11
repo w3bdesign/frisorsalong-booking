@@ -75,7 +75,7 @@ describe('ShopCodeGuard', () => {
     // Act & Assert
     await expect(guard.canActivate(mockContext))
       .rejects
-      .toThrow(UnauthorizedException);
+      .toBeInstanceOf(UnauthorizedException);
     
     expect(mockValidateShopCode).not.toHaveBeenCalled();
   });
@@ -88,7 +88,7 @@ describe('ShopCodeGuard', () => {
     // Act & Assert
     await expect(guard.canActivate(mockContext))
       .rejects
-      .toThrow(UnauthorizedException);
+      .toBeInstanceOf(UnauthorizedException);
     
     expect(mockValidateShopCode).toHaveBeenCalledWith('INVALID');
   });

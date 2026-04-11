@@ -1,9 +1,16 @@
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec)](https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-
 # Hair Salon Booking System
 
-A full-stack booking system for hair salons built with NestJS (backend) and Vue 3 (frontend). The system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+[![Quality Gate Status][sonar-badge]][sonar-url]
+[![Codacy Badge][codacy-badge]][codacy-url]
+
+[sonar-badge]: https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status
+[sonar-url]: https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking
+[codacy-badge]: https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec
+[codacy-url]: https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
+
+A full-stack booking system for hair salons built with NestJS (backend)
+and Vue 3 (frontend). The system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
 
 ## Test Coverage
 
@@ -50,7 +57,8 @@ A full-stack booking system for hair salons built with NestJS (backend) and Vue 
 
 ## System Architecture
 
-The system follows a modular architecture separating frontend, backend, and database layers:
+The system follows a modular architecture separating frontend,
+backend, and database layers:
 
 ### Backend (NestJS)
 
@@ -70,7 +78,7 @@ The system follows a modular architecture separating frontend, backend, and data
 
 ## Project Structure
 
-```
+```text
 ├── backend/               # NestJS backend application
 │   ├── src/
 │   │   ├── auth/         # Authentication & authorization
@@ -135,7 +143,8 @@ pnpm seed
 pnpm start:dev
 ```
 
-The API will be available at `http://localhost:3000` with Swagger documentation at `http://localhost:3000/api`
+The API will be available at `http://localhost:3000`
+with Swagger documentation at `http://localhost:3000/api`
 
 ### Frontend Setup
 
@@ -191,11 +200,11 @@ git checkout -b feature/your-feature-name
 
 1. Make your changes following the conventions
 
-2. Write tests for your changes
+1. Write tests for your changes
 
-3. Commit using conventional commits:
+1. Commit using conventional commits:
 
-```
+```text
 feat: add new feature
 fix: resolve bug
 docs: update documentation
@@ -209,7 +218,7 @@ chore: maintenance
 
 ## Testing
 
-### Backend
+### Backend Tests
 
 ```bash
 # Unit tests
@@ -222,7 +231,7 @@ pnpm test:e2e
 pnpm test:cov
 ```
 
-### Frontend
+### Frontend Tests
 
 ```bash
 # Unit tests
@@ -236,7 +245,7 @@ pnpm test:unit
 
 The API documentation is available through Swagger UI when running the backend:
 
-```
+```text
 http://localhost:3000/api
 ```
 
@@ -275,15 +284,17 @@ CACHE_TTL=300
 
 ## AI Assistant Guidance
 
-This project includes AI assistant guidance files to help code assistants be immediately productive:
+This project includes AI assistant guidance files to help
+code assistants be immediately productive:
 
-- [`AGENTS.md`](AGENTS.md) - Main project guidance with critical commands and non-obvious patterns
-- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code mode specific rules and patterns
-- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug mode specific guidance
-- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context and architecture
-- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture constraints and design patterns
+- [`AGENTS.md`](AGENTS.md) - Main project guidance
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code rules
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture
 
-These files contain project-specific, non-obvious information discovered by analyzing the codebase, including:
+These files contain project-specific, non-obvious information
+discovered by analyzing the codebase, including:
 
 - Critical command execution order (database seeding dependencies)
 - Authentication patterns and JWT token handling
@@ -300,8 +311,10 @@ These files contain project-specific, non-obvious information discovered by anal
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE) file for details.
 
 ## Architecture Documentation
 
-For detailed information about the system architecture, please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For detailed information about the system architecture,
+please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

@@ -1,6 +1,8 @@
 # Hair Salon Booking System Backend
 
-A robust backend system for managing hair salon bookings, built with NestJS. This system provides comprehensive functionality for managing appointments, employees, services, and user authentication.
+A robust backend system for managing hair salon bookings,
+built with NestJS. This system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
 
 ## Features
 
@@ -37,7 +39,7 @@ A robust backend system for managing hair salon bookings, built with NestJS. Thi
 pnpm install
 ```
 
-1. Configure environment variables:
+2. Configure environment variables:
    - Copy `.env.example` to `.env`
    - Update the values according to your setup
 
@@ -49,7 +51,7 @@ pnpm install
 pnpm migration:run
 ```
 
-1. Seed initial data:
+2. Seed initial data:
 
 ```bash
 pnpm seed
@@ -102,7 +104,7 @@ pnpm test:cov
 
 ## Project Structure
 
-```
+```text
 src/
 ├── auth/               # Authentication & authorization
 ├── bookings/          # Booking management
@@ -118,7 +120,7 @@ src/
 
 Required environment variables in `.env`:
 
-```
+```env
 # Database
 DB_HOST=localhost
 DB_PORT=5432
@@ -139,7 +141,7 @@ REDIS_PORT=6379
 
 Once the application is running, you can access the Swagger documentation at:
 
-```
+```text
 http://localhost:3000/api
 ```
 

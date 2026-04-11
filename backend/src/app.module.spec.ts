@@ -204,16 +204,12 @@ describe("AppModule", () => {
     expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalled();
 
     const calls = mockTypeOrmModule.forRootAsync.mock.calls;
-    if (!calls?.length) {
-      throw new Error("forRootAsync was not called");
-    }
+    expect(calls.length).toBeGreaterThan(0);
 
     const [options] = calls[0] as [MockCall];
     const factoryFn = options.useFactory;
 
-    if (!factoryFn) {
-      throw new Error("Factory function not found");
-    }
+    expect(factoryFn).toBeDefined();
 
     const config = factoryFn(mockConfigService);
 

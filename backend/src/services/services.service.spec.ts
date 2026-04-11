@@ -52,7 +52,7 @@ describe("ServicesService", () => {
     it("should throw NotFoundException when service not found", async () => {
       mockServiceRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne("non-existent")).rejects.toThrow(
+      await expect(service.findOne("non-existent")).rejects.toBeInstanceOf(
         NotFoundException
       );
     });

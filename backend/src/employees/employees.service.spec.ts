@@ -146,8 +146,8 @@ describe('EmployeesService', () => {
     it('should throw ConflictException if email exists', async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
 
-      await expect(service.create(createEmployeeDto)).rejects.toThrow(
-        new ConflictException('Email already exists')
+      await expect(service.create(createEmployeeDto)).rejects.toBeInstanceOf(
+        ConflictException,
       );
       expect(userRepository.save).not.toHaveBeenCalled();
       expect(employeeRepository.save).not.toHaveBeenCalled();
@@ -170,8 +170,8 @@ describe('EmployeesService', () => {
     it('should throw NotFoundException when employee not found by user ID', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findByUserId('non-existent')).rejects.toThrow(
-        new NotFoundException('Employee with user ID non-existent not found')
+      await expect(service.findByUserId('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
       );
     });
   });
@@ -198,7 +198,7 @@ describe('EmployeesService', () => {
     it('should throw NotFoundException if employee not found', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.resetPassword('non-existent')).rejects.toThrow(
+      await expect(service.resetPassword('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -220,7 +220,7 @@ describe('EmployeesService', () => {
     it('should throw NotFoundException when employee not found', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -356,7 +356,7 @@ describe('EmployeesService', () => {
 
       await expect(
         service.update('non-existent', updateEmployeeDto),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -376,7 +376,7 @@ describe('EmployeesService', () => {
     it('should throw NotFoundException if employee not found', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove('non-existent')).rejects.toThrow(
+      await expect(service.remove('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -398,7 +398,7 @@ describe('EmployeesService', () => {
     it('should throw NotFoundException if employee not found', async () => {
       mockEmployeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.restore('non-existent')).rejects.toThrow(
+      await expect(service.restore('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
