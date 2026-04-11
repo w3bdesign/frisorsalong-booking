@@ -8,6 +8,17 @@ import { createSampleOrders } from "./create-sample-orders.seed";
 // Load environment variables
 config();
 
+/** Safely extract an error message from an unknown caught value */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+
 export const createDataSource = (): DataSource => {
   const options: DataSourceOptions = {
     type: 'postgres',
@@ -26,8 +37,7 @@ export const createDataSource = (): DataSource => {
   try {
     return new DataSource(options);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-    throw new Error(`Failed to create DataSource: ${errorMessage}`);
+    throw new Error(`Failed to create DataSource: ${getErrorMessage(error)}`);
   }
 };
 
@@ -59,7 +69,7 @@ export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
     console.log('All seeds completed successfully');
     return true;
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+    const errorMessage = getErrorMessage(error);
     console.error('Error running seeds:', errorMessage);
     throw new Error(`Seed operation failed: ${errorMessage}`);
   }
@@ -80,13 +90,11 @@ if (require.main === module) {
         process.exit(0);
       })
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        console.error('Seed process failed:', message);
+        console.error('Seed process failed:', getErrorMessage(error));
         process.exit(1);
       });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-    console.error('Failed to create DataSource:', errorMessage);
+    console.error('Failed to create DataSource:', getErrorMessage(error));
     process.exit(1);
   }
 }
