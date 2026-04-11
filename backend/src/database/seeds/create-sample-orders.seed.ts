@@ -2,6 +2,17 @@ import { DataSource, Repository } from "typeorm";
 import { Order } from "../../orders/entities/order.entity";
 import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
 
+/** Safely extract an error message from an unknown caught value */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+
 export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
   // Initialize repositories with proper typing
   const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
@@ -68,8 +79,7 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
         console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
       } catch (error: unknown) {
         // Log error but continue processing other bookings
-        const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        console.error(`Error processing booking ${booking.id}:`, errorMessage);
+        console.error(`Error processing booking ${booking.id}:`, getErrorMessage(error));
         continue;
       }
     }
@@ -81,8 +91,7 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
     console.log(`Successfully created ${createdOrders.length} sample orders`);
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-    console.error("Error creating sample orders:", errorMessage);
+    console.error("Error creating sample orders:", getErrorMessage(error));
     throw error;
   }
 };

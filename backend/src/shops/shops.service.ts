@@ -40,9 +40,9 @@ export class ShopsService {
     // Update booking count and time
     shopCode.todayBookingCount++;
     shopCode.lastBookingTime = now;
-    await this.shopCodeRepository.save(shopCode);
+    const updatedShopCode: ShopCode = await this.shopCodeRepository.save(shopCode);
 
-    return shopCode;
+    return updatedShopCode;
   }
 
   async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
