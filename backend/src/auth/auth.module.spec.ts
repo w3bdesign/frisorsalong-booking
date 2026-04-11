@@ -10,7 +10,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { User } from '../users/entities/user.entity';
 import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
 
-type Constructor<T> = new (...args: unknown[]) => T;
+type Constructor<T> = new (..._args: unknown[]) => T;
 
 interface ModuleMetadata {
   imports: Array<Type<unknown> | DynamicModule>;
