@@ -83,7 +83,7 @@ if (require.main === module) {
         console.error('Seed process failed:', message);
         process.exit(1);
       });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to create DataSource:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
