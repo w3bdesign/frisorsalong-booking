@@ -89,7 +89,7 @@ describe("createInitialData", () => {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
       }
 
-      return repository as Repository<T>;
+      return repository as unknown as Repository<T>;
     };
 
     mockDataSource = {
