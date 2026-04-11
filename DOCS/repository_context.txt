@@ -18842,7 +18842,7 @@ interface ImportMeta {
   },
   "dependencies": {
     "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.20",
+    "autoprefixer": "^10.4.27",
     "axios": "1.14.0",
     "chart.js": "^4.5.0",
     "pinia": "^3.0.3",
@@ -19143,7 +19143,7 @@ describe('TVDisplayView', () => {
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.4.20",
+    "autoprefixer": "^10.4.27",
     "cypress": "^15.0.0",
     "eslint": "^10.0.0",
     "eslint-plugin-cypress": "^6.2.3",
