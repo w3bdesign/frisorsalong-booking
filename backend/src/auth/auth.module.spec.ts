@@ -26,7 +26,7 @@ interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
 
 interface JwtConfig extends FactoryProvider {
   provide: string;
-  useFactory: (...args: unknown[]) => unknown;
+  useFactory: (..._args: unknown[]) => unknown;
   inject: Type<unknown>[];
 }
 
