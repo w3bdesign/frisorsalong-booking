@@ -26,7 +26,7 @@ export const createDataSource = (): DataSource => {
   try {
     return new DataSource(options);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     throw new Error(`Failed to create DataSource: ${errorMessage}`);
   }
 };
@@ -59,7 +59,7 @@ export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
     console.log('All seeds completed successfully');
     return true;
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     console.error('Error running seeds:', errorMessage);
     throw new Error(`Seed operation failed: ${errorMessage}`);
   }
@@ -80,12 +80,12 @@ if (require.main === module) {
         process.exit(0);
       })
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'Unknown error';
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
         console.error('Seed process failed:', message);
         process.exit(1);
       });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     console.error('Failed to create DataSource:', errorMessage);
     process.exit(1);
   }
