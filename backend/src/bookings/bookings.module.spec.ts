@@ -34,8 +34,8 @@ describe("BookingsModule", () => {
           return item.name;
         }
         if (item && typeof item === "object" && "name" in item) {
-          const name = (item as { name: unknown }).name;
-          return typeof name === 'string' ? name : null;
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
         }
         return null;
       })
