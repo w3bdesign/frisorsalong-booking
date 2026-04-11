@@ -18,7 +18,7 @@ export class ShopCodeGuard implements CanActivate {
   constructor(private readonly shopsService: ShopsService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithShop>();
+    const request: RequestWithShop = context.switchToHttp().getRequest();
     const shopCode = this.getShopCodeFromHeaders(request);
 
     if (!shopCode) {
