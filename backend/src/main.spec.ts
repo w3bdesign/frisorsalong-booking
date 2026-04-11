@@ -67,7 +67,7 @@ jest.mock("./app.module", () => ({
 }));
 
 type MockNestApp = {
-  [K in keyof INestApplication]: jest.Mock;
+  [_K in keyof INestApplication]: jest.Mock;
 };
 
 interface SwaggerSetupOptions {

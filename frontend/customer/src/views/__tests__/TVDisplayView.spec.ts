@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import TVDisplayView from '../TVDisplayView.vue'
 import { useDisplayStore } from '../../stores/display'
-import axios from 'axios'
 
 vi.mock('axios')
 vi.mock('../../stores/display', () => ({
