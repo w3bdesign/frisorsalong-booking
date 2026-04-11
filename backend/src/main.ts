@@ -58,7 +58,7 @@ export async function bootstrap(): Promise<void> {
     },
   });
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(
@@ -68,7 +68,7 @@ export async function bootstrap(): Promise<void> {
 
 // Only call bootstrap if this file is being run directly
 if (require.main === module) {
-  bootstrap().catch(err => {
+  bootstrap().catch((err: unknown) => {
     console.error('Failed to start application:', err);
     process.exit(1);
   });
