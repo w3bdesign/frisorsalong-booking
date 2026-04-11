@@ -37,7 +37,7 @@ export class OrdersService {
       totalAmount: booking.totalPrice,
     });
 
-    return this.orderRepository.save(order) as Promise<Order>;
+    return this.orderRepository.save(order);
   }
 
   async findAll(): Promise<Order[]> {
@@ -50,7 +50,7 @@ export class OrdersService {
         'booking.service',
       ],
       order: { completedAt: 'DESC' },
-    }) as Order[];
+    });
   }
 
   async findAllByEmployee(userId: string): Promise<Order[]> {
@@ -92,7 +92,7 @@ export class OrdersService {
       throw new NotFoundException(`Order #${id} not found`);
     }
 
-    return order as Order;
+    return order;
   }
 
   async findOneByEmployee(id: string, userId: string): Promise<Order> {
