@@ -31,10 +31,10 @@ describe("BookingsModule", () => {
     const moduleNames = moduleDecorator
       .map((item): string | null => {
         if (typeof item === "function") {
-          return item.name;
+          return item.name as string;
         }
         if (item && typeof item === "object" && "name" in item) {
-          const name = item.name;
+          const name = (item as { name: unknown }).name;
           return typeof name === 'string' ? name : null;
         }
         return null;

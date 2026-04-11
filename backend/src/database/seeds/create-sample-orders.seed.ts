@@ -55,7 +55,7 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
           throw new Error(`Failed to save order for booking ${booking.id}`);
         }
 
-        createdOrders.push(savedOrder);
+        createdOrders.push(savedOrder as Order);
 
         // Update booking status to completed
         booking.status = BookingStatus.COMPLETED;

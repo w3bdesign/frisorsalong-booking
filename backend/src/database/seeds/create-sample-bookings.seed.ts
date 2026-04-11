@@ -54,7 +54,7 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<{
           role: UserRole.CUSTOMER,
           phoneNumber: '+47' + faker.string.numeric(8),
         });
-        customers.push(customer);
+        customers.push(customer as User);
       } catch (error) {
         const err = new Error(`Failed to create customer ${i + 1}`);
         console.error(`Error creating customer ${i + 1}:`, error);
@@ -105,8 +105,8 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<{
       });
       
       // Ensure service.duration is a number
-      const duration = typeof service.duration === 'number' ? service.duration : 60;
-      const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
+      const duration: number = typeof service.duration === 'number' ? service.duration : 60;
+      const endTime = new Date(startTime.getTime() + Number(duration) * 60 * 1000);
 
       const booking: Partial<Booking> = {
         customer,
@@ -115,7 +115,7 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<{
         startTime,
         endTime,
         status,
-        notes: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.7 }),
+        notes: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.7 }) ?? undefined,
         totalPrice: service.price,
         reminderSent: startTime < now,
       };

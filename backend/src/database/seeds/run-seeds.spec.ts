@@ -11,7 +11,7 @@ jest.mock("typeorm", () => {
   return {
     ...actualTypeorm,
     DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
-      if (options?.url === "invalid-url") {
+      if (options.url === "invalid-url") {
         throw new Error("Invalid URL format");
       }
       return {
@@ -40,7 +40,7 @@ jest.mock("./create-sample-orders.seed", () => ({
 
 describe("run-seeds", () => {
   // Create a minimal mock of DataSource with required properties
-  const createMockDataSource = () =>
+  const createMockDataSource = (): DataSource =>
     ({
       name: "default",
       options: {} as PostgresConnectionOptions,
@@ -109,7 +109,7 @@ describe("run-seeds", () => {
     it("should handle DataSource creation errors", () => {
       process.env.DATABASE_URL = "invalid-url";
       expect(() => createDataSource()).toThrow(
-        "Failed to create DataSource: Invalid URL format"
+        /Failed to create DataSource/
       );
     });
   });

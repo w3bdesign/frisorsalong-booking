@@ -84,8 +84,8 @@ describe('createSampleOrders', () => {
 
     mockDataSource = {
       getRepository: jest.fn((entity: new () => Booking | Order) => {
-        if (entity === Booking) return mockBookingRepository as Repository<Booking>;
-        if (entity === Order) return mockOrderRepository as Repository<Order>;
+        if (entity === Booking) return mockBookingRepository as unknown as Repository<Booking>;
+        if (entity === Order) return mockOrderRepository as unknown as Repository<Order>;
         throw new Error(`Unexpected entity: ${entity.name}`);
       }),
     } as unknown as DataSource;
