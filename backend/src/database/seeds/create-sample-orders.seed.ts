@@ -68,7 +68,8 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
         console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
       } catch (error: unknown) {
         // Log error but continue processing other bookings
-        console.error(`Error processing booking ${booking.id}:`, error instanceof Error ? error.message : String(error));
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Error processing booking ${booking.id}:`, errorMessage);
         continue;
       }
     }
@@ -80,7 +81,8 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
     console.log(`Successfully created ${createdOrders.length} sample orders`);
 
   } catch (error: unknown) {
-    console.error("Error creating sample orders:", error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Error creating sample orders:", errorMessage);
     throw error;
   }
 };
