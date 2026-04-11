@@ -42,10 +42,10 @@ export class ShopsService {
     shopCode.lastBookingTime = now;
     await this.shopCodeRepository.save(shopCode);
 
-    return shopCode;
+    return shopCode as ShopCode;
   }
 
-  createShopCode(shopName: string, code?: string): Promise<ShopCode> {
+  async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
     // Generate a random code if none provided
     const shopCode =
       code ?? Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -55,7 +55,7 @@ export class ShopsService {
       shopName,
     });
 
-    return this.shopCodeRepository.save(newShopCode);
+    return await this.shopCodeRepository.save(newShopCode) as ShopCode;
   }
 
   async deactivateShopCode(code: string): Promise<void> {
