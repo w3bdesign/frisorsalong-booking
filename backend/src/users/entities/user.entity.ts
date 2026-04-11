@@ -60,7 +60,8 @@ export class User {
     }
   }
 
-  validatePassword(password: string): Promise<boolean> {
-    return bcrypt.compare(password, this.password);
+  async validatePassword(password: string): Promise<boolean> {
+    const isMatch: boolean = await bcrypt.compare(password, this.password);
+    return isMatch;
   }
 }
