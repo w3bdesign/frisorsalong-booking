@@ -37,11 +37,12 @@ export class OrdersService {
       totalAmount: booking.totalPrice,
     });
 
-    return this.orderRepository.save(order);
+    const savedOrder: Order = await this.orderRepository.save(order);
+    return savedOrder;
   }
 
   async findAll(): Promise<Order[]> {
-    return await this.orderRepository.find({
+    const orders: Order[] = await this.orderRepository.find({
       relations: [
         'booking',
         'booking.customer',
@@ -51,6 +52,7 @@ export class OrdersService {
       ],
       order: { completedAt: 'DESC' },
     });
+    return orders;
   }
 
   async findAllByEmployee(userId: string): Promise<Order[]> {
