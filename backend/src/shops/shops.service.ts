@@ -45,10 +45,10 @@ export class ShopsService {
     return shopCode;
   }
 
-  async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
+  createShopCode(shopName: string, code?: string): Promise<ShopCode> {
     // Generate a random code if none provided
     const shopCode =
-      code || Math.random().toString(36).substring(2, 8).toUpperCase();
+      code ?? Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const newShopCode = this.shopCodeRepository.create({
       code: shopCode,
