@@ -40,7 +40,7 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  async findAll(): Promise<Order[]> {
+  findAll(): Promise<Order[]> {
     return this.orderRepository.find({
       relations: [
         'booking',
