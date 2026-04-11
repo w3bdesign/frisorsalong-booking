@@ -25,8 +25,9 @@ export const createDataSource = (): DataSource => {
 
   try {
     return new DataSource(options);
-  } catch (error) {
-    throw new Error(`Failed to create DataSource: ${error instanceof Error ? error.message : String(error)}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to create DataSource: ${errorMessage}`);
   }
 };
 
@@ -57,8 +58,8 @@ export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
 
     console.log('All seeds completed successfully');
     return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error running seeds:', errorMessage);
     throw new Error(`Seed operation failed: ${errorMessage}`);
   }
