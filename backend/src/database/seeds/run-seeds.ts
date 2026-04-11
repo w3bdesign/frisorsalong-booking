@@ -79,7 +79,8 @@ if (require.main === module) {
         process.exit(0);
       })
       .catch((error: unknown) => {
-        console.error('Seed process failed:', error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('Seed process failed:', message);
         process.exit(1);
       });
   } catch (error) {
