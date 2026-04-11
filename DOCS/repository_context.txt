@@ -15972,75 +15972,6 @@ export class AuthService {
 }
 ````
 
-## File: backend/src/bookings/bookings.module.spec.ts
-````typescript
-import { BookingsModule } from "./bookings.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
-type ModuleImport =
-  | Type<unknown>
-  | DynamicModule
-  | Promise<DynamicModule>
-  | ForwardReference;
-describe("BookingsModule", () => {
-  it("should have correct module metadata", () => {
-    // Get module metadata directly from the decorator
-    const moduleDecorator = Reflect.getMetadata(
-      "imports",
-      BookingsModule
-    ) as ModuleImport[];
-    // Check TypeOrmModule.forFeature
-    const typeOrmFeature = moduleDecorator.find(
-      (item): item is DynamicModule =>
-        item !== null &&
-        typeof item === "object" &&
-        "module" in item &&
-        item.module === TypeOrmModule
-    );
-    expect(typeOrmFeature).toBeDefined();
-    // Get all module names
-    const moduleNames = moduleDecorator
-      .map((item): string | null => {
-        if (typeof item === "function") {
-          return item.name as string;
-        }
-        if (item && typeof item === "object" && "name" in item) {
-          const name = (item as { name: unknown }).name;
-          return typeof name === 'string' ? name : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name));
-    // Check for expected modules
-    const expectedModules = [
-      "UsersModule",
-      "ServicesModule",
-      "ShopsModule",
-      "AuthModule",
-    ];
-    expectedModules.forEach((moduleName) => {
-      expect(moduleNames).toContain(moduleName);
-    });
-  });
-  it("should export BookingsService and TypeOrmModule", () => {
-    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
-      Type<unknown> | DynamicModule
-    >;
-    expect(exports).toContain(BookingsService);
-    const hasTypeOrmExport = exports.some(
-      (exp): boolean =>
-        exp === TypeOrmModule ||
-        (exp !== null &&
-          typeof exp === "object" &&
-          "module" in exp &&
-          exp.module === TypeOrmModule)
-    );
-    expect(hasTypeOrmExport).toBe(true);
-  });
-});
-````
-
 ## File: backend/src/bookings/bookings.service.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -17035,78 +16966,6 @@ describe('createSampleOrders', () => {
 });
 ````
 
-## File: backend/src/database/seeds/create-sample-orders.seed.ts
-````typescript
-import { DataSource, Repository } from "typeorm";
-import { Order } from "../../orders/entities/order.entity";
-import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
-export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
-  // Initialize repositories with proper typing
-  const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
-  const orderRepository: Repository<Order> = dataSource.getRepository(Order);
-  try {
-    console.log('Starting to create sample orders...');
-    // Get all confirmed bookings that don't have orders yet
-    const confirmedBookings = await bookingRepository.find({
-      where: { status: BookingStatus.CONFIRMED },
-      relations: ["customer", "employee", "service"],
-    });
-    if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
-      throw new Error('Failed to fetch confirmed bookings');
-    }
-    console.log(`Found ${confirmedBookings.length} confirmed bookings`);
-    // Take first 20 confirmed bookings (or less if fewer exist)
-    const numberOfOrders = Math.min(20, confirmedBookings.length);
-    const selectedBookings = confirmedBookings.slice(0, numberOfOrders);
-    console.log(`Creating ${numberOfOrders} orders...`);
-    const createdOrders: Order[] = [];
-    for (const booking of selectedBookings) {
-      // Verify booking has required properties
-      if (!booking.id || !booking.totalPrice) {
-        console.error(`Invalid booking data: ${JSON.stringify(booking)}`);
-        continue;
-      }
-      try {
-        // Create order with proper type
-        const order = orderRepository.create({
-          booking: booking,
-          completedAt: new Date(),
-          totalAmount: booking.totalPrice,
-          notes: `Order created for booking ${booking.id}`,
-        });
-        if (!order) {
-          throw new Error(`Failed to create order for booking ${booking.id}`);
-        }
-        // Save order with proper error handling
-        const savedOrder = await orderRepository.save(order);
-        if (!savedOrder) {
-          throw new Error(`Failed to save order for booking ${booking.id}`);
-        }
-        createdOrders.push(savedOrder as Order);
-        // Update booking status to completed
-        booking.status = BookingStatus.COMPLETED;
-        const updatedBooking = await bookingRepository.save(booking);
-        if (!updatedBooking) {
-          throw new Error(`Failed to update status for booking ${booking.id}`);
-        }
-        console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
-      } catch (error) {
-        // Log error but continue processing other bookings
-        console.error(`Error processing booking ${booking.id}:`, error instanceof Error ? error.message : String(error));
-        continue;
-      }
-    }
-    if (createdOrders.length === 0) {
-      throw new Error('No orders were created successfully');
-    }
-    console.log(`Successfully created ${createdOrders.length} sample orders`);
-  } catch (error) {
-    console.error("Error creating sample orders:", error);
-    throw error;
-  }
-};
-````
-
 ## File: backend/src/database/seeds/run-seeds.spec.ts
 ````typescript
 import { DataSource } from "typeorm";
@@ -17262,85 +17121,6 @@ describe("run-seeds", () => {
     });
   });
 });
-````
-
-## File: backend/src/database/seeds/run-seeds.ts
-````typescript
-import { DataSource, DataSourceOptions } from "typeorm";
-import { config } from 'dotenv';
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-// Load environment variables
-config();
-export const createDataSource = (): DataSource => {
-  const options: DataSourceOptions = {
-    type: 'postgres',
-    url: process.env.DATABASE_URL,
-    entities: ['src/**/*.entity{.ts,.js}'],
-    synchronize: false,
-    ssl: {
-      rejectUnauthorized: false
-    }
-  };
-  if (!options.url) {
-    throw new Error('DATABASE_URL environment variable is not set');
-  }
-  try {
-    return new DataSource(options);
-  } catch (error) {
-    throw new Error(`Failed to create DataSource: ${error instanceof Error ? error.message : String(error)}`);
-  }
-};
-export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
-  if (!dataSource || typeof dataSource.initialize !== 'function') {
-    throw new Error('Invalid DataSource provided');
-  }
-  try {
-    await dataSource.initialize();
-    console.log('Connected to database');
-    // Create admin user first
-    console.log('Creating admin user...');
-    await createAdminUser(dataSource);
-    // Create initial data (services, employees)
-    console.log('Creating initial data...');
-    await createInitialData(dataSource);
-    // Create sample bookings
-    console.log('Creating sample bookings...');
-    await createSampleBookings(dataSource);
-    // Create sample orders from confirmed bookings
-    console.log('Creating sample orders...');
-    await createSampleOrders(dataSource);
-    console.log('All seeds completed successfully');
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Error running seeds:', errorMessage);
-    throw new Error(`Seed operation failed: ${errorMessage}`);
-  }
-};
-// Only run seeds if this file is being run directly
-if (require.main === module) {
-  let dataSource: DataSource | undefined;
-  try {
-    dataSource = createDataSource();
-    runSeeds(dataSource)
-      .then(async () => {
-        if (dataSource && typeof dataSource.destroy === 'function') {
-          await dataSource.destroy();
-        }
-        process.exit(0);
-      })
-      .catch((error: unknown) => {
-        console.error('Seed process failed:', error instanceof Error ? error.message : String(error));
-        process.exit(1);
-      });
-  } catch (error) {
-    console.error('Failed to create DataSource:', error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
-}
 ````
 
 ## File: backend/src/employees/employees.controller.spec.ts
@@ -19044,6 +18824,55 @@ interface ImportMeta {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.20",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -19275,6 +19104,63 @@ describe('TVDisplayView', () => {
     expect(mockCleanup).toHaveBeenCalled()
   })
 })
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/coverage-v8": "4.1.3",
+    "@vitest/eslint-plugin": "1.6.14",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.4.20",
+    "cypress": "^15.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-cypress": "^6.2.3",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.4.49",
+    "prettier": "^3.8.1",
+    "start-server-and-test": "^2.1.5",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
 ````
 
 ## File: backend/docs/README.md
@@ -19758,120 +19644,6 @@ export class EmployeesController {
 }
 ````
 
-## File: backend/src/orders/orders.service.ts
-````typescript
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly employeesService: EmployeesService,
-  ) {}
-  async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'employee', 'service'],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking #${bookingId} not found`);
-    }
-    // Update booking status to completed
-    booking.status = BookingStatus.COMPLETED;
-    await this.bookingRepository.save(booking);
-    // Create order
-    const order = this.orderRepository.create({
-      booking,
-      completedAt: new Date(),
-      totalAmount: booking.totalPrice,
-    });
-    return this.orderRepository.save(order) as Promise<Order>;
-  }
-  async findAll(): Promise<Order[]> {
-    return await this.orderRepository.find({
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    }) as Order[];
-  }
-  async findAllByEmployee(userId: string): Promise<Order[]> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    return this.orderRepository.find({
-      where: {
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-  }
-  async findOne(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order as Order;
-  }
-  async findOneByEmployee(id: string, userId: string): Promise<Order> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const order = await this.orderRepository.findOne({
-      where: {
-        id,
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-}
-````
-
 ## File: backend/src/shops/shops.service.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -20025,68 +19797,6 @@ describe("ShopsService", () => {
     });
   });
 });
-````
-
-## File: backend/src/shops/shops.service.ts
-````typescript
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ShopCode } from "./entities/shop-code.entity";
-@Injectable()
-export class ShopsService {
-  constructor(
-    @InjectRepository(ShopCode)
-    private readonly shopCodeRepository: Repository<ShopCode>
-  ) {}
-  async validateShopCode(code: string): Promise<ShopCode> {
-    const shopCode = await this.shopCodeRepository.findOne({
-      where: { code, isActive: true },
-    });
-    if (!shopCode) {
-      throw new UnauthorizedException("Invalid shop code");
-    }
-    // Check rate limiting
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-    // Reset counter if it's a new day
-    if (!shopCode.lastBookingTime || shopCode.lastBookingTime < startOfDay) {
-      shopCode.todayBookingCount = 0;
-    }
-    // Check if daily limit is reached
-    if (shopCode.todayBookingCount >= shopCode.dailyBookingLimit) {
-      throw new UnauthorizedException("Daily booking limit reached");
-    }
-    // Update booking count and time
-    shopCode.todayBookingCount++;
-    shopCode.lastBookingTime = now;
-    await this.shopCodeRepository.save(shopCode);
-    return shopCode as ShopCode;
-  }
-  async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
-    // Generate a random code if none provided
-    const shopCode =
-      code ?? Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newShopCode = this.shopCodeRepository.create({
-      code: shopCode,
-      shopName,
-    });
-    return await this.shopCodeRepository.save(newShopCode) as ShopCode;
-  }
-  async deactivateShopCode(code: string): Promise<void> {
-    await this.shopCodeRepository.update({ code }, { isActive: false });
-  }
-  async updateDailyLimit(code: string, limit: number): Promise<void> {
-    await this.shopCodeRepository.update(
-      { code },
-      { dailyBookingLimit: limit }
-    );
-  }
-}
 ````
 
 ## File: backend/src/users/entities/user.entity.ts
@@ -21653,6 +21363,91 @@ module.exports = [
 ];
 ````
 
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.1",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-loader": "^9.5.7",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  }
+}
+````
+
 ## File: backend/src/auth/auth.module.spec.ts
 ````typescript
 import { PassportModule } from '@nestjs/passport';
@@ -21760,193 +21555,422 @@ describe('AuthModule', () => {
 });
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.1.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.2",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.2.6",
-    "@nestjs/typeorm": "^11.0.0",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "7.2.8",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.0",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^10.0.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.7",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
+## File: backend/src/bookings/bookings.module.spec.ts
+````typescript
+import { BookingsModule } from "./bookings.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
+type ModuleImport =
+  | Type<unknown>
+  | DynamicModule
+  | Promise<DynamicModule>
+  | ForwardReference;
+describe("BookingsModule", () => {
+  it("should have correct module metadata", () => {
+    // Get module metadata directly from the decorator
+    const moduleDecorator = Reflect.getMetadata(
+      "imports",
+      BookingsModule
+    ) as ModuleImport[];
+    // Check TypeOrmModule.forFeature
+    const typeOrmFeature = moduleDecorator.find(
+      (item): item is DynamicModule =>
+        item !== null &&
+        typeof item === "object" &&
+        "module" in item &&
+        item.module === TypeOrmModule
+    );
+    expect(typeOrmFeature).toBeDefined();
+    // Get all module names
+    const moduleNames = moduleDecorator
+      .map((item): string | null => {
+        if (typeof item === "function") {
+          const name: string = item.name;
+          return name;
+        }
+        if (item && typeof item === "object" && "name" in item) {
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
+        }
+        return null;
+      })
+      .filter((name): name is string => Boolean(name));
+    // Check for expected modules
+    const expectedModules = [
+      "UsersModule",
+      "ServicesModule",
+      "ShopsModule",
+      "AuthModule",
+    ];
+    expectedModules.forEach((moduleName) => {
+      expect(moduleNames).toContain(moduleName);
+    });
+  });
+  it("should export BookingsService and TypeOrmModule", () => {
+    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
+      Type<unknown> | DynamicModule
+    >;
+    expect(exports).toContain(BookingsService);
+    const hasTypeOrmExport = exports.some(
+      (exp): boolean =>
+        exp === TypeOrmModule ||
+        (exp !== null &&
+          typeof exp === "object" &&
+          "module" in exp &&
+          exp.module === TypeOrmModule)
+    );
+    expect(hasTypeOrmExport).toBe(true);
+  });
+});
+````
+
+## File: backend/src/orders/orders.service.ts
+````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
+  ) {}
+  async createFromBooking(bookingId: string): Promise<Order> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking #${bookingId} not found`);
+    }
+    // Update booking status to completed
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
+    });
+    const savedOrder: Order = await this.orderRepository.save(order);
+    return savedOrder;
+  }
+  async findAll(): Promise<Order[]> {
+    const orders: Order[] = await this.orderRepository.find({
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders;
+  }
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    return this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+  }
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
   }
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.20",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.3",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
+## File: backend/src/shops/shops.service.ts
+````typescript
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopCode } from "./entities/shop-code.entity";
+@Injectable()
+export class ShopsService {
+  constructor(
+    @InjectRepository(ShopCode)
+    private readonly shopCodeRepository: Repository<ShopCode>
+  ) {}
+  async validateShopCode(code: string): Promise<ShopCode> {
+    const shopCode = await this.shopCodeRepository.findOne({
+      where: { code, isActive: true },
+    });
+    if (!shopCode) {
+      throw new UnauthorizedException("Invalid shop code");
+    }
+    // Check rate limiting
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    // Reset counter if it's a new day
+    if (!shopCode.lastBookingTime || shopCode.lastBookingTime < startOfDay) {
+      shopCode.todayBookingCount = 0;
+    }
+    // Check if daily limit is reached
+    if (shopCode.todayBookingCount >= shopCode.dailyBookingLimit) {
+      throw new UnauthorizedException("Daily booking limit reached");
+    }
+    // Update booking count and time
+    shopCode.todayBookingCount++;
+    shopCode.lastBookingTime = now;
+    const updatedShopCode: ShopCode = await this.shopCodeRepository.save(shopCode);
+    return updatedShopCode;
+  }
+  async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
+    // Generate a random code if none provided
+    const shopCode =
+      code ?? Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newShopCode = this.shopCodeRepository.create({
+      code: shopCode,
+      shopName,
+    });
+    const savedShopCode: ShopCode = await this.shopCodeRepository.save(newShopCode);
+    return savedShopCode;
+  }
+  async deactivateShopCode(code: string): Promise<void> {
+    await this.shopCodeRepository.update({ code }, { isActive: false });
+  }
+  async updateDailyLimit(code: string, limit: number): Promise<void> {
+    await this.shopCodeRepository.update(
+      { code },
+      { dailyBookingLimit: limit }
+    );
   }
 }
 ````
 
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^3.0.0",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.3",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vitest/coverage-v8": "4.1.3",
-    "@vitest/eslint-plugin": "1.6.14",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.4.20",
-    "cypress": "^15.0.0",
-    "eslint": "^10.0.0",
-    "eslint-plugin-cypress": "^6.2.3",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "npm-run-all2": "^8.0.4",
-    "postcss": "^8.4.49",
-    "prettier": "^3.8.1",
-    "start-server-and-test": "^2.1.5",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vite-plugin-vue-devtools": "^8.0.0",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
+## File: backend/src/database/seeds/create-sample-orders.seed.ts
+````typescript
+import { DataSource, Repository } from "typeorm";
+import { Order } from "../../orders/entities/order.entity";
+import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
+/** Safely extract an error message from an unknown caught value */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
+  // Initialize repositories with proper typing
+  const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
+  const orderRepository: Repository<Order> = dataSource.getRepository(Order);
+  try {
+    console.log('Starting to create sample orders...');
+    // Get all confirmed bookings that don't have orders yet
+    const confirmedBookings = await bookingRepository.find({
+      where: { status: BookingStatus.CONFIRMED },
+      relations: ["customer", "employee", "service"],
+    });
+    if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
+      throw new Error('Failed to fetch confirmed bookings');
+    }
+    console.log(`Found ${confirmedBookings.length} confirmed bookings`);
+    // Take first 20 confirmed bookings (or less if fewer exist)
+    const numberOfOrders = Math.min(20, confirmedBookings.length);
+    const selectedBookings = confirmedBookings.slice(0, numberOfOrders);
+    console.log(`Creating ${numberOfOrders} orders...`);
+    const createdOrders: Order[] = [];
+    for (const booking of selectedBookings) {
+      // Verify booking has required properties
+      if (!booking.id || !booking.totalPrice) {
+        console.error(`Invalid booking data: ${JSON.stringify(booking)}`);
+        continue;
+      }
+      try {
+        // Create order with proper type
+        const order = orderRepository.create({
+          booking: booking,
+          completedAt: new Date(),
+          totalAmount: booking.totalPrice,
+          notes: `Order created for booking ${booking.id}`,
+        });
+        if (!order) {
+          throw new Error(`Failed to create order for booking ${booking.id}`);
+        }
+        // Save order with proper error handling
+        const savedOrder: Order = await orderRepository.save(order);
+        if (!savedOrder) {
+          throw new Error(`Failed to save order for booking ${booking.id}`);
+        }
+        createdOrders.push(savedOrder);
+        // Update booking status to completed
+        booking.status = BookingStatus.COMPLETED;
+        const updatedBooking = await bookingRepository.save(booking);
+        if (!updatedBooking) {
+          throw new Error(`Failed to update status for booking ${booking.id}`);
+        }
+        console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
+      } catch (error: unknown) {
+        // Log error but continue processing other bookings
+        console.error(`Error processing booking ${booking.id}:`, getErrorMessage(error));
+        continue;
+      }
+    }
+    if (createdOrders.length === 0) {
+      throw new Error('No orders were created successfully');
+    }
+    console.log(`Successfully created ${createdOrders.length} sample orders`);
+  } catch (error: unknown) {
+    console.error("Error creating sample orders:", getErrorMessage(error));
+    throw error;
+  }
+};
+````
+
+## File: backend/src/database/seeds/run-seeds.ts
+````typescript
+import { DataSource, DataSourceOptions } from "typeorm";
+import { config } from 'dotenv';
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+// Load environment variables
+config();
+/** Safely extract an error message from an unknown caught value */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+export const createDataSource = (): DataSource => {
+  const options: DataSourceOptions = {
+    type: 'postgres',
+    url: process.env.DATABASE_URL,
+    entities: ['src/**/*.entity{.ts,.js}'],
+    synchronize: false,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  };
+  if (!options.url) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
+  try {
+    return new DataSource(options);
+  } catch (error: unknown) {
+    throw new Error(`Failed to create DataSource: ${getErrorMessage(error)}`);
+  }
+};
+export const runSeeds = async (dataSource: DataSource): Promise<boolean> => {
+  if (!dataSource || typeof dataSource.initialize !== 'function') {
+    throw new Error('Invalid DataSource provided');
+  }
+  try {
+    await dataSource.initialize();
+    console.log('Connected to database');
+    // Create admin user first
+    console.log('Creating admin user...');
+    await createAdminUser(dataSource);
+    // Create initial data (services, employees)
+    console.log('Creating initial data...');
+    await createInitialData(dataSource);
+    // Create sample bookings
+    console.log('Creating sample bookings...');
+    await createSampleBookings(dataSource);
+    // Create sample orders from confirmed bookings
+    console.log('Creating sample orders...');
+    await createSampleOrders(dataSource);
+    console.log('All seeds completed successfully');
+    return true;
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    console.error('Error running seeds:', errorMessage);
+    throw new Error(`Seed operation failed: ${errorMessage}`);
+  }
+};
+// Only run seeds if this file is being run directly
+if (require.main === module) {
+  let dataSource: DataSource | undefined;
+  try {
+    dataSource = createDataSource();
+    runSeeds(dataSource)
+      .then(async () => {
+        if (dataSource && typeof dataSource.destroy === 'function') {
+          await dataSource.destroy();
+        }
+        process.exit(0);
+      })
+      .catch((error: unknown) => {
+        console.error('Seed process failed:', getErrorMessage(error));
+        process.exit(1);
+      });
+  } catch (error: unknown) {
+    console.error('Failed to create DataSource:', getErrorMessage(error));
+    process.exit(1);
   }
 }
 ````
