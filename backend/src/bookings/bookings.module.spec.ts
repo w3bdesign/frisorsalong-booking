@@ -31,7 +31,7 @@ describe("BookingsModule", () => {
     const moduleNames = moduleDecorator
       .map((item): string | null => {
         if (typeof item === "function") {
-          return item.name as string;
+          return item.name;
         }
         if (item && typeof item === "object" && "name" in item) {
           const name = (item as { name: unknown }).name;
