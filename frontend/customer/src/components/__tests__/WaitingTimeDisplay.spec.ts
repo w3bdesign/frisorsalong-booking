@@ -36,7 +36,7 @@ describe('WaitingTimeDisplay', () => {
       error: null,
       startPolling: vi.fn(() => mockTimer),
       cleanup: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof useDisplayStore>)
   })
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('WaitingTimeDisplay', () => {
       error: null,
       startPolling: vi.fn(() => mockTimer),
       cleanup: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof useDisplayStore>)
 
     const wrapper = mount(WaitingTimeDisplay)
     expect(wrapper.find('.animate-pulse').exists()).toBe(true)
@@ -79,14 +79,14 @@ describe('WaitingTimeDisplay', () => {
       error: errorMessage,
       startPolling: vi.fn(() => mockTimer),
       cleanup: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof useDisplayStore>)
 
     const wrapper = mount(WaitingTimeDisplay)
     expect(wrapper.text()).toContain(errorMessage)
     expect(wrapper.find('.text-red-600').exists()).toBe(true)
   })
 
-  it('starts polling on mount and cleans up on unmount', async () => {
+  it('starts polling on mount and cleans up on unmount', () => {
     const mockStartPolling = vi.fn(() => mockTimer)
     const mockCleanup = vi.fn()
     vi.mocked(useDisplayStore).mockReturnValue({
@@ -97,7 +97,7 @@ describe('WaitingTimeDisplay', () => {
       error: null,
       startPolling: mockStartPolling,
       cleanup: mockCleanup,
-    } as any)
+    } as unknown as ReturnType<typeof useDisplayStore>)
 
     const wrapper = mount(WaitingTimeDisplay)
 
@@ -119,7 +119,7 @@ describe('WaitingTimeDisplay', () => {
       error: null,
       startPolling: vi.fn(() => mockTimer),
       cleanup: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof useDisplayStore>)
 
     const wrapper = mount(WaitingTimeDisplay)
     // Since we're using UTC time directly

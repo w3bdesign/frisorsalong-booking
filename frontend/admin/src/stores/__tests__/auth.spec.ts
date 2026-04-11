@@ -111,7 +111,7 @@ describe("Auth Store", () => {
           url: "/auth/login",
           method: "post",
         },
-      } as any;
+      } as unknown as typeof mockError.response;
 
       vi.mocked(api.post).mockRejectedValueOnce(mockError);
 
