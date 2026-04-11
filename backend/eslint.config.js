@@ -50,6 +50,33 @@ module.exports = [
           ignoreRestSiblings: true,
         },
       ],
+      // NestJS modules use empty decorated classes as a standard pattern
+      "@typescript-eslint/no-extraneous-class": [
+        "error",
+        {
+          allowWithDecorator: true,
+        },
+      ],
+      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
+      "@typescript-eslint/no-empty-function": [
+        "error",
+        {
+          allow: ["arrowFunctions"],
+        },
+      ],
+      // Disable redundant type constituent check to allow explicit union types
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
+    },
+  },
+  {
+    // Relaxed rules for test files
+    files: ["src/**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
     },
   },
 ];
