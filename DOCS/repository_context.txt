@@ -8959,217 +8959,6 @@ router.beforeEach(async (to, from, next) => {
 export default router;
 ````
 
-## File: frontend/admin/src/stores/__tests__/auth.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { useAuthStore } from "../auth";
-import { AxiosError } from "axios";
-import api from "../../lib/api";
-vi.mock("../../lib/api", () => {
-  return {
-    default: {
-      post: vi.fn(),
-      get: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    },
-  };
-});
-describe("Auth Store", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    localStorage.clear();
-    vi.clearAllMocks();
-  });
-  describe("Initial State", () => {
-    it("should have correct initial state", () => {
-      const store = useAuthStore();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(store.isLoading).toBeFalsy();
-    });
-    it("should initialize with token from localStorage", () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-    });
-  });
-  describe("Login", () => {
-    const mockCredentials = {
-      email: "admin@test.com",
-      password: "password123",
-    };
-    const mockAdminResponse = {
-      data: {
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-      },
-    };
-    it("should successfully login admin user", async () => {
-      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.user).toEqual(mockAdminResponse.data.user);
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBe("test-token");
-    });
-    it("should reject regular user login", async () => {
-      const mockUserResponse = {
-        data: {
-          token: "test-token",
-          user: {
-            id: "2",
-            email: "user@test.com",
-            role: "user",
-            firstName: "Regular",
-            lastName: "User",
-          },
-        },
-      };
-      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Ingen tilgang: Krever ansatt- eller administratortilgang"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-    it("should handle login error with invalid credentials", async () => {
-      const mockError = new AxiosError("Unauthorized");
-      mockError.response = {
-        status: 401,
-        statusText: "Unauthorized",
-        data: { message: "Invalid credentials" },
-        headers: {},
-        config: {
-          url: "/auth/login",
-          method: "post",
-        },
-      } as any;
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe("Feil e-postadresse eller passord");
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should handle server connection error", async () => {
-      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
-      mockError.code = "ECONNREFUSED";
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-  });
-  describe("Logout", () => {
-    it("should clear auth state and localStorage", () => {
-      const store = useAuthStore();
-      // Setup initial authenticated state
-      localStorage.setItem("admin_token", "test-token");
-      store.$patch({
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-        isAuthenticated: true,
-      });
-      store.logout();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-  });
-  describe("Check Auth", () => {
-    const mockUserProfile = {
-      id: "1",
-      email: "admin@test.com",
-      firstName: "Admin",
-      lastName: "User",
-      role: "admin" as const,
-    };
-    it("should fetch profile and return true when token is valid", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.user).toEqual(mockUserProfile);
-      expect(api.get).toHaveBeenCalledWith("/auth/profile");
-    });
-    it("should not re-fetch profile if user data already exists", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      store.$patch({ user: mockUserProfile });
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-    it("should logout when profile fetch fails (expired token)", async () => {
-      localStorage.setItem("admin_token", "expired-token");
-      vi.mocked(api.get).mockRejectedValueOnce(
-        new AxiosError("Unauthorized", "401")
-      );
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should return false when no token in localStorage", async () => {
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-  });
-  describe("Error Handling", () => {
-    it("should clear error message", () => {
-      const store = useAuthStore();
-      // Set an error
-      store.$patch({ error: "Test error" });
-      expect(store.error).toBe("Test error");
-      // Clear error
-      store.clearError();
-      expect(store.error).toBeNull();
-    });
-  });
-});
-````
-
 ## File: frontend/admin/src/stores/auth.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -12970,121 +12759,6 @@ describe('ServiceList', () => {
       await wrapper.find('.btn-primary').trigger('click')
       expect(push).toHaveBeenCalledWith('/booking')
     })
-  })
-})
-````
-
-## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import WaitingTimeDisplay from '../WaitingTimeDisplay.vue'
-import { useDisplayStore } from '../../stores/display'
-// Mock the display store
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('WaitingTimeDisplay', () => {
-  // Create a mock timer for setInterval
-  const mockTimer = {
-    hasRef: () => true,
-    refresh: () => mockTimer,
-    [Symbol.toPrimitive]: () => 123,
-  } as unknown as ReturnType<typeof setInterval>
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    // Set a fixed system time
-    vi.setSystemTime(new Date('2024-01-01T12:00:00.000Z'))
-    // Setup default mock implementation
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [
-        { id: '1', customerName: 'Test', estimatedTime: 90 },
-        { id: '2', customerName: 'Test2', estimatedTime: 90 },
-        { id: '3', customerName: 'Test3', estimatedTime: 90 },
-      ],
-      waitingCount: 3,
-      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
-      isLoading: false,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as any)
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('renders loading state correctly', () => {
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [],
-      waitingCount: 0,
-      lastUpdate: new Date(),
-      isLoading: true,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as any)
-    const wrapper = mount(WaitingTimeDisplay)
-    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
-  })
-  it('renders waiting time and queue information correctly', () => {
-    const wrapper = mount(WaitingTimeDisplay)
-    // Average waiting time should be 90 minutes
-    expect(wrapper.text()).toContain('90min')
-    expect(wrapper.text()).toContain('3 venter')
-    // Since we're using UTC time directly
-    expect(wrapper.text()).toContain('13:00:00')
-  })
-  it('displays error message when there is an error', () => {
-    const errorMessage = 'Failed to fetch queue status'
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [],
-      waitingCount: 0,
-      lastUpdate: new Date(),
-      isLoading: false,
-      error: errorMessage,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as any)
-    const wrapper = mount(WaitingTimeDisplay)
-    expect(wrapper.text()).toContain(errorMessage)
-    expect(wrapper.find('.text-red-600').exists()).toBe(true)
-  })
-  it('starts polling on mount and cleans up on unmount', async () => {
-    const mockStartPolling = vi.fn(() => mockTimer)
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
-      waitingCount: 1,
-      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
-      isLoading: false,
-      error: null,
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    } as any)
-    const wrapper = mount(WaitingTimeDisplay)
-    // Check that polling was started
-    expect(mockStartPolling).toHaveBeenCalled()
-    // Unmount and verify cleanup
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-  it('formats time correctly for different locales', () => {
-    const now = new Date('2024-01-01T12:34:56.000Z')
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
-      waitingCount: 1,
-      lastUpdate: now,
-      isLoading: false,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as any)
-    const wrapper = mount(WaitingTimeDisplay)
-    // Since we're using UTC time directly
-    expect(wrapper.text()).toContain('13:34:56')
   })
 })
 ````
@@ -19143,6 +18817,217 @@ if (require.main === module) {
 }
 ````
 
+## File: frontend/admin/src/stores/__tests__/auth.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { useAuthStore } from "../auth";
+import { AxiosError } from "axios";
+import api from "../../lib/api";
+vi.mock("../../lib/api", () => {
+  return {
+    default: {
+      post: vi.fn(),
+      get: vi.fn(),
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+    },
+  };
+});
+describe("Auth Store", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+  describe("Initial State", () => {
+    it("should have correct initial state", () => {
+      const store = useAuthStore();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(store.isLoading).toBeFalsy();
+    });
+    it("should initialize with token from localStorage", () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+    });
+  });
+  describe("Login", () => {
+    const mockCredentials = {
+      email: "admin@test.com",
+      password: "password123",
+    };
+    const mockAdminResponse = {
+      data: {
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+      },
+    };
+    it("should successfully login admin user", async () => {
+      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.user).toEqual(mockAdminResponse.data.user);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBe("test-token");
+    });
+    it("should reject regular user login", async () => {
+      const mockUserResponse = {
+        data: {
+          token: "test-token",
+          user: {
+            id: "2",
+            email: "user@test.com",
+            role: "user",
+            firstName: "Regular",
+            lastName: "User",
+          },
+        },
+      };
+      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Ingen tilgang: Krever ansatt- eller administratortilgang"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+    it("should handle login error with invalid credentials", async () => {
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          url: "/auth/login",
+          method: "post",
+        },
+      } as unknown as typeof mockError.response;
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("Feil e-postadresse eller passord");
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should handle server connection error", async () => {
+      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
+      mockError.code = "ECONNREFUSED";
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
+  describe("Logout", () => {
+    it("should clear auth state and localStorage", () => {
+      const store = useAuthStore();
+      // Setup initial authenticated state
+      localStorage.setItem("admin_token", "test-token");
+      store.$patch({
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+        isAuthenticated: true,
+      });
+      store.logout();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+  });
+  describe("Check Auth", () => {
+    const mockUserProfile = {
+      id: "1",
+      email: "admin@test.com",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin" as const,
+    };
+    it("should fetch profile and return true when token is valid", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.user).toEqual(mockUserProfile);
+      expect(api.get).toHaveBeenCalledWith("/auth/profile");
+    });
+    it("should not re-fetch profile if user data already exists", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      store.$patch({ user: mockUserProfile });
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+    it("should logout when profile fetch fails (expired token)", async () => {
+      localStorage.setItem("admin_token", "expired-token");
+      vi.mocked(api.get).mockRejectedValueOnce(
+        new AxiosError("Unauthorized", "401")
+      );
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should return false when no token in localStorage", async () => {
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+  });
+  describe("Error Handling", () => {
+    it("should clear error message", () => {
+      const store = useAuthStore();
+      // Set an error
+      store.$patch({ error: "Test error" });
+      expect(store.error).toBe("Test error");
+      // Clear error
+      store.clearError();
+      expect(store.error).toBeNull();
+    });
+  });
+});
+````
+
 ## File: frontend/admin/src/env.d.ts
 ````typescript
 /// <reference types="vite/client" />
@@ -19157,6 +19042,121 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+````
+
+## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import WaitingTimeDisplay from '../WaitingTimeDisplay.vue'
+import { useDisplayStore } from '../../stores/display'
+// Mock the display store
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('WaitingTimeDisplay', () => {
+  // Create a mock timer for setInterval
+  const mockTimer = {
+    hasRef: () => true,
+    refresh: () => mockTimer,
+    [Symbol.toPrimitive]: () => 123,
+  } as unknown as ReturnType<typeof setInterval>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    // Set a fixed system time
+    vi.setSystemTime(new Date('2024-01-01T12:00:00.000Z'))
+    // Setup default mock implementation
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [
+        { id: '1', customerName: 'Test', estimatedTime: 90 },
+        { id: '2', customerName: 'Test2', estimatedTime: 90 },
+        { id: '3', customerName: 'Test3', estimatedTime: 90 },
+      ],
+      waitingCount: 3,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
+      isLoading: false,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('renders loading state correctly', () => {
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
+      isLoading: true,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+  })
+  it('renders waiting time and queue information correctly', () => {
+    const wrapper = mount(WaitingTimeDisplay)
+    // Average waiting time should be 90 minutes
+    expect(wrapper.text()).toContain('90min')
+    expect(wrapper.text()).toContain('3 venter')
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:00:00')
+  })
+  it('displays error message when there is an error', () => {
+    const errorMessage = 'Failed to fetch queue status'
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
+      isLoading: false,
+      error: errorMessage,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    expect(wrapper.text()).toContain(errorMessage)
+    expect(wrapper.find('.text-red-600').exists()).toBe(true)
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn(() => mockTimer)
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
+      isLoading: false,
+      error: null,
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    // Check that polling was started
+    expect(mockStartPolling).toHaveBeenCalled()
+    // Unmount and verify cleanup
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+  it('formats time correctly for different locales', () => {
+    const now = new Date('2024-01-01T12:34:56.000Z')
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: now,
+      isLoading: false,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:34:56')
+  })
+})
 ````
 
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
@@ -20282,64 +20282,6 @@ describe('UsersService', () => {
     });
   });
 });
-````
-
-## File: backend/eslint.config.js
-````javascript
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const path = require("node:path");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsParser = require("@typescript-eslint/parser");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: path.join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs["recommended"].rules,
-      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          args: "after-used",
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          ignoreRestSiblings: true,
-        },
-      ],
-    },
-  },
-];
 ````
 
 ## File: backend/README.md
@@ -21624,6 +21566,91 @@ see the [LICENSE](LICENSE) file for details.
 
 For detailed information about the system architecture,
 please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
+## File: backend/eslint.config.js
+````javascript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsParser = require("@typescript-eslint/parser");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      // NestJS modules use empty decorated classes as a standard pattern
+      "@typescript-eslint/no-extraneous-class": [
+        "error",
+        {
+          allowWithDecorator: true,
+        },
+      ],
+      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
+      "@typescript-eslint/no-empty-function": [
+        "error",
+        {
+          allow: ["arrowFunctions"],
+        },
+      ],
+      // Disable redundant type constituent check to allow explicit union types
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
+    },
+  },
+  {
+    // Relaxed rules for test files
+    files: ["src/**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+    },
+  },
+];
 ````
 
 ## File: backend/src/auth/auth.module.spec.ts
