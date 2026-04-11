@@ -28,7 +28,7 @@ export class Service {
   @Column({ default: true })
   isActive: boolean;
 
-  @ManyToMany(() => Employee, (employee) => employee.services)
+  @ManyToMany(() => Employee, (employee: Employee) => employee.services)
   employees: Employee[];
 
   @CreateDateColumn()
