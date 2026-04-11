@@ -170,7 +170,7 @@ interface TypeOrmModuleOptions {
 }
 
 interface MockCall {
-  useFactory: (config: ConfigService) => TypeOrmModuleOptions;
+  useFactory: (_config: ConfigService) => TypeOrmModuleOptions;
 }
 
 describe("AppModule", () => {
