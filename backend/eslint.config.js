@@ -28,7 +28,7 @@ module.exports = [
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
       // Temporary measure
-      "@typescript-eslint/unbound-method": "off",   
+      "@typescript-eslint/unbound-method": "off",
       // End temporary
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/no-floating-promises": "error",
@@ -38,6 +38,16 @@ module.exports = [
           checksVoidReturn: {
             arguments: false,
           },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
         },
       ],
     },
