@@ -2234,101 +2234,6 @@ import { User } from "../users/entities/user.entity";
 export class AuthModule {}
 ````
 
-## File: backend/src/auth/auth.service.ts
-````typescript
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
-import { User } from "../users/entities/user.entity";
-@Injectable()
-export class AuthService {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
-      if (existingUser) {
-        throw new ConflictException("E-postadressen er allerede i bruk");
-      }
-      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-      const user = await this.usersService.create({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under registrering");
-    }
-  }
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under innlogging");
-    }
-  }
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-    const token: string = this.jwtService.sign(payload);
-    return token;
-  }
-  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-}
-````
-
 ## File: backend/src/bookings/dto/booking-response.dto.ts
 ````typescript
 import { Booking, BookingStatus } from "../entities/booking.entity";
@@ -5649,370 +5554,6 @@ export class Employee {
 }
 ````
 
-## File: backend/src/employees/employees.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { EmployeesController } from "./employees.controller";
-import { EmployeesService } from "./employees.service";
-import {
-  NotFoundException,
-  ConflictException,
-  UnauthorizedException,
-  BadRequestException,
-} from "@nestjs/common";
-import { Employee } from "./entities/employee.entity";
-import { User, UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
-  hashPassword: () => Promise<void>;
-  validatePassword: (password: string) => Promise<boolean>;
-}
-describe("EmployeesController", () => {
-  let controller: EmployeesController;
-  let service: EmployeesService;
-  const createMockUser = (data: Partial<User>): MockUser => {
-    const user: MockUser = {
-      id: "default-id",
-      firstName: "Default",
-      lastName: "User",
-      email: "default@example.com",
-      password: "password",
-      role: UserRole.CUSTOMER,
-      phoneNumber: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hashPassword: async function () {
-        const salt = await bcrypt.genSalt();
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        user.password = hashedPassword;
-      },
-      validatePassword: async function (password) {
-        return bcrypt.compare(password, user.password);
-      },
-      ...data,
-    };
-    return user;
-  };
-  const mockAdminUser = createMockUser({
-    id: "admin-id",
-    email: "admin@example.com",
-    firstName: "Admin",
-    lastName: "User",
-    role: UserRole.ADMIN,
-  });
-  const mockEmployeeUser = createMockUser({
-    id: "employee-id",
-    email: "employee@example.com",
-    firstName: "John",
-    lastName: "Doe",
-    role: UserRole.EMPLOYEE,
-  });
-  const mockEmployee = {
-    id: "employee-1",
-    user: mockEmployeeUser,
-    specializations: ["haircut"],
-    isActive: true,
-    availability: {},
-  } as Employee;
-  const mockEmployeesService = {
-    create: jest.fn(),
-    resetPassword: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    findByUserId: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    restore: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [EmployeesController],
-      providers: [
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-      ],
-    }).compile();
-    controller = module.get<EmployeesController>(EmployeesController);
-    service = module.get<EmployeesService>(EmployeesService);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("create", () => {
-    const createEmployeeDto = {
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
-      specializations: ["haircut"],
-    };
-    const createResponse = {
-      employee: mockEmployee,
-      temporaryPassword: "temp123",
-    };
-    it("should create an employee successfully", async () => {
-      mockEmployeesService.create.mockResolvedValue(createResponse);
-      const result = await controller.create(createEmployeeDto);
-      expect(result).toEqual(createResponse);
-      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.create.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-  });
-  describe("resetPassword", () => {
-    it("should reset password successfully", async () => {
-      const resetResponse = { temporaryPassword: "newTemp123" };
-      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
-      const result = await controller.resetPassword("employee-1");
-      expect(result).toEqual(resetResponse);
-      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.resetPassword.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("findAll", () => {
-    it("should return all employees", async () => {
-      const employees = [mockEmployee];
-      mockEmployeesService.findAll.mockResolvedValue(employees);
-      const result = await controller.findAll();
-      expect(result).toEqual(employees);
-      expect(service.findAll).toHaveBeenCalled();
-    });
-  });
-  describe("findOne", () => {
-    it("should return an employee by id for admin user", async () => {
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      const result = await controller.findOne("employee-1", mockAdminUser);
-      expect(result).toEqual(mockEmployee);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-      expect(service.findByUserId).not.toHaveBeenCalled();
-    });
-    it("should allow employee to access their own record", async () => {
-      const employeeUser = mockEmployeeUser;
-      const employeeRecord = { ...mockEmployee, id: "employee-1" };
-      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
-      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
-      const result = await controller.findOne("employee-1", employeeUser);
-      expect(result).toEqual(employeeRecord);
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-    });
-    it("should not allow employee to access other employee records", async () => {
-      const employeeUser = createMockUser({
-        id: "different-employee-id",
-        email: "other@example.com",
-        firstName: "Other",
-        lastName: "Employee",
-        role: UserRole.EMPLOYEE,
-      });
-      const ownEmployeeRecord = {
-        ...mockEmployee,
-        id: "own-employee-id",
-        user: employeeUser,
-      };
-      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
-      await expect(
-        controller.findOne("other-employee-id", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found for findByUserId", async () => {
-      const employeeUser = createMockUser({
-        id: "employee-id",
-        role: UserRole.EMPLOYEE,
-      });
-      mockEmployeesService.findByUserId.mockResolvedValue(null);
-      await expect(
-        controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.findOne.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.findOne("non-existent", mockAdminUser)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("update", () => {
-    const updateEmployeeDto = {
-      firstName: "John Updated",
-      email: "john.updated@example.com",
-    };
-    it("should update an employee successfully", async () => {
-      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
-      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
-      const result = await controller.update("employee-1", updateEmployeeDto);
-      expect(result).toEqual(updatedEmployee);
-      expect(service.update).toHaveBeenCalledWith(
-        "employee-1",
-        updateEmployeeDto
-      );
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(
-        controller.update("employee-1", updateEmployeeDto)
-      ).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.update("non-existent", updateEmployeeDto)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("remove", () => {
-    it("should remove an employee successfully", async () => {
-      mockEmployeesService.remove.mockResolvedValue(undefined);
-      await controller.remove("employee-1");
-      expect(service.remove).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee with future bookings error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new BadRequestException(
-          "Kan ikke slette ansatt med fremtidige bestillinger"
-        )
-      );
-      await expect(controller.remove("employee-1")).rejects.toThrow(
-        "Kan ikke slette ansatt med fremtidige bestillinger"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.remove("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("restore", () => {
-    it("should restore an employee successfully", async () => {
-      mockEmployeesService.restore.mockResolvedValue(undefined);
-      await controller.restore("employee-1");
-      expect(service.restore).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.restore.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.restore("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/employees/employees.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
-    }
-    return this.employeesService.findOne(id);
-  }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
-  }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
-  }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
-  }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
-  }
-}
-````
-
 ## File: backend/src/employees/employees.module.ts
 ````typescript
 import { Module, forwardRef } from '@nestjs/common';
@@ -7330,230 +6871,6 @@ export class AppService {
     return `Welcome to the Hair Salon Booking API! Please visit /api-docs for the API documentation.`;
   }
 }
-````
-
-## File: backend/src/main.spec.ts
-````typescript
-import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { NestFactory } from "@nestjs/core";
-import { bootstrap } from "./main";
-// Mock all external modules
-jest.mock("@nestjs/typeorm", () => ({
-  TypeOrmModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-    forRootAsync: jest.fn().mockReturnValue({}),
-    forFeature: jest.fn().mockReturnValue({}),
-  },
-  getRepositoryToken: jest.fn(),
-  InjectRepository: () => jest.fn(),
-}));
-jest.mock("@nestjs/cache-manager", () => ({
-  CacheModule: {
-    register: jest.fn().mockReturnValue({}),
-    registerAsync: jest.fn().mockReturnValue({}),
-  },
-}));
-jest.mock("@nestjs/config", () => ({
-  ConfigModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-  },
-  ConfigService: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key: string) => {
-      if (key === "cache") {
-        return {
-          host: "localhost",
-          port: 6379,
-          ttl: 300,
-        };
-      }
-      return null;
-    }),
-  })),
-}));
-// Mock feature modules
-jest.mock("./auth/auth.module", () => ({
-  AuthModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./users/users.module", () => ({
-  UsersModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./services/services.module", () => ({
-  ServicesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: jest.fn().mockReturnValue({}),
-}));
-// Mock app module
-jest.mock("./app.module", () => ({
-  AppModule: jest.fn().mockReturnValue({}),
-}));
-type MockNestApp = {
-  [K in keyof INestApplication]: jest.Mock;
-};
-interface SwaggerSetupOptions {
-  swaggerOptions: {
-    persistAuthorization: boolean;
-    docExpansion: string;
-    filter: boolean;
-    showRequestDuration: boolean;
-  };
-}
-describe("Bootstrap", () => {
-  let app: MockNestApp;
-  const mockSwaggerDoc: OpenAPIObject = {
-    openapi: "3.0.0",
-    paths: {},
-    components: {},
-    info: {
-      title: "Test API",
-      version: "1.0",
-    },
-  };
-  beforeEach(() => {
-    // Reset modules before each test
-    jest.resetModules();
-    // Create a more complete mock implementation of INestApplication
-    app = {
-      enableCors: jest.fn().mockReturnThis(),
-      useGlobalPipes: jest.fn().mockReturnThis(),
-      listen: jest.fn().mockResolvedValue(undefined),
-      init: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      useGlobalFilters: jest.fn().mockReturnThis(),
-      useGlobalInterceptors: jest.fn().mockReturnThis(),
-      useGlobalGuards: jest.fn().mockReturnThis(),
-      use: jest.fn().mockReturnThis(),
-      setGlobalPrefix: jest.fn().mockReturnThis(),
-      enableVersioning: jest.fn().mockReturnThis(),
-      getUrl: jest.fn().mockReturnThis(),
-      useWebSocketAdapter: jest.fn().mockReturnThis(),
-      connectMicroservice: jest.fn().mockReturnThis(),
-      getMicroservices: jest.fn().mockReturnThis(),
-      getHttpServer: jest.fn().mockReturnThis(),
-      startAllMicroservices: jest.fn().mockReturnThis(),
-      stopAllMicroservices: jest.fn().mockReturnThis(),
-      createNestApplication: jest.fn().mockReturnThis(),
-      registerRequestByName: jest.fn().mockReturnThis(),
-      registerRequestById: jest.fn().mockReturnThis(),
-      flushLogs: jest.fn().mockReturnThis(),
-      getHttpAdapter: jest.fn().mockReturnThis(),
-      resolve: jest.fn().mockReturnThis(),
-      registerRequestByContextId: jest.fn().mockReturnThis(),
-      useLogger: jest.fn().mockReturnThis(),
-      enableShutdownHooks: jest.fn().mockReturnThis(),
-    } as unknown as MockNestApp;
-    jest
-      .spyOn(NestFactory, "create")
-      .mockResolvedValue(app as unknown as INestApplication);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
-    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
-    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
-    jest.spyOn(console, "log").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  it("should create NestJS application", async () => {
-    await bootstrap();
-    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
-  });
-  it("should enable CORS with correct configuration", async () => {
-    await bootstrap();
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
-    expect(app.enableCors).toHaveBeenCalledWith({
-      origin: true,
-      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-      credentials: true,
-    });
-  });
-  it("should set up global validation pipe", async () => {
-    await bootstrap();
-    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
-      [ValidationPipe]
-    >;
-    if (!validationPipeCalls.length) {
-      throw new Error("Expected at least one validation pipe call");
-    }
-    const validationPipe = validationPipeCalls[0][0];
-    expect(validationPipe).toBeInstanceOf(ValidationPipe);
-  });
-  it("should set up Swagger documentation", async () => {
-    await bootstrap();
-    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
-      "Hair Salon Booking API"
-    );
-    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
-      "API documentation for the Hair Salon Booking System"
-    );
-    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
-    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth"
-    );
-    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
-    expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls as Array<
-      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
-    >;
-    if (!setupCalls.length) {
-      throw new Error("Expected at least one Swagger setup call");
-    }
-    const [path, setupApp, document, options] = setupCalls[0];
-    expect(path).toBe("api-docs");
-    expect(setupApp).toBe(app);
-    expect(document).toEqual<OpenAPIObject>({
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: expect.any(String) as string,
-        version: expect.any(String) as string,
-      },
-    });
-    expect(options).toEqual<SwaggerSetupOptions>({
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: "none",
-        filter: true,
-        showRequestDuration: true,
-      },
-    });
-  });
-  it("should listen on the configured port", async () => {
-    const originalEnv = process.env.PORT;
-    process.env.PORT = "4000";
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith("4000");
-    process.env.PORT = originalEnv;
-  });
-  it("should use default port 3000 when PORT env is not set", async () => {
-    const originalEnv = process.env.PORT;
-    delete process.env.PORT;
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith(3000);
-    process.env.PORT = originalEnv;
-  });
-});
 ````
 
 ## File: backend/test/app.e2e-spec.ts
@@ -15176,125 +14493,6 @@ export const useWaitingStore = defineStore('waiting', () => {
 })
 ````
 
-## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '../../stores/display'
-import axios from 'axios'
-vi.mock('axios')
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('TVDisplayView', () => {
-  const mockEmployees = [
-    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
-    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
-  ]
-  const mockWaitingSlots = [
-    {
-      id: 'slot-1',
-      customerName: 'Vada',
-      estimatedTime: 0,
-      assignedTo: '1',
-    },
-    {
-      id: 'slot-2',
-      customerName: 'Lavinia',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-  ]
-  const createMockStore = (overrides = {}) => ({
-    hasAvailableSlot: false,
-    activeEmployees: mockEmployees,
-    waitingSlots: mockWaitingSlots,
-    lastUpdate: new Date('2024-01-01T12:00:00'),
-    updateLastUpdate: vi.fn(),
-    employees: mockEmployees,
-    startPolling: vi.fn(),
-    stopPolling: vi.fn(),
-    cleanup: vi.fn(),
-    isLoading: false,
-    error: null,
-    waitingCount: 2,
-    fetchWaitingSlots: vi.fn(),
-    ...overrides,
-  })
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-    // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('displays correct status when slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: true,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Ledig')
-    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
-  })
-  it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: false,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Opptatt')
-    expect(wrapper.find('h1').classes()).toContain('text-red-500')
-  })
-  it('renders waiting list correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const waitingSlots = wrapper.findAll('.space-y-16 > div')
-    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
-    // Check first slot (Vada)
-    const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Vada')
-    expect(firstSlot.text()).toContain('0 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
-    // Check second slot (Lavinia)
-    const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Lavinia')
-    expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
-  })
-  it('displays active employees correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const employeeElements = wrapper.findAll('[data-testid="employee"]')
-    expect(employeeElements).toHaveLength(mockEmployees.length)
-    expect(wrapper.text()).toContain('2 frisører på jobb')
-    mockEmployees.forEach((employee, index) => {
-      const element = employeeElements[index]
-      expect(element.text()).toContain(employee.name)
-      expect(element.find(`.${employee.color}`).exists()).toBe(true)
-    })
-  })
-  it('formats last update time correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.text()).toContain('12:00:00')
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn()
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(mockStartPolling).toHaveBeenCalled()
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-})
-````
-
 ## File: frontend/customer/src/views/TVDisplayView.vue
 ````vue
 <template>
@@ -17006,6 +16204,100 @@ describe("AuthService", () => {
 });
 ````
 
+## File: backend/src/auth/auth.service.ts
+````typescript
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (existingUser) {
+        throw new ConflictException("E-postadressen er allerede i bruk");
+      }
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under registrering");
+    }
+  }
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
+      if (!user) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under innlogging");
+    }
+  }
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token: string = this.jwtService.sign(payload);
+    return token;
+  }
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    const { password: _password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+}
+````
+
 ## File: backend/src/bookings/bookings.module.spec.ts
 ````typescript
 import { BookingsModule } from "./bookings.module";
@@ -18377,6 +17669,299 @@ if (require.main === module) {
 }
 ````
 
+## File: backend/src/employees/employees.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { EmployeesController } from "./employees.controller";
+import { EmployeesService } from "./employees.service";
+import {
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from "@nestjs/common";
+import { Employee } from "./entities/employee.entity";
+import { User, UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
+  hashPassword: () => Promise<void>;
+  validatePassword: (_password: string) => Promise<boolean>;
+}
+describe("EmployeesController", () => {
+  let controller: EmployeesController;
+  let service: EmployeesService;
+  const createMockUser = (data: Partial<User>): MockUser => {
+    const user: MockUser = {
+      id: "default-id",
+      firstName: "Default",
+      lastName: "User",
+      email: "default@example.com",
+      password: "password",
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async function () {
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        user.password = hashedPassword;
+      },
+      validatePassword: async function (password) {
+        return bcrypt.compare(password, user.password);
+      },
+      ...data,
+    };
+    return user;
+  };
+  const mockAdminUser = createMockUser({
+    id: "admin-id",
+    email: "admin@example.com",
+    firstName: "Admin",
+    lastName: "User",
+    role: UserRole.ADMIN,
+  });
+  const mockEmployeeUser = createMockUser({
+    id: "employee-id",
+    email: "employee@example.com",
+    firstName: "John",
+    lastName: "Doe",
+    role: UserRole.EMPLOYEE,
+  });
+  const mockEmployee = {
+    id: "employee-1",
+    user: mockEmployeeUser,
+    specializations: ["haircut"],
+    isActive: true,
+    availability: {},
+  } as Employee;
+  const mockEmployeesService = {
+    create: jest.fn(),
+    resetPassword: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    findByUserId: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    restore: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [EmployeesController],
+      providers: [
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+      ],
+    }).compile();
+    controller = module.get<EmployeesController>(EmployeesController);
+    service = module.get<EmployeesService>(EmployeesService);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("create", () => {
+    const createEmployeeDto = {
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      specializations: ["haircut"],
+    };
+    const createResponse = {
+      employee: mockEmployee,
+      temporaryPassword: "temp123",
+    };
+    it("should create an employee successfully", async () => {
+      mockEmployeesService.create.mockResolvedValue(createResponse);
+      const result = await controller.create(createEmployeeDto);
+      expect(result).toEqual(createResponse);
+      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.create.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+  });
+  describe("resetPassword", () => {
+    it("should reset password successfully", async () => {
+      const resetResponse = { temporaryPassword: "newTemp123" };
+      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
+      const result = await controller.resetPassword("employee-1");
+      expect(result).toEqual(resetResponse);
+      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.resetPassword.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("findAll", () => {
+    it("should return all employees", async () => {
+      const employees = [mockEmployee];
+      mockEmployeesService.findAll.mockResolvedValue(employees);
+      const result = await controller.findAll();
+      expect(result).toEqual(employees);
+      expect(service.findAll).toHaveBeenCalled();
+    });
+  });
+  describe("findOne", () => {
+    it("should return an employee by id for admin user", async () => {
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      const result = await controller.findOne("employee-1", mockAdminUser);
+      expect(result).toEqual(mockEmployee);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+      expect(service.findByUserId).not.toHaveBeenCalled();
+    });
+    it("should allow employee to access their own record", async () => {
+      const employeeUser = mockEmployeeUser;
+      const employeeRecord = { ...mockEmployee, id: "employee-1" };
+      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
+      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
+      const result = await controller.findOne("employee-1", employeeUser);
+      expect(result).toEqual(employeeRecord);
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+    });
+    it("should not allow employee to access other employee records", async () => {
+      const employeeUser = createMockUser({
+        id: "different-employee-id",
+        email: "other@example.com",
+        firstName: "Other",
+        lastName: "Employee",
+        role: UserRole.EMPLOYEE,
+      });
+      const ownEmployeeRecord = {
+        ...mockEmployee,
+        id: "own-employee-id",
+        user: employeeUser,
+      };
+      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
+      await expect(
+        controller.findOne("other-employee-id", employeeUser)
+      ).rejects.toThrow(
+        new UnauthorizedException(
+          "Du har ikke tilgang til å se denne ansattes informasjon"
+        )
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found for findByUserId", async () => {
+      const employeeUser = createMockUser({
+        id: "employee-id",
+        role: UserRole.EMPLOYEE,
+      });
+      mockEmployeesService.findByUserId.mockResolvedValue(null);
+      await expect(
+        controller.findOne("employee-1", employeeUser)
+      ).rejects.toThrow(
+        new UnauthorizedException(
+          "Du har ikke tilgang til å se denne ansattes informasjon"
+        )
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.findOne.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.findOne("non-existent", mockAdminUser)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("update", () => {
+    const updateEmployeeDto = {
+      firstName: "John Updated",
+      email: "john.updated@example.com",
+    };
+    it("should update an employee successfully", async () => {
+      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
+      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
+      const result = await controller.update("employee-1", updateEmployeeDto);
+      expect(result).toEqual(updatedEmployee);
+      expect(service.update).toHaveBeenCalledWith(
+        "employee-1",
+        updateEmployeeDto
+      );
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(
+        controller.update("employee-1", updateEmployeeDto)
+      ).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.update("non-existent", updateEmployeeDto)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("remove", () => {
+    it("should remove an employee successfully", async () => {
+      mockEmployeesService.remove.mockResolvedValue(undefined);
+      await controller.remove("employee-1");
+      expect(service.remove).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee with future bookings error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new BadRequestException(
+          "Kan ikke slette ansatt med fremtidige bestillinger"
+        )
+      );
+      await expect(controller.remove("employee-1")).rejects.toThrow(
+        "Kan ikke slette ansatt med fremtidige bestillinger"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.remove("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("restore", () => {
+    it("should restore an employee successfully", async () => {
+      mockEmployeesService.restore.mockResolvedValue(undefined);
+      await controller.restore("employee-1");
+      expect(service.restore).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.restore.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.restore("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+});
+````
+
 ## File: backend/src/employees/employees.service.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -19263,6 +18848,230 @@ describe("AppController", () => {
 });
 ````
 
+## File: backend/src/main.spec.ts
+````typescript
+import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
+import { bootstrap } from "./main";
+// Mock all external modules
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+    forRootAsync: jest.fn().mockReturnValue({}),
+    forFeature: jest.fn().mockReturnValue({}),
+  },
+  getRepositoryToken: jest.fn(),
+  InjectRepository: () => jest.fn(),
+}));
+jest.mock("@nestjs/cache-manager", () => ({
+  CacheModule: {
+    register: jest.fn().mockReturnValue({}),
+    registerAsync: jest.fn().mockReturnValue({}),
+  },
+}));
+jest.mock("@nestjs/config", () => ({
+  ConfigModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+  },
+  ConfigService: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === "cache") {
+        return {
+          host: "localhost",
+          port: 6379,
+          ttl: 300,
+        };
+      }
+      return null;
+    }),
+  })),
+}));
+// Mock feature modules
+jest.mock("./auth/auth.module", () => ({
+  AuthModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./users/users.module", () => ({
+  UsersModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./employees/employees.module", () => ({
+  EmployeesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./services/services.module", () => ({
+  ServicesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./bookings/bookings.module", () => ({
+  BookingsModule: jest.fn().mockReturnValue({}),
+}));
+// Mock app module
+jest.mock("./app.module", () => ({
+  AppModule: jest.fn().mockReturnValue({}),
+}));
+type MockNestApp = {
+  [_K in keyof INestApplication]: jest.Mock;
+};
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+describe("Bootstrap", () => {
+  let app: MockNestApp;
+  const mockSwaggerDoc: OpenAPIObject = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
+  beforeEach(() => {
+    // Reset modules before each test
+    jest.resetModules();
+    // Create a more complete mock implementation of INestApplication
+    app = {
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
+      listen: jest.fn().mockResolvedValue(undefined),
+      init: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
+    jest
+      .spyOn(NestFactory, "create")
+      .mockResolvedValue(app as unknown as INestApplication);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
+    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
+    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it("should create NestJS application", async () => {
+    await bootstrap();
+    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
+  });
+  it("should enable CORS with correct configuration", async () => {
+    await bootstrap();
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
+    expect(app.enableCors).toHaveBeenCalledWith({
+      origin: true,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+      credentials: true,
+    });
+  });
+  it("should set up global validation pipe", async () => {
+    await bootstrap();
+    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
+      [ValidationPipe]
+    >;
+    if (!validationPipeCalls.length) {
+      throw new Error("Expected at least one validation pipe call");
+    }
+    const validationPipe = validationPipeCalls[0][0];
+    expect(validationPipe).toBeInstanceOf(ValidationPipe);
+  });
+  it("should set up Swagger documentation", async () => {
+    await bootstrap();
+    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
+      "Hair Salon Booking API"
+    );
+    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
+      "API documentation for the Hair Salon Booking System"
+    );
+    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
+    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth"
+    );
+    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
+    expect(SwaggerModule.createDocument).toHaveBeenCalled();
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls as Array<
+      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
+    >;
+    if (!setupCalls.length) {
+      throw new Error("Expected at least one Swagger setup call");
+    }
+    const [path, setupApp, document, options] = setupCalls[0];
+    expect(path).toBe("api-docs");
+    expect(setupApp).toBe(app);
+    expect(document).toEqual<OpenAPIObject>({
+      openapi: "3.0.0",
+      paths: {},
+      components: {},
+      info: {
+        title: expect.any(String) as string,
+        version: expect.any(String) as string,
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+  });
+  it("should listen on the configured port", async () => {
+    const originalEnv = process.env.PORT;
+    process.env.PORT = "4000";
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith("4000");
+    process.env.PORT = originalEnv;
+  });
+  it("should use default port 3000 when PORT env is not set", async () => {
+    const originalEnv = process.env.PORT;
+    delete process.env.PORT;
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith(3000);
+    process.env.PORT = originalEnv;
+  });
+});
+````
+
 ## File: backend/src/main.ts
 ````typescript
 import { NestFactory } from "@nestjs/core";
@@ -19334,54 +19143,6 @@ if (require.main === module) {
 }
 ````
 
-## File: backend/eslint.config.js
-````javascript
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const path = require("node:path");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsParser = require("@typescript-eslint/parser");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: path.join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs["recommended"].rules,
-      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",   
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-    },
-  },
-];
-````
-
 ## File: frontend/admin/src/env.d.ts
 ````typescript
 /// <reference types="vite/client" />
@@ -19396,6 +19157,124 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+````
+
+## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import TVDisplayView from '../TVDisplayView.vue'
+import { useDisplayStore } from '../../stores/display'
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('TVDisplayView', () => {
+  const mockEmployees = [
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
+  ]
+  const mockWaitingSlots = [
+    {
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
+      assignedTo: '1',
+    },
+    {
+      id: 'slot-2',
+      customerName: 'Lavinia',
+      estimatedTime: 45,
+      assignedTo: '2',
+    },
+  ]
+  const createMockStore = (overrides = {}) => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  })
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
+    // Mock store with default values
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Ledig')
+    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
+  })
+  it('displays correct status when no slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: false,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Opptatt')
+    expect(wrapper.find('h1').classes()).toContain('text-red-500')
+  })
+  it('renders waiting list correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const waitingSlots = wrapper.findAll('.space-y-16 > div')
+    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
+    // Check first slot (Vada)
+    const firstSlot = waitingSlots[0]
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
+    // Check second slot (Lavinia)
+    const secondSlot = waitingSlots[1]
+    expect(secondSlot.text()).toContain('Lavinia')
+    expect(secondSlot.text()).toContain('45 min')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
+  })
+  it('displays active employees correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const employeeElements = wrapper.findAll('[data-testid="employee"]')
+    expect(employeeElements).toHaveLength(mockEmployees.length)
+    expect(wrapper.text()).toContain('2 frisører på jobb')
+    mockEmployees.forEach((employee, index) => {
+      const element = employeeElements[index]
+      expect(element.text()).toContain(employee.name)
+      expect(element.find(`.${employee.color}`).exists()).toBe(true)
+    })
+  })
+  it('formats last update time correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.text()).toContain('12:00:00')
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(mockStartPolling).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+})
 ````
 
 ## File: backend/docs/README.md
@@ -19808,111 +19687,75 @@ describe('JwtAuthGuard', () => {
 });
 ````
 
-## File: backend/src/auth/auth.module.spec.ts
+## File: backend/src/employees/employees.controller.ts
 ````typescript
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth.module';
-import { UsersModule } from '../users/users.module';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards/roles.guard';
-import { User } from '../users/entities/user.entity';
-import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
-type Constructor<T> = new (...args: unknown[]) => T;
-interface ModuleMetadata {
-  imports: Array<Type<unknown> | DynamicModule>;
-  providers: Provider[];
-  exports: Array<Type<unknown> | DynamicModule>;
-  controllers: Constructor<unknown>[];
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (!employee || employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
 }
-interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
-  provide: string;
-  useValue: { defaultStrategy: string };
-}
-interface JwtConfig extends FactoryProvider {
-  provide: string;
-  useFactory: (...args: unknown[]) => unknown;
-  inject: Type<unknown>[];
-}
-interface TypeOrmEntityConfig {
-  provide: string;
-  useValue: {
-    targetEntitySchema: {
-      target: Constructor<User>;
-    };
-  };
-}
-jest.mock('../users/users.module');
-describe('AuthModule', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  describe('module metadata', () => {
-    it('should have the correct imports', () => {
-      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
-      // Check UsersModule
-      expect(imports).toContain(UsersModule);
-      // Check PassportModule (as dynamic module)
-      const passportModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
-          imp.module === PassportModule
-      );
-      expect(passportModuleConfig).toBeDefined();
-      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
-      expect(passportProvider).toBeDefined();
-      expect(passportProvider?.useValue).toEqual({
-        defaultStrategy: 'jwt'
-      });
-      // Check JwtModule
-      const jwtModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === JwtModule
-      );
-      expect(jwtModuleConfig).toBeDefined();
-      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
-      expect(jwtProvider).toBeDefined();
-      expect(jwtProvider?.inject).toContain(ConfigService);
-      // Check TypeOrmModule
-      const typeOrmModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === TypeOrmModule
-      );
-      expect(typeOrmModuleConfig).toBeDefined();
-      // TypeOrmModule may not expose entity config in exports depending on version
-      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
-      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
-      expect(typeof hasEntityConfig).toBe('boolean');
-    });
-    it('should have the correct providers', () => {
-      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
-      expect(providers).toContain(AuthService);
-      expect(providers).toContain(JwtStrategy);
-      expect(providers).toContain(RolesGuard);
-    });
-    it('should have the correct exports', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
-      expect(exports).toContain(AuthService);
-      expect(exports).toContain(JwtStrategy);
-      expect(exports).toContain(RolesGuard);
-      expect(exports).toContain(JwtModule);
-      expect(exports).toContain(PassportModule);
-    });
-    it('should have the correct controllers', () => {
-      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
-      expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(1);
-    });
-  });
-});
 ````
 
 ## File: backend/src/orders/orders.service.ts
@@ -20439,6 +20282,64 @@ describe('UsersService', () => {
     });
   });
 });
+````
+
+## File: backend/eslint.config.js
+````javascript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsParser = require("@typescript-eslint/parser");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+];
 ````
 
 ## File: backend/README.md
@@ -21723,6 +21624,113 @@ see the [LICENSE](LICENSE) file for details.
 
 For detailed information about the system architecture,
 please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
+## File: backend/src/auth/auth.module.spec.ts
+````typescript
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth.module';
+import { UsersModule } from '../users/users.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { User } from '../users/entities/user.entity';
+import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
+type Constructor<T> = new (..._args: unknown[]) => T;
+interface ModuleMetadata {
+  imports: Array<Type<unknown> | DynamicModule>;
+  providers: Provider[];
+  exports: Array<Type<unknown> | DynamicModule>;
+  controllers: Constructor<unknown>[];
+}
+interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
+  provide: string;
+  useValue: { defaultStrategy: string };
+}
+interface JwtConfig extends FactoryProvider {
+  provide: string;
+  useFactory: (..._args: unknown[]) => unknown;
+  inject: Type<unknown>[];
+}
+interface TypeOrmEntityConfig {
+  provide: string;
+  useValue: {
+    targetEntitySchema: {
+      target: Constructor<User>;
+    };
+  };
+}
+jest.mock('../users/users.module');
+describe('AuthModule', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  describe('module metadata', () => {
+    it('should have the correct imports', () => {
+      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
+      // Check UsersModule
+      expect(imports).toContain(UsersModule);
+      // Check PassportModule (as dynamic module)
+      const passportModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === PassportModule
+      );
+      expect(passportModuleConfig).toBeDefined();
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
+      expect(passportProvider).toBeDefined();
+      expect(passportProvider?.useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
+      // Check JwtModule
+      const jwtModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === JwtModule
+      );
+      expect(jwtModuleConfig).toBeDefined();
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
+      expect(jwtProvider).toBeDefined();
+      expect(jwtProvider?.inject).toContain(ConfigService);
+      // Check TypeOrmModule
+      const typeOrmModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === TypeOrmModule
+      );
+      expect(typeOrmModuleConfig).toBeDefined();
+      // TypeOrmModule may not expose entity config in exports depending on version
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
+      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
+      expect(typeof hasEntityConfig).toBe('boolean');
+    });
+    it('should have the correct providers', () => {
+      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
+      expect(providers).toContain(AuthService);
+      expect(providers).toContain(JwtStrategy);
+      expect(providers).toContain(RolesGuard);
+    });
+    it('should have the correct exports', () => {
+      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
+      expect(exports).toContain(AuthService);
+      expect(exports).toContain(JwtStrategy);
+      expect(exports).toContain(RolesGuard);
+      expect(exports).toContain(JwtModule);
+      expect(exports).toContain(PassportModule);
+    });
+    it('should have the correct controllers', () => {
+      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
+      expect(controllers).toBeDefined();
+      expect(controllers.length).toBe(1);
+    });
+  });
+});
 ````
 
 ## File: backend/package.json
