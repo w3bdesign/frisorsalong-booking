@@ -55,7 +55,8 @@ export class ShopsService {
       shopName,
     });
 
-    return await this.shopCodeRepository.save(newShopCode);
+    const savedShopCode: ShopCode = await this.shopCodeRepository.save(newShopCode);
+    return savedShopCode;
   }
 
   async deactivateShopCode(code: string): Promise<void> {
