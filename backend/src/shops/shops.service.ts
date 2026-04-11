@@ -42,7 +42,7 @@ export class ShopsService {
     shopCode.lastBookingTime = now;
     await this.shopCodeRepository.save(shopCode);
 
-    return shopCode as ShopCode;
+    return shopCode;
   }
 
   async createShopCode(shopName: string, code?: string): Promise<ShopCode> {
@@ -55,7 +55,7 @@ export class ShopsService {
       shopName,
     });
 
-    return await this.shopCodeRepository.save(newShopCode) as ShopCode;
+    return await this.shopCodeRepository.save(newShopCode);
   }
 
   async deactivateShopCode(code: string): Promise<void> {
