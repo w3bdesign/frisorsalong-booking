@@ -50,7 +50,7 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
         }
 
         // Save order with proper error handling
-        const savedOrder = await orderRepository.save(order);
+        const savedOrder: Order = await orderRepository.save(order);
         if (!savedOrder) {
           throw new Error(`Failed to save order for booking ${booking.id}`);
         }
@@ -66,7 +66,7 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
         }
 
         console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
-      } catch (error) {
+      } catch (error: unknown) {
         // Log error but continue processing other bookings
         console.error(`Error processing booking ${booking.id}:`, error instanceof Error ? error.message : String(error));
         continue;
@@ -79,8 +79,8 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 
     console.log(`Successfully created ${createdOrders.length} sample orders`);
 
-  } catch (error) {
-    console.error("Error creating sample orders:", error);
+  } catch (error: unknown) {
+    console.error("Error creating sample orders:", error instanceof Error ? error.message : String(error));
     throw error;
   }
 };
