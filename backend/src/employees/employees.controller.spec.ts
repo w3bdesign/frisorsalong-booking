@@ -13,7 +13,7 @@ import * as bcrypt from "bcrypt";
 
 interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
   hashPassword: () => Promise<void>;
-  validatePassword: (password: string) => Promise<boolean>;
+  validatePassword: (_password: string) => Promise<boolean>;
 }
 
 describe("EmployeesController", () => {
