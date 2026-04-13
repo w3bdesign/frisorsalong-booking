@@ -15878,6 +15878,238 @@ SOFTWARE.
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: backend/docs/README.md
+````markdown
+# Hair Salon Booking System Documentation
+
+## Overview
+
+This is a full-stack booking system for hair salons built using
+NestJS (backend) and Vue 3 (frontend). The system allows customers
+to book appointments, employees to manage their schedules,
+and administrators to oversee all operations.
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+├── frontend/             # Vue 3 frontend application
+├── docs/                 # Project documentation
+└── architecture/         # System architecture and planning
+```
+
+## Technology Stack
+
+### Backend
+
+- NestJS (TypeScript)
+- PostgreSQL (Database)
+- Redis (Caching)
+- Jest (Testing)
+- Swagger (API Documentation)
+
+### Frontend
+
+- Vue 3
+- Pinia (State Management)
+- Vue Router
+- TypeScript
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- PostgreSQL
+- Redis
+- Docker (optional)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables with your configuration
+
+4. Run database migrations:
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run start:dev
+   ```
+
+The API will be available at `http://localhost:3000`
+Swagger documentation will be at `http://localhost:3000/api`
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# e2e tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes following the conventions
+
+3. Write tests for your changes
+
+4. Commit your changes using conventional commits
+
+5. Create a pull request to `develop`
+
+### Database Changes
+
+1. Create a new migration:
+
+   ```bash
+   npm run migration:create -- -n YourMigrationName
+   ```
+
+2. Update the migration file with your changes
+
+3. Test the migration:
+
+   ```bash
+   npm run migration:run
+   ```
+
+4. Test the rollback:
+
+   ```bash
+   npm run migration:revert
+   ```
+
+## API Documentation
+
+- API documentation is available through Swagger at `/api` when running the backend
+- Keep the Swagger documentation up to date when making API changes
+- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
+
+## Testing Strategy
+
+### Unit Tests
+
+- Write unit tests for:
+  - Services
+  - Controllers
+  - Guards
+  - Pipes
+  - Custom decorators
+
+### Integration Tests
+
+- Write integration tests for:
+  - API endpoints
+  - Database operations
+  - Cache operations
+
+### E2E Tests
+
+- Write end-to-end tests for critical user flows
+- Test the integration between frontend and backend
+
+## Deployment
+
+### Development
+
+- Use `npm run start:dev` for local development
+- Development server runs at `http://localhost:3000`
+
+### Production
+
+1. Build the application:
+
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+
+   ```bash
+   npm run start:prod
+   ```
+
+### Docker
+
+1. Build the Docker image:
+
+   ```bash
+   docker build -t hair-salon-booking .
+   ```
+
+2. Run the container:
+
+   ```bash
+   docker run -p 3000:3000 hair-salon-booking
+   ```
+
+## Monitoring and Logging
+
+- Use built-in NestJS logging
+- Monitor application performance
+- Track error rates and API usage
+- Set up alerts for critical issues
+
+## Security
+
+- Follow security best practices
+- Keep dependencies updated
+- Use proper authentication and authorization
+- Validate all inputs
+- Implement rate limiting
+- Use HTTPS in production
+
+## Support
+
+1. Check the existing documentation
+2. Review the codebase and tests
+3. Contact the development team
+
+## License
+
+This project is licensed under the terms specified in the
+LICENSE file at the root of the repository.
+````
+
 ## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
@@ -18775,1168 +19007,6 @@ if (require.main === module) {
 }
 ````
 
-## File: frontend/admin/src/stores/__tests__/auth.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { useAuthStore } from "../auth";
-import { AxiosError } from "axios";
-import api from "../../lib/api";
-vi.mock("../../lib/api", () => {
-  return {
-    default: {
-      post: vi.fn(),
-      get: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    },
-  };
-});
-describe("Auth Store", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    localStorage.clear();
-    vi.clearAllMocks();
-  });
-  describe("Initial State", () => {
-    it("should have correct initial state", () => {
-      const store = useAuthStore();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(store.isLoading).toBeFalsy();
-    });
-    it("should initialize with token from localStorage", () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-    });
-  });
-  describe("Login", () => {
-    const mockCredentials = {
-      email: "admin@test.com",
-      password: "password123",
-    };
-    const mockAdminResponse = {
-      data: {
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-      },
-    };
-    it("should successfully login admin user", async () => {
-      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.user).toEqual(mockAdminResponse.data.user);
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBe("test-token");
-    });
-    it("should reject regular user login", async () => {
-      const mockUserResponse = {
-        data: {
-          token: "test-token",
-          user: {
-            id: "2",
-            email: "user@test.com",
-            role: "user",
-            firstName: "Regular",
-            lastName: "User",
-          },
-        },
-      };
-      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Ingen tilgang: Krever ansatt- eller administratortilgang"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-    it("should handle login error with invalid credentials", async () => {
-      const mockError = new AxiosError("Unauthorized");
-      mockError.response = {
-        status: 401,
-        statusText: "Unauthorized",
-        data: { message: "Invalid credentials" },
-        headers: {},
-        config: {
-          url: "/auth/login",
-          method: "post",
-        },
-      } as unknown as typeof mockError.response;
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe("Feil e-postadresse eller passord");
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should handle server connection error", async () => {
-      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
-      mockError.code = "ECONNREFUSED";
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-  });
-  describe("Logout", () => {
-    it("should clear auth state and localStorage", () => {
-      const store = useAuthStore();
-      // Setup initial authenticated state
-      localStorage.setItem("admin_token", "test-token");
-      store.$patch({
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-        isAuthenticated: true,
-      });
-      store.logout();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-  });
-  describe("Check Auth", () => {
-    const mockUserProfile = {
-      id: "1",
-      email: "admin@test.com",
-      firstName: "Admin",
-      lastName: "User",
-      role: "admin" as const,
-    };
-    it("should fetch profile and return true when token is valid", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.user).toEqual(mockUserProfile);
-      expect(api.get).toHaveBeenCalledWith("/auth/profile");
-    });
-    it("should not re-fetch profile if user data already exists", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      store.$patch({ user: mockUserProfile });
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-    it("should logout when profile fetch fails (expired token)", async () => {
-      localStorage.setItem("admin_token", "expired-token");
-      vi.mocked(api.get).mockRejectedValueOnce(
-        new AxiosError("Unauthorized", "401")
-      );
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should return false when no token in localStorage", async () => {
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-  });
-  describe("Error Handling", () => {
-    it("should clear error message", () => {
-      const store = useAuthStore();
-      // Set an error
-      store.$patch({ error: "Test error" });
-      expect(store.error).toBe("Test error");
-      // Clear error
-      store.clearError();
-      expect(store.error).toBeNull();
-    });
-  });
-});
-````
-
-## File: frontend/admin/src/env.d.ts
-````typescript
-/// <reference types="vite/client" />
-declare module "*.vue" {
-  import type { DefineComponent } from "vue";
-  const component: DefineComponent<object, object, unknown>;
-  export default component;
-}
-interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-}
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-````
-
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.27",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.3",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
-## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import WaitingTimeDisplay from '../WaitingTimeDisplay.vue'
-import { useDisplayStore } from '../../stores/display'
-// Mock the display store
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('WaitingTimeDisplay', () => {
-  // Create a mock timer for setInterval
-  const mockTimer = {
-    hasRef: () => true,
-    refresh: () => mockTimer,
-    [Symbol.toPrimitive]: () => 123,
-  } as unknown as ReturnType<typeof setInterval>
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    // Set a fixed system time
-    vi.setSystemTime(new Date('2024-01-01T12:00:00.000Z'))
-    // Setup default mock implementation
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [
-        { id: '1', customerName: 'Test', estimatedTime: 90 },
-        { id: '2', customerName: 'Test2', estimatedTime: 90 },
-        { id: '3', customerName: 'Test3', estimatedTime: 90 },
-      ],
-      waitingCount: 3,
-      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
-      isLoading: false,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as unknown as ReturnType<typeof useDisplayStore>)
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('renders loading state correctly', () => {
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [],
-      waitingCount: 0,
-      lastUpdate: new Date(),
-      isLoading: true,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as unknown as ReturnType<typeof useDisplayStore>)
-    const wrapper = mount(WaitingTimeDisplay)
-    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
-  })
-  it('renders waiting time and queue information correctly', () => {
-    const wrapper = mount(WaitingTimeDisplay)
-    // Average waiting time should be 90 minutes
-    expect(wrapper.text()).toContain('90min')
-    expect(wrapper.text()).toContain('3 venter')
-    // Since we're using UTC time directly
-    expect(wrapper.text()).toContain('13:00:00')
-  })
-  it('displays error message when there is an error', () => {
-    const errorMessage = 'Failed to fetch queue status'
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [],
-      waitingCount: 0,
-      lastUpdate: new Date(),
-      isLoading: false,
-      error: errorMessage,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as unknown as ReturnType<typeof useDisplayStore>)
-    const wrapper = mount(WaitingTimeDisplay)
-    expect(wrapper.text()).toContain(errorMessage)
-    expect(wrapper.find('.text-red-600').exists()).toBe(true)
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn(() => mockTimer)
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
-      waitingCount: 1,
-      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
-      isLoading: false,
-      error: null,
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    } as unknown as ReturnType<typeof useDisplayStore>)
-    const wrapper = mount(WaitingTimeDisplay)
-    // Check that polling was started
-    expect(mockStartPolling).toHaveBeenCalled()
-    // Unmount and verify cleanup
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-  it('formats time correctly for different locales', () => {
-    const now = new Date('2024-01-01T12:34:56.000Z')
-    vi.mocked(useDisplayStore).mockReturnValue({
-      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
-      waitingCount: 1,
-      lastUpdate: now,
-      isLoading: false,
-      error: null,
-      startPolling: vi.fn(() => mockTimer),
-      cleanup: vi.fn(),
-    } as unknown as ReturnType<typeof useDisplayStore>)
-    const wrapper = mount(WaitingTimeDisplay)
-    // Since we're using UTC time directly
-    expect(wrapper.text()).toContain('13:34:56')
-  })
-})
-````
-
-## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '../../stores/display'
-vi.mock('axios')
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('TVDisplayView', () => {
-  const mockEmployees = [
-    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
-    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
-  ]
-  const mockWaitingSlots = [
-    {
-      id: 'slot-1',
-      customerName: 'Vada',
-      estimatedTime: 0,
-      assignedTo: '1',
-    },
-    {
-      id: 'slot-2',
-      customerName: 'Lavinia',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-  ]
-  const createMockStore = (overrides = {}) => ({
-    hasAvailableSlot: false,
-    activeEmployees: mockEmployees,
-    waitingSlots: mockWaitingSlots,
-    lastUpdate: new Date('2024-01-01T12:00:00'),
-    updateLastUpdate: vi.fn(),
-    employees: mockEmployees,
-    startPolling: vi.fn(),
-    stopPolling: vi.fn(),
-    cleanup: vi.fn(),
-    isLoading: false,
-    error: null,
-    waitingCount: 2,
-    fetchWaitingSlots: vi.fn(),
-    ...overrides,
-  })
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-    // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('displays correct status when slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: true,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Ledig')
-    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
-  })
-  it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: false,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Opptatt')
-    expect(wrapper.find('h1').classes()).toContain('text-red-500')
-  })
-  it('renders waiting list correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const waitingSlots = wrapper.findAll('.space-y-16 > div')
-    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
-    // Check first slot (Vada)
-    const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Vada')
-    expect(firstSlot.text()).toContain('0 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
-    // Check second slot (Lavinia)
-    const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Lavinia')
-    expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
-  })
-  it('displays active employees correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const employeeElements = wrapper.findAll('[data-testid="employee"]')
-    expect(employeeElements).toHaveLength(mockEmployees.length)
-    expect(wrapper.text()).toContain('2 frisører på jobb')
-    mockEmployees.forEach((employee, index) => {
-      const element = employeeElements[index]
-      expect(element.text()).toContain(employee.name)
-      expect(element.find(`.${employee.color}`).exists()).toBe(true)
-    })
-  })
-  it('formats last update time correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.text()).toContain('12:00:00')
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn()
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(mockStartPolling).toHaveBeenCalled()
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-})
-````
-
-## File: backend/docs/README.md
-````markdown
-# Hair Salon Booking System Documentation
-
-## Overview
-
-This is a full-stack booking system for hair salons built using
-NestJS (backend) and Vue 3 (frontend). The system allows customers
-to book appointments, employees to manage their schedules,
-and administrators to oversee all operations.
-
-## Project Structure
-
-```text
-├── backend/               # NestJS backend application
-├── frontend/             # Vue 3 frontend application
-├── docs/                 # Project documentation
-└── architecture/         # System architecture and planning
-```
-
-## Technology Stack
-
-### Backend
-
-- NestJS (TypeScript)
-- PostgreSQL (Database)
-- Redis (Caching)
-- Jest (Testing)
-- Swagger (API Documentation)
-
-### Frontend
-
-- Vue 3
-- Pinia (State Management)
-- Vue Router
-- TypeScript
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the variables with your configuration
-
-4. Run database migrations:
-
-   ```bash
-   npm run migration:run
-   ```
-
-5. Start the development server:
-
-   ```bash
-   npm run start:dev
-   ```
-
-The API will be available at `http://localhost:3000`
-Swagger documentation will be at `http://localhost:3000/api`
-
-### Running Tests
-
-```bash
-# Unit tests
-npm run test
-
-# e2e tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes following the conventions
-
-3. Write tests for your changes
-
-4. Commit your changes using conventional commits
-
-5. Create a pull request to `develop`
-
-### Database Changes
-
-1. Create a new migration:
-
-   ```bash
-   npm run migration:create -- -n YourMigrationName
-   ```
-
-2. Update the migration file with your changes
-
-3. Test the migration:
-
-   ```bash
-   npm run migration:run
-   ```
-
-4. Test the rollback:
-
-   ```bash
-   npm run migration:revert
-   ```
-
-## API Documentation
-
-- API documentation is available through Swagger at `/api` when running the backend
-- Keep the Swagger documentation up to date when making API changes
-- Follow the API conventions defined in [CONVENTIONS.md](./CONVENTIONS.md)
-
-## Testing Strategy
-
-### Unit Tests
-
-- Write unit tests for:
-  - Services
-  - Controllers
-  - Guards
-  - Pipes
-  - Custom decorators
-
-### Integration Tests
-
-- Write integration tests for:
-  - API endpoints
-  - Database operations
-  - Cache operations
-
-### E2E Tests
-
-- Write end-to-end tests for critical user flows
-- Test the integration between frontend and backend
-
-## Deployment
-
-### Development
-
-- Use `npm run start:dev` for local development
-- Development server runs at `http://localhost:3000`
-
-### Production
-
-1. Build the application:
-
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-
-   ```bash
-   npm run start:prod
-   ```
-
-### Docker
-
-1. Build the Docker image:
-
-   ```bash
-   docker build -t hair-salon-booking .
-   ```
-
-2. Run the container:
-
-   ```bash
-   docker run -p 3000:3000 hair-salon-booking
-   ```
-
-## Monitoring and Logging
-
-- Use built-in NestJS logging
-- Monitor application performance
-- Track error rates and API usage
-- Set up alerts for critical issues
-
-## Security
-
-- Follow security best practices
-- Keep dependencies updated
-- Use proper authentication and authorization
-- Validate all inputs
-- Implement rate limiting
-- Use HTTPS in production
-
-## Support
-
-1. Check the existing documentation
-2. Review the codebase and tests
-3. Contact the development team
-
-## License
-
-This project is licensed under the terms specified in the
-LICENSE file at the root of the repository.
-````
-
-## File: backend/src/employees/employees.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
-    }
-    return this.employeesService.findOne(id);
-  }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
-  }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
-  }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
-  }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
-  }
-}
-````
-
-## File: backend/src/shops/shops.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ShopsService } from "./shops.service";
-import { ShopCode } from "./entities/shop-code.entity";
-import { UnauthorizedException } from "@nestjs/common";
-describe("ShopsService", () => {
-  let service: ShopsService;
-  const mockRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ShopsService,
-        {
-          provide: getRepositoryToken(ShopCode),
-          useValue: mockRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<ShopsService>(ShopsService);
-    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
-    jest.clearAllMocks();
-  });
-  describe("validateShopCode", () => {
-    it("should validate a shop code successfully", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result).toBeDefined();
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException for invalid shop code", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "INVALID", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException when daily limit is reached", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: new Date(),
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should reset counter for a new day", async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: yesterday,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("createShopCode", () => {
-    it("should create a shop code with provided code", async () => {
-      const mockShopCode: Partial<ShopCode> = {
-        code: "TEST123",
-        shopName: "Test Shop",
-      };
-      mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
-      const result = await service.createShopCode("Test Shop", "TEST123");
-      expect(result).toEqual(mockShopCode);
-      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
-    });
-    it("should create a shop code with auto-generated code", async () => {
-      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
-        ...data,
-        id: "test-id",
-        code: "ABC123", // Changed to 6 characters
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        shopName: data.shopName ?? "Test Shop"
-      }));
-      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
-      const result = await service.createShopCode("Test Shop");
-      expect(result).toBeDefined();
-      expect(result.shopName).toBe("Test Shop");
-      expect(result.code).toBeDefined();
-      expect(typeof result.code).toBe("string");
-      expect(result.code.length).toBe(6);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("deactivateShopCode", () => {
-    it("should deactivate a shop code", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.deactivateShopCode("TEST123");
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { isActive: false }
-      );
-    });
-  });
-  describe("updateDailyLimit", () => {
-    it("should update daily booking limit", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.updateDailyLimit("TEST123", 200);
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { dailyBookingLimit: 200 }
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/users/entities/user.entity.ts
-````typescript
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-} from "typeorm";
-import { Exclude } from "class-transformer";
-import * as bcrypt from "bcrypt";
-export enum UserRole {
-  CUSTOMER = "customer",
-  EMPLOYEE = "employee",
-  ADMIN = "admin",
-}
-@Entity("users")
-export class User {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
-  @Column({ length: 100 })
-  firstName: string;
-  @Column({ length: 100 })
-  lastName: string;
-  @Column({ unique: true })
-  email: string;
-  @Column()
-  @Exclude()
-  password: string;
-  @Column({
-    type: "enum",
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
-  })
-  role: UserRole;
-  @Column({ nullable: true })
-  phoneNumber: string;
-  @CreateDateColumn()
-  createdAt: Date;
-  @UpdateDateColumn()
-  updatedAt: Date;
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword(): Promise<void> {
-    // Only hash the password if it has been modified
-    if (this.password) {
-      const salt = await bcrypt.genSalt();
-      this.password = await bcrypt.hash(this.password, salt);
-    }
-  }
-  async validatePassword(password: string): Promise<boolean> {
-    const isMatch: boolean = await bcrypt.compare(password, this.password);
-    return isMatch;
-  }
-}
-````
-
-## File: backend/src/users/users.service.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { FindOneOptions } from 'typeorm';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
-import { NotFoundException } from '@nestjs/common';
-type JestMock = jest.Mock;
-type MockCalls = Array<Array<unknown>>;
-describe('UsersService', () => {
-  let service: UsersService;
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com',
-    firstName: 'John',
-    lastName: 'Doe',
-    password: 'hashedPassword',
-  };
-  const mockUserRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<UsersService>(UsersService);
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-  describe('findOne', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findOne('user-1');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('findByEmail', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findByEmail('test@example.com');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { email: 'test@example.com' },
-      });
-    });
-    it('should return null when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      const result = await service.findByEmail('nonexistent@example.com');
-      expect(result).toBeNull();
-    });
-  });
-  describe('create', () => {
-    const createUserData = {
-      email: 'new@example.com',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      password: 'password123',
-    };
-    it('should create and return a new user', async () => {
-      mockUserRepository.create.mockReturnValue(createUserData);
-      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
-      const result = await service.create(createUserData);
-      expect(result).toEqual({ id: 'new-user', ...createUserData });
-      const createMock = mockUserRepository.create as JestMock;
-      const saveMock = mockUserRepository.save as JestMock;
-      const createCalls = createMock.mock.calls as MockCalls;
-      const saveCalls = saveMock.mock.calls as MockCalls;
-      const lastCreateCall = createCalls[createCalls.length - 1];
-      const lastSaveCall = saveCalls[saveCalls.length - 1];
-      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
-      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
-      expect(lastCreateArgs).toEqual(createUserData);
-      expect(lastSaveArgs).toEqual(createUserData);
-    });
-  });
-  describe('update', () => {
-    const updateData = {
-      firstName: 'Updated',
-      lastName: 'Name',
-    };
-    it('should update and return the user', async () => {
-      const updatedUser = { ...mockUser, ...updateData };
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(updatedUser);
-      const result = await service.update('user-1', updateData);
-      expect(result).toEqual(updatedUser);
-      const updateMock = mockUserRepository.update as JestMock;
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const updateCalls = updateMock.mock.calls as MockCalls;
-      const findOneCalls = findOneMock.mock.calls as MockCalls;
-      const lastUpdateCall = updateCalls[updateCalls.length - 1];
-      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
-      expect(lastUpdateCall).toEqual(['user-1', updateData]);
-      expect(lastFindOneCall[0]).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found during update', async () => {
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-});
-````
-
 ## File: backend/README.md
 ````markdown
 # Hair Salon Booking System Backend
@@ -20555,6 +19625,233 @@ This project is licensed under the terms specified in the
 LICENSE file at the root of the repository.
 ````
 
+## File: frontend/admin/src/stores/__tests__/auth.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { useAuthStore } from "../auth";
+import { AxiosError } from "axios";
+import api from "../../lib/api";
+vi.mock("../../lib/api", () => {
+  return {
+    default: {
+      post: vi.fn(),
+      get: vi.fn(),
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+    },
+  };
+});
+describe("Auth Store", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+  describe("Initial State", () => {
+    it("should have correct initial state", () => {
+      const store = useAuthStore();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(store.isLoading).toBeFalsy();
+    });
+    it("should initialize with token from localStorage", () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+    });
+  });
+  describe("Login", () => {
+    const mockCredentials = {
+      email: "admin@test.com",
+      password: "password123",
+    };
+    const mockAdminResponse = {
+      data: {
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+      },
+    };
+    it("should successfully login admin user", async () => {
+      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.user).toEqual(mockAdminResponse.data.user);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBe("test-token");
+    });
+    it("should reject regular user login", async () => {
+      const mockUserResponse = {
+        data: {
+          token: "test-token",
+          user: {
+            id: "2",
+            email: "user@test.com",
+            role: "user",
+            firstName: "Regular",
+            lastName: "User",
+          },
+        },
+      };
+      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Ingen tilgang: Krever ansatt- eller administratortilgang"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+    it("should handle login error with invalid credentials", async () => {
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          url: "/auth/login",
+          method: "post",
+        },
+      } as unknown as typeof mockError.response;
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("Feil e-postadresse eller passord");
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should handle server connection error", async () => {
+      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
+      mockError.code = "ECONNREFUSED";
+      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
+  describe("Logout", () => {
+    it("should clear auth state and localStorage", () => {
+      const store = useAuthStore();
+      // Setup initial authenticated state
+      localStorage.setItem("admin_token", "test-token");
+      store.$patch({
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+        isAuthenticated: true,
+      });
+      store.logout();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+  });
+  describe("Check Auth", () => {
+    const mockUserProfile = {
+      id: "1",
+      email: "admin@test.com",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin" as const,
+    };
+    it("should fetch profile and return true when token is valid", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.user).toEqual(mockUserProfile);
+      expect(api.get).toHaveBeenCalledWith("/auth/profile");
+    });
+    it("should not re-fetch profile if user data already exists", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      store.$patch({ user: mockUserProfile });
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+    it("should logout when profile fetch fails (expired token)", async () => {
+      localStorage.setItem("admin_token", "expired-token");
+      vi.mocked(api.get).mockRejectedValueOnce(
+        new AxiosError("Unauthorized", "401")
+      );
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should return false when no token in localStorage", async () => {
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(api.get).not.toHaveBeenCalled();
+    });
+  });
+  describe("Error Handling", () => {
+    it("should clear error message", () => {
+      const store = useAuthStore();
+      // Set an error
+      store.$patch({ error: "Test error" });
+      expect(store.error).toBe("Test error");
+      // Clear error
+      store.clearError();
+      expect(store.error).toBeNull();
+    });
+  });
+});
+````
+
+## File: frontend/admin/src/env.d.ts
+````typescript
+/// <reference types="vite/client" />
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+  const component: DefineComponent<object, object, unknown>;
+  export default component;
+}
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+````
+
 ## File: frontend/admin/README.md
 ````markdown
 # Hair Salon Booking System Frontend (Admin Dashboard)
@@ -20897,6 +20194,239 @@ This project is licensed under the terms specified in the
 LICENSE file at the root of the repository.
 ````
 
+## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import WaitingTimeDisplay from '../WaitingTimeDisplay.vue'
+import { useDisplayStore } from '../../stores/display'
+// Mock the display store
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('WaitingTimeDisplay', () => {
+  // Create a mock timer for setInterval
+  const mockTimer = {
+    hasRef: () => true,
+    refresh: () => mockTimer,
+    [Symbol.toPrimitive]: () => 123,
+  } as unknown as ReturnType<typeof setInterval>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    // Set a fixed system time
+    vi.setSystemTime(new Date('2024-01-01T12:00:00.000Z'))
+    // Setup default mock implementation
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [
+        { id: '1', customerName: 'Test', estimatedTime: 90 },
+        { id: '2', customerName: 'Test2', estimatedTime: 90 },
+        { id: '3', customerName: 'Test3', estimatedTime: 90 },
+      ],
+      waitingCount: 3,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
+      isLoading: false,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('renders loading state correctly', () => {
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
+      isLoading: true,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+  })
+  it('renders waiting time and queue information correctly', () => {
+    const wrapper = mount(WaitingTimeDisplay)
+    // Average waiting time should be 90 minutes
+    expect(wrapper.text()).toContain('90min')
+    expect(wrapper.text()).toContain('3 venter')
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:00:00')
+  })
+  it('displays error message when there is an error', () => {
+    const errorMessage = 'Failed to fetch queue status'
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [],
+      waitingCount: 0,
+      lastUpdate: new Date(),
+      isLoading: false,
+      error: errorMessage,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    expect(wrapper.text()).toContain(errorMessage)
+    expect(wrapper.find('.text-red-600').exists()).toBe(true)
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn(() => mockTimer)
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: new Date('2024-01-01T12:00:00.000Z'),
+      isLoading: false,
+      error: null,
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    // Check that polling was started
+    expect(mockStartPolling).toHaveBeenCalled()
+    // Unmount and verify cleanup
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+  it('formats time correctly for different locales', () => {
+    const now = new Date('2024-01-01T12:34:56.000Z')
+    vi.mocked(useDisplayStore).mockReturnValue({
+      waitingSlots: [{ id: '1', customerName: 'Test', estimatedTime: 90 }],
+      waitingCount: 1,
+      lastUpdate: now,
+      isLoading: false,
+      error: null,
+      startPolling: vi.fn(() => mockTimer),
+      cleanup: vi.fn(),
+    } as unknown as ReturnType<typeof useDisplayStore>)
+    const wrapper = mount(WaitingTimeDisplay)
+    // Since we're using UTC time directly
+    expect(wrapper.text()).toContain('13:34:56')
+  })
+})
+````
+
+## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import TVDisplayView from '../TVDisplayView.vue'
+import { useDisplayStore } from '../../stores/display'
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('TVDisplayView', () => {
+  const mockEmployees = [
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
+  ]
+  const mockWaitingSlots = [
+    {
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
+      assignedTo: '1',
+    },
+    {
+      id: 'slot-2',
+      customerName: 'Lavinia',
+      estimatedTime: 45,
+      assignedTo: '2',
+    },
+  ]
+  const createMockStore = (overrides = {}) => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  })
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
+    // Mock store with default values
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Ledig')
+    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
+  })
+  it('displays correct status when no slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: false,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Opptatt')
+    expect(wrapper.find('h1').classes()).toContain('text-red-500')
+  })
+  it('renders waiting list correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const waitingSlots = wrapper.findAll('.space-y-16 > div')
+    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
+    // Check first slot (Vada)
+    const firstSlot = waitingSlots[0]
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
+    // Check second slot (Lavinia)
+    const secondSlot = waitingSlots[1]
+    expect(secondSlot.text()).toContain('Lavinia')
+    expect(secondSlot.text()).toContain('45 min')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
+  })
+  it('displays active employees correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const employeeElements = wrapper.findAll('[data-testid="employee"]')
+    expect(employeeElements).toHaveLength(mockEmployees.length)
+    expect(wrapper.text()).toContain('2 frisører på jobb')
+    mockEmployees.forEach((employee, index) => {
+      const element = employeeElements[index]
+      expect(element.text()).toContain(employee.name)
+      expect(element.find(`.${employee.color}`).exists()).toBe(true)
+    })
+  })
+  it('formats last update time correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.text()).toContain('12:00:00')
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(mockStartPolling).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+})
+````
+
 ## File: README.md
 ````markdown
 # Hair Salon Booking System
@@ -21221,6 +20751,476 @@ For detailed information about the system architecture,
 please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ````
 
+## File: backend/src/employees/employees.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (!employee || employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
+}
+````
+
+## File: backend/src/shops/shops.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopsService } from "./shops.service";
+import { ShopCode } from "./entities/shop-code.entity";
+import { UnauthorizedException } from "@nestjs/common";
+describe("ShopsService", () => {
+  let service: ShopsService;
+  const mockRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopsService,
+        {
+          provide: getRepositoryToken(ShopCode),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<ShopsService>(ShopsService);
+    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
+    jest.clearAllMocks();
+  });
+  describe("validateShopCode", () => {
+    it("should validate a shop code successfully", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result).toBeDefined();
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException for invalid shop code", async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "INVALID", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException when daily limit is reached", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: new Date(),
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should reset counter for a new day", async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: yesterday,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("createShopCode", () => {
+    it("should create a shop code with provided code", async () => {
+      const mockShopCode: Partial<ShopCode> = {
+        code: "TEST123",
+        shopName: "Test Shop",
+      };
+      mockRepository.create.mockReturnValue(mockShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
+      const result = await service.createShopCode("Test Shop", "TEST123");
+      expect(result).toEqual(mockShopCode);
+      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
+      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
+    });
+    it("should create a shop code with auto-generated code", async () => {
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
+        ...data,
+        id: "test-id",
+        code: "ABC123", // Changed to 6 characters
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shopName: data.shopName ?? "Test Shop"
+      }));
+      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
+      const result = await service.createShopCode("Test Shop");
+      expect(result).toBeDefined();
+      expect(result.shopName).toBe("Test Shop");
+      expect(result.code).toBeDefined();
+      expect(typeof result.code).toBe("string");
+      expect(result.code.length).toBe(6);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("deactivateShopCode", () => {
+    it("should deactivate a shop code", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.deactivateShopCode("TEST123");
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { isActive: false }
+      );
+    });
+  });
+  describe("updateDailyLimit", () => {
+    it("should update daily booking limit", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.updateDailyLimit("TEST123", 200);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { dailyBookingLimit: 200 }
+      );
+    });
+  });
+});
+````
+
+## File: backend/src/users/entities/user.entity.ts
+````typescript
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
+} from "typeorm";
+import { Exclude } from "class-transformer";
+import * as bcrypt from "bcrypt";
+export enum UserRole {
+  CUSTOMER = "customer",
+  EMPLOYEE = "employee",
+  ADMIN = "admin",
+}
+@Entity("users")
+export class User {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+  @Column({ length: 100 })
+  firstName: string;
+  @Column({ length: 100 })
+  lastName: string;
+  @Column({ unique: true })
+  email: string;
+  @Column()
+  @Exclude()
+  password: string;
+  @Column({
+    type: "enum",
+    enum: UserRole,
+    default: UserRole.CUSTOMER,
+  })
+  role: UserRole;
+  @Column({ nullable: true })
+  phoneNumber: string;
+  @CreateDateColumn()
+  createdAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
+  @BeforeInsert()
+  @BeforeUpdate()
+  async hashPassword(): Promise<void> {
+    // Only hash the password if it has been modified
+    if (this.password) {
+      const salt = await bcrypt.genSalt();
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+  }
+  async validatePassword(password: string): Promise<boolean> {
+    const isMatch: boolean = await bcrypt.compare(password, this.password);
+    return isMatch;
+  }
+}
+````
+
+## File: backend/src/users/users.service.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { FindOneOptions } from 'typeorm';
+import { UsersService } from './users.service';
+import { User } from './entities/user.entity';
+import { NotFoundException } from '@nestjs/common';
+type JestMock = jest.Mock;
+type MockCalls = Array<Array<unknown>>;
+describe('UsersService', () => {
+  let service: UsersService;
+  const mockUser = {
+    id: 'user-1',
+    email: 'test@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    password: 'hashedPassword',
+  };
+  const mockUserRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<UsersService>(UsersService);
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+  describe('findOne', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findOne('user-1');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('findByEmail', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findByEmail('test@example.com');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { email: 'test@example.com' },
+      });
+    });
+    it('should return null when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      const result = await service.findByEmail('nonexistent@example.com');
+      expect(result).toBeNull();
+    });
+  });
+  describe('create', () => {
+    const createUserData = {
+      email: 'new@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      password: 'password123',
+    };
+    it('should create and return a new user', async () => {
+      mockUserRepository.create.mockReturnValue(createUserData);
+      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
+      const result = await service.create(createUserData);
+      expect(result).toEqual({ id: 'new-user', ...createUserData });
+      const createMock = mockUserRepository.create as JestMock;
+      const saveMock = mockUserRepository.save as JestMock;
+      const createCalls = createMock.mock.calls as MockCalls;
+      const saveCalls = saveMock.mock.calls as MockCalls;
+      const lastCreateCall = createCalls[createCalls.length - 1];
+      const lastSaveCall = saveCalls[saveCalls.length - 1];
+      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
+      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
+      expect(lastCreateArgs).toEqual(createUserData);
+      expect(lastSaveArgs).toEqual(createUserData);
+    });
+  });
+  describe('update', () => {
+    const updateData = {
+      firstName: 'Updated',
+      lastName: 'Name',
+    };
+    it('should update and return the user', async () => {
+      const updatedUser = { ...mockUser, ...updateData };
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(updatedUser);
+      const result = await service.update('user-1', updateData);
+      expect(result).toEqual(updatedUser);
+      const updateMock = mockUserRepository.update as JestMock;
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const updateCalls = updateMock.mock.calls as MockCalls;
+      const findOneCalls = findOneMock.mock.calls as MockCalls;
+      const lastUpdateCall = updateCalls[updateCalls.length - 1];
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
+      expect(lastUpdateCall).toEqual(['user-1', updateData]);
+      expect(lastFindOneCall[0]).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found during update', async () => {
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+});
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: backend/eslint.config.js
 ````javascript
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -21387,63 +21387,6 @@ module.exports = [
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
-  }
-}
-````
-
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^3.0.0",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.3",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vitest/coverage-v8": "4.1.3",
-    "@vitest/eslint-plugin": "1.6.15",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.4.27",
-    "cypress": "^15.0.0",
-    "eslint": "^10.0.0",
-    "eslint-plugin-cypress": "^6.3.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "npm-run-all2": "^8.0.4",
-    "postcss": "^8.4.49",
-    "prettier": "^3.8.1",
-    "start-server-and-test": "^2.1.5",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vite-plugin-vue-devtools": "^8.0.0",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
   }
 }
 ````
@@ -21737,6 +21680,63 @@ export class OrdersService {
       throw new NotFoundException(`Order #${id} not found`);
     }
     return order;
+  }
+}
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/coverage-v8": "4.1.3",
+    "@vitest/eslint-plugin": "1.6.15",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.4.27",
+    "cypress": "^15.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-cypress": "^6.3.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.4.49",
+    "prettier": "^3.8.1",
+    "start-server-and-test": "^2.1.5",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
   }
 }
 ````
