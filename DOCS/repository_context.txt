@@ -12239,6 +12239,116 @@ module.exports = {
 }
 ````
 
+## File: frontend/admin/README.md
+````markdown
+# Hair Salon Booking System Frontend (Admin Dashboard)
+
+A modern admin dashboard for managing hair salon bookings,
+built with Vue 3. This system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
+
+## Features
+
+- 🔐 JWT-based Authentication & Authorization
+- 👥 User Management
+- 📅 Booking System
+- 💇‍♀️ Service Management
+- 👨‍💼 Employee Management
+- 📚 API Documentation
+
+## Tech Stack
+
+- Vue 3
+- TypeScript
+- Pinia
+- Vue Router
+- Tailwind CSS
+- Axios
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- pnpm
+
+## Installation
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+2. Configure environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the values according to your setup
+
+## Running the Application
+
+```bash
+# Development
+pnpm dev
+
+# Production
+pnpm build
+pnpm preview
+```
+
+## Testing
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## Available Scripts
+
+- `pnpm dev` - Start the development server
+- `pnpm build` - Build the application
+- `pnpm preview` - Preview the production build
+- `pnpm test` - Run unit tests
+- `pnpm test:unit` - Run component tests
+- `pnpm lint` - Lint code with ESLint
+- `pnpm format` - Format code with Prettier
+
+## Project Structure
+
+```text
+src/
+├── assets/             # Static assets
+├── components/         # Vue components
+├── router/             # Vue Router configuration
+├── stores/             # Pinia stores
+├── views/              # Vue views
+├── App.vue             # Root component
+├── main.ts             # Application entry point
+└── style.css           # Global styles
+```
+
+## Environment Variables
+
+Required environment variables in `.env`:
+
+```env
+# API
+VITE_API_URL=http://localhost:3000
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```text
+http://localhost:3000/api
+```
+
+## License
+
+MIT
+````
+
 ## File: frontend/admin/renovate.json
 ````json
 {
@@ -16721,6 +16831,330 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
+## File: README.md
+````markdown
+# Hair Salon Booking System
+
+[![Quality Gate Status][sonar-badge]][sonar-url]
+[![Codacy Badge][codacy-badge]][codacy-url]
+
+[sonar-badge]: https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status
+[sonar-url]: https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking
+[codacy-badge]: https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec
+[codacy-url]: https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
+
+A full-stack booking system for hair salons built with NestJS (backend)
+and Vue 3 (frontend). The system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
+
+## Test Coverage
+
+| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
+
+## Frontend
+
+![Admin Panel](screenshot/admin.png)
+
+## Backend
+
+![API Documentation](screenshot/swagger.png)
+
+---
+
+## Features
+
+- 🔐 Secure JWT-based Authentication & Authorization
+- 👥 Role-based User Management (Admin, Employee, Customer)
+- 📅 Advanced Booking System
+  - ⏰ Smart scheduling with service duration-based time slots
+  - 🕒 Automatic end time calculation based on service duration
+  - ✅ Real-time employee availability checking
+  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
+  - ❌ Booking cancellation with reason tracking
+  - 📈 Upcoming bookings dashboard
+- 💇‍♀️ Service Management
+  - ⏱️ Service duration and pricing
+  - 🔄 Employee-service relationship mapping
+  - 📋 Service availability per employee
+- 👨‍💼 Employee Management & Scheduling
+  - 📆 Advanced availability tracking
+  - 🎯 Service specialization assignment
+  - 📊 Workload management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+- 🎨 Modern Admin Dashboard with Vue 3
+- 📱 Responsive Design with Tailwind CSS
+- 🧪 Comprehensive Test Coverage
+  - ✅ Unit tests with Jest and Vitest
+  - 📊 Continuous coverage reporting
+
+## System Architecture
+
+The system follows a modular architecture separating frontend,
+backend, and database layers:
+
+### Backend (NestJS)
+
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with Passport
+- **API Documentation**: Swagger/OpenAPI
+- **Testing**: Jest
+
+### Frontend (Vue 3)
+
+- **Framework**: Vue 3 with TypeScript
+- **State Management**: Pinia
+- **Routing**: Vue Router
+- **Styling**: Tailwind CSS
+- **Testing**: Vitest
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+│   ├── src/
+│   │   ├── auth/         # Authentication & authorization
+│   │   ├── bookings/     # Booking management
+│   │   ├── config/       # Configuration modules
+│   │   ├── database/     # Migrations & seeds
+│   │   ├── employees/    # Employee management
+│   │   ├── services/     # Service management
+│   │   └── users/        # User management
+│   └── test/             # E2E tests
+├── frontend/
+│   ├── admin/            # Admin dashboard (Vue 3)
+│   └── customer/         # Customer portal (Vue 3)
+└── docs/                 # Project documentation
+```
+
+## Prerequisites
+
+- Node.js (v20 or higher)
+- pnpm
+- PostgreSQL
+- Docker
+
+## Getting Started
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Configure environment variables:
+
+```bash
+cp .env.example .env
+# Update the values in .env according to your setup
+```
+
+1. Run database migrations:
+
+```bash
+pnpm migration:run
+```
+
+1. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+1. Start the development server:
+
+```bash
+pnpm start:dev
+```
+
+The API will be available at `http://localhost:3000`
+with Swagger documentation at `http://localhost:3000/api`
+
+### Frontend Setup
+
+1. Navigate to the admin frontend directory:
+
+```bash
+cd frontend/admin
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Start the development server:
+
+```bash
+pnpm dev
+```
+
+The admin dashboard will be available at `http://localhost:5173`
+
+### Using Docker
+
+1. Build and run the Docker containers:
+
+```bash
+docker-compose up --build
+```
+
+1. Access the services:
+
+- Backend API: `http://localhost:3000`
+- Admin Dashboard: `http://localhost:3001`
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+1. Make your changes following the conventions
+
+1. Write tests for your changes
+
+1. Commit using conventional commits:
+
+```text
+feat: add new feature
+fix: resolve bug
+docs: update documentation
+style: formatting changes
+refactor: code restructuring
+test: add tests
+chore: maintenance
+```
+
+1. Create a pull request to `develop`
+
+## Testing
+
+### Backend Tests
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+### Frontend Tests
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```text
+http://localhost:3000/api
+```
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+# Application
+NODE_ENV=development
+PORT=3000
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=1h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CACHE_TTL=300
+```
+
+## Security
+
+- 🔒 All endpoints are protected with JWT authentication
+- 👮 Role-based access control (RBAC) implementation
+- ✅ Input validation using class-validator
+- 🚦 Rate limiting for API endpoints
+- 🌐 CORS configuration
+- 🔑 Secure password hashing with bcrypt
+- 🔐 Environment variable protection
+- 🛡️ SQL injection prevention through TypeORM
+
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help
+code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code rules
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture
+
+These files contain project-specific, non-obvious information
+discovered by analyzing the codebase, including:
+
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE) file for details.
+
+## Architecture Documentation
+
+For detailed information about the system architecture,
+please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
 ## File: renovate.json
 ````json
 {
@@ -20084,116 +20518,6 @@ interface ImportMeta {
 }
 ````
 
-## File: frontend/admin/README.md
-````markdown
-# Hair Salon Booking System Frontend (Admin Dashboard)
-
-A modern admin dashboard for managing hair salon bookings,
-built with Vue 3. This system provides comprehensive functionality
-for managing appointments, employees, services, and user authentication.
-
-## Features
-
-- 🔐 JWT-based Authentication & Authorization
-- 👥 User Management
-- 📅 Booking System
-- 💇‍♀️ Service Management
-- 👨‍💼 Employee Management
-- 📚 API Documentation
-
-## Tech Stack
-
-- Vue 3
-- TypeScript
-- Pinia
-- Vue Router
-- Tailwind CSS
-- Axios
-
-## Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm
-
-## Installation
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-2. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the values according to your setup
-
-## Running the Application
-
-```bash
-# Development
-pnpm dev
-
-# Production
-pnpm build
-pnpm preview
-```
-
-## Testing
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## Available Scripts
-
-- `pnpm dev` - Start the development server
-- `pnpm build` - Build the application
-- `pnpm preview` - Preview the production build
-- `pnpm test` - Run unit tests
-- `pnpm test:unit` - Run component tests
-- `pnpm lint` - Lint code with ESLint
-- `pnpm format` - Format code with Prettier
-
-## Project Structure
-
-```text
-src/
-├── assets/             # Static assets
-├── components/         # Vue components
-├── router/             # Vue Router configuration
-├── stores/             # Pinia stores
-├── views/              # Vue views
-├── App.vue             # Root component
-├── main.ts             # Application entry point
-└── style.css           # Global styles
-```
-
-## Environment Variables
-
-Required environment variables in `.env`:
-
-```env
-# API
-VITE_API_URL=http://localhost:3000
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```text
-http://localhost:3000/api
-```
-
-## License
-
-MIT
-````
-
 ## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -20425,330 +20749,6 @@ describe('TVDisplayView', () => {
     expect(mockCleanup).toHaveBeenCalled()
   })
 })
-````
-
-## File: README.md
-````markdown
-# Hair Salon Booking System
-
-[![Quality Gate Status][sonar-badge]][sonar-url]
-[![Codacy Badge][codacy-badge]][codacy-url]
-
-[sonar-badge]: https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status
-[sonar-url]: https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking
-[codacy-badge]: https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec
-[codacy-url]: https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
-
-A full-stack booking system for hair salons built with NestJS (backend)
-and Vue 3 (frontend). The system provides comprehensive functionality
-for managing appointments, employees, services, and user authentication.
-
-## Test Coverage
-
-| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
-
-## Frontend
-
-![Admin Panel](screenshot/admin.png)
-
-## Backend
-
-![API Documentation](screenshot/swagger.png)
-
----
-
-## Features
-
-- 🔐 Secure JWT-based Authentication & Authorization
-- 👥 Role-based User Management (Admin, Employee, Customer)
-- 📅 Advanced Booking System
-  - ⏰ Smart scheduling with service duration-based time slots
-  - 🕒 Automatic end time calculation based on service duration
-  - ✅ Real-time employee availability checking
-  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
-  - ❌ Booking cancellation with reason tracking
-  - 📈 Upcoming bookings dashboard
-- 💇‍♀️ Service Management
-  - ⏱️ Service duration and pricing
-  - 🔄 Employee-service relationship mapping
-  - 📋 Service availability per employee
-- 👨‍💼 Employee Management & Scheduling
-  - 📆 Advanced availability tracking
-  - 🎯 Service specialization assignment
-  - 📊 Workload management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-- 🎨 Modern Admin Dashboard with Vue 3
-- 📱 Responsive Design with Tailwind CSS
-- 🧪 Comprehensive Test Coverage
-  - ✅ Unit tests with Jest and Vitest
-  - 📊 Continuous coverage reporting
-
-## System Architecture
-
-The system follows a modular architecture separating frontend,
-backend, and database layers:
-
-### Backend (NestJS)
-
-- **Framework**: NestJS with TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: JWT with Passport
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: Jest
-
-### Frontend (Vue 3)
-
-- **Framework**: Vue 3 with TypeScript
-- **State Management**: Pinia
-- **Routing**: Vue Router
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
-
-## Project Structure
-
-```text
-├── backend/               # NestJS backend application
-│   ├── src/
-│   │   ├── auth/         # Authentication & authorization
-│   │   ├── bookings/     # Booking management
-│   │   ├── config/       # Configuration modules
-│   │   ├── database/     # Migrations & seeds
-│   │   ├── employees/    # Employee management
-│   │   ├── services/     # Service management
-│   │   └── users/        # User management
-│   └── test/             # E2E tests
-├── frontend/
-│   ├── admin/            # Admin dashboard (Vue 3)
-│   └── customer/         # Customer portal (Vue 3)
-└── docs/                 # Project documentation
-```
-
-## Prerequisites
-
-- Node.js (v20 or higher)
-- pnpm
-- PostgreSQL
-- Docker
-
-## Getting Started
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-1. Configure environment variables:
-
-```bash
-cp .env.example .env
-# Update the values in .env according to your setup
-```
-
-1. Run database migrations:
-
-```bash
-pnpm migration:run
-```
-
-1. Seed initial data:
-
-```bash
-pnpm seed
-```
-
-1. Start the development server:
-
-```bash
-pnpm start:dev
-```
-
-The API will be available at `http://localhost:3000`
-with Swagger documentation at `http://localhost:3000/api`
-
-### Frontend Setup
-
-1. Navigate to the admin frontend directory:
-
-```bash
-cd frontend/admin
-```
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-1. Start the development server:
-
-```bash
-pnpm dev
-```
-
-The admin dashboard will be available at `http://localhost:5173`
-
-### Using Docker
-
-1. Build and run the Docker containers:
-
-```bash
-docker-compose up --build
-```
-
-1. Access the services:
-
-- Backend API: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3001`
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-
-```bash
-git checkout -b feature/your-feature-name
-```
-
-1. Make your changes following the conventions
-
-1. Write tests for your changes
-
-1. Commit using conventional commits:
-
-```text
-feat: add new feature
-fix: resolve bug
-docs: update documentation
-style: formatting changes
-refactor: code restructuring
-test: add tests
-chore: maintenance
-```
-
-1. Create a pull request to `develop`
-
-## Testing
-
-### Backend Tests
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-### Frontend Tests
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```text
-http://localhost:3000/api
-```
-
-## Environment Variables
-
-### Backend (.env)
-
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=1h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CACHE_TTL=300
-```
-
-## Security
-
-- 🔒 All endpoints are protected with JWT authentication
-- 👮 Role-based access control (RBAC) implementation
-- ✅ Input validation using class-validator
-- 🚦 Rate limiting for API endpoints
-- 🌐 CORS configuration
-- 🔑 Secure password hashing with bcrypt
-- 🔐 Environment variable protection
-- 🛡️ SQL injection prevention through TypeORM
-
-## AI Assistant Guidance
-
-This project includes AI assistant guidance files to help
-code assistants be immediately productive:
-
-- [`AGENTS.md`](AGENTS.md) - Main project guidance
-- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code rules
-- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug guidance
-- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context
-- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture
-
-These files contain project-specific, non-obvious information
-discovered by analyzing the codebase, including:
-
-- Critical command execution order (database seeding dependencies)
-- Authentication patterns and JWT token handling
-- Testing requirements and configuration specifics
-- Architecture constraints and multi-tenant design patterns
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License -
-see the [LICENSE](LICENSE) file for details.
-
-## Architecture Documentation
-
-For detailed information about the system architecture,
-please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ````
 
 ## File: backend/src/employees/employees.controller.ts
@@ -21550,91 +21550,6 @@ export class OrdersService {
 }
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.1.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.2",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.2.7",
-    "@nestjs/typeorm": "^11.0.1",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "7.2.8",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.0",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.20.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^10.0.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.2",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.7",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
-  }
-}
-````
-
 ## File: frontend/admin/package.json
 ````json
 {
@@ -21743,6 +21658,91 @@ export class ShopsService {
       { code },
       { dailyBookingLimit: limit }
     );
+  }
+}
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.7",
+    "@nestjs/typeorm": "^11.0.1",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-loader": "^9.5.7",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
   }
 }
 ````
