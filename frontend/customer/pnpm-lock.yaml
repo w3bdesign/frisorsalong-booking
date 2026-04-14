@@ -85,7 +85,7 @@ importers:
         specifier: ^2.1.5
         version: 2.1.5
       tailwindcss:
-        specifier: ^3.4.15
+        specifier: ^3.4.19
         version: 3.4.19(yaml@2.8.3)
       typescript:
         specifier: ~5.9.3
