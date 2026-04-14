@@ -3200,6 +3200,388 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class BookingsModule {}
 ````
 
+## File: backend/src/bookings/bookings.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { User, UserRole } from "../users/entities/user.entity";
+describe("BookingsService", () => {
+  let service: BookingsService;
+  interface MockUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    phoneNumber: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+  interface FindOneOptions {
+    where: { id: string };
+    relations: string[];
+  }
+  interface FindOptions {
+    where: unknown;
+    relations: string[];
+    order: { startTime: "ASC" | "DESC" };
+  }
+  interface MockBooking {
+    id: string;
+    customer?: Partial<MockUser>;
+    service?: { id: string; duration: number };
+    employee?: { id: string };
+    status?: BookingStatus;
+    startTime?: Date;
+    endTime?: Date;
+    notes?: string;
+    totalPrice?: number;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+  }
+  const mockBookingRepository = {
+    create: jest.fn().mockImplementation(
+      (dto: Partial<Booking>): MockBooking => ({
+        id: "booking1",
+        ...dto,
+      })
+    ),
+    save: jest
+      .fn()
+      .mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> =>
+          Promise.resolve({ id: "booking1", ...booking })
+      ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
+      ),
+    find: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
+      ),
+  };
+  const mockUsersService = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
+  const mockEmployeesService = {
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+    isAvailable: jest.fn(),
+  };
+  const mockServicesService = {
+    findOne: jest.fn(),
+  };
+  const mockOrdersService = {
+    create: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BookingsService,
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+        {
+          provide: ServicesService,
+          useValue: mockServicesService,
+        },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    service = module.get<BookingsService>(BookingsService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  describe("createWalkIn", () => {
+    const mockShop = {
+      id: "shop1",
+      code: "SHOP1",
+      shopName: "Test Shop",
+      isActive: true,
+      dailyBookingLimit: 100,
+      lastBookingTime: new Date(),
+      todayBookingCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const mockEmployee = { id: "emp1", isActive: true };
+    const mockCustomer = { id: "cust1" };
+    const createWalkInDto: CreateWalkInBookingDto = {
+      serviceId: "service1",
+      firstName: "John",
+      phoneNumber: "1234567890",
+      isPaid: true,
+    };
+    it("should create a walk-in booking successfully", async () => {
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
+      mockBookingRepository.find.mockResolvedValue([]);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.createWalkIn(createWalkInDto, mockShop);
+      expect(result).toBeDefined();
+      expect(mockUsersService.create).toHaveBeenCalled();
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createWalkInDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when service not found", async () => {
+      mockServicesService.findOne.mockResolvedValue(null);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+    it("should throw BadRequestException when no active employees", async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([]);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+  describe("create", () => {
+    const mockCustomer = { id: "cust1" };
+    const mockEmployee = { id: "emp1" };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const createBookingDto: CreateBookingDto = {
+      customerId: "cust1",
+      employeeId: "emp1",
+      serviceId: "service1",
+      startTime: new Date().toISOString(),
+      notes: "Test booking",
+    };
+    it("should create a booking successfully", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.create(createBookingDto);
+      expect(result).toBeDefined();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith(
+        createBookingDto.customerId
+      );
+      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.employeeId
+      );
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when customer not found", async () => {
+      mockUsersService.findOne.mockResolvedValue(null);
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+    it("should throw BadRequestException when employee not available", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("findOne", () => {
+    it("should return a booking when found", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      const result = await service.findOne("booking1");
+      expect(result).toBe(mockBooking);
+      const expectedOptions: FindOneOptions = {
+        where: { id: "booking1" },
+        relations: ["customer", "employee", "employee.user", "service"],
+      };
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
+        expectedOptions
+      );
+    });
+    it("should throw NotFoundException when booking not found", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+  });
+  describe("update", () => {
+    const mockBooking = {
+      id: "booking1",
+      service: { id: "service1" },
+      employee: { id: "emp1" },
+    };
+    const updateDto: UpdateBookingDto = {
+      startTime: new Date().toISOString(),
+    };
+    it("should update booking successfully", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const updatedBooking: MockBooking = {
+        id: mockBooking.id,
+        startTime: new Date(updateDto.startTime),
+        service: { id: mockBooking.service.id, duration: 30 },
+        employee: { id: mockBooking.employee.id },
+      };
+      mockBookingRepository.save.mockResolvedValue(updatedBooking);
+      const result = await service.update("booking1", updateDto);
+      expect(result).toBeDefined();
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw BadRequestException when employee not available for new time", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("cancel", () => {
+    it("should cancel booking successfully", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      const reason = "Test reason";
+      const expectedSavedBooking = {
+        id: mockBooking.id,
+        status: BookingStatus.CANCELLED,
+        cancelledAt: expect.any(Date) as Date,
+        cancellationReason: reason,
+      };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
+      );
+      const result = await service.cancel("booking1", reason);
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.cancellationReason).toBe(reason);
+      expect(mockBookingRepository.save).toHaveBeenCalledWith(
+        expectedSavedBooking
+      );
+    });
+  });
+  describe("findUpcoming", () => {
+    it("should return upcoming bookings", async () => {
+      const mockBookings: MockBooking[] = [
+        { id: "booking1" },
+        { id: "booking2" },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.findUpcoming();
+      expect(result).toEqual(mockBookings);
+      const expectedFindOptions: FindOptions = {
+        where: expect.any(Object),
+        relations: ["customer", "employee", "employee.user", "service"],
+        order: { startTime: "ASC" },
+      };
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(
+        expectedFindOptions
+      );
+    });
+  });
+  describe("getUpcomingCount", () => {
+    it("should return upcoming count and customers", async () => {
+      const mockBookings: Partial<Booking>[] = [
+        {
+          id: "booking1",
+          customer: {
+            id: "user1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "1234567890",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service1",
+            name: "Haircut",
+            description: "Basic haircut",
+            duration: 30,
+            price: 50,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        {
+          id: "booking2",
+          customer: {
+            id: "user2",
+            firstName: "Jane",
+            lastName: "Doe",
+            email: "jane@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "0987654321",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service2",
+            name: "Styling",
+            description: "Hair styling",
+            duration: 45,
+            price: 75,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.getUpcomingCount();
+      expect(result.count).toBe(2);
+      expect(result.customers).toHaveLength(2);
+      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
+    });
+  });
+});
+````
+
 ## File: backend/src/bookings/bookings.service.ts
 ````typescript
 import {
@@ -5917,6 +6299,341 @@ import { Booking } from '../bookings/entities/booking.entity';
   exports: [EmployeesService],
 })
 export class EmployeesModule {}
+````
+
+## File: backend/src/employees/employees.service.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository, Not, LessThan, MoreThan } from 'typeorm';
+import { EmployeesService } from './employees.service';
+import { Employee } from './entities/employee.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+jest.mock('bcrypt', () => ({
+  hash: jest.fn().mockResolvedValue('hashed_password'),
+}));
+describe('EmployeesService', () => {
+  let service: EmployeesService;
+  let employeeRepository: Repository<Employee>;
+  let bookingRepository: Repository<Booking>;
+  let userRepository: Repository<User>;
+  const mockUser = {
+    id: 'user-1',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john@example.com',
+    role: UserRole.EMPLOYEE,
+    password: 'password123',
+  } as User;
+  const mockEmployee = {
+    id: 'employee-1',
+    user: mockUser,
+    specializations: ['haircut'],
+    isActive: true,
+    availability: {
+      monday: [{ start: '09:00', end: '17:00' }],
+    },
+  } as Employee;
+  const mockEmployeeRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    update: jest.fn(),
+  };
+  const mockBookingRepository = {
+    count: jest.fn(),
+  };
+  const mockUserRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EmployeesService,
+        {
+          provide: getRepositoryToken(Employee),
+          useValue: mockEmployeeRepository,
+        },
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<EmployeesService>(EmployeesService);
+    employeeRepository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
+    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
+    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+  describe('create', () => {
+    const createEmployeeDto = {
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      specializations: ['haircut'],
+    };
+    it('should create an employee successfully', async () => {
+      // Mock email check
+      mockUserRepository.findOne.mockResolvedValue(null);
+      // Mock user creation
+      const mockCreatedUser = {
+        ...mockUser,
+        password: 'hashed_password',
+      };
+      mockUserRepository.create.mockReturnValue(mockCreatedUser);
+      mockUserRepository.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
+      // Mock employee creation
+      const mockCreatedEmployee = {
+        user: mockCreatedUser,
+        specializations: createEmployeeDto.specializations,
+        isActive: true,
+        availability: {},
+      };
+      mockEmployeeRepository.create.mockReturnValue(mockCreatedEmployee);
+      mockEmployeeRepository.save.mockResolvedValue({ ...mockCreatedEmployee, id: 'employee-1' });
+      const result = await service.create(createEmployeeDto);
+      expect(result.employee).toBeDefined();
+      expect(result.temporaryPassword).toBeDefined();
+      expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: createEmployeeDto.email }
+      });
+      expect(userRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        email: createEmployeeDto.email,
+        firstName: createEmployeeDto.firstName,
+        lastName: createEmployeeDto.lastName,
+        role: UserRole.EMPLOYEE,
+        password: 'hashed_password',
+      }));
+      expect(userRepository.save).toHaveBeenCalled();
+      expect(employeeRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        specializations: createEmployeeDto.specializations,
+        isActive: true,
+        availability: {},
+      }));
+      expect(employeeRepository.save).toHaveBeenCalled();
+    });
+    it('should throw ConflictException if email exists', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      await expect(service.create(createEmployeeDto)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(employeeRepository.save).not.toHaveBeenCalled();
+    });
+  });
+  describe('findByUserId', () => {
+    it('should return employee when found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const result = await service.findByUserId('user-1');
+      expect(result).toEqual(mockEmployee);
+      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+        where: { user: { id: 'user-1' } },
+        relations: ['user', 'services'],
+      });
+    });
+    it('should throw NotFoundException when employee not found by user ID', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(service.findByUserId('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('resetPassword', () => {
+    it('should reset password successfully', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      const result = await service.resetPassword('employee-1');
+      expect(result).toBeDefined();
+      expect(result.temporaryPassword).toBeDefined();
+      expect(result.temporaryPassword.length).toBe(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
+      expect(userRepository.update).toHaveBeenCalledWith(
+        mockEmployee.user.id,
+        expect.objectContaining({
+          password: 'hashed_password',
+        })
+      );
+    });
+    it('should throw NotFoundException if employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(service.resetPassword('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('findOne', () => {
+    it('should return an employee when found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const result = await service.findOne('employee-1');
+      expect(result).toEqual(mockEmployee);
+      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'employee-1' },
+        relations: ['user', 'services'],
+      });
+    });
+    it('should throw NotFoundException when employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('isAvailable', () => {
+    const startTime = new Date('2024-01-01T10:00:00Z'); // Monday
+    const endTime = new Date('2024-01-01T11:00:00Z');
+    it('should return true when employee is available', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      mockBookingRepository.count.mockResolvedValue(0);
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+      expect(result).toBe(true);
+      expect(bookingRepository.count).toHaveBeenCalledWith({
+        where: {
+          employee: { id: 'employee-1' },
+          startTime: Not(MoreThan(endTime)),
+          endTime: Not(LessThan(startTime)),
+        },
+      });
+    });
+    it('should return false when employee has conflicting bookings', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      mockBookingRepository.count.mockResolvedValue(1);
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+      expect(result).toBe(false);
+    });
+    it('should exclude specified booking when checking availability', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      mockBookingRepository.count.mockResolvedValue(0);
+      const result = await service.isAvailable('employee-1', startTime, endTime, 'booking-1');
+      expect(result).toBe(true);
+      expect(bookingRepository.count).toHaveBeenCalledWith({
+        where: {
+          employee: { id: 'employee-1' },
+          startTime: Not(MoreThan(endTime)),
+          endTime: Not(LessThan(startTime)),
+          id: Not('booking-1'),
+        },
+      });
+    });
+    it('should return false when employee is inactive', async () => {
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+      expect(result).toBe(false);
+    });
+    it('should return false when time is outside availability', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const startTimeOutside = new Date('2024-01-01T07:00:00Z'); // 7 AM UTC (outside 9-17)
+      const endTimeOutside = new Date('2024-01-01T08:00:00Z'); // 8 AM UTC (outside 9-17)
+      const result = await service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
+      expect(result).toBe(false);
+    });
+    it('should return false when no availability for the day', async () => {
+      const employeeNoAvailability = {
+        ...mockEmployee,
+        availability: {},
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeNoAvailability);
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+      expect(result).toBe(false);
+    });
+    it('should return false when empty availability slots for the day', async () => {
+      const employeeEmptySlots = {
+        ...mockEmployee,
+        availability: { monday: [] },
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(employeeEmptySlots);
+      const result = await service.isAvailable('employee-1', startTime, endTime);
+      expect(result).toBe(false);
+    });
+  });
+  describe('findAll', () => {
+    it('should return all active employees', async () => {
+      const mockEmployees = [mockEmployee];
+      mockEmployeeRepository.find.mockResolvedValue(mockEmployees);
+      const result = await service.findAll();
+      expect(result).toEqual(mockEmployees);
+      expect(employeeRepository.find).toHaveBeenCalledWith({
+        relations: ['user', 'services'],
+        where: { isActive: true },
+      });
+    });
+  });
+  describe('update', () => {
+    const updateEmployeeDto = {
+      firstName: 'John Updated',
+      specializations: ['haircut', 'coloring'],
+    };
+    it('should update employee successfully', async () => {
+      const updatedEmployee = {
+        ...mockEmployee,
+        ...updateEmployeeDto,
+      };
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      mockEmployeeRepository.save.mockResolvedValue(updatedEmployee);
+      const result = await service.update('employee-1', updateEmployeeDto);
+      expect(result).toEqual(updatedEmployee);
+      expect(employeeRepository.save).toHaveBeenCalled();
+    });
+    it('should throw NotFoundException if employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(
+        service.update('non-existent', updateEmployeeDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+  describe('remove', () => {
+    it('should mark employee as inactive', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.save.mockResolvedValue(inactiveEmployee);
+      await service.remove('employee-1');
+      expect(employeeRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+    });
+    it('should throw NotFoundException if employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(service.remove('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('restore', () => {
+    it('should mark employee as active', async () => {
+      const inactiveEmployee = { ...mockEmployee, isActive: false };
+      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
+      mockEmployeeRepository.save.mockResolvedValue(mockEmployee);
+      await service.restore('employee-1');
+      expect(employeeRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: true }),
+      );
+    });
+    it('should throw NotFoundException if employee not found', async () => {
+      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      await expect(service.restore('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/employees/employees.service.ts
@@ -17666,388 +18383,6 @@ export class AuthService {
 }
 ````
 
-## File: backend/src/bookings/bookings.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { User, UserRole } from "../users/entities/user.entity";
-describe("BookingsService", () => {
-  let service: BookingsService;
-  interface MockUser {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    phoneNumber: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-  interface FindOneOptions {
-    where: { id: string };
-    relations: string[];
-  }
-  interface FindOptions {
-    where: unknown;
-    relations: string[];
-    order: { startTime: "ASC" | "DESC" };
-  }
-  interface MockBooking {
-    id: string;
-    customer?: Partial<MockUser>;
-    service?: { id: string; duration: number };
-    employee?: { id: string };
-    status?: BookingStatus;
-    startTime?: Date;
-    endTime?: Date;
-    notes?: string;
-    totalPrice?: number;
-    cancelledAt?: Date;
-    cancellationReason?: string;
-  }
-  const mockBookingRepository = {
-    create: jest.fn().mockImplementation(
-      (dto: Partial<Booking>): MockBooking => ({
-        id: "booking1",
-        ...dto,
-      })
-    ),
-    save: jest
-      .fn()
-      .mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> =>
-          Promise.resolve({ id: "booking1", ...booking })
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
-      ),
-    find: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
-      ),
-  };
-  const mockUsersService = {
-    create: jest.fn(),
-    findOne: jest.fn(),
-  };
-  const mockEmployeesService = {
-    findOne: jest.fn(),
-    findAll: jest.fn(),
-    isAvailable: jest.fn(),
-  };
-  const mockServicesService = {
-    findOne: jest.fn(),
-  };
-  const mockOrdersService = {
-    create: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BookingsService,
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    service = module.get<BookingsService>(BookingsService);
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  describe("createWalkIn", () => {
-    const mockShop = {
-      id: "shop1",
-      code: "SHOP1",
-      shopName: "Test Shop",
-      isActive: true,
-      dailyBookingLimit: 100,
-      lastBookingTime: new Date(),
-      todayBookingCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const mockEmployee = { id: "emp1", isActive: true };
-    const mockCustomer = { id: "cust1" };
-    const createWalkInDto: CreateWalkInBookingDto = {
-      serviceId: "service1",
-      firstName: "John",
-      phoneNumber: "1234567890",
-      isPaid: true,
-    };
-    it("should create a walk-in booking successfully", async () => {
-      mockUsersService.create.mockResolvedValue(mockCustomer);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
-      mockBookingRepository.find.mockResolvedValue([]);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.createWalkIn(createWalkInDto, mockShop);
-      expect(result).toBeDefined();
-      expect(mockUsersService.create).toHaveBeenCalled();
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createWalkInDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when service not found", async () => {
-      mockServicesService.findOne.mockResolvedValue(null);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
-    it("should throw BadRequestException when no active employees", async () => {
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([]);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(BadRequestException);
-    });
-  });
-  describe("create", () => {
-    const mockCustomer = { id: "cust1" };
-    const mockEmployee = { id: "emp1" };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const createBookingDto: CreateBookingDto = {
-      customerId: "cust1",
-      employeeId: "emp1",
-      serviceId: "service1",
-      startTime: new Date().toISOString(),
-      notes: "Test booking",
-    };
-    it("should create a booking successfully", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.create(createBookingDto);
-      expect(result).toBeDefined();
-      expect(mockUsersService.findOne).toHaveBeenCalledWith(
-        createBookingDto.customerId
-      );
-      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.employeeId
-      );
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when customer not found", async () => {
-      mockUsersService.findOne.mockResolvedValue(null);
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-    it("should throw BadRequestException when employee not available", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("findOne", () => {
-    it("should return a booking when found", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      const result = await service.findOne("booking1");
-      expect(result).toBe(mockBooking);
-      const expectedOptions: FindOneOptions = {
-        where: { id: "booking1" },
-        relations: ["customer", "employee", "employee.user", "service"],
-      };
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
-        expectedOptions
-      );
-    });
-    it("should throw NotFoundException when booking not found", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-  });
-  describe("update", () => {
-    const mockBooking = {
-      id: "booking1",
-      service: { id: "service1" },
-      employee: { id: "emp1" },
-    };
-    const updateDto: UpdateBookingDto = {
-      startTime: new Date().toISOString(),
-    };
-    it("should update booking successfully", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const updatedBooking: MockBooking = {
-        id: mockBooking.id,
-        startTime: new Date(updateDto.startTime),
-        service: { id: mockBooking.service.id, duration: 30 },
-        employee: { id: mockBooking.employee.id },
-      };
-      mockBookingRepository.save.mockResolvedValue(updatedBooking);
-      const result = await service.update("booking1", updateDto);
-      expect(result).toBeDefined();
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw BadRequestException when employee not available for new time", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("cancel", () => {
-    it("should cancel booking successfully", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      const reason = "Test reason";
-      const expectedSavedBooking = {
-        id: mockBooking.id,
-        status: BookingStatus.CANCELLED,
-        cancelledAt: expect.any(Date) as Date,
-        cancellationReason: reason,
-      };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
-      );
-      const result = await service.cancel("booking1", reason);
-      expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe(reason);
-      expect(mockBookingRepository.save).toHaveBeenCalledWith(
-        expectedSavedBooking
-      );
-    });
-  });
-  describe("findUpcoming", () => {
-    it("should return upcoming bookings", async () => {
-      const mockBookings: MockBooking[] = [
-        { id: "booking1" },
-        { id: "booking2" },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.findUpcoming();
-      expect(result).toEqual(mockBookings);
-      const expectedFindOptions: FindOptions = {
-        where: expect.any(Object),
-        relations: ["customer", "employee", "employee.user", "service"],
-        order: { startTime: "ASC" },
-      };
-      expect(mockBookingRepository.find).toHaveBeenCalledWith(
-        expectedFindOptions
-      );
-    });
-  });
-  describe("getUpcomingCount", () => {
-    it("should return upcoming count and customers", async () => {
-      const mockBookings: Partial<Booking>[] = [
-        {
-          id: "booking1",
-          customer: {
-            id: "user1",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "1234567890",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service1",
-            name: "Haircut",
-            description: "Basic haircut",
-            duration: 30,
-            price: 50,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-        {
-          id: "booking2",
-          customer: {
-            id: "user2",
-            firstName: "Jane",
-            lastName: "Doe",
-            email: "jane@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "0987654321",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service2",
-            name: "Styling",
-            description: "Hair styling",
-            duration: 45,
-            price: 75,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.getUpcomingCount();
-      expect(result.count).toBe(2);
-      expect(result.customers).toHaveLength(2);
-      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
-    });
-  });
-});
-````
-
 ## File: backend/src/config/jwt.config.ts
 ````typescript
 import { registerAs } from '@nestjs/config';
@@ -19104,341 +19439,6 @@ describe("EmployeesController", () => {
       );
       await expect(controller.restore("non-existent")).rejects.toThrow(
         "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/employees/employees.service.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, Not, LessThan, MoreThan } from 'typeorm';
-import { EmployeesService } from './employees.service';
-import { Employee } from './entities/employee.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { User, UserRole } from '../users/entities/user.entity';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-jest.mock('bcrypt', () => ({
-  hash: jest.fn().mockResolvedValue('hashed_password'),
-}));
-describe('EmployeesService', () => {
-  let service: EmployeesService;
-  let employeeRepository: Repository<Employee>;
-  let bookingRepository: Repository<Booking>;
-  let userRepository: Repository<User>;
-  const mockUser = {
-    id: 'user-1',
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john@example.com',
-    role: UserRole.EMPLOYEE,
-    password: 'password123',
-  } as User;
-  const mockEmployee = {
-    id: 'employee-1',
-    user: mockUser,
-    specializations: ['haircut'],
-    isActive: true,
-    availability: {
-      monday: [{ start: '09:00', end: '17:00' }],
-    },
-  } as Employee;
-  const mockEmployeeRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    find: jest.fn(),
-    update: jest.fn(),
-  };
-  const mockBookingRepository = {
-    count: jest.fn(),
-  };
-  const mockUserRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EmployeesService,
-        {
-          provide: getRepositoryToken(Employee),
-          useValue: mockEmployeeRepository,
-        },
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<EmployeesService>(EmployeesService);
-    employeeRepository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
-    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-  describe('create', () => {
-    const createEmployeeDto = {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john@example.com',
-      specializations: ['haircut'],
-    };
-    it('should create an employee successfully', async () => {
-      // Mock email check
-      mockUserRepository.findOne.mockResolvedValue(null);
-      // Mock user creation
-      const mockCreatedUser = {
-        ...mockUser,
-        password: 'hashed_password',
-      };
-      mockUserRepository.create.mockReturnValue(mockCreatedUser);
-      mockUserRepository.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
-      // Mock employee creation
-      const mockCreatedEmployee = {
-        user: mockCreatedUser,
-        specializations: createEmployeeDto.specializations,
-        isActive: true,
-        availability: {},
-      };
-      mockEmployeeRepository.create.mockReturnValue(mockCreatedEmployee);
-      mockEmployeeRepository.save.mockResolvedValue({ ...mockCreatedEmployee, id: 'employee-1' });
-      const result = await service.create(createEmployeeDto);
-      expect(result.employee).toBeDefined();
-      expect(result.temporaryPassword).toBeDefined();
-      expect(result.temporaryPassword.length).toBe(8);
-      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: createEmployeeDto.email }
-      });
-      expect(userRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-        email: createEmployeeDto.email,
-        firstName: createEmployeeDto.firstName,
-        lastName: createEmployeeDto.lastName,
-        role: UserRole.EMPLOYEE,
-        password: 'hashed_password',
-      }));
-      expect(userRepository.save).toHaveBeenCalled();
-      expect(employeeRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-        specializations: createEmployeeDto.specializations,
-        isActive: true,
-        availability: {},
-      }));
-      expect(employeeRepository.save).toHaveBeenCalled();
-    });
-    it('should throw ConflictException if email exists', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      await expect(service.create(createEmployeeDto)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
-      expect(userRepository.save).not.toHaveBeenCalled();
-      expect(employeeRepository.save).not.toHaveBeenCalled();
-    });
-  });
-  describe('findByUserId', () => {
-    it('should return employee when found by user ID', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const result = await service.findByUserId('user-1');
-      expect(result).toEqual(mockEmployee);
-      expect(employeeRepository.findOne).toHaveBeenCalledWith({
-        where: { user: { id: 'user-1' } },
-        relations: ['user', 'services'],
-      });
-    });
-    it('should throw NotFoundException when employee not found by user ID', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(service.findByUserId('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('resetPassword', () => {
-    it('should reset password successfully', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      const result = await service.resetPassword('employee-1');
-      expect(result).toBeDefined();
-      expect(result.temporaryPassword).toBeDefined();
-      expect(result.temporaryPassword.length).toBe(8);
-      expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
-      expect(userRepository.update).toHaveBeenCalledWith(
-        mockEmployee.user.id,
-        expect.objectContaining({
-          password: 'hashed_password',
-        })
-      );
-    });
-    it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(service.resetPassword('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('findOne', () => {
-    it('should return an employee when found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const result = await service.findOne('employee-1');
-      expect(result).toEqual(mockEmployee);
-      expect(employeeRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'employee-1' },
-        relations: ['user', 'services'],
-      });
-    });
-    it('should throw NotFoundException when employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('isAvailable', () => {
-    const startTime = new Date('2024-01-01T10:00:00Z'); // Monday
-    const endTime = new Date('2024-01-01T11:00:00Z');
-    it('should return true when employee is available', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(0);
-      const result = await service.isAvailable('employee-1', startTime, endTime);
-      expect(result).toBe(true);
-      expect(bookingRepository.count).toHaveBeenCalledWith({
-        where: {
-          employee: { id: 'employee-1' },
-          startTime: Not(MoreThan(endTime)),
-          endTime: Not(LessThan(startTime)),
-        },
-      });
-    });
-    it('should return false when employee has conflicting bookings', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(1);
-      const result = await service.isAvailable('employee-1', startTime, endTime);
-      expect(result).toBe(false);
-    });
-    it('should exclude specified booking when checking availability', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(0);
-      const result = await service.isAvailable('employee-1', startTime, endTime, 'booking-1');
-      expect(result).toBe(true);
-      expect(bookingRepository.count).toHaveBeenCalledWith({
-        where: {
-          employee: { id: 'employee-1' },
-          startTime: Not(MoreThan(endTime)),
-          endTime: Not(LessThan(startTime)),
-          id: Not('booking-1'),
-        },
-      });
-    });
-    it('should return false when employee is inactive', async () => {
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
-      const result = await service.isAvailable('employee-1', startTime, endTime);
-      expect(result).toBe(false);
-    });
-    it('should return false when time is outside availability', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const startTimeOutside = new Date('2024-01-01T07:00:00Z'); // 7 AM UTC (outside 9-17)
-      const endTimeOutside = new Date('2024-01-01T08:00:00Z'); // 8 AM UTC (outside 9-17)
-      const result = await service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
-      expect(result).toBe(false);
-    });
-    it('should return false when no availability for the day', async () => {
-      const employeeNoAvailability = {
-        ...mockEmployee,
-        availability: {},
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(employeeNoAvailability);
-      const result = await service.isAvailable('employee-1', startTime, endTime);
-      expect(result).toBe(false);
-    });
-    it('should return false when empty availability slots for the day', async () => {
-      const employeeEmptySlots = {
-        ...mockEmployee,
-        availability: { monday: [] },
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(employeeEmptySlots);
-      const result = await service.isAvailable('employee-1', startTime, endTime);
-      expect(result).toBe(false);
-    });
-  });
-  describe('findAll', () => {
-    it('should return all active employees', async () => {
-      const mockEmployees = [mockEmployee];
-      mockEmployeeRepository.find.mockResolvedValue(mockEmployees);
-      const result = await service.findAll();
-      expect(result).toEqual(mockEmployees);
-      expect(employeeRepository.find).toHaveBeenCalledWith({
-        relations: ['user', 'services'],
-        where: { isActive: true },
-      });
-    });
-  });
-  describe('update', () => {
-    const updateEmployeeDto = {
-      firstName: 'John Updated',
-      specializations: ['haircut', 'coloring'],
-    };
-    it('should update employee successfully', async () => {
-      const updatedEmployee = {
-        ...mockEmployee,
-        ...updateEmployeeDto,
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockEmployeeRepository.save.mockResolvedValue(updatedEmployee);
-      const result = await service.update('employee-1', updateEmployeeDto);
-      expect(result).toEqual(updatedEmployee);
-      expect(employeeRepository.save).toHaveBeenCalled();
-    });
-    it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(
-        service.update('non-existent', updateEmployeeDto),
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
-  });
-  describe('remove', () => {
-    it('should mark employee as inactive', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.save.mockResolvedValue(inactiveEmployee);
-      await service.remove('employee-1');
-      expect(employeeRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: false }),
-      );
-    });
-    it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(service.remove('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('restore', () => {
-    it('should mark employee as active', async () => {
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
-      mockEmployeeRepository.save.mockResolvedValue(mockEmployee);
-      await service.restore('employee-1');
-      expect(employeeRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: true }),
-      );
-    });
-    it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
-      await expect(service.restore('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
       );
     });
   });
@@ -21550,55 +21550,6 @@ export class OrdersService {
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.27",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.2",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/src/shops/shops.service.ts
 ````typescript
 import { Injectable, UnauthorizedException } from "@nestjs/common";
@@ -21658,6 +21609,55 @@ export class ShopsService {
       { code },
       { dailyBookingLimit: limit }
     );
+  }
+}
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
   }
 }
 ````
@@ -21829,63 +21829,6 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 }
 ````
 
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^3.0.4",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.3",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vitest/coverage-v8": "4.1.3",
-    "@vitest/eslint-plugin": "1.6.15",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.4.27",
-    "cypress": "^15.0.0",
-    "eslint": "^10.0.0",
-    "eslint-plugin-cypress": "^6.3.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.9",
-    "prettier": "^3.8.2",
-    "start-server-and-test": "^2.1.5",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vite-plugin-vue-devtools": "^8.0.0",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/src/database/seeds/run-seeds.ts
 ````typescript
 import { DataSource, DataSourceOptions } from "typeorm";
@@ -21971,6 +21914,63 @@ if (require.main === module) {
   } catch (error: unknown) {
     console.error('Failed to create DataSource:', getErrorMessage(error));
     process.exit(1);
+  }
+}
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/coverage-v8": "4.1.3",
+    "@vitest/eslint-plugin": "1.6.15",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.4.27",
+    "cypress": "^15.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-cypress": "^6.3.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.5.9",
+    "prettier": "^3.8.2",
+    "start-server-and-test": "^2.1.5",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
   }
 }
 ````
