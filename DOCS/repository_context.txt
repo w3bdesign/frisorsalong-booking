@@ -7309,6 +7309,160 @@ module.exports = {
 }
 ````
 
+## File: backend/README.md
+````markdown
+# Hair Salon Booking System Backend
+
+A robust backend system for managing hair salon bookings,
+built with NestJS. This system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
+
+## Features
+
+- 🔐 JWT-based Authentication & Authorization
+- 👥 User Management
+- 📅 Booking System
+- 💇‍♀️ Service Management
+- 👨‍💼 Employee Management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+
+## Tech Stack
+
+- NestJS v10
+- TypeORM
+- PostgreSQL
+- Redis Cache
+- Passport JWT
+- Class Validator
+- Swagger UI
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- pnpm
+- PostgreSQL
+- Redis
+
+## Installation
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+2. Configure environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the values according to your setup
+
+## Database Setup
+
+1. Run migrations:
+
+```bash
+pnpm migration:run
+```
+
+2. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+To remove admin user:
+
+```bash
+pnpm remove-admin
+```
+
+## Running the Application
+
+```bash
+# Development
+pnpm start:dev
+
+# Production
+pnpm start:prod
+
+# Debug mode
+pnpm start:debug
+```
+
+## Testing
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+## Available Scripts
+
+- `pnpm start` - Start the application
+- `pnpm start:dev` - Start in watch mode
+- `pnpm build` - Build the application
+- `pnpm format` - Format code with Prettier
+- `pnpm lint` - Lint code with ESLint
+- `pnpm migration:generate` - Generate new migration
+- `pnpm migration:run` - Run migrations
+- `pnpm migration:revert` - Revert last migration
+- `pnpm seed` - Seed initial data
+- `pnpm remove-admin` - Remove admin user
+
+## Project Structure
+
+```text
+src/
+├── auth/               # Authentication & authorization
+├── bookings/          # Booking management
+├── config/            # Configuration modules
+├── database/          # Migrations & seeds
+├── employees/         # Employee management
+├── services/          # Service management
+├── users/             # User management
+└── main.ts            # Application entry point
+```
+
+## Environment Variables
+
+Required environment variables in `.env`:
+
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=your_database
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=24h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+## API Documentation
+
+Once the application is running, you can access the Swagger documentation at:
+
+```text
+http://localhost:3000/api
+```
+
+## License
+
+MIT
+````
+
 ## File: backend/renovate.json
 ````json
 {
@@ -19703,160 +19857,6 @@ if (require.main === module) {
 }
 ````
 
-## File: backend/README.md
-````markdown
-# Hair Salon Booking System Backend
-
-A robust backend system for managing hair salon bookings,
-built with NestJS. This system provides comprehensive functionality
-for managing appointments, employees, services, and user authentication.
-
-## Features
-
-- 🔐 JWT-based Authentication & Authorization
-- 👥 User Management
-- 📅 Booking System
-- 💇‍♀️ Service Management
-- 👨‍💼 Employee Management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-
-## Tech Stack
-
-- NestJS v10
-- TypeORM
-- PostgreSQL
-- Redis Cache
-- Passport JWT
-- Class Validator
-- Swagger UI
-
-## Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm
-- PostgreSQL
-- Redis
-
-## Installation
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-2. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Update the values according to your setup
-
-## Database Setup
-
-1. Run migrations:
-
-```bash
-pnpm migration:run
-```
-
-2. Seed initial data:
-
-```bash
-pnpm seed
-```
-
-To remove admin user:
-
-```bash
-pnpm remove-admin
-```
-
-## Running the Application
-
-```bash
-# Development
-pnpm start:dev
-
-# Production
-pnpm start:prod
-
-# Debug mode
-pnpm start:debug
-```
-
-## Testing
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-## Available Scripts
-
-- `pnpm start` - Start the application
-- `pnpm start:dev` - Start in watch mode
-- `pnpm build` - Build the application
-- `pnpm format` - Format code with Prettier
-- `pnpm lint` - Lint code with ESLint
-- `pnpm migration:generate` - Generate new migration
-- `pnpm migration:run` - Run migrations
-- `pnpm migration:revert` - Revert last migration
-- `pnpm seed` - Seed initial data
-- `pnpm remove-admin` - Remove admin user
-
-## Project Structure
-
-```text
-src/
-├── auth/               # Authentication & authorization
-├── bookings/          # Booking management
-├── config/            # Configuration modules
-├── database/          # Migrations & seeds
-├── employees/         # Employee management
-├── services/          # Service management
-├── users/             # User management
-└── main.ts            # Application entry point
-```
-
-## Environment Variables
-
-Required environment variables in `.env`:
-
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=your_database
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=24h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-## API Documentation
-
-Once the application is running, you can access the Swagger documentation at:
-
-```text
-http://localhost:3000/api
-```
-
-## License
-
-MIT
-````
-
 ## File: frontend/admin/src/stores/__tests__/auth.spec.ts
 ````typescript
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -21257,140 +21257,6 @@ module.exports = [
 ];
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.1.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.2",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.2.7",
-    "@nestjs/typeorm": "^11.0.1",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "7.2.8",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.0",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.20.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.0.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^10.0.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.1",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.7",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
-  }
-}
-````
-
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.27",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^3.4.17",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/src/auth/auth.module.spec.ts
 ````typescript
 import { PassportModule } from '@nestjs/passport';
@@ -21684,6 +21550,140 @@ export class OrdersService {
 }
 ````
 
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.7",
+    "@nestjs/typeorm": "^11.0.1",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-loader": "^9.5.7",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  }
+}
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: backend/src/shops/shops.service.ts
 ````typescript
 import { Injectable, UnauthorizedException } from "@nestjs/common";
@@ -21743,63 +21743,6 @@ export class ShopsService {
       { code },
       { dailyBookingLimit: limit }
     );
-  }
-}
-````
-
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.7.8",
-    "pinia": "^3.0.4",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.3",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vitest/coverage-v8": "4.1.3",
-    "@vitest/eslint-plugin": "1.6.15",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.4.27",
-    "cypress": "^15.0.0",
-    "eslint": "^10.0.0",
-    "eslint-plugin-cypress": "^6.3.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.9",
-    "prettier": "^3.8.1",
-    "start-server-and-test": "^2.1.5",
-    "tailwindcss": "^3.4.15",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vite-plugin-vue-devtools": "^8.0.0",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
   }
 }
 ````
@@ -21884,6 +21827,63 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
     throw error;
   }
 };
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.31",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/coverage-v8": "4.1.3",
+    "@vitest/eslint-plugin": "1.6.15",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.4.27",
+    "cypress": "^15.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-cypress": "^6.3.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.5.9",
+    "prettier": "^3.8.2",
+    "start-server-and-test": "^2.1.5",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
 ````
 
 ## File: backend/src/database/seeds/run-seeds.ts
