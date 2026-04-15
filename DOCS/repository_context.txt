@@ -7257,6 +7257,240 @@ import { AuthModule } from '../auth/auth.module';
 export class OrdersModule {}
 ````
 
+## File: backend/src/orders/orders.service.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository, FindOneOptions } from 'typeorm';
+import { OrdersService } from './orders.service';
+import { Order } from './entities/order.entity';
+import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+import { NotFoundException } from '@nestjs/common';
+import { Employee } from '../employees/entities/employee.entity';
+describe('OrdersService', () => {
+  let service: OrdersService;
+  let orderRepository: Repository<Order>;
+  let bookingRepository: Repository<Booking>;
+  let employeesService: EmployeesService;
+  const mockOrder: Order = {
+    id: 'order-1',
+    totalAmount: 100,
+    completedAt: new Date(),
+    booking: {
+      id: 'booking-1',
+      customer: { id: 'customer-1' },
+      employee: { 
+        id: 'employee-1',
+        user: { id: 'user-1' }
+      } as Employee,
+      service: { id: 'service-1' },
+      totalPrice: 100,
+      status: BookingStatus.COMPLETED,
+    } as Booking,
+  } as Order;
+  const mockBooking: Booking = {
+    id: 'booking-1',
+    customer: { id: 'customer-1' },
+    employee: { 
+      id: 'employee-1',
+      user: { id: 'user-1' }
+    } as Employee,
+    service: { id: 'service-1' },
+    totalPrice: 100,
+    status: BookingStatus.CONFIRMED,
+  } as Booking;
+  const mockEmployee: Employee = {
+    id: 'employee-1',
+    user: { id: 'user-1' },
+  } as Employee;
+  interface OrderWhere {
+    id?: string;
+    booking?: {
+      employee?: {
+        id?: string;
+      };
+    };
+  }
+  const mockOrderRepository = {
+    create: jest.fn().mockImplementation((dto: Partial<Order>): Order => ({
+      ...dto,
+      id: 'order-1',
+    } as Order)),
+    save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
+    find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
+    findOne: jest.fn().mockImplementation((options: FindOneOptions<Order>): Promise<Order | null> => {
+      if (!options.where) return Promise.resolve(null);
+      const whereCondition = options.where as OrderWhere;
+      // Check if this is a findOneByEmployee call
+      if (whereCondition.id === 'order-1' && 
+          whereCondition.booking?.employee?.id === 'employee-1') {
+        return Promise.resolve(mockOrder);
+      }
+      // Check if this is a regular findOne call
+      if (whereCondition.id === 'order-1' && !whereCondition.booking) {
+        return Promise.resolve(mockOrder);
+      }
+      return Promise.resolve(null);
+    }),
+  };
+  const mockBookingRepository = {
+    findOne: jest.fn().mockImplementation((): Promise<Booking> => Promise.resolve(mockBooking)),
+    save: jest.fn().mockImplementation((booking: Booking): Promise<Booking> => Promise.resolve(booking)),
+  };
+  const mockEmployeesService = {
+    findByUserId: jest.fn().mockImplementation((): Promise<Employee> => Promise.resolve(mockEmployee)),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrdersService,
+        {
+          provide: getRepositoryToken(Order),
+          useValue: mockOrderRepository,
+        },
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+      ],
+    }).compile();
+    service = module.get<OrdersService>(OrdersService);
+    orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
+    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
+    employeesService = module.get<EmployeesService>(EmployeesService);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+  describe('createFromBooking', () => {
+    it('should create an order from a confirmed booking', async () => {
+      const result = await service.createFromBooking('booking-1');
+      expect(result).toMatchObject({
+        id: expect.any(String) as string,
+        totalAmount: mockOrder.totalAmount,
+        completedAt: expect.any(Date) as Date,
+        booking: {
+          ...mockOrder.booking,
+          status: BookingStatus.COMPLETED,
+        },
+      });
+      expect(bookingRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'booking-1' },
+        relations: ['customer', 'employee', 'service'],
+      });
+      expect(bookingRepository.save).toHaveBeenCalledWith({
+        ...mockBooking,
+        status: BookingStatus.COMPLETED,
+      });
+      expect(orderRepository.create).toHaveBeenCalled();
+      expect(orderRepository.save).toHaveBeenCalled();
+    });
+    it('should throw NotFoundException if booking does not exist', async () => {
+      jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
+      await expect(service.createFromBooking('non-existent')).rejects.toBeInstanceOf(NotFoundException);
+      expect(bookingRepository.findOne).toHaveBeenCalled();
+    });
+  });
+  describe('findAll', () => {
+    it('should return an array of orders', async () => {
+      const result = await service.findAll();
+      expect(result).toEqual([mockOrder]);
+      expect(orderRepository.find).toHaveBeenCalledWith({
+        relations: [
+          'booking',
+          'booking.customer',
+          'booking.employee',
+          'booking.employee.user',
+          'booking.service',
+        ],
+        order: { completedAt: 'DESC' },
+      });
+    });
+  });
+  describe('findAllByEmployee', () => {
+    it('should return orders for a specific employee', async () => {
+      const result = await service.findAllByEmployee('user-1');
+      expect(result).toEqual([mockOrder]);
+      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
+      expect(orderRepository.find).toHaveBeenCalledWith({
+        where: {
+          booking: {
+            employee: {
+              id: mockEmployee.id,
+            },
+          },
+        },
+        relations: [
+          'booking',
+          'booking.customer',
+          'booking.employee',
+          'booking.employee.user',
+          'booking.service',
+        ],
+        order: { completedAt: 'DESC' },
+      });
+    });
+  });
+  describe('findOne', () => {
+    it('should return an order by id', async () => {
+      const result = await service.findOne('order-1');
+      expect(result).toEqual(mockOrder);
+      expect(orderRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'order-1' },
+        relations: [
+          'booking',
+          'booking.customer',
+          'booking.employee',
+          'booking.employee.user',
+          'booking.service',
+        ],
+      });
+    });
+    it('should throw NotFoundException if order does not exist', async () => {
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(NotFoundException);
+      expect(orderRepository.findOne).toHaveBeenCalled();
+    });
+  });
+  describe('findOneByEmployee', () => {
+    it('should return an order for a specific employee', async () => {
+      const result = await service.findOneByEmployee('order-1', 'user-1');
+      expect(result).toEqual(mockOrder);
+      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
+      expect(orderRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          id: 'order-1',
+          booking: {
+            employee: {
+              id: mockEmployee.id,
+            },
+          },
+        },
+        relations: [
+          'booking',
+          'booking.customer',
+          'booking.employee',
+          'booking.employee.user',
+          'booking.service',
+        ],
+      });
+    });
+    it('should throw NotFoundException if order does not exist', async () => {
+      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
+      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+      expect(orderRepository.findOne).toHaveBeenCalled();
+    });
+  });
+});
+````
+
 ## File: backend/src/services/entities/service.entity.spec.ts
 ````typescript
 import { Service } from './service.entity';
@@ -7509,6 +7743,104 @@ import { ServicesController } from './services.controller';
   exports: [ServicesService],
 })
 export class ServicesModule {}
+````
+
+## File: backend/src/services/services.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { ServicesService } from "./services.service";
+import { Service } from "./entities/service.entity";
+import { NotFoundException } from "@nestjs/common";
+describe("ServicesService", () => {
+  let service: ServicesService;
+  const mockService = {
+    id: "service-1",
+    name: "Haircut",
+    description: "Basic haircut service",
+    duration: 60,
+    price: 50,
+  };
+  const mockServiceRepository = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ServicesService,
+        {
+          provide: getRepositoryToken(Service),
+          useValue: mockServiceRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<ServicesService>(ServicesService);
+  });
+  it("should be defined", () => {
+    expect(service).toBeDefined();
+  });
+  describe("findOne", () => {
+    it("should return a service when found", async () => {
+      mockServiceRepository.findOne.mockResolvedValue(mockService);
+      const result = await service.findOne("service-1");
+      expect(result).toEqual(mockService);
+      expect(mockServiceRepository.findOne).toHaveBeenCalledWith({
+        where: { id: "service-1" },
+      });
+    });
+    it("should throw NotFoundException when service not found", async () => {
+      mockServiceRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne("non-existent")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+  });
+  describe("findAll", () => {
+    it("should return all services", async () => {
+      const mockServices = [mockService];
+      mockServiceRepository.find.mockResolvedValue(mockServices);
+      const result = await service.findAll();
+      expect(result).toEqual(mockServices);
+      expect(mockServiceRepository.find).toHaveBeenCalled();
+    });
+    it("should return empty array when no services exist", async () => {
+      mockServiceRepository.find.mockResolvedValue([]);
+      const result = await service.findAll();
+      expect(result).toEqual([]);
+      expect(mockServiceRepository.find).toHaveBeenCalled();
+    });
+  });
+  describe("findByEmployee", () => {
+    it("should return services for an employee", async () => {
+      const mockServices = [mockService];
+      mockServiceRepository.find.mockResolvedValue(mockServices);
+      const result = await service.findByEmployee("employee-1");
+      expect(result).toEqual(mockServices);
+      expect(mockServiceRepository.find).toHaveBeenCalledWith({
+        where: {
+          employees: {
+            id: "employee-1",
+          },
+        },
+        relations: ["employees"],
+      });
+    });
+    it("should return empty array when employee has no services", async () => {
+      mockServiceRepository.find.mockResolvedValue([]);
+      const result = await service.findByEmployee("employee-1");
+      expect(result).toEqual([]);
+      expect(mockServiceRepository.find).toHaveBeenCalledWith({
+        where: {
+          employees: {
+            id: "employee-1",
+          },
+        },
+        relations: ["employees"],
+      });
+    });
+  });
+});
 ````
 
 ## File: backend/src/services/services.service.ts
@@ -19445,240 +19777,6 @@ describe("EmployeesController", () => {
 });
 ````
 
-## File: backend/src/orders/orders.service.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, FindOneOptions } from 'typeorm';
-import { OrdersService } from './orders.service';
-import { Order } from './entities/order.entity';
-import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-import { NotFoundException } from '@nestjs/common';
-import { Employee } from '../employees/entities/employee.entity';
-describe('OrdersService', () => {
-  let service: OrdersService;
-  let orderRepository: Repository<Order>;
-  let bookingRepository: Repository<Booking>;
-  let employeesService: EmployeesService;
-  const mockOrder: Order = {
-    id: 'order-1',
-    totalAmount: 100,
-    completedAt: new Date(),
-    booking: {
-      id: 'booking-1',
-      customer: { id: 'customer-1' },
-      employee: { 
-        id: 'employee-1',
-        user: { id: 'user-1' }
-      } as Employee,
-      service: { id: 'service-1' },
-      totalPrice: 100,
-      status: BookingStatus.COMPLETED,
-    } as Booking,
-  } as Order;
-  const mockBooking: Booking = {
-    id: 'booking-1',
-    customer: { id: 'customer-1' },
-    employee: { 
-      id: 'employee-1',
-      user: { id: 'user-1' }
-    } as Employee,
-    service: { id: 'service-1' },
-    totalPrice: 100,
-    status: BookingStatus.CONFIRMED,
-  } as Booking;
-  const mockEmployee: Employee = {
-    id: 'employee-1',
-    user: { id: 'user-1' },
-  } as Employee;
-  interface OrderWhere {
-    id?: string;
-    booking?: {
-      employee?: {
-        id?: string;
-      };
-    };
-  }
-  const mockOrderRepository = {
-    create: jest.fn().mockImplementation((dto: Partial<Order>): Order => ({
-      ...dto,
-      id: 'order-1',
-    } as Order)),
-    save: jest.fn().mockImplementation((order: Order): Promise<Order> => Promise.resolve(order)),
-    find: jest.fn().mockImplementation((): Promise<Order[]> => Promise.resolve([mockOrder])),
-    findOne: jest.fn().mockImplementation((options: FindOneOptions<Order>): Promise<Order | null> => {
-      if (!options.where) return Promise.resolve(null);
-      const whereCondition = options.where as OrderWhere;
-      // Check if this is a findOneByEmployee call
-      if (whereCondition.id === 'order-1' && 
-          whereCondition.booking?.employee?.id === 'employee-1') {
-        return Promise.resolve(mockOrder);
-      }
-      // Check if this is a regular findOne call
-      if (whereCondition.id === 'order-1' && !whereCondition.booking) {
-        return Promise.resolve(mockOrder);
-      }
-      return Promise.resolve(null);
-    }),
-  };
-  const mockBookingRepository = {
-    findOne: jest.fn().mockImplementation((): Promise<Booking> => Promise.resolve(mockBooking)),
-    save: jest.fn().mockImplementation((booking: Booking): Promise<Booking> => Promise.resolve(booking)),
-  };
-  const mockEmployeesService = {
-    findByUserId: jest.fn().mockImplementation((): Promise<Employee> => Promise.resolve(mockEmployee)),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OrdersService,
-        {
-          provide: getRepositoryToken(Order),
-          useValue: mockOrderRepository,
-        },
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-      ],
-    }).compile();
-    service = module.get<OrdersService>(OrdersService);
-    orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
-    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    employeesService = module.get<EmployeesService>(EmployeesService);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-  describe('createFromBooking', () => {
-    it('should create an order from a confirmed booking', async () => {
-      const result = await service.createFromBooking('booking-1');
-      expect(result).toMatchObject({
-        id: expect.any(String) as string,
-        totalAmount: mockOrder.totalAmount,
-        completedAt: expect.any(Date) as Date,
-        booking: {
-          ...mockOrder.booking,
-          status: BookingStatus.COMPLETED,
-        },
-      });
-      expect(bookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-1' },
-        relations: ['customer', 'employee', 'service'],
-      });
-      expect(bookingRepository.save).toHaveBeenCalledWith({
-        ...mockBooking,
-        status: BookingStatus.COMPLETED,
-      });
-      expect(orderRepository.create).toHaveBeenCalled();
-      expect(orderRepository.save).toHaveBeenCalled();
-    });
-    it('should throw NotFoundException if booking does not exist', async () => {
-      jest.spyOn(bookingRepository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.createFromBooking('non-existent')).rejects.toBeInstanceOf(NotFoundException);
-      expect(bookingRepository.findOne).toHaveBeenCalled();
-    });
-  });
-  describe('findAll', () => {
-    it('should return an array of orders', async () => {
-      const result = await service.findAll();
-      expect(result).toEqual([mockOrder]);
-      expect(orderRepository.find).toHaveBeenCalledWith({
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-        order: { completedAt: 'DESC' },
-      });
-    });
-  });
-  describe('findAllByEmployee', () => {
-    it('should return orders for a specific employee', async () => {
-      const result = await service.findAllByEmployee('user-1');
-      expect(result).toEqual([mockOrder]);
-      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(orderRepository.find).toHaveBeenCalledWith({
-        where: {
-          booking: {
-            employee: {
-              id: mockEmployee.id,
-            },
-          },
-        },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-        order: { completedAt: 'DESC' },
-      });
-    });
-  });
-  describe('findOne', () => {
-    it('should return an order by id', async () => {
-      const result = await service.findOne('order-1');
-      expect(result).toEqual(mockOrder);
-      expect(orderRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-      });
-    });
-    it('should throw NotFoundException if order does not exist', async () => {
-      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(NotFoundException);
-      expect(orderRepository.findOne).toHaveBeenCalled();
-    });
-  });
-  describe('findOneByEmployee', () => {
-    it('should return an order for a specific employee', async () => {
-      const result = await service.findOneByEmployee('order-1', 'user-1');
-      expect(result).toEqual(mockOrder);
-      expect(employeesService.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(orderRepository.findOne).toHaveBeenCalledWith({
-        where: {
-          id: 'order-1',
-          booking: {
-            employee: {
-              id: mockEmployee.id,
-            },
-          },
-        },
-        relations: [
-          'booking',
-          'booking.customer',
-          'booking.employee',
-          'booking.employee.user',
-          'booking.service',
-        ],
-      });
-    });
-    it('should throw NotFoundException if order does not exist', async () => {
-      jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findOneByEmployee('non-existent', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
-      expect(orderRepository.findOne).toHaveBeenCalled();
-    });
-  });
-});
-````
-
 ## File: backend/src/services/entities/service.entity.ts
 ````typescript
 import {
@@ -19711,104 +19809,6 @@ export class Service {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-````
-
-## File: backend/src/services/services.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { ServicesService } from "./services.service";
-import { Service } from "./entities/service.entity";
-import { NotFoundException } from "@nestjs/common";
-describe("ServicesService", () => {
-  let service: ServicesService;
-  const mockService = {
-    id: "service-1",
-    name: "Haircut",
-    description: "Basic haircut service",
-    duration: 60,
-    price: 50,
-  };
-  const mockServiceRepository = {
-    findOne: jest.fn(),
-    find: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ServicesService,
-        {
-          provide: getRepositoryToken(Service),
-          useValue: mockServiceRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<ServicesService>(ServicesService);
-  });
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-  describe("findOne", () => {
-    it("should return a service when found", async () => {
-      mockServiceRepository.findOne.mockResolvedValue(mockService);
-      const result = await service.findOne("service-1");
-      expect(result).toEqual(mockService);
-      expect(mockServiceRepository.findOne).toHaveBeenCalledWith({
-        where: { id: "service-1" },
-      });
-    });
-    it("should throw NotFoundException when service not found", async () => {
-      mockServiceRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne("non-existent")).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-  });
-  describe("findAll", () => {
-    it("should return all services", async () => {
-      const mockServices = [mockService];
-      mockServiceRepository.find.mockResolvedValue(mockServices);
-      const result = await service.findAll();
-      expect(result).toEqual(mockServices);
-      expect(mockServiceRepository.find).toHaveBeenCalled();
-    });
-    it("should return empty array when no services exist", async () => {
-      mockServiceRepository.find.mockResolvedValue([]);
-      const result = await service.findAll();
-      expect(result).toEqual([]);
-      expect(mockServiceRepository.find).toHaveBeenCalled();
-    });
-  });
-  describe("findByEmployee", () => {
-    it("should return services for an employee", async () => {
-      const mockServices = [mockService];
-      mockServiceRepository.find.mockResolvedValue(mockServices);
-      const result = await service.findByEmployee("employee-1");
-      expect(result).toEqual(mockServices);
-      expect(mockServiceRepository.find).toHaveBeenCalledWith({
-        where: {
-          employees: {
-            id: "employee-1",
-          },
-        },
-        relations: ["employees"],
-      });
-    });
-    it("should return empty array when employee has no services", async () => {
-      mockServiceRepository.find.mockResolvedValue([]);
-      const result = await service.findByEmployee("employee-1");
-      expect(result).toEqual([]);
-      expect(mockServiceRepository.find).toHaveBeenCalledWith({
-        where: {
-          employees: {
-            id: "employee-1",
-          },
-        },
-        relations: ["employees"],
-      });
-    });
-  });
-});
 ````
 
 ## File: backend/src/shops/guards/shop-code.guard.spec.ts
@@ -21744,91 +21744,6 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 };
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.1.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.2",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.2.7",
-    "@nestjs/typeorm": "^11.0.1",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "7.2.8",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.0",
-    "dotenv": "^17.0.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.20.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "typeorm": "^0.3.20"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.4.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^10.0.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.2",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.7",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
-  }
-}
-````
-
 ## File: backend/src/database/seeds/run-seeds.ts
 ````typescript
 import { DataSource, DataSourceOptions } from "typeorm";
@@ -21914,6 +21829,91 @@ if (require.main === module) {
   } catch (error: unknown) {
     console.error('Failed to create DataSource:', getErrorMessage(error));
     process.exit(1);
+  }
+}
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.7",
+    "@nestjs/typeorm": "^11.0.1",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "dotenv": "^17.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-loader": "^9.5.7",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
   }
 }
 ````
