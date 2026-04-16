@@ -8433,6 +8433,60 @@ export class UsersService {
 }
 ````
 
+## File: backend/src/app.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+describe("AppController", () => {
+  let appController: AppController;
+  let appService: AppService;
+  let module: TestingModule;
+  beforeEach(async () => {
+    module = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [
+        {
+          provide: AppService,
+          useValue: {
+            getHello: jest.fn().mockReturnValue("Hello World!"),
+          },
+        },
+      ],
+    }).compile();
+    // Use type assertion here since we know these types are correct
+    // based on our module configuration
+    appController = module.get(AppController);
+    appService = module.get(AppService);
+    // Verify the instances are correct
+    if (!(appController instanceof AppController)) {
+      throw new Error('Failed to get AppController instance');
+    }
+    if (typeof appService.getHello !== 'function') {
+      throw new Error('Invalid AppService instance: getHello method not found');
+    }
+  });
+  describe("root", () => {
+    it('should return API information', () => {
+      const mockGetHello = jest.spyOn(appService, 'getHello');
+      expect(appController.getInfo()).toBe("Hello World!");
+      expect(mockGetHello).toHaveBeenCalled();
+    });
+  });
+  describe("docs", () => {
+    it('should have a docs endpoint that redirects', () => {
+      appController.getDocs();
+      // getDocs() returns void (redirect) — no return value to assert
+    });
+  });
+  describe("health", () => {
+    it('should return ok status', () => {
+      expect(appController.healthCheck()).toEqual({ status: 'ok' });
+    });
+  });
+});
+````
+
 ## File: backend/src/app.controller.ts
 ````typescript
 import { Controller, Get, Redirect } from "@nestjs/common";
@@ -20233,60 +20287,6 @@ describe('UsersService', () => {
 });
 ````
 
-## File: backend/src/app.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
-describe("AppController", () => {
-  let appController: AppController;
-  let appService: AppService;
-  let module: TestingModule;
-  beforeEach(async () => {
-    module = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [
-        {
-          provide: AppService,
-          useValue: {
-            getHello: jest.fn().mockReturnValue("Hello World!"),
-          },
-        },
-      ],
-    }).compile();
-    // Use type assertion here since we know these types are correct
-    // based on our module configuration
-    appController = module.get(AppController);
-    appService = module.get(AppService);
-    // Verify the instances are correct
-    if (!(appController instanceof AppController)) {
-      throw new Error('Failed to get AppController instance');
-    }
-    if (typeof appService.getHello !== 'function') {
-      throw new Error('Invalid AppService instance: getHello method not found');
-    }
-  });
-  describe("root", () => {
-    it('should return API information', () => {
-      const mockGetHello = jest.spyOn(appService, 'getHello');
-      expect(appController.getInfo()).toBe("Hello World!");
-      expect(mockGetHello).toHaveBeenCalled();
-    });
-  });
-  describe("docs", () => {
-    it('should have a docs endpoint that redirects', () => {
-      appController.getDocs();
-      // getDocs() returns void (redirect) — no return value to assert
-    });
-  });
-  describe("health", () => {
-    it('should return ok status', () => {
-      expect(appController.healthCheck()).toEqual({ status: 'ok' });
-    });
-  });
-});
-````
-
 ## File: backend/src/main.spec.ts
 ````typescript
 import { ValidationPipe, INestApplication } from "@nestjs/common";
@@ -21172,91 +21172,6 @@ export class User {
 }
 ````
 
-## File: backend/eslint.config.js
-````javascript
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const path = require("node:path");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsParser = require("@typescript-eslint/parser");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: path.join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs["recommended"].rules,
-      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          args: "after-used",
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          ignoreRestSiblings: true,
-        },
-      ],
-      // NestJS modules use empty decorated classes as a standard pattern
-      "@typescript-eslint/no-extraneous-class": [
-        "error",
-        {
-          allowWithDecorator: true,
-        },
-      ],
-      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
-      "@typescript-eslint/no-empty-function": [
-        "error",
-        {
-          allow: ["arrowFunctions"],
-        },
-      ],
-      // Disable redundant type constituent check to allow explicit union types
-      "@typescript-eslint/no-redundant-type-constituents": "warn",
-    },
-  },
-  {
-    // Relaxed rules for test files
-    files: ["src/**/*.spec.ts", "test/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-extraneous-class": "off",
-      "@typescript-eslint/no-empty-function": "off",
-      "@typescript-eslint/no-useless-constructor": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/no-redundant-type-constituents": "off",
-    },
-  },
-];
-````
-
 ## File: backend/src/auth/auth.module.spec.ts
 ````typescript
 import { PassportModule } from '@nestjs/passport';
@@ -21362,6 +21277,91 @@ describe('AuthModule', () => {
     });
   });
 });
+````
+
+## File: backend/eslint.config.js
+````javascript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsParser = require("@typescript-eslint/parser");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      // NestJS modules use empty decorated classes as a standard pattern
+      "@typescript-eslint/no-extraneous-class": [
+        "error",
+        {
+          allowWithDecorator: true,
+        },
+      ],
+      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
+      "@typescript-eslint/no-empty-function": [
+        "error",
+        {
+          allow: ["arrowFunctions"],
+        },
+      ],
+      // Disable redundant type constituent check to allow explicit union types
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
+    },
+  },
+  {
+    // Relaxed rules for test files
+    files: ["src/**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+    },
+  },
+];
 ````
 
 ## File: backend/src/bookings/bookings.module.spec.ts
@@ -21695,55 +21695,6 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 };
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.27",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.2",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/src/database/seeds/run-seeds.ts
 ````typescript
 import { DataSource, DataSourceOptions } from "typeorm";
@@ -21833,6 +21784,55 @@ if (require.main === module) {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.2.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -21902,7 +21902,7 @@ if (require.main === module) {
     "@types/supertest": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.16.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "jest": "^30.3.0",
@@ -21957,7 +21957,7 @@ if (require.main === module) {
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.4.27",
     "cypress": "^15.0.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.2.0",
     "eslint-plugin-cypress": "^6.3.0",
     "eslint-plugin-vue": "^10.8.0",
     "jsdom": "^28.1.0",
