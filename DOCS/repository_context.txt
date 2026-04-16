@@ -8173,6 +8173,54 @@ describe('ShopCodeGuard', () => {
 });
 ````
 
+## File: backend/src/shops/guards/shop-code.guard.ts
+````typescript
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ShopsService } from "../shops.service";
+import { Request } from "express";
+import { ShopCode } from "../entities/shop-code.entity";
+// Extend Express Request to include shop property
+interface RequestWithShop extends Request {
+  shop?: ShopCode;
+}
+@Injectable()
+export class ShopCodeGuard implements CanActivate {
+  constructor(private readonly shopsService: ShopsService) {}
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request: RequestWithShop = context.switchToHttp().getRequest();
+    const shopCode = this.getShopCodeFromHeaders(request);
+    if (!shopCode) {
+      throw new UnauthorizedException("Shop code is required");
+    }
+    try {
+      // Validate shop code and check rate limits
+      const shop = await this.shopsService.validateShopCode(shopCode);
+      // Add shop info to request for use in controllers
+      request.shop = shop;
+      return true;
+    } catch (error) {
+      // Ensure error is an Error object
+      if (error instanceof Error) {
+        throw new UnauthorizedException(error.message);
+      }
+      throw new UnauthorizedException("Invalid shop code");
+    }
+  }
+  private getShopCodeFromHeaders(request: RequestWithShop): string | undefined {
+    const header = request.headers["x-shop-code"];
+    if (Array.isArray(header)) {
+      return header[0];
+    }
+    return header;
+  }
+}
+````
+
 ## File: backend/src/shops/shops.module.spec.ts
 ````typescript
 import { Test } from '@nestjs/testing';
@@ -8398,6 +8446,142 @@ import { UsersService } from "./users.service";
   exports: [TypeOrmModule, UsersService],
 })
 export class UsersModule {}
+````
+
+## File: backend/src/users/users.service.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { FindOneOptions } from 'typeorm';
+import { UsersService } from './users.service';
+import { User } from './entities/user.entity';
+import { NotFoundException } from '@nestjs/common';
+type JestMock = jest.Mock;
+type MockCalls = Array<Array<unknown>>;
+describe('UsersService', () => {
+  let service: UsersService;
+  const mockUser = {
+    id: 'user-1',
+    email: 'test@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    password: 'hashedPassword',
+  };
+  const mockUserRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<UsersService>(UsersService);
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+  describe('findOne', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findOne('user-1');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('findByEmail', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findByEmail('test@example.com');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { email: 'test@example.com' },
+      });
+    });
+    it('should return null when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      const result = await service.findByEmail('nonexistent@example.com');
+      expect(result).toBeNull();
+    });
+  });
+  describe('create', () => {
+    const createUserData = {
+      email: 'new@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      password: 'password123',
+    };
+    it('should create and return a new user', async () => {
+      mockUserRepository.create.mockReturnValue(createUserData);
+      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
+      const result = await service.create(createUserData);
+      expect(result).toEqual({ id: 'new-user', ...createUserData });
+      const createMock = mockUserRepository.create as JestMock;
+      const saveMock = mockUserRepository.save as JestMock;
+      const createCalls = createMock.mock.calls as MockCalls;
+      const saveCalls = saveMock.mock.calls as MockCalls;
+      const lastCreateCall = createCalls[createCalls.length - 1];
+      const lastSaveCall = saveCalls[saveCalls.length - 1];
+      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
+      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
+      expect(lastCreateArgs).toEqual(createUserData);
+      expect(lastSaveArgs).toEqual(createUserData);
+    });
+  });
+  describe('update', () => {
+    const updateData = {
+      firstName: 'Updated',
+      lastName: 'Name',
+    };
+    it('should update and return the user', async () => {
+      const updatedUser = { ...mockUser, ...updateData };
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(updatedUser);
+      const result = await service.update('user-1', updateData);
+      expect(result).toEqual(updatedUser);
+      const updateMock = mockUserRepository.update as JestMock;
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const updateCalls = updateMock.mock.calls as MockCalls;
+      const findOneCalls = findOneMock.mock.calls as MockCalls;
+      const lastUpdateCall = updateCalls[updateCalls.length - 1];
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
+      expect(lastUpdateCall).toEqual(['user-1', updateData]);
+      expect(lastFindOneCall[0]).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found during update', async () => {
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/users/users.service.ts
@@ -19948,54 +20132,6 @@ export class Service {
 }
 ````
 
-## File: backend/src/shops/guards/shop-code.guard.ts
-````typescript
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
-} from "@nestjs/common";
-import { ShopsService } from "../shops.service";
-import { Request } from "express";
-import { ShopCode } from "../entities/shop-code.entity";
-// Extend Express Request to include shop property
-interface RequestWithShop extends Request {
-  shop?: ShopCode;
-}
-@Injectable()
-export class ShopCodeGuard implements CanActivate {
-  constructor(private readonly shopsService: ShopsService) {}
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request: RequestWithShop = context.switchToHttp().getRequest();
-    const shopCode = this.getShopCodeFromHeaders(request);
-    if (!shopCode) {
-      throw new UnauthorizedException("Shop code is required");
-    }
-    try {
-      // Validate shop code and check rate limits
-      const shop = await this.shopsService.validateShopCode(shopCode);
-      // Add shop info to request for use in controllers
-      request.shop = shop;
-      return true;
-    } catch (error) {
-      // Ensure error is an Error object
-      if (error instanceof Error) {
-        throw new UnauthorizedException(error.message);
-      }
-      throw new UnauthorizedException("Invalid shop code");
-    }
-  }
-  private getShopCodeFromHeaders(request: RequestWithShop): string | undefined {
-    const header = request.headers["x-shop-code"];
-    if (Array.isArray(header)) {
-      return header[0];
-    }
-    return header;
-  }
-}
-````
-
 ## File: backend/src/shops/shops.service.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -20145,142 +20281,6 @@ describe("ShopsService", () => {
       expect(mockRepository.update).toHaveBeenCalledWith(
         { code: "TEST123" },
         { dailyBookingLimit: 200 }
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/users/users.service.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { FindOneOptions } from 'typeorm';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
-import { NotFoundException } from '@nestjs/common';
-type JestMock = jest.Mock;
-type MockCalls = Array<Array<unknown>>;
-describe('UsersService', () => {
-  let service: UsersService;
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com',
-    firstName: 'John',
-    lastName: 'Doe',
-    password: 'hashedPassword',
-  };
-  const mockUserRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<UsersService>(UsersService);
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-  describe('findOne', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findOne('user-1');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('findByEmail', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findByEmail('test@example.com');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { email: 'test@example.com' },
-      });
-    });
-    it('should return null when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      const result = await service.findByEmail('nonexistent@example.com');
-      expect(result).toBeNull();
-    });
-  });
-  describe('create', () => {
-    const createUserData = {
-      email: 'new@example.com',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      password: 'password123',
-    };
-    it('should create and return a new user', async () => {
-      mockUserRepository.create.mockReturnValue(createUserData);
-      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
-      const result = await service.create(createUserData);
-      expect(result).toEqual({ id: 'new-user', ...createUserData });
-      const createMock = mockUserRepository.create as JestMock;
-      const saveMock = mockUserRepository.save as JestMock;
-      const createCalls = createMock.mock.calls as MockCalls;
-      const saveCalls = saveMock.mock.calls as MockCalls;
-      const lastCreateCall = createCalls[createCalls.length - 1];
-      const lastSaveCall = saveCalls[saveCalls.length - 1];
-      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
-      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
-      expect(lastCreateArgs).toEqual(createUserData);
-      expect(lastSaveArgs).toEqual(createUserData);
-    });
-  });
-  describe('update', () => {
-    const updateData = {
-      firstName: 'Updated',
-      lastName: 'Name',
-    };
-    it('should update and return the user', async () => {
-      const updatedUser = { ...mockUser, ...updateData };
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(updatedUser);
-      const result = await service.update('user-1', updateData);
-      expect(result).toEqual(updatedUser);
-      const updateMock = mockUserRepository.update as JestMock;
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const updateCalls = updateMock.mock.calls as MockCalls;
-      const findOneCalls = findOneMock.mock.calls as MockCalls;
-      const lastUpdateCall = updateCalls[updateCalls.length - 1];
-      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
-      expect(lastUpdateCall).toEqual(['user-1', updateData]);
-      expect(lastFindOneCall[0]).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found during update', async () => {
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
-        NotFoundException,
       );
     });
   });
@@ -21042,6 +21042,113 @@ describe('TVDisplayView', () => {
 })
 ````
 
+## File: backend/src/auth/auth.module.spec.ts
+````typescript
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth.module';
+import { UsersModule } from '../users/users.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { User } from '../users/entities/user.entity';
+import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
+type Constructor<T> = new (..._args: unknown[]) => T;
+interface ModuleMetadata {
+  imports: Array<Type<unknown> | DynamicModule>;
+  providers: Provider[];
+  exports: Array<Type<unknown> | DynamicModule>;
+  controllers: Constructor<unknown>[];
+}
+interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
+  provide: string;
+  useValue: { defaultStrategy: string };
+}
+interface JwtConfig extends FactoryProvider {
+  provide: string;
+  useFactory: (..._args: unknown[]) => unknown;
+  inject: Type<unknown>[];
+}
+interface TypeOrmEntityConfig {
+  provide: string;
+  useValue: {
+    targetEntitySchema: {
+      target: Constructor<User>;
+    };
+  };
+}
+jest.mock('../users/users.module');
+describe('AuthModule', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  describe('module metadata', () => {
+    it('should have the correct imports', () => {
+      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
+      // Check UsersModule
+      expect(imports).toContain(UsersModule);
+      // Check PassportModule (as dynamic module)
+      const passportModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === PassportModule
+      );
+      expect(passportModuleConfig).toBeDefined();
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
+      expect(passportProvider).toBeDefined();
+      expect(passportProvider?.useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
+      // Check JwtModule
+      const jwtModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === JwtModule
+      );
+      expect(jwtModuleConfig).toBeDefined();
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
+      expect(jwtProvider).toBeDefined();
+      expect(jwtProvider?.inject).toContain(ConfigService);
+      // Check TypeOrmModule
+      const typeOrmModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === TypeOrmModule
+      );
+      expect(typeOrmModuleConfig).toBeDefined();
+      // TypeOrmModule may not expose entity config in exports depending on version
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
+      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
+      expect(typeof hasEntityConfig).toBe('boolean');
+    });
+    it('should have the correct providers', () => {
+      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
+      expect(providers).toContain(AuthService);
+      expect(providers).toContain(JwtStrategy);
+      expect(providers).toContain(RolesGuard);
+    });
+    it('should have the correct exports', () => {
+      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
+      expect(exports).toContain(AuthService);
+      expect(exports).toContain(JwtStrategy);
+      expect(exports).toContain(RolesGuard);
+      expect(exports).toContain(JwtModule);
+      expect(exports).toContain(PassportModule);
+    });
+    it('should have the correct controllers', () => {
+      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
+      expect(controllers).toBeDefined();
+      expect(controllers.length).toBe(1);
+    });
+  });
+});
+````
+
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -21170,113 +21277,6 @@ export class User {
     return isMatch;
   }
 }
-````
-
-## File: backend/src/auth/auth.module.spec.ts
-````typescript
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth.module';
-import { UsersModule } from '../users/users.module';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards/roles.guard';
-import { User } from '../users/entities/user.entity';
-import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
-type Constructor<T> = new (..._args: unknown[]) => T;
-interface ModuleMetadata {
-  imports: Array<Type<unknown> | DynamicModule>;
-  providers: Provider[];
-  exports: Array<Type<unknown> | DynamicModule>;
-  controllers: Constructor<unknown>[];
-}
-interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
-  provide: string;
-  useValue: { defaultStrategy: string };
-}
-interface JwtConfig extends FactoryProvider {
-  provide: string;
-  useFactory: (..._args: unknown[]) => unknown;
-  inject: Type<unknown>[];
-}
-interface TypeOrmEntityConfig {
-  provide: string;
-  useValue: {
-    targetEntitySchema: {
-      target: Constructor<User>;
-    };
-  };
-}
-jest.mock('../users/users.module');
-describe('AuthModule', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  describe('module metadata', () => {
-    it('should have the correct imports', () => {
-      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
-      // Check UsersModule
-      expect(imports).toContain(UsersModule);
-      // Check PassportModule (as dynamic module)
-      const passportModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
-          imp.module === PassportModule
-      );
-      expect(passportModuleConfig).toBeDefined();
-      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
-      expect(passportProvider).toBeDefined();
-      expect(passportProvider?.useValue).toEqual({
-        defaultStrategy: 'jwt'
-      });
-      // Check JwtModule
-      const jwtModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === JwtModule
-      );
-      expect(jwtModuleConfig).toBeDefined();
-      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
-      expect(jwtProvider).toBeDefined();
-      expect(jwtProvider?.inject).toContain(ConfigService);
-      // Check TypeOrmModule
-      const typeOrmModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === TypeOrmModule
-      );
-      expect(typeOrmModuleConfig).toBeDefined();
-      // TypeOrmModule may not expose entity config in exports depending on version
-      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
-      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
-      expect(typeof hasEntityConfig).toBe('boolean');
-    });
-    it('should have the correct providers', () => {
-      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
-      expect(providers).toContain(AuthService);
-      expect(providers).toContain(JwtStrategy);
-      expect(providers).toContain(RolesGuard);
-    });
-    it('should have the correct exports', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
-      expect(exports).toContain(AuthService);
-      expect(exports).toContain(JwtStrategy);
-      expect(exports).toContain(RolesGuard);
-      expect(exports).toContain(JwtModule);
-      expect(exports).toContain(PassportModule);
-    });
-    it('should have the correct controllers', () => {
-      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
-      expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(1);
-    });
-  });
-});
 ````
 
 ## File: backend/eslint.config.js
@@ -21968,7 +21968,7 @@ if (require.main === module) {
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
     "vite": "^7.3.2",
-    "vite-plugin-vue-devtools": "^8.0.0",
+    "vite-plugin-vue-devtools": "^8.1.1",
     "vitest": "^4.1.3",
     "vue-tsc": "^3.2.6"
   }
