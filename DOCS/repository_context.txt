@@ -1715,6 +1715,184 @@ export * from "./jwt-auth.guard";
 export * from "./roles.guard";
 ````
 
+## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
+````typescript
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Test, TestingModule } from '@nestjs/testing';
+describe('JwtAuthGuard', () => {
+  let guard: JwtAuthGuard;
+  interface RequestMock {
+    headers: {
+      authorization?: string | string[];
+    };
+  }
+  const createMockContext = (request: RequestMock): ExecutionContext => ({
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    getHandler: jest.fn(),
+    getClass: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  } as unknown as ExecutionContext);
+  const testUnauthorizedScenario = (
+    scenario: {
+      headers: { authorization?: string | string[] },
+      expectedError: string
+    }
+  ) => {
+    const context = createMockContext({ headers: scenario.headers });
+    expect(() => guard.canActivate(context)).toThrow(
+      scenario.expectedError
+    );
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [JwtAuthGuard],
+    }).compile();
+    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
+  });
+  describe('canActivate', () => {
+    const authorizationScenarios = [
+      {
+        description: 'missing Authorization header',
+        headers: {},
+        expectedError: 'Missing Authorization header'
+      },
+      {
+        description: 'non-string Authorization header',
+        headers: { authorization: ['Bearer token'] },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'wrong auth type',
+        headers: { authorization: 'Basic token' },
+        expectedError: 'Authorization header must start with "Bearer "'
+      },
+      {
+        description: 'wrong format',
+        headers: { authorization: 'Bearer token extra' },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'missing token',
+        headers: { authorization: 'Bearer ' },
+        expectedError: 'Token not provided'
+      }
+    ];
+    authorizationScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
+        testUnauthorizedScenario(scenario);
+      });
+    });
+    it('should call super.canActivate when token is valid', () => {
+      const context = createMockContext({
+        headers: { authorization: 'Bearer valid-token' }
+      });
+      const superCanActivateSpy = jest
+        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
+        .mockImplementation(() => true);
+      const result = guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
+    });
+  });
+  describe('handleRequest', () => {
+    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
+    interface JwtError extends Error {
+      name: JwtErrorName;
+    }
+    function createJwtError(message: string, name: JwtErrorName): JwtError {
+      const error = new Error(message) as JwtError;
+      error.name = name;
+      return error;
+    }
+    const expectHandleRequestToThrow = (
+      error: Error | null,
+      info: JwtError | null,
+      expectedMessage: string
+    ): void => {
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, info);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError).message).toContain(expectedMessage);
+    };
+    it('should return user when authentication is successful', () => {
+      const user = { id: '1', email: 'test@example.com' };
+      const result = guard.handleRequest(null, user, null);
+      expect(result).toBe(user);
+    });
+    const errorScenarios: Array<{
+      description: string;
+      error: Error | null;
+      info: JwtError | null;
+      expectedMessage: string;
+      expectedType: typeof UnauthorizedException | typeof Error;
+    }> = [
+      {
+        description: 'user not authenticated',
+        error: null,
+        info: null,
+        expectedMessage: 'User not authenticated',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'invalid token format',
+        error: null,
+        info: createJwtError('invalid token', 'JsonWebTokenError'),
+        expectedMessage: 'Invalid token format',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'expired token',
+        error: null,
+        info: createJwtError('jwt expired', 'TokenExpiredError'),
+        expectedMessage: 'Token has expired',
+        expectedType: UnauthorizedException
+      }
+    ];
+    errorScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
+        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
+      });
+    });
+    it('should throw original error when error is provided', () => {
+      const error = new Error('Custom error');
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBe(error);
+    });
+    it('should convert non-Error error to UnauthorizedException', () => {
+      const errorMessage = 'string error';
+      // Pass a non-Error value to exercise the guard's String(err) branch
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(errorMessage as unknown as Error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect((thrownError).message).toContain(errorMessage);
+    });
+  });
+});
+````
+
 ## File: backend/src/auth/guards/jwt-auth.guard.ts
 ````typescript
 import { Injectable, ExecutionContext, UnauthorizedException, Logger } from "@nestjs/common";
@@ -7910,6 +8088,89 @@ export class ShopCode {
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt: Date;
 }
+````
+
+## File: backend/src/shops/guards/shop-code.guard.spec.ts
+````typescript
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ShopCodeGuard } from './shop-code.guard';
+import { ShopsService } from '../shops.service';
+import { Test } from '@nestjs/testing';
+import { ShopCode } from '../entities/shop-code.entity';
+// Helper functions to reduce nesting
+const createMockContext = (headers: Record<string, string> = {}): ExecutionContext => ({
+  switchToHttp: () => ({
+    getRequest: () => ({
+      headers,
+    }),
+  }),
+}) as ExecutionContext;
+const createMockShopCode = (overrides: Partial<ShopCode> = {}): ShopCode => ({
+  id: '1',
+  code: 'TEST123',
+  shopName: 'Test Shop',
+  isActive: true,
+  dailyBookingLimit: 100,
+  todayBookingCount: 0,
+  lastBookingTime: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
+describe('ShopCodeGuard', () => {
+  let guard: ShopCodeGuard;
+  const mockValidateShopCode = jest.fn();
+  const mockShopsService = {
+    validateShopCode: mockValidateShopCode,
+  };
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        ShopCodeGuard,
+        {
+          provide: ShopsService,
+          useValue: mockShopsService,
+        },
+      ],
+    }).compile();
+    guard = moduleRef.get<ShopCodeGuard>(ShopCodeGuard);
+    // Clear mock calls between tests
+    mockValidateShopCode.mockReset();
+  });
+  test('guard should be defined', () => {
+    expect(guard).toBeDefined();
+  });
+  test('allows access with valid shop code', async () => {
+    // Arrange
+    const mockShopCode = createMockShopCode();
+    const mockContext = createMockContext({ 'x-shop-code': 'TEST123' });
+    mockValidateShopCode.mockResolvedValue(mockShopCode);
+    // Act
+    const result = await guard.canActivate(mockContext);
+    // Assert
+    expect(result).toBe(true);
+    expect(mockValidateShopCode).toHaveBeenCalledWith('TEST123');
+  });
+  test('throws UnauthorizedException when shop code header is missing', async () => {
+    // Arrange
+    const mockContext = createMockContext();
+    // Act & Assert
+    await expect(guard.canActivate(mockContext))
+      .rejects
+      .toBeInstanceOf(UnauthorizedException);
+    expect(mockValidateShopCode).not.toHaveBeenCalled();
+  });
+  test('throws UnauthorizedException when shop code is invalid', async () => {
+    // Arrange
+    const mockContext = createMockContext({ 'x-shop-code': 'INVALID' });
+    mockValidateShopCode.mockRejectedValue(new UnauthorizedException());
+    // Act & Assert
+    await expect(guard.canActivate(mockContext))
+      .rejects
+      .toBeInstanceOf(UnauthorizedException);
+    expect(mockValidateShopCode).toHaveBeenCalledWith('INVALID');
+  });
+});
 ````
 
 ## File: backend/src/shops/shops.module.spec.ts
@@ -18443,184 +18704,6 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
-````typescript
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { Test, TestingModule } from '@nestjs/testing';
-describe('JwtAuthGuard', () => {
-  let guard: JwtAuthGuard;
-  interface RequestMock {
-    headers: {
-      authorization?: string | string[];
-    };
-  }
-  const createMockContext = (request: RequestMock): ExecutionContext => ({
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-    getHandler: jest.fn(),
-    getClass: jest.fn(),
-    getArgs: jest.fn(),
-    getArgByIndex: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-  } as unknown as ExecutionContext);
-  const testUnauthorizedScenario = (
-    scenario: {
-      headers: { authorization?: string | string[] },
-      expectedError: string
-    }
-  ) => {
-    const context = createMockContext({ headers: scenario.headers });
-    expect(() => guard.canActivate(context)).toThrow(
-      scenario.expectedError
-    );
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard],
-    }).compile();
-    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-  });
-  describe('canActivate', () => {
-    const authorizationScenarios = [
-      {
-        description: 'missing Authorization header',
-        headers: {},
-        expectedError: 'Missing Authorization header'
-      },
-      {
-        description: 'non-string Authorization header',
-        headers: { authorization: ['Bearer token'] },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'wrong auth type',
-        headers: { authorization: 'Basic token' },
-        expectedError: 'Authorization header must start with "Bearer "'
-      },
-      {
-        description: 'wrong format',
-        headers: { authorization: 'Bearer token extra' },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'missing token',
-        headers: { authorization: 'Bearer ' },
-        expectedError: 'Token not provided'
-      }
-    ];
-    authorizationScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
-        testUnauthorizedScenario(scenario);
-      });
-    });
-    it('should call super.canActivate when token is valid', () => {
-      const context = createMockContext({
-        headers: { authorization: 'Bearer valid-token' }
-      });
-      const superCanActivateSpy = jest
-        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
-        .mockImplementation(() => true);
-      const result = guard.canActivate(context);
-      expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
-    });
-  });
-  describe('handleRequest', () => {
-    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
-    interface JwtError extends Error {
-      name: JwtErrorName;
-    }
-    function createJwtError(message: string, name: JwtErrorName): JwtError {
-      const error = new Error(message) as JwtError;
-      error.name = name;
-      return error;
-    }
-    const expectHandleRequestToThrow = (
-      error: Error | null,
-      info: JwtError | null,
-      expectedMessage: string
-    ): void => {
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, info);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(Error);
-      expect((thrownError).message).toContain(expectedMessage);
-    };
-    it('should return user when authentication is successful', () => {
-      const user = { id: '1', email: 'test@example.com' };
-      const result = guard.handleRequest(null, user, null);
-      expect(result).toBe(user);
-    });
-    const errorScenarios: Array<{
-      description: string;
-      error: Error | null;
-      info: JwtError | null;
-      expectedMessage: string;
-      expectedType: typeof UnauthorizedException | typeof Error;
-    }> = [
-      {
-        description: 'user not authenticated',
-        error: null,
-        info: null,
-        expectedMessage: 'User not authenticated',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'invalid token format',
-        error: null,
-        info: createJwtError('invalid token', 'JsonWebTokenError'),
-        expectedMessage: 'Invalid token format',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'expired token',
-        error: null,
-        info: createJwtError('jwt expired', 'TokenExpiredError'),
-        expectedMessage: 'Token has expired',
-        expectedType: UnauthorizedException
-      }
-    ];
-    errorScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
-        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
-      });
-    });
-    it('should throw original error when error is provided', () => {
-      const error = new Error('Custom error');
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBe(error);
-    });
-    it('should convert non-Error error to UnauthorizedException', () => {
-      const errorMessage = 'string error';
-      // Pass a non-Error value to exercise the guard's String(err) branch
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(errorMessage as unknown as Error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(UnauthorizedException);
-      expect((thrownError).message).toContain(errorMessage);
-    });
-  });
-});
-````
-
 ## File: backend/src/auth/auth.service.ts
 ````typescript
 import {
@@ -19811,89 +19894,6 @@ export class Service {
 }
 ````
 
-## File: backend/src/shops/guards/shop-code.guard.spec.ts
-````typescript
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { ShopCodeGuard } from './shop-code.guard';
-import { ShopsService } from '../shops.service';
-import { Test } from '@nestjs/testing';
-import { ShopCode } from '../entities/shop-code.entity';
-// Helper functions to reduce nesting
-const createMockContext = (headers: Record<string, string> = {}): ExecutionContext => ({
-  switchToHttp: () => ({
-    getRequest: () => ({
-      headers,
-    }),
-  }),
-}) as ExecutionContext;
-const createMockShopCode = (overrides: Partial<ShopCode> = {}): ShopCode => ({
-  id: '1',
-  code: 'TEST123',
-  shopName: 'Test Shop',
-  isActive: true,
-  dailyBookingLimit: 100,
-  todayBookingCount: 0,
-  lastBookingTime: new Date(),
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  ...overrides,
-});
-describe('ShopCodeGuard', () => {
-  let guard: ShopCodeGuard;
-  const mockValidateShopCode = jest.fn();
-  const mockShopsService = {
-    validateShopCode: mockValidateShopCode,
-  };
-  beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        ShopCodeGuard,
-        {
-          provide: ShopsService,
-          useValue: mockShopsService,
-        },
-      ],
-    }).compile();
-    guard = moduleRef.get<ShopCodeGuard>(ShopCodeGuard);
-    // Clear mock calls between tests
-    mockValidateShopCode.mockReset();
-  });
-  test('guard should be defined', () => {
-    expect(guard).toBeDefined();
-  });
-  test('allows access with valid shop code', async () => {
-    // Arrange
-    const mockShopCode = createMockShopCode();
-    const mockContext = createMockContext({ 'x-shop-code': 'TEST123' });
-    mockValidateShopCode.mockResolvedValue(mockShopCode);
-    // Act
-    const result = await guard.canActivate(mockContext);
-    // Assert
-    expect(result).toBe(true);
-    expect(mockValidateShopCode).toHaveBeenCalledWith('TEST123');
-  });
-  test('throws UnauthorizedException when shop code header is missing', async () => {
-    // Arrange
-    const mockContext = createMockContext();
-    // Act & Assert
-    await expect(guard.canActivate(mockContext))
-      .rejects
-      .toBeInstanceOf(UnauthorizedException);
-    expect(mockValidateShopCode).not.toHaveBeenCalled();
-  });
-  test('throws UnauthorizedException when shop code is invalid', async () => {
-    // Arrange
-    const mockContext = createMockContext({ 'x-shop-code': 'INVALID' });
-    mockValidateShopCode.mockRejectedValue(new UnauthorizedException());
-    // Act & Assert
-    await expect(guard.canActivate(mockContext))
-      .rejects
-      .toBeInstanceOf(UnauthorizedException);
-    expect(mockValidateShopCode).toHaveBeenCalledWith('INVALID');
-  });
-});
-````
-
 ## File: backend/src/shops/guards/shop-code.guard.ts
 ````typescript
 import {
@@ -19940,6 +19940,161 @@ export class ShopCodeGuard implements CanActivate {
     return header;
   }
 }
+````
+
+## File: backend/src/shops/shops.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopsService } from "./shops.service";
+import { ShopCode } from "./entities/shop-code.entity";
+import { UnauthorizedException } from "@nestjs/common";
+describe("ShopsService", () => {
+  let service: ShopsService;
+  const mockRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopsService,
+        {
+          provide: getRepositoryToken(ShopCode),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<ShopsService>(ShopsService);
+    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
+    jest.clearAllMocks();
+  });
+  describe("validateShopCode", () => {
+    it("should validate a shop code successfully", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result).toBeDefined();
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException for invalid shop code", async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "INVALID", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException when daily limit is reached", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: new Date(),
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should reset counter for a new day", async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: yesterday,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("createShopCode", () => {
+    it("should create a shop code with provided code", async () => {
+      const mockShopCode: Partial<ShopCode> = {
+        code: "TEST123",
+        shopName: "Test Shop",
+      };
+      mockRepository.create.mockReturnValue(mockShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
+      const result = await service.createShopCode("Test Shop", "TEST123");
+      expect(result).toEqual(mockShopCode);
+      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
+      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
+    });
+    it("should create a shop code with auto-generated code", async () => {
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
+        ...data,
+        id: "test-id",
+        code: "ABC123", // Changed to 6 characters
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shopName: data.shopName ?? "Test Shop"
+      }));
+      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
+      const result = await service.createShopCode("Test Shop");
+      expect(result).toBeDefined();
+      expect(result.shopName).toBe("Test Shop");
+      expect(result.code).toBeDefined();
+      expect(typeof result.code).toBe("string");
+      expect(result.code.length).toBe(6);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("deactivateShopCode", () => {
+    it("should deactivate a shop code", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.deactivateShopCode("TEST123");
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { isActive: false }
+      );
+    });
+  });
+  describe("updateDailyLimit", () => {
+    it("should update daily booking limit", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.updateDailyLimit("TEST123", 200);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { dailyBookingLimit: 200 }
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/users/users.service.spec.ts
@@ -20958,161 +21113,6 @@ export class EmployeesController {
 }
 ````
 
-## File: backend/src/shops/shops.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ShopsService } from "./shops.service";
-import { ShopCode } from "./entities/shop-code.entity";
-import { UnauthorizedException } from "@nestjs/common";
-describe("ShopsService", () => {
-  let service: ShopsService;
-  const mockRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ShopsService,
-        {
-          provide: getRepositoryToken(ShopCode),
-          useValue: mockRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<ShopsService>(ShopsService);
-    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
-    jest.clearAllMocks();
-  });
-  describe("validateShopCode", () => {
-    it("should validate a shop code successfully", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result).toBeDefined();
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException for invalid shop code", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "INVALID", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException when daily limit is reached", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: new Date(),
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should reset counter for a new day", async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: yesterday,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("createShopCode", () => {
-    it("should create a shop code with provided code", async () => {
-      const mockShopCode: Partial<ShopCode> = {
-        code: "TEST123",
-        shopName: "Test Shop",
-      };
-      mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
-      const result = await service.createShopCode("Test Shop", "TEST123");
-      expect(result).toEqual(mockShopCode);
-      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
-    });
-    it("should create a shop code with auto-generated code", async () => {
-      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
-        ...data,
-        id: "test-id",
-        code: "ABC123", // Changed to 6 characters
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        shopName: data.shopName ?? "Test Shop"
-      }));
-      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
-      const result = await service.createShopCode("Test Shop");
-      expect(result).toBeDefined();
-      expect(result.shopName).toBe("Test Shop");
-      expect(result.code).toBeDefined();
-      expect(typeof result.code).toBe("string");
-      expect(result.code.length).toBe(6);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("deactivateShopCode", () => {
-    it("should deactivate a shop code", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.deactivateShopCode("TEST123");
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { isActive: false }
-      );
-    });
-  });
-  describe("updateDailyLimit", () => {
-    it("should update daily booking limit", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.updateDailyLimit("TEST123", 200);
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { dailyBookingLimit: 200 }
-      );
-    });
-  });
-});
-````
-
 ## File: backend/src/users/entities/user.entity.ts
 ````typescript
 import {
@@ -21613,55 +21613,6 @@ export class ShopsService {
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.4.27",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.2",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.3",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/src/database/seeds/create-sample-orders.seed.ts
 ````typescript
 import { DataSource, Repository } from "typeorm";
@@ -21742,6 +21693,55 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
     throw error;
   }
 };
+````
+
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "axios": "1.14.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.3",
+    "vue-tsc": "^3.2.6"
+  }
+}
 ````
 
 ## File: backend/src/database/seeds/run-seeds.ts
@@ -21940,7 +21940,7 @@ if (require.main === module) {
   "dependencies": {
     "axios": "^1.7.8",
     "pinia": "^3.0.4",
-    "vue": "^3.5.31",
+    "vue": "^3.5.32",
     "vue-router": "^5.0.0"
   },
   "devDependencies": {
