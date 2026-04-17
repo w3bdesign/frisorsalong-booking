@@ -4209,6 +4209,17 @@ describe('JWT Config', () => {
 });
 ````
 
+## File: backend/src/config/jwt.config.ts
+````typescript
+import { registerAs } from '@nestjs/config';
+export default registerAs('jwt', () => ({
+  secret: process.env.JWT_SECRET,
+  signOptions: {
+    expiresIn: process.env.JWT_EXPIRATION ?? '1h',
+  },
+}));
+````
+
 ## File: backend/src/database/migrations/1731981975581-InitialMigration.spec.ts
 ````typescript
 import { QueryRunner } from 'typeorm';
@@ -8755,6 +8766,77 @@ export class AppService {
   getHello(): string {
     return `Welcome to the Hair Salon Booking API! Please visit /api-docs for the API documentation.`;
   }
+}
+````
+
+## File: backend/src/main.ts
+````typescript
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+export async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create(AppModule);
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: true,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true,
+  });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      disableErrorMessages: false,
+      validationError: {
+        target: false,
+        value: false,
+      },
+    }),
+  );
+  const config = new DocumentBuilder()
+    .setTitle("Hair Salon Booking API")
+    .setDescription("API documentation for the Hair Salon Booking System")
+    .setVersion("1.0")
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth",
+    )
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api-docs", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: "none",
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(
+    `Swagger documentation is available at: http://localhost:${port}/api-docs`,
+  );
+}
+// Only call bootstrap if this file is being run directly
+if (require.main === module) {
+  bootstrap().catch((err: unknown) => {
+    console.error('Failed to start application:', err);
+    process.exit(1);
+  });
 }
 ````
 
@@ -19036,17 +19118,6 @@ export class AuthService {
 }
 ````
 
-## File: backend/src/config/jwt.config.ts
-````typescript
-import { registerAs } from '@nestjs/config';
-export default registerAs('jwt', () => ({
-  secret: process.env.JWT_SECRET,
-  signOptions: {
-    expiresIn: process.env.JWT_EXPIRATION ?? '1h',
-  },
-}));
-````
-
 ## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
 ````typescript
 import { DataSource, Repository, EntityTarget } from "typeorm";
@@ -20511,77 +20582,6 @@ describe("Bootstrap", () => {
 });
 ````
 
-## File: backend/src/main.ts
-````typescript
-import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-export async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  // Set global prefix for all routes
-  app.setGlobalPrefix('api');
-  app.enableCors({
-    origin: true,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    credentials: true,
-  });
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      disableErrorMessages: false,
-      validationError: {
-        target: false,
-        value: false,
-      },
-    }),
-  );
-  const config = new DocumentBuilder()
-    .setTitle("Hair Salon Booking API")
-    .setDescription("API documentation for the Hair Salon Booking System")
-    .setVersion("1.0")
-    .addBearerAuth(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth",
-    )
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api-docs", app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: "none",
-      filter: true,
-      showRequestDuration: true,
-    },
-  });
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(
-    `Swagger documentation is available at: http://localhost:${port}/api-docs`,
-  );
-}
-// Only call bootstrap if this file is being run directly
-if (require.main === module) {
-  bootstrap().catch((err: unknown) => {
-    console.error('Failed to start application:', err);
-    process.exit(1);
-  });
-}
-````
-
 ## File: frontend/admin/src/stores/__tests__/auth.spec.ts
 ````typescript
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -21894,7 +21894,7 @@ if (require.main === module) {
     "postcss": "^8.5.9",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.32",
-    "vue-router": "^5.0.0"
+    "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
@@ -21941,7 +21941,7 @@ if (require.main === module) {
     "axios": "^1.7.8",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
-    "vue-router": "^5.0.0"
+    "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@pinia/testing": "^1.0.3",
