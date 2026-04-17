@@ -13744,6 +13744,22 @@ const handleLogout = () => {
 </style>
 ````
 
+## File: frontend/admin/src/env.d.ts
+````typescript
+/// <reference types="vite/client" />
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+  const component: DefineComponent<object, object, unknown>;
+  export default component;
+}
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+````
+
 ## File: frontend/admin/src/main.ts
 ````typescript
 import { createApp } from "vue";
@@ -20793,22 +20809,6 @@ describe("Auth Store", () => {
 });
 ````
 
-## File: frontend/admin/src/env.d.ts
-````typescript
-/// <reference types="vite/client" />
-declare module "*.vue" {
-  import type { DefineComponent } from "vue";
-  const component: DefineComponent<object, object, unknown>;
-  export default component;
-}
-interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-}
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-````
-
 ## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -21819,13 +21819,13 @@ if (require.main === module) {
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.19",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.19",
     "@nestjs/swagger": "^11.2.7",
     "@nestjs/typeorm": "^11.0.1",
     "bcrypt": "^6.0.0",
@@ -21842,9 +21842,9 @@ if (require.main === module) {
   },
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
+    "@nestjs/cli": "^11.0.19",
+    "@nestjs/schematics": "^11.0.10",
+    "@nestjs/testing": "^11.1.19",
     "@types/bcrypt": "^6.0.0",    
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
