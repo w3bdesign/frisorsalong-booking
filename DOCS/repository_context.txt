@@ -8280,6 +8280,161 @@ import { ShopCode } from "./entities/shop-code.entity";
 export class ShopsModule {}
 ````
 
+## File: backend/src/shops/shops.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ShopsService } from "./shops.service";
+import { ShopCode } from "./entities/shop-code.entity";
+import { UnauthorizedException } from "@nestjs/common";
+describe("ShopsService", () => {
+  let service: ShopsService;
+  const mockRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopsService,
+        {
+          provide: getRepositoryToken(ShopCode),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<ShopsService>(ShopsService);
+    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
+    jest.clearAllMocks();
+  });
+  describe("validateShopCode", () => {
+    it("should validate a shop code successfully", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result).toBeDefined();
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException for invalid shop code", async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "INVALID", isActive: true },
+      });
+    });
+    it("should throw UnauthorizedException when daily limit is reached", async () => {
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: new Date(),
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { code: "TEST123", isActive: true },
+      });
+    });
+    it("should reset counter for a new day", async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const mockShopCode = {
+        code: "TEST123",
+        isActive: true,
+        todayBookingCount: 100,
+        dailyBookingLimit: 100,
+        lastBookingTime: yesterday,
+      };
+      mockRepository.findOne.mockResolvedValue(mockShopCode);
+      mockRepository.save.mockResolvedValue({
+        ...mockShopCode,
+        todayBookingCount: 1,
+      });
+      const result = await service.validateShopCode("TEST123");
+      expect(result.todayBookingCount).toBe(1);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("createShopCode", () => {
+    it("should create a shop code with provided code", async () => {
+      const mockShopCode: Partial<ShopCode> = {
+        code: "TEST123",
+        shopName: "Test Shop",
+      };
+      mockRepository.create.mockReturnValue(mockShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
+      const result = await service.createShopCode("Test Shop", "TEST123");
+      expect(result).toEqual(mockShopCode);
+      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
+      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
+    });
+    it("should create a shop code with auto-generated code", async () => {
+      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
+        ...data,
+        id: "test-id",
+        code: "ABC123", // Changed to 6 characters
+        isActive: true,
+        todayBookingCount: 0,
+        dailyBookingLimit: 100,
+        lastBookingTime: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shopName: data.shopName ?? "Test Shop"
+      }));
+      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
+      const result = await service.createShopCode("Test Shop");
+      expect(result).toBeDefined();
+      expect(result.shopName).toBe("Test Shop");
+      expect(result.code).toBeDefined();
+      expect(typeof result.code).toBe("string");
+      expect(result.code.length).toBe(6);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+  });
+  describe("deactivateShopCode", () => {
+    it("should deactivate a shop code", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.deactivateShopCode("TEST123");
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { isActive: false }
+      );
+    });
+  });
+  describe("updateDailyLimit", () => {
+    it("should update daily booking limit", async () => {
+      mockRepository.update.mockResolvedValue({ affected: 1 });
+      await service.updateDailyLimit("TEST123", 200);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { code: "TEST123" },
+        { dailyBookingLimit: 200 }
+      );
+    });
+  });
+});
+````
+
 ## File: backend/src/users/entities/user.entity.spec.ts
 ````typescript
 import { User } from './user.entity';
@@ -20219,161 +20374,6 @@ export class Service {
 }
 ````
 
-## File: backend/src/shops/shops.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ShopsService } from "./shops.service";
-import { ShopCode } from "./entities/shop-code.entity";
-import { UnauthorizedException } from "@nestjs/common";
-describe("ShopsService", () => {
-  let service: ShopsService;
-  const mockRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ShopsService,
-        {
-          provide: getRepositoryToken(ShopCode),
-          useValue: mockRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<ShopsService>(ShopsService);
-    module.get<Repository<ShopCode>>(getRepositoryToken(ShopCode));
-    jest.clearAllMocks();
-  });
-  describe("validateShopCode", () => {
-    it("should validate a shop code successfully", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result).toBeDefined();
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException for invalid shop code", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.validateShopCode("INVALID")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "INVALID", isActive: true },
-      });
-    });
-    it("should throw UnauthorizedException when daily limit is reached", async () => {
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: new Date(),
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      await expect(service.validateShopCode("TEST123")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { code: "TEST123", isActive: true },
-      });
-    });
-    it("should reset counter for a new day", async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const mockShopCode = {
-        code: "TEST123",
-        isActive: true,
-        todayBookingCount: 100,
-        dailyBookingLimit: 100,
-        lastBookingTime: yesterday,
-      };
-      mockRepository.findOne.mockResolvedValue(mockShopCode);
-      mockRepository.save.mockResolvedValue({
-        ...mockShopCode,
-        todayBookingCount: 1,
-      });
-      const result = await service.validateShopCode("TEST123");
-      expect(result.todayBookingCount).toBe(1);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("createShopCode", () => {
-    it("should create a shop code with provided code", async () => {
-      const mockShopCode: Partial<ShopCode> = {
-        code: "TEST123",
-        shopName: "Test Shop",
-      };
-      mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
-      const result = await service.createShopCode("Test Shop", "TEST123");
-      expect(result).toEqual(mockShopCode);
-      expect(mockRepository.create).toHaveBeenCalledWith(mockShopCode);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockShopCode);
-    });
-    it("should create a shop code with auto-generated code", async () => {
-      mockRepository.create.mockImplementation((data: Partial<ShopCode>): ShopCode => ({
-        ...data,
-        id: "test-id",
-        code: "ABC123", // Changed to 6 characters
-        isActive: true,
-        todayBookingCount: 0,
-        dailyBookingLimit: 100,
-        lastBookingTime: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        shopName: data.shopName ?? "Test Shop"
-      }));
-      mockRepository.save.mockImplementation((data: ShopCode): Promise<ShopCode> => Promise.resolve(data));
-      const result = await service.createShopCode("Test Shop");
-      expect(result).toBeDefined();
-      expect(result.shopName).toBe("Test Shop");
-      expect(result.code).toBeDefined();
-      expect(typeof result.code).toBe("string");
-      expect(result.code.length).toBe(6);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-  describe("deactivateShopCode", () => {
-    it("should deactivate a shop code", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.deactivateShopCode("TEST123");
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { isActive: false }
-      );
-    });
-  });
-  describe("updateDailyLimit", () => {
-    it("should update daily booking limit", async () => {
-      mockRepository.update.mockResolvedValue({ affected: 1 });
-      await service.updateDailyLimit("TEST123", 200);
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        { code: "TEST123" },
-        { dailyBookingLimit: 200 }
-      );
-    });
-  });
-});
-````
-
 ## File: backend/src/main.spec.ts
 ````typescript
 import { ValidationPipe, INestApplication } from "@nestjs/common";
@@ -21364,76 +21364,6 @@ module.exports = [
 ];
 ````
 
-## File: backend/src/bookings/bookings.module.spec.ts
-````typescript
-import { BookingsModule } from "./bookings.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
-type ModuleImport =
-  | Type<unknown>
-  | DynamicModule
-  | Promise<DynamicModule>
-  | ForwardReference;
-describe("BookingsModule", () => {
-  it("should have correct module metadata", () => {
-    // Get module metadata directly from the decorator
-    const moduleDecorator = Reflect.getMetadata(
-      "imports",
-      BookingsModule
-    ) as ModuleImport[];
-    // Check TypeOrmModule.forFeature
-    const typeOrmFeature = moduleDecorator.find(
-      (item): item is DynamicModule =>
-        item !== null &&
-        typeof item === "object" &&
-        "module" in item &&
-        item.module === TypeOrmModule
-    );
-    expect(typeOrmFeature).toBeDefined();
-    // Get all module names
-    const moduleNames = moduleDecorator
-      .map((item): string | null => {
-        if (typeof item === "function") {
-          const name: string = item.name;
-          return name;
-        }
-        if (item && typeof item === "object" && "name" in item) {
-          const nameValue: unknown = (item as Record<string, unknown>).name;
-          return typeof nameValue === 'string' ? nameValue : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name));
-    // Check for expected modules
-    const expectedModules = [
-      "UsersModule",
-      "ServicesModule",
-      "ShopsModule",
-      "AuthModule",
-    ];
-    expectedModules.forEach((moduleName) => {
-      expect(moduleNames).toContain(moduleName);
-    });
-  });
-  it("should export BookingsService and TypeOrmModule", () => {
-    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
-      Type<unknown> | DynamicModule
-    >;
-    expect(exports).toContain(BookingsService);
-    const hasTypeOrmExport = exports.some(
-      (exp): boolean =>
-        exp === TypeOrmModule ||
-        (exp !== null &&
-          typeof exp === "object" &&
-          "module" in exp &&
-          exp.module === TypeOrmModule)
-    );
-    expect(hasTypeOrmExport).toBe(true);
-  });
-});
-````
-
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -21548,6 +21478,76 @@ export class OrdersService {
     return order;
   }
 }
+````
+
+## File: backend/src/bookings/bookings.module.spec.ts
+````typescript
+import { BookingsModule } from "./bookings.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
+type ModuleImport =
+  | Type<unknown>
+  | DynamicModule
+  | Promise<DynamicModule>
+  | ForwardReference;
+describe("BookingsModule", () => {
+  it("should have correct module metadata", () => {
+    // Get module metadata directly from the decorator
+    const moduleDecorator = Reflect.getMetadata(
+      "imports",
+      BookingsModule
+    ) as ModuleImport[];
+    // Check TypeOrmModule.forFeature
+    const typeOrmFeature = moduleDecorator.find(
+      (item): item is DynamicModule =>
+        item !== null &&
+        typeof item === "object" &&
+        "module" in item &&
+        item.module === TypeOrmModule
+    );
+    expect(typeOrmFeature).toBeDefined();
+    // Get all module names
+    const moduleNames = moduleDecorator
+      .map((item): string | null => {
+        if (typeof item === "function") {
+          const name: string = item.name;
+          return name;
+        }
+        if (item && typeof item === "object" && "name" in item) {
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
+        }
+        return null;
+      })
+      .filter((name): name is string => Boolean(name));
+    // Check for expected modules
+    const expectedModules = [
+      "UsersModule",
+      "ServicesModule",
+      "ShopsModule",
+      "AuthModule",
+    ];
+    expectedModules.forEach((moduleName) => {
+      expect(moduleNames).toContain(moduleName);
+    });
+  });
+  it("should export BookingsService and TypeOrmModule", () => {
+    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
+      Type<unknown> | DynamicModule
+    >;
+    expect(exports).toContain(BookingsService);
+    const hasTypeOrmExport = exports.some(
+      (exp): boolean =>
+        exp === TypeOrmModule ||
+        (exp !== null &&
+          typeof exp === "object" &&
+          "module" in exp &&
+          exp.module === TypeOrmModule)
+    );
+    expect(hasTypeOrmExport).toBe(true);
+  });
+});
 ````
 
 ## File: backend/src/shops/shops.service.ts
@@ -21912,7 +21912,7 @@ if (require.main === module) {
     "prettier": "^3.8.2",
     "typescript": "~5.9.3",
     "vite": "^7.3.2",
-    "vitest": "^4.1.3",
+    "vitest": "^4.1.4",
     "vue-tsc": "^3.2.6"
   }
 }
@@ -21949,7 +21949,7 @@ if (require.main === module) {
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",
     "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/coverage-v8": "4.1.3",
+    "@vitest/coverage-v8": "4.1.4",
     "@vitest/eslint-plugin": "1.6.15",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
@@ -21969,7 +21969,7 @@ if (require.main === module) {
     "typescript": "~5.9.3",
     "vite": "^7.3.2",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vitest": "^4.1.3",
+    "vitest": "^4.1.4",
     "vue-tsc": "^3.2.6"
   }
 }
