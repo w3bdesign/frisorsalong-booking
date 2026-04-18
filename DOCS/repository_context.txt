@@ -21842,7 +21842,7 @@ if (require.main === module) {
   },
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
-    "@nestjs/cli": "^11.0.19",
+    "@nestjs/cli": "^11.0.21",
     "@nestjs/schematics": "^11.0.10",
     "@nestjs/testing": "^11.1.19",
     "@types/bcrypt": "^6.0.0",    
