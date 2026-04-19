@@ -9240,6 +9240,65 @@ describe('User Entity', () => {
 });
 ````
 
+## File: backend/src/users/entities/user.entity.ts
+````typescript
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
+} from "typeorm";
+import { Exclude } from "class-transformer";
+import * as bcrypt from "bcrypt";
+export enum UserRole {
+  CUSTOMER = "customer",
+  EMPLOYEE = "employee",
+  ADMIN = "admin",
+}
+@Entity("users")
+export class User {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+  @Column({ length: 100 })
+  firstName: string;
+  @Column({ length: 100 })
+  lastName: string;
+  @Column({ unique: true })
+  email: string;
+  @Column()
+  @Exclude()
+  password: string;
+  @Column({
+    type: "enum",
+    enum: UserRole,
+    default: UserRole.CUSTOMER,
+  })
+  role: UserRole;
+  @Column({ nullable: true })
+  phoneNumber: string;
+  @CreateDateColumn()
+  createdAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
+  @BeforeInsert()
+  @BeforeUpdate()
+  async hashPassword(): Promise<void> {
+    // Only hash the password if it has been modified
+    if (this.password) {
+      const salt = await bcrypt.genSalt();
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+  }
+  async validatePassword(password: string): Promise<boolean> {
+    const isMatch: boolean = await bcrypt.compare(password, this.password);
+    return isMatch;
+  }
+}
+````
+
 ## File: backend/src/users/enums/role.enum.spec.ts
 ````typescript
 import { Role } from "./role.enum";
@@ -20374,65 +20433,6 @@ export class Service {
 }
 ````
 
-## File: backend/src/users/entities/user.entity.ts
-````typescript
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-} from "typeorm";
-import { Exclude } from "class-transformer";
-import * as bcrypt from "bcrypt";
-export enum UserRole {
-  CUSTOMER = "customer",
-  EMPLOYEE = "employee",
-  ADMIN = "admin",
-}
-@Entity("users")
-export class User {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
-  @Column({ length: 100 })
-  firstName: string;
-  @Column({ length: 100 })
-  lastName: string;
-  @Column({ unique: true })
-  email: string;
-  @Column()
-  @Exclude()
-  password: string;
-  @Column({
-    type: "enum",
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
-  })
-  role: UserRole;
-  @Column({ nullable: true })
-  phoneNumber: string;
-  @CreateDateColumn()
-  createdAt: Date;
-  @UpdateDateColumn()
-  updatedAt: Date;
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword(): Promise<void> {
-    // Only hash the password if it has been modified
-    if (this.password) {
-      const salt = await bcrypt.genSalt();
-      this.password = await bcrypt.hash(this.password, salt);
-    }
-  }
-  async validatePassword(password: string): Promise<boolean> {
-    const isMatch: boolean = await bcrypt.compare(password, this.password);
-    return isMatch;
-  }
-}
-````
-
 ## File: backend/src/main.spec.ts
 ````typescript
 import { ValidationPipe, INestApplication } from "@nestjs/common";
@@ -21279,91 +21279,6 @@ export class EmployeesController {
 }
 ````
 
-## File: backend/eslint.config.js
-````javascript
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const path = require("node:path");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsParser = require("@typescript-eslint/parser");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
-module.exports = [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: path.join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs["recommended"].rules,
-      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          args: "after-used",
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          ignoreRestSiblings: true,
-        },
-      ],
-      // NestJS modules use empty decorated classes as a standard pattern
-      "@typescript-eslint/no-extraneous-class": [
-        "error",
-        {
-          allowWithDecorator: true,
-        },
-      ],
-      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
-      "@typescript-eslint/no-empty-function": [
-        "error",
-        {
-          allow: ["arrowFunctions"],
-        },
-      ],
-      // Disable redundant type constituent check to allow explicit union types
-      "@typescript-eslint/no-redundant-type-constituents": "warn",
-    },
-  },
-  {
-    // Relaxed rules for test files
-    files: ["src/**/*.spec.ts", "test/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-extraneous-class": "off",
-      "@typescript-eslint/no-empty-function": "off",
-      "@typescript-eslint/no-useless-constructor": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/no-redundant-type-constituents": "off",
-    },
-  },
-];
-````
-
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -21478,6 +21393,91 @@ export class OrdersService {
     return order;
   }
 }
+````
+
+## File: backend/eslint.config.js
+````javascript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsParser = require("@typescript-eslint/parser");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+module.exports = [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      // NestJS modules use empty decorated classes as a standard pattern
+      "@typescript-eslint/no-extraneous-class": [
+        "error",
+        {
+          allowWithDecorator: true,
+        },
+      ],
+      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
+      "@typescript-eslint/no-empty-function": [
+        "error",
+        {
+          allow: ["arrowFunctions"],
+        },
+      ],
+      // Disable redundant type constituent check to allow explicit union types
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
+    },
+  },
+  {
+    // Relaxed rules for test files
+    files: ["src/**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+    },
+  },
+];
 ````
 
 ## File: backend/src/bookings/bookings.module.spec.ts
@@ -21806,7 +21806,7 @@ if (require.main === module) {
     "axios": "1.14.0",
     "chart.js": "^4.5.0",
     "pinia": "^3.0.4",
-    "postcss": "^8.5.9",
+    "postcss": "^8.5.10",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
@@ -21962,7 +21962,7 @@ if (require.main === module) {
     "eslint-plugin-vue": "^10.8.0",
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.9",
+    "postcss": "^8.5.10",
     "prettier": "^3.8.2",
     "start-server-and-test": "^2.1.5",
     "tailwindcss": "^3.4.19",
