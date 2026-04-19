@@ -5370,6 +5370,292 @@ export const createAdminUser = async (dataSource: DataSource): Promise<void> => 
 };
 ````
 
+## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
+````typescript
+import { DataSource, Repository, EntityTarget } from "typeorm";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import { createInitialData } from "./create-initial-data.seed";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt");
+interface RepositoryMapping {
+  User: Repository<User>;
+  Employee: Repository<Employee>;
+  Service: Repository<Service>;
+}
+type SupportedEntity = User | Employee | Service;
+function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
+  if (typeof entity === "function") {
+    return entity.name as keyof RepositoryMapping;
+  }
+  throw new Error("Unsupported entity type");
+}
+describe("createInitialData", () => {
+  let mockDataSource: Partial<DataSource>;
+  let mockUserRepository: Partial<Repository<User>>;
+  let mockEmployeeRepository: Partial<Repository<Employee>>;
+  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockQueryBuilder: {
+    insert: jest.Mock;
+    into: jest.Mock;
+    values: jest.Mock;
+    execute: jest.Mock;
+  };
+  const originalEnv = process.env;
+  beforeEach(() => {
+    // Mock repositories with proper typing
+    mockUserRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<User>): Promise<User> =>
+          Promise.resolve({ id: "user-1", ...data } as User)
+        ),
+    };
+    mockEmployeeRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
+          Promise.resolve({ id: "employee-1", ...data } as Employee)
+        ),
+    };
+    mockServiceRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
+          Promise.resolve(
+            Array.isArray(services)
+              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
+              : { ...services, id: 'service-1' } as Service
+          )
+        ),
+    };
+    // Mock query builder for service associations
+    mockQueryBuilder = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
+    // Mock DataSource with proper typing
+    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
+      const repositories: RepositoryMapping = {
+        User: mockUserRepository as Repository<User>,
+        Employee: mockEmployeeRepository as Repository<Employee>,
+        Service: mockServiceRepository as Repository<Service>,
+      };
+      const entityName = getEntityName(entity);
+      const repository = repositories[entityName];
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+      return repository as unknown as Repository<T>;
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    };
+    // Mock bcrypt
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
+    // Setup test environment variables
+    process.env = {
+      ...originalEnv,
+      EMPLOYEE_EMAIL: "employee@example.com",
+      EMPLOYEE_PASSWORD: "employee123",
+      EMPLOYEE_PHONE: "+1234567890",
+    };
+    // Mock console methods
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.clearAllMocks();
+  });
+  test("creates services, employee user, and employee when they do not exist", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [
+      { id: "service-1", name: "Standard Klipp" },
+      { id: "service-2", name: "Styling Klipp" },
+      { id: "service-3", name: "Skjegg Trim" },
+      { id: "service-4", name: "Full Service" },
+    ];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were created
+    expect(mockServiceRepository.save).toHaveBeenCalledWith([
+      expect.objectContaining({ name: "Standard Klipp" }),
+      expect.objectContaining({ name: "Styling Klipp" }),
+      expect.objectContaining({ name: "Skjegg Trim" }),
+      expect.objectContaining({ name: "Full Service" }),
+    ]);
+    // Verify employee user was created
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "employee@example.com",
+        role: UserRole.EMPLOYEE,
+      })
+    );
+    // Verify employee was created
+    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: mockEmployeeUser,
+        specializations: ["klipp", "styling", "skjegg"],
+      })
+    );
+    // Verify services were associated with employee
+    expect(mockQueryBuilder.insert).toHaveBeenCalled();
+    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
+    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
+      mockServices.map((service) => ({
+        employee_id: mockEmployee.id,
+        service_id: service.id,
+      }))
+    );
+    // Verify success message was logged
+    expect(console.log).toHaveBeenCalledWith(
+      "Initial data seeded successfully"
+    );
+  });
+  test("does not create employee when it already exists", async () => {
+    // Mock that employee already exists
+    const existingEmployee = {
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
+      existingEmployee
+    );
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were still created
+    expect(mockServiceRepository.save).toHaveBeenCalled();
+    // Verify no employee creation attempts were made
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
+    // Verify appropriate message was logged
+    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
+  });
+  test("throws error when employee email is missing", async () => {
+    delete process.env.EMPLOYEE_EMAIL;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("throws error when employee password is missing", async () => {
+    delete process.env.EMPLOYEE_PASSWORD;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("handles database errors during service creation", async () => {
+    const dbError = new Error("Database error during service creation");
+    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles database errors during employee creation", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock employee creation error
+    const dbError = new Error("Database error during employee creation");
+    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles password hashing errors", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock bcrypt error
+    const hashError = new Error("Hashing failed");
+    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(hashError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      hashError.message
+    );
+  });
+  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
+    // Remove EMPLOYEE_PHONE from environment
+    delete process.env.EMPLOYEE_PHONE;
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify employee user was created with default phone number
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phoneNumber: "+1234567890", // This is the default value
+      })
+    );
+  });
+});
+````
+
 ## File: backend/src/database/seeds/create-initial-data.seed.ts
 ````typescript
 import { DataSource } from "typeorm";
@@ -6218,6 +6504,163 @@ export class CreateServicesSeed implements Seeder {
     await serviceRepository.save(services);
   }
 }
+````
+
+## File: backend/src/database/seeds/run-seeds.spec.ts
+````typescript
+import { DataSource } from "typeorm";
+import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
+import { createDataSource, runSeeds } from "./run-seeds";
+import { createAdminUser } from "./create-admin-user.seed";
+import { createInitialData } from "./create-initial-data.seed";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import { createSampleOrders } from "./create-sample-orders.seed";
+jest.mock("typeorm", () => {
+  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
+  return {
+    ...actualTypeorm,
+    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
+      if (options.url === "invalid-url") {
+        throw new Error("Invalid URL format");
+      }
+      return {
+        options,
+        initialize: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
+// Mock the seed functions with explicit factories to avoid loading actual modules
+// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
+jest.mock("./create-admin-user.seed", () => ({
+  createAdminUser: jest.fn(),
+}));
+jest.mock("./create-initial-data.seed", () => ({
+  createInitialData: jest.fn(),
+}));
+jest.mock("./create-sample-bookings.seed", () => ({
+  createSampleBookings: jest.fn(),
+}));
+jest.mock("./create-sample-orders.seed", () => ({
+  createSampleOrders: jest.fn(),
+}));
+describe("run-seeds", () => {
+  // Create a minimal mock of DataSource with required properties
+  const createMockDataSource = (): DataSource =>
+    ({
+      name: "default",
+      options: {} as PostgresConnectionOptions,
+      isInitialized: false,
+      initialize: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined),
+      isConnected: false,
+      close: jest.fn().mockResolvedValue(undefined),
+      connect: jest.fn().mockResolvedValue(undefined),
+      createEntityManager: jest.fn(),
+      createQueryRunner: jest.fn(),
+      getMetadata: jest.fn(),
+      hasMetadata: jest.fn(),
+      getRepository: jest.fn(),
+      getTreeRepository: jest.fn(),
+      getMongoRepository: jest.fn(),
+      transaction: jest.fn(),
+      driver: {},
+      manager: {},
+      mongoManager: undefined,
+      sqljsManager: undefined,
+      namingStrategy: {},
+      entityMetadatas: [],
+      subscribers: [],
+      migrations: [],
+      logger: console,
+      metadataTableName: "typeorm_metadata",
+      queryResultCache: null,
+      relationLoader: {},
+      relationIdLoader: {},
+    }) as unknown as DataSource;
+  const mockDataSource = createMockDataSource();
+  const originalEnv = process.env;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    console.log = jest.fn();
+    console.error = jest.fn();
+  });
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+  describe("createDataSource", () => {
+    it("should create a DataSource when DATABASE_URL is set", () => {
+      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
+      const dataSource = createDataSource();
+      expect(dataSource).toBeDefined();
+      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
+        process.env.DATABASE_URL
+      );
+    });
+    it("should throw error when DATABASE_URL is not set", () => {
+      delete process.env.DATABASE_URL;
+      expect(() => createDataSource()).toThrow(
+        "DATABASE_URL environment variable is not set"
+      );
+    });
+    it("should handle DataSource creation errors", () => {
+      process.env.DATABASE_URL = "invalid-url";
+      expect(() => createDataSource()).toThrow(
+        /Failed to create DataSource/
+      );
+    });
+  });
+  describe("runSeeds", () => {
+    it("should run all seeds successfully", async () => {
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createInitialData as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      const result = await runSeeds(mockDataSource);
+      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
+      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
+      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
+      expect(result).toBe(true);
+    });
+    it("should throw error for invalid DataSource", async () => {
+      const invalidDataSource = undefined as unknown as DataSource;
+      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
+        "Invalid DataSource provided"
+      );
+    });
+    it("should handle initialization error", async () => {
+      const errorDataSource = createMockDataSource();
+      errorDataSource.initialize = jest
+        .fn()
+        .mockRejectedValue(new Error("Init failed"));
+      await expect(runSeeds(errorDataSource)).rejects.toThrow(
+        "Seed operation failed: Init failed"
+      );
+    });
+    it("should handle seed operation errors", async () => {
+      const mockError = new Error("Seed operation failed");
+      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: Seed operation failed"
+      );
+    });
+    it("should handle non-Error objects in catch blocks", async () => {
+      // Mock createInitialData to reject with a string
+      (createInitialData as jest.Mock).mockRejectedValue("String error");
+      // Reset other mocks to resolve successfully
+      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
+      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
+      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
+      await expect(runSeeds(mockDataSource)).rejects.toThrow(
+        "Seed operation failed: String error"
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/database/seeds/seeder.interface.ts
@@ -19604,449 +20047,6 @@ export class AuthService {
 }
 ````
 
-## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
-````typescript
-import { DataSource, Repository, EntityTarget } from "typeorm";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Employee } from "../../employees/entities/employee.entity";
-import { Service } from "../../services/entities/service.entity";
-import { createInitialData } from "./create-initial-data.seed";
-import * as bcrypt from "bcrypt";
-jest.mock("bcrypt");
-interface RepositoryMapping {
-  User: Repository<User>;
-  Employee: Repository<Employee>;
-  Service: Repository<Service>;
-}
-type SupportedEntity = User | Employee | Service;
-function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
-  if (typeof entity === "function") {
-    return entity.name as keyof RepositoryMapping;
-  }
-  throw new Error("Unsupported entity type");
-}
-describe("createInitialData", () => {
-  let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockEmployeeRepository: Partial<Repository<Employee>>;
-  let mockServiceRepository: Partial<Repository<Service>>;
-  let mockQueryBuilder: {
-    insert: jest.Mock;
-    into: jest.Mock;
-    values: jest.Mock;
-    execute: jest.Mock;
-  };
-  const originalEnv = process.env;
-  beforeEach(() => {
-    // Mock repositories with proper typing
-    mockUserRepository = {
-      findOne: jest.fn().mockResolvedValue(null),
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<User>): Promise<User> =>
-          Promise.resolve({ id: "user-1", ...data } as User)
-        ),
-    };
-    mockEmployeeRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
-          Promise.resolve({ id: "employee-1", ...data } as Employee)
-        ),
-    };
-    mockServiceRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
-          Promise.resolve(
-            Array.isArray(services)
-              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
-              : { ...services, id: 'service-1' } as Service
-          )
-        ),
-    };
-    // Mock query builder for service associations
-    mockQueryBuilder = {
-      insert: jest.fn().mockReturnThis(),
-      into: jest.fn().mockReturnThis(),
-      values: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue(undefined),
-    };
-    // Mock DataSource with proper typing
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories: RepositoryMapping = {
-        User: mockUserRepository as Repository<User>,
-        Employee: mockEmployeeRepository as Repository<Employee>,
-        Service: mockServiceRepository as Repository<Service>,
-      };
-      const entityName = getEntityName(entity);
-      const repository = repositories[entityName];
-      if (!repository) {
-        throw new Error(`Repository not mocked for entity: ${entityName}`);
-      }
-      return repository as unknown as Repository<T>;
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockImplementation(mockGetRepository),
-      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
-    };
-    // Mock bcrypt
-    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
-    // Setup test environment variables
-    process.env = {
-      ...originalEnv,
-      EMPLOYEE_EMAIL: "employee@example.com",
-      EMPLOYEE_PASSWORD: "employee123",
-      EMPLOYEE_PHONE: "+1234567890",
-    };
-    // Mock console methods
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    process.env = originalEnv;
-    jest.clearAllMocks();
-  });
-  test("creates services, employee user, and employee when they do not exist", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [
-      { id: "service-1", name: "Standard Klipp" },
-      { id: "service-2", name: "Styling Klipp" },
-      { id: "service-3", name: "Skjegg Trim" },
-      { id: "service-4", name: "Full Service" },
-    ];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were created
-    expect(mockServiceRepository.save).toHaveBeenCalledWith([
-      expect.objectContaining({ name: "Standard Klipp" }),
-      expect.objectContaining({ name: "Styling Klipp" }),
-      expect.objectContaining({ name: "Skjegg Trim" }),
-      expect.objectContaining({ name: "Full Service" }),
-    ]);
-    // Verify employee user was created
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: "employee@example.com",
-        role: UserRole.EMPLOYEE,
-      })
-    );
-    // Verify employee was created
-    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user: mockEmployeeUser,
-        specializations: ["klipp", "styling", "skjegg"],
-      })
-    );
-    // Verify services were associated with employee
-    expect(mockQueryBuilder.insert).toHaveBeenCalled();
-    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
-    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
-      mockServices.map((service) => ({
-        employee_id: mockEmployee.id,
-        service_id: service.id,
-      }))
-    );
-    // Verify success message was logged
-    expect(console.log).toHaveBeenCalledWith(
-      "Initial data seeded successfully"
-    );
-  });
-  test("does not create employee when it already exists", async () => {
-    // Mock that employee already exists
-    const existingEmployee = {
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
-      existingEmployee
-    );
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were still created
-    expect(mockServiceRepository.save).toHaveBeenCalled();
-    // Verify no employee creation attempts were made
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
-    // Verify appropriate message was logged
-    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
-  });
-  test("throws error when employee email is missing", async () => {
-    delete process.env.EMPLOYEE_EMAIL;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("throws error when employee password is missing", async () => {
-    delete process.env.EMPLOYEE_PASSWORD;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("handles database errors during service creation", async () => {
-    const dbError = new Error("Database error during service creation");
-    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles database errors during employee creation", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock employee creation error
-    const dbError = new Error("Database error during employee creation");
-    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles password hashing errors", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock bcrypt error
-    const hashError = new Error("Hashing failed");
-    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(hashError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      hashError.message
-    );
-  });
-  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
-    // Remove EMPLOYEE_PHONE from environment
-    delete process.env.EMPLOYEE_PHONE;
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify employee user was created with default phone number
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phoneNumber: "+1234567890", // This is the default value
-      })
-    );
-  });
-});
-````
-
-## File: backend/src/database/seeds/run-seeds.spec.ts
-````typescript
-import { DataSource } from "typeorm";
-import { PostgresConnectionOptions } from "typeorm/driver/postgres/PostgresConnectionOptions";
-import { createDataSource, runSeeds } from "./run-seeds";
-import { createAdminUser } from "./create-admin-user.seed";
-import { createInitialData } from "./create-initial-data.seed";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import { createSampleOrders } from "./create-sample-orders.seed";
-jest.mock("typeorm", () => {
-  const actualTypeorm = jest.requireActual<typeof import("typeorm")>("typeorm");
-  return {
-    ...actualTypeorm,
-    DataSource: jest.fn().mockImplementation((options: { url?: string }) => {
-      if (options.url === "invalid-url") {
-        throw new Error("Invalid URL format");
-      }
-      return {
-        options,
-        initialize: jest.fn().mockResolvedValue(undefined),
-        destroy: jest.fn().mockResolvedValue(undefined),
-      };
-    }),
-  };
-});
-// Mock the seed functions with explicit factories to avoid loading actual modules
-// (create-sample-bookings.seed imports @faker-js/faker which is ESM-only)
-jest.mock("./create-admin-user.seed", () => ({
-  createAdminUser: jest.fn(),
-}));
-jest.mock("./create-initial-data.seed", () => ({
-  createInitialData: jest.fn(),
-}));
-jest.mock("./create-sample-bookings.seed", () => ({
-  createSampleBookings: jest.fn(),
-}));
-jest.mock("./create-sample-orders.seed", () => ({
-  createSampleOrders: jest.fn(),
-}));
-describe("run-seeds", () => {
-  // Create a minimal mock of DataSource with required properties
-  const createMockDataSource = (): DataSource =>
-    ({
-      name: "default",
-      options: {} as PostgresConnectionOptions,
-      isInitialized: false,
-      initialize: jest.fn().mockResolvedValue(undefined),
-      destroy: jest.fn().mockResolvedValue(undefined),
-      isConnected: false,
-      close: jest.fn().mockResolvedValue(undefined),
-      connect: jest.fn().mockResolvedValue(undefined),
-      createEntityManager: jest.fn(),
-      createQueryRunner: jest.fn(),
-      getMetadata: jest.fn(),
-      hasMetadata: jest.fn(),
-      getRepository: jest.fn(),
-      getTreeRepository: jest.fn(),
-      getMongoRepository: jest.fn(),
-      transaction: jest.fn(),
-      driver: {},
-      manager: {},
-      mongoManager: undefined,
-      sqljsManager: undefined,
-      namingStrategy: {},
-      entityMetadatas: [],
-      subscribers: [],
-      migrations: [],
-      logger: console,
-      metadataTableName: "typeorm_metadata",
-      queryResultCache: null,
-      relationLoader: {},
-      relationIdLoader: {},
-    }) as unknown as DataSource;
-  const mockDataSource = createMockDataSource();
-  const originalEnv = process.env;
-  beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    process.env = { ...originalEnv };
-    console.log = jest.fn();
-    console.error = jest.fn();
-  });
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-  describe("createDataSource", () => {
-    it("should create a DataSource when DATABASE_URL is set", () => {
-      process.env.DATABASE_URL = "postgresql://user:pass@localhost:5432/db";
-      const dataSource = createDataSource();
-      expect(dataSource).toBeDefined();
-      expect((dataSource.options as PostgresConnectionOptions).url).toBe(
-        process.env.DATABASE_URL
-      );
-    });
-    it("should throw error when DATABASE_URL is not set", () => {
-      delete process.env.DATABASE_URL;
-      expect(() => createDataSource()).toThrow(
-        "DATABASE_URL environment variable is not set"
-      );
-    });
-    it("should handle DataSource creation errors", () => {
-      process.env.DATABASE_URL = "invalid-url";
-      expect(() => createDataSource()).toThrow(
-        /Failed to create DataSource/
-      );
-    });
-  });
-  describe("runSeeds", () => {
-    it("should run all seeds successfully", async () => {
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createInitialData as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      const result = await runSeeds(mockDataSource);
-      expect(createAdminUser).toHaveBeenCalledWith(mockDataSource);
-      expect(createInitialData).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleBookings).toHaveBeenCalledWith(mockDataSource);
-      expect(createSampleOrders).toHaveBeenCalledWith(mockDataSource);
-      expect(result).toBe(true);
-    });
-    it("should throw error for invalid DataSource", async () => {
-      const invalidDataSource = undefined as unknown as DataSource;
-      await expect(runSeeds(invalidDataSource)).rejects.toThrow(
-        "Invalid DataSource provided"
-      );
-    });
-    it("should handle initialization error", async () => {
-      const errorDataSource = createMockDataSource();
-      errorDataSource.initialize = jest
-        .fn()
-        .mockRejectedValue(new Error("Init failed"));
-      await expect(runSeeds(errorDataSource)).rejects.toThrow(
-        "Seed operation failed: Init failed"
-      );
-    });
-    it("should handle seed operation errors", async () => {
-      const mockError = new Error("Seed operation failed");
-      (createAdminUser as jest.Mock).mockRejectedValue(mockError);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: Seed operation failed"
-      );
-    });
-    it("should handle non-Error objects in catch blocks", async () => {
-      // Mock createInitialData to reject with a string
-      (createInitialData as jest.Mock).mockRejectedValue("String error");
-      // Reset other mocks to resolve successfully
-      (createAdminUser as jest.Mock).mockResolvedValue(undefined);
-      (createSampleBookings as jest.Mock).mockResolvedValue(undefined);
-      (createSampleOrders as jest.Mock).mockResolvedValue(undefined);
-      await expect(runSeeds(mockDataSource)).rejects.toThrow(
-        "Seed operation failed: String error"
-      );
-    });
-  });
-});
-````
-
 ## File: backend/src/employees/employees.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -21881,7 +21881,7 @@ if (require.main === module) {
     "cache-manager": "7.2.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.0",
-    "dotenv": "^17.0.0",
+    "dotenv": "^17.4.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.20.0",
