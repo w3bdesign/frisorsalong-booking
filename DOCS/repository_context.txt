@@ -2749,6 +2749,100 @@ describe("AuthService", () => {
 });
 ````
 
+## File: backend/src/auth/auth.service.ts
+````typescript
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { LoginDto, RegisterDto } from "./dto";
+import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
+import { User } from "../users/entities/user.entity";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (existingUser) {
+        throw new ConflictException("E-postadressen er allerede i bruk");
+      }
+      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under registrering");
+    }
+  }
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    try {
+      const user = await this.usersService.findByEmail(loginDto.email);
+      if (!user) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const isPasswordValid = await bcrypt.compare(
+        loginDto.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
+      }
+      const token = this.generateToken(user);
+      const userWithoutPassword = this.excludePassword(user);
+      return {
+        user: userWithoutPassword,
+        token,
+      };
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException("Feil under innlogging");
+    }
+  }
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token: string = this.jwtService.sign(payload);
+    return token;
+  }
+  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
+    const { password: _password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+}
+````
+
 ## File: backend/src/bookings/dto/booking-response.dto.ts
 ````typescript
 import { Booking, BookingStatus } from "../entities/booking.entity";
@@ -20046,100 +20140,6 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/auth.service.ts
-````typescript
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
-import { AuthResponse, JwtPayload } from "./interfaces/auth.interface";
-import { User } from "../users/entities/user.entity";
-@Injectable()
-export class AuthService {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
-      if (existingUser) {
-        throw new ConflictException("E-postadressen er allerede i bruk");
-      }
-      const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-      const user = await this.usersService.create({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under registrering");
-    }
-  }
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    try {
-      const user = await this.usersService.findByEmail(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const isPasswordValid = await bcrypt.compare(
-        loginDto.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException("Ugyldige innloggingsdetaljer");
-      }
-      const token = this.generateToken(user);
-      const userWithoutPassword = this.excludePassword(user);
-      return {
-        user: userWithoutPassword,
-        token,
-      };
-    } catch (error: unknown) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-      throw new InternalServerErrorException("Feil under innlogging");
-    }
-  }
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-    const token: string = this.jwtService.sign(payload);
-    return token;
-  }
-  private excludePassword<T extends { password: string }>(user: T): Omit<T, 'password'> {
-    const { password: _password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-}
-````
-
 ## File: backend/src/employees/employees.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -21784,55 +21784,6 @@ if (require.main === module) {
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.14.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.10",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.2.1",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.4",
-    "vue-tsc": "^3.2.6"
-  }
-}
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -21918,6 +21869,55 @@ if (require.main === module) {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.15.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.4",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: frontend/customer/package.json
 ````json
 {
@@ -21938,7 +21938,7 @@ if (require.main === module) {
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "axios": "^1.7.8",
+    "axios": "^1.15.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
