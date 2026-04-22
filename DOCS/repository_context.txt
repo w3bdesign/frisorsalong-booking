@@ -2609,6 +2609,113 @@ export class AuthController {
 }
 ````
 
+## File: backend/src/auth/auth.module.spec.ts
+````typescript
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth.module';
+import { UsersModule } from '../users/users.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { User } from '../users/entities/user.entity';
+import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
+type Constructor<T> = new (..._args: unknown[]) => T;
+interface ModuleMetadata {
+  imports: Array<Type<unknown> | DynamicModule>;
+  providers: Provider[];
+  exports: Array<Type<unknown> | DynamicModule>;
+  controllers: Constructor<unknown>[];
+}
+interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
+  provide: string;
+  useValue: { defaultStrategy: string };
+}
+interface JwtConfig extends FactoryProvider {
+  provide: string;
+  useFactory: (..._args: unknown[]) => unknown;
+  inject: Type<unknown>[];
+}
+interface TypeOrmEntityConfig {
+  provide: string;
+  useValue: {
+    targetEntitySchema: {
+      target: Constructor<User>;
+    };
+  };
+}
+jest.mock('../users/users.module');
+describe('AuthModule', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  describe('module metadata', () => {
+    it('should have the correct imports', () => {
+      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
+      // Check UsersModule
+      expect(imports).toContain(UsersModule);
+      // Check PassportModule (as dynamic module)
+      const passportModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === PassportModule
+      );
+      expect(passportModuleConfig).toBeDefined();
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
+      expect(passportProvider).toBeDefined();
+      expect(passportProvider?.useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
+      // Check JwtModule
+      const jwtModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === JwtModule
+      );
+      expect(jwtModuleConfig).toBeDefined();
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
+      expect(jwtProvider).toBeDefined();
+      expect(jwtProvider?.inject).toContain(ConfigService);
+      // Check TypeOrmModule
+      const typeOrmModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === TypeOrmModule
+      );
+      expect(typeOrmModuleConfig).toBeDefined();
+      // TypeOrmModule may not expose entity config in exports depending on version
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
+      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
+      expect(typeof hasEntityConfig).toBe('boolean');
+    });
+    it('should have the correct providers', () => {
+      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
+      expect(providers).toContain(AuthService);
+      expect(providers).toContain(JwtStrategy);
+      expect(providers).toContain(RolesGuard);
+    });
+    it('should have the correct exports', () => {
+      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
+      expect(exports).toContain(AuthService);
+      expect(exports).toContain(JwtStrategy);
+      expect(exports).toContain(RolesGuard);
+      expect(exports).toContain(JwtModule);
+      expect(exports).toContain(PassportModule);
+    });
+    it('should have the correct controllers', () => {
+      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
+      expect(controllers).toBeDefined();
+      expect(controllers.length).toBe(1);
+    });
+  });
+});
+````
+
 ## File: backend/src/auth/auth.module.ts
 ````typescript
 import { Module } from "@nestjs/common";
@@ -7605,6 +7712,77 @@ describe("EmployeesController", () => {
     });
   });
 });
+````
+
+## File: backend/src/employees/employees.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (!employee || employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
+}
 ````
 
 ## File: backend/src/employees/employees.module.ts
@@ -20433,184 +20611,6 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/auth.module.spec.ts
-````typescript
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth.module';
-import { UsersModule } from '../users/users.module';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards/roles.guard';
-import { User } from '../users/entities/user.entity';
-import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
-type Constructor<T> = new (..._args: unknown[]) => T;
-interface ModuleMetadata {
-  imports: Array<Type<unknown> | DynamicModule>;
-  providers: Provider[];
-  exports: Array<Type<unknown> | DynamicModule>;
-  controllers: Constructor<unknown>[];
-}
-interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
-  provide: string;
-  useValue: { defaultStrategy: string };
-}
-interface JwtConfig extends FactoryProvider {
-  provide: string;
-  useFactory: (..._args: unknown[]) => unknown;
-  inject: Type<unknown>[];
-}
-interface TypeOrmEntityConfig {
-  provide: string;
-  useValue: {
-    targetEntitySchema: {
-      target: Constructor<User>;
-    };
-  };
-}
-jest.mock('../users/users.module');
-describe('AuthModule', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  describe('module metadata', () => {
-    it('should have the correct imports', () => {
-      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
-      // Check UsersModule
-      expect(imports).toContain(UsersModule);
-      // Check PassportModule (as dynamic module)
-      const passportModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
-          imp.module === PassportModule
-      );
-      expect(passportModuleConfig).toBeDefined();
-      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
-      expect(passportProvider).toBeDefined();
-      expect(passportProvider?.useValue).toEqual({
-        defaultStrategy: 'jwt'
-      });
-      // Check JwtModule
-      const jwtModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === JwtModule
-      );
-      expect(jwtModuleConfig).toBeDefined();
-      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
-      expect(jwtProvider).toBeDefined();
-      expect(jwtProvider?.inject).toContain(ConfigService);
-      // Check TypeOrmModule
-      const typeOrmModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === TypeOrmModule
-      );
-      expect(typeOrmModuleConfig).toBeDefined();
-      // TypeOrmModule may not expose entity config in exports depending on version
-      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
-      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
-      expect(typeof hasEntityConfig).toBe('boolean');
-    });
-    it('should have the correct providers', () => {
-      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
-      expect(providers).toContain(AuthService);
-      expect(providers).toContain(JwtStrategy);
-      expect(providers).toContain(RolesGuard);
-    });
-    it('should have the correct exports', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
-      expect(exports).toContain(AuthService);
-      expect(exports).toContain(JwtStrategy);
-      expect(exports).toContain(RolesGuard);
-      expect(exports).toContain(JwtModule);
-      expect(exports).toContain(PassportModule);
-    });
-    it('should have the correct controllers', () => {
-      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
-      expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(1);
-    });
-  });
-});
-````
-
-## File: backend/src/employees/employees.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
-    }
-    return this.employeesService.findOne(id);
-  }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
-  }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
-  }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
-  }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
-  }
-}
-````
-
 ## File: backend/src/main.spec.ts
 ````typescript
 import { ValidationPipe, INestApplication } from "@nestjs/common";
@@ -21784,6 +21784,55 @@ if (require.main === module) {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.15.0",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.4",
+    "vue-tsc": "^3.2.6"
+  }
+}
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -21851,8 +21900,8 @@ if (require.main === module) {
     "@types/node": "^24.12.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.16.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -21865,55 +21914,6 @@ if (require.main === module) {
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
-  }
-}
-````
-
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.15.0",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.10",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.2.1",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.4",
-    "vue-tsc": "^3.2.6"
   }
 }
 ````
