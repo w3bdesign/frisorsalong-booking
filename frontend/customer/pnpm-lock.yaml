@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       axios:
-        specifier: ^1.15.0
+        specifier: ^1.15.1
         version: 1.15.1(debug@4.4.3)
       pinia:
         specifier: ^3.0.4
