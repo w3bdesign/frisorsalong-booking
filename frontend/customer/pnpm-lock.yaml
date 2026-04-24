@@ -58,7 +58,7 @@ importers:
         specifier: ^10.5.0
         version: 10.5.0(postcss@8.5.10)
       cypress:
-        specifier: ^15.14.0
+        specifier: ^15.14.1
         version: 15.14.1
       eslint:
         specifier: ^10.2.1
