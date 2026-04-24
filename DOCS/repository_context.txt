@@ -21364,6 +21364,76 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: backend/src/bookings/bookings.module.spec.ts
+````typescript
+import { BookingsModule } from "./bookings.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
+type ModuleImport =
+  | Type<unknown>
+  | DynamicModule
+  | Promise<DynamicModule>
+  | ForwardReference;
+describe("BookingsModule", () => {
+  it("should have correct module metadata", () => {
+    // Get module metadata directly from the decorator
+    const moduleDecorator = Reflect.getMetadata(
+      "imports",
+      BookingsModule
+    ) as ModuleImport[];
+    // Check TypeOrmModule.forFeature
+    const typeOrmFeature = moduleDecorator.find(
+      (item): item is DynamicModule =>
+        item !== null &&
+        typeof item === "object" &&
+        "module" in item &&
+        item.module === TypeOrmModule
+    );
+    expect(typeOrmFeature).toBeDefined();
+    // Get all module names
+    const moduleNames = moduleDecorator
+      .map((item): string | null => {
+        if (typeof item === "function") {
+          const name: string = item.name;
+          return name;
+        }
+        if (item && typeof item === "object" && "name" in item) {
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
+        }
+        return null;
+      })
+      .filter((name): name is string => Boolean(name));
+    // Check for expected modules
+    const expectedModules = [
+      "UsersModule",
+      "ServicesModule",
+      "ShopsModule",
+      "AuthModule",
+    ];
+    expectedModules.forEach((moduleName) => {
+      expect(moduleNames).toContain(moduleName);
+    });
+  });
+  it("should export BookingsService and TypeOrmModule", () => {
+    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
+      Type<unknown> | DynamicModule
+    >;
+    expect(exports).toContain(BookingsService);
+    const hasTypeOrmExport = exports.some(
+      (exp): boolean =>
+        exp === TypeOrmModule ||
+        (exp !== null &&
+          typeof exp === "object" &&
+          "module" in exp &&
+          exp.module === TypeOrmModule)
+    );
+    expect(hasTypeOrmExport).toBe(true);
+  });
+});
+````
+
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -21478,76 +21548,6 @@ export class OrdersService {
     return order;
   }
 }
-````
-
-## File: backend/src/bookings/bookings.module.spec.ts
-````typescript
-import { BookingsModule } from "./bookings.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
-type ModuleImport =
-  | Type<unknown>
-  | DynamicModule
-  | Promise<DynamicModule>
-  | ForwardReference;
-describe("BookingsModule", () => {
-  it("should have correct module metadata", () => {
-    // Get module metadata directly from the decorator
-    const moduleDecorator = Reflect.getMetadata(
-      "imports",
-      BookingsModule
-    ) as ModuleImport[];
-    // Check TypeOrmModule.forFeature
-    const typeOrmFeature = moduleDecorator.find(
-      (item): item is DynamicModule =>
-        item !== null &&
-        typeof item === "object" &&
-        "module" in item &&
-        item.module === TypeOrmModule
-    );
-    expect(typeOrmFeature).toBeDefined();
-    // Get all module names
-    const moduleNames = moduleDecorator
-      .map((item): string | null => {
-        if (typeof item === "function") {
-          const name: string = item.name;
-          return name;
-        }
-        if (item && typeof item === "object" && "name" in item) {
-          const nameValue: unknown = (item as Record<string, unknown>).name;
-          return typeof nameValue === 'string' ? nameValue : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name));
-    // Check for expected modules
-    const expectedModules = [
-      "UsersModule",
-      "ServicesModule",
-      "ShopsModule",
-      "AuthModule",
-    ];
-    expectedModules.forEach((moduleName) => {
-      expect(moduleNames).toContain(moduleName);
-    });
-  });
-  it("should export BookingsService and TypeOrmModule", () => {
-    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
-      Type<unknown> | DynamicModule
-    >;
-    expect(exports).toContain(BookingsService);
-    const hasTypeOrmExport = exports.some(
-      (exp): boolean =>
-        exp === TypeOrmModule ||
-        (exp !== null &&
-          typeof exp === "object" &&
-          "module" in exp &&
-          exp.module === TypeOrmModule)
-    );
-    expect(hasTypeOrmExport).toBe(true);
-  });
-});
 ````
 
 ## File: backend/src/shops/shops.service.ts
@@ -21784,55 +21784,6 @@ if (require.main === module) {
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.15.1",
-    "chart.js": "^4.5.0",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.10",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.2.1",
-    "eslint-plugin-vue": "^10.8.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.4",
-    "vue-tsc": "^3.2.7"
-  }
-}
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -21918,6 +21869,55 @@ if (require.main === module) {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.15.1",
+    "chart.js": "^4.5.0",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-vue": "^10.8.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.7"
+  }
+}
+````
+
 ## File: frontend/customer/package.json
 ````json
 {
@@ -21949,7 +21949,7 @@ if (require.main === module) {
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",
     "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/coverage-v8": "4.1.4",
+    "@vitest/coverage-v8": "4.1.5",
     "@vitest/eslint-plugin": "1.6.16",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
@@ -21969,7 +21969,7 @@ if (require.main === module) {
     "typescript": "~5.9.3",
     "vite": "^7.3.2",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vitest": "^4.1.4",
+    "vitest": "^4.1.5",
     "vue-tsc": "^3.2.7"
   }
 }
