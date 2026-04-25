@@ -21893,7 +21893,7 @@ if (require.main === module) {
     "pinia": "^3.0.4",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.19",
-    "vue": "^3.5.32",
+    "vue": "^3.5.33",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
@@ -21940,7 +21940,7 @@ if (require.main === module) {
   "dependencies": {
     "axios": "^1.15.2",
     "pinia": "^3.0.4",
-    "vue": "^3.5.32",
+    "vue": "^3.5.33",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
