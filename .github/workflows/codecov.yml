@@ -51,7 +51,7 @@ jobs:
         run: pnpm test
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./backend/coverage
@@ -102,7 +102,7 @@ jobs:
         run: pnpm test:unit --coverage
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./frontend/customer/coverage
