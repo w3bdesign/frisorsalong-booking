@@ -21958,7 +21958,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "autoprefixer": "^10.5.0",
     "cypress": "^15.14.1",
     "eslint": "^10.2.1",
-    "eslint-plugin-cypress": "^6.3.1",
+    "eslint-plugin-cypress": "^6.4.0",
     "eslint-plugin-vue": "^10.9.0",
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
