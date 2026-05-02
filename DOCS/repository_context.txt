@@ -21956,7 +21956,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "@vue/test-utils": "^2.4.9",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.5.0",
-    "cypress": "^15.14.1",
+    "cypress": "^15.14.2",
     "eslint": "^10.2.1",
     "eslint-plugin-cypress": "^6.4.0",
     "eslint-plugin-vue": "^10.9.0",
