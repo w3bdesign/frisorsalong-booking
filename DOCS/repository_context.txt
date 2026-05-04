@@ -21891,7 +21891,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "axios": "1.15.2",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.13",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6"
@@ -21962,7 +21962,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "eslint-plugin-vue": "^10.9.0",
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.13",
     "prettier": "^3.8.3",
     "start-server-and-test": "^2.1.5",
     "tailwindcss": "^3.4.19",
