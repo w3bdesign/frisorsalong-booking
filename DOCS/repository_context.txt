@@ -21888,7 +21888,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   "dependencies": {
     "@types/chart.js": "^4.0.0",
     "autoprefixer": "^10.5.0",
-    "axios": "1.15.2",
+    "axios": "1.16.0",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
     "postcss": "^8.5.13",
@@ -21938,7 +21938,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "axios": "^1.15.2",
+    "axios": "^1.16.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6"
