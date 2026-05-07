@@ -42,7 +42,7 @@ export class EmployeesController {
     // Allow employees to only access their own record
     if (user.role === UserRole.EMPLOYEE) {
       const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
+      if (employee.id !== id) {
         throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
       }
     }

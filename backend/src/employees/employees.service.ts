@@ -14,7 +14,7 @@ interface TimeSlot {
 }
 
 interface Availability {
-  [key: string]: TimeSlot[];
+  [key: string]: TimeSlot[] | undefined;
 }
 
 @Injectable()
@@ -74,7 +74,7 @@ export class EmployeesService {
       relations: ['user', 'services'],
       where: { isActive: true },
     });
-    return employees;
+    return employees as Employee[];
   }
 
   async findOne(id: string): Promise<Employee> {
@@ -87,7 +87,7 @@ export class EmployeesService {
       throw new NotFoundException(`Employee #${id} not found`);
     }
 
-    return employee;
+    return employee as Employee;
   }
 
   async findByUserId(userId: string): Promise<Employee> {
@@ -189,7 +189,7 @@ export class EmployeesService {
   async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findOne(id);
     const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated);
+    return await this.employeeRepository.save(updated) as Employee;
   }
 
   async remove(id: string): Promise<void> {
