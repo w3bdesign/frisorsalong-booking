@@ -215,6 +215,7 @@ backend/
   jest.config.js
   nest-cli.json
   package.json
+  pnpm-workspace.yaml
   README.md
   renovate.json
   tsconfig.build.json
@@ -353,6 +354,7 @@ frontend/
     eslint.config.js
     index.html
     package.json
+    pnpm-workspace.yaml
     postcss.config.js
     README.md
     tailwind.config.js
@@ -362,6 +364,8 @@ frontend/
     tsconfig.vitest.json
     vite.config.ts
     vitest.config.ts
+plans/
+  fix-type-errors.md
 screenshot/
   admin.png
   swagger.png
@@ -2004,50 +2008,6 @@ describe('RolesGuard', () => {
 });
 ````
 
-## File: backend/src/auth/guards/roles.guard.ts
-````typescript
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Request } from "express";
-interface RequestWithUser extends Request {
-  user: User;
-}
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      "roles",
-      [context.getHandler(), context.getClass()],
-    );
-    // Add debug logging
-    console.log('Roles Guard - Required Roles:', requiredRoles);
-    if (!requiredRoles) {
-      console.log('Roles Guard - No roles required');
-      return true;
-    }
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const user = request.user;
-    console.log('Roles Guard - User:', user);
-    console.log('Roles Guard - User Role:', user?.role);
-    if (!user || !user.role) {
-      console.log('Roles Guard - No user or role found in request');
-      return false;
-    }
-    // Ensure user.role is a valid UserRole
-    if (!Object.values(UserRole).includes(user.role)) {
-      console.log('Roles Guard - Invalid user role');
-      return false;
-    }
-    const hasRole: boolean = requiredRoles.includes(user.role);
-    console.log('Roles Guard - Has Required Role:', hasRole);
-    const canActivate: boolean = hasRole;
-    return canActivate;
-  }
-}
-````
-
 ## File: backend/src/auth/interfaces/auth.interface.ts
 ````typescript
 import { User } from "../../users/entities/user.entity";
@@ -3307,147 +3267,6 @@ describe("BookingsController", () => {
 });
 ````
 
-## File: backend/src/bookings/bookings.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Put,
-  UseGuards,
-  BadRequestException,
-  Req,
-  ParseUUIDPipe,
-  ValidationPipe,
-  Type,
-} from "@nestjs/common";
-import { BookingsService } from "./bookings.service";
-import { OrdersService } from "../orders/orders.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { BookingResponseDto } from "./dto/booking-response.dto";
-import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { UserRole } from "../users/entities/user.entity";
-import { Request } from "express";
-import { ShopCode } from "../shops/entities/shop-code.entity";
-import { Order } from "../orders/entities/order.entity";
-// Extend Express Request to include shop property
-interface RequestWithShop extends Request {
-  shop?: ShopCode;
-}
-@Controller("bookings")
-export class BookingsController {
-  constructor(
-    private readonly bookingsService: BookingsService,
-    private readonly ordersService: OrdersService
-  ) {
-    if (!bookingsService) {
-      throw new Error('BookingsService is required');
-    }
-    if (!ordersService) {
-      throw new Error('OrdersService is required');
-    }
-  }
-  @Get("upcoming/count")
-  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    return this.bookingsService.getUpcomingCount();
-  }
-  @Post("walk-in")
-  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
-  async createWalkIn(
-    @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
-    @Req() request: RequestWithShop
-  ): Promise<BookingResponseDto> {
-    if (!request?.shop) {
-      throw new BadRequestException('Shop information is required for walk-in bookings');
-    }
-    const booking = await this.bookingsService.createWalkIn(
-      createWalkInBookingDto,
-      request.shop
-    );
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Post()
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async create(
-    @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.create(createBookingDto);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Get("upcoming")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findUpcoming(): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findUpcoming();
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get("customer/:customerId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async findByCustomer(
-    @Param("customerId", new ParseUUIDPipe()) customerId: string
-  ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findByCustomer(customerId);
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get("employee/:employeeId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findByEmployee(
-    @Param("employeeId", new ParseUUIDPipe()) employeeId: string
-  ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findByEmployee(employeeId);
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findOne(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.findOne(id);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async update(
-    @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ValidationPipe({ transform: true })) updateBookingDto: UpdateBookingDto
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.update(id, updateBookingDto);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id/cancel")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async cancel(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<BookingResponseDto> {
-    const reason = "Cancelled by administrator";
-    const booking = await this.bookingsService.cancel(id, reason);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id/complete")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.ADMIN)
-  async complete(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<Order> {
-    return this.ordersService.createFromBooking(id);
-  }
-}
-````
-
 ## File: backend/src/bookings/bookings.module.spec.ts
 ````typescript
 import { BookingsModule } from "./bookings.module";
@@ -3552,648 +3371,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
   exports: [BookingsService, TypeOrmModule],
 })
 export class BookingsModule {}
-````
-
-## File: backend/src/bookings/bookings.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { User, UserRole } from "../users/entities/user.entity";
-describe("BookingsService", () => {
-  let service: BookingsService;
-  interface MockUser {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    phoneNumber: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-  interface FindOneOptions {
-    where: { id: string };
-    relations: string[];
-  }
-  interface FindOptions {
-    where: unknown;
-    relations: string[];
-    order: { startTime: "ASC" | "DESC" };
-  }
-  interface MockBooking {
-    id: string;
-    customer?: Partial<MockUser>;
-    service?: { id: string; duration: number };
-    employee?: { id: string };
-    status?: BookingStatus;
-    startTime?: Date;
-    endTime?: Date;
-    notes?: string;
-    totalPrice?: number;
-    cancelledAt?: Date;
-    cancellationReason?: string;
-  }
-  const mockBookingRepository = {
-    create: jest.fn().mockImplementation(
-      (dto: Partial<Booking>): MockBooking => ({
-        id: "booking1",
-        ...dto,
-      })
-    ),
-    save: jest
-      .fn()
-      .mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> =>
-          Promise.resolve({ id: "booking1", ...booking })
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
-      ),
-    find: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
-      ),
-  };
-  const mockUsersService = {
-    create: jest.fn(),
-    findOne: jest.fn(),
-  };
-  const mockEmployeesService = {
-    findOne: jest.fn(),
-    findAll: jest.fn(),
-    isAvailable: jest.fn(),
-  };
-  const mockServicesService = {
-    findOne: jest.fn(),
-  };
-  const mockOrdersService = {
-    create: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BookingsService,
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    service = module.get<BookingsService>(BookingsService);
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  describe("createWalkIn", () => {
-    const mockShop = {
-      id: "shop1",
-      code: "SHOP1",
-      shopName: "Test Shop",
-      isActive: true,
-      dailyBookingLimit: 100,
-      lastBookingTime: new Date(),
-      todayBookingCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const mockEmployee = { id: "emp1", isActive: true };
-    const mockCustomer = { id: "cust1" };
-    const createWalkInDto: CreateWalkInBookingDto = {
-      serviceId: "service1",
-      firstName: "John",
-      phoneNumber: "1234567890",
-      isPaid: true,
-    };
-    it("should create a walk-in booking successfully", async () => {
-      mockUsersService.create.mockResolvedValue(mockCustomer);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
-      mockBookingRepository.find.mockResolvedValue([]);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.createWalkIn(createWalkInDto, mockShop);
-      expect(result).toBeDefined();
-      expect(mockUsersService.create).toHaveBeenCalled();
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createWalkInDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when service not found", async () => {
-      mockServicesService.findOne.mockResolvedValue(null);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
-    it("should throw BadRequestException when no active employees", async () => {
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([]);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(BadRequestException);
-    });
-  });
-  describe("create", () => {
-    const mockCustomer = { id: "cust1" };
-    const mockEmployee = { id: "emp1" };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const createBookingDto: CreateBookingDto = {
-      customerId: "cust1",
-      employeeId: "emp1",
-      serviceId: "service1",
-      startTime: new Date().toISOString(),
-      notes: "Test booking",
-    };
-    it("should create a booking successfully", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.create(createBookingDto);
-      expect(result).toBeDefined();
-      expect(mockUsersService.findOne).toHaveBeenCalledWith(
-        createBookingDto.customerId
-      );
-      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.employeeId
-      );
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when customer not found", async () => {
-      mockUsersService.findOne.mockResolvedValue(null);
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-    it("should throw BadRequestException when employee not available", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("findOne", () => {
-    it("should return a booking when found", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      const result = await service.findOne("booking1");
-      expect(result).toBe(mockBooking);
-      const expectedOptions: FindOneOptions = {
-        where: { id: "booking1" },
-        relations: ["customer", "employee", "employee.user", "service"],
-      };
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
-        expectedOptions
-      );
-    });
-    it("should throw NotFoundException when booking not found", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-  });
-  describe("update", () => {
-    const mockBooking = {
-      id: "booking1",
-      service: { id: "service1" },
-      employee: { id: "emp1" },
-    };
-    const updateDto: UpdateBookingDto = {
-      startTime: new Date().toISOString(),
-    };
-    it("should update booking successfully", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const updatedBooking: MockBooking = {
-        id: mockBooking.id,
-        startTime: new Date(updateDto.startTime),
-        service: { id: mockBooking.service.id, duration: 30 },
-        employee: { id: mockBooking.employee.id },
-      };
-      mockBookingRepository.save.mockResolvedValue(updatedBooking);
-      const result = await service.update("booking1", updateDto);
-      expect(result).toBeDefined();
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw BadRequestException when employee not available for new time", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("cancel", () => {
-    it("should cancel booking successfully", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      const reason = "Test reason";
-      const expectedSavedBooking = {
-        id: mockBooking.id,
-        status: BookingStatus.CANCELLED,
-        cancelledAt: expect.any(Date) as Date,
-        cancellationReason: reason,
-      };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
-      );
-      const result = await service.cancel("booking1", reason);
-      expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe(reason);
-      expect(mockBookingRepository.save).toHaveBeenCalledWith(
-        expectedSavedBooking
-      );
-    });
-  });
-  describe("findUpcoming", () => {
-    it("should return upcoming bookings", async () => {
-      const mockBookings: MockBooking[] = [
-        { id: "booking1" },
-        { id: "booking2" },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.findUpcoming();
-      expect(result).toEqual(mockBookings);
-      const expectedFindOptions: FindOptions = {
-        where: expect.any(Object),
-        relations: ["customer", "employee", "employee.user", "service"],
-        order: { startTime: "ASC" },
-      };
-      expect(mockBookingRepository.find).toHaveBeenCalledWith(
-        expectedFindOptions
-      );
-    });
-  });
-  describe("getUpcomingCount", () => {
-    it("should return upcoming count and customers", async () => {
-      const mockBookings: Partial<Booking>[] = [
-        {
-          id: "booking1",
-          customer: {
-            id: "user1",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "1234567890",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service1",
-            name: "Haircut",
-            description: "Basic haircut",
-            duration: 30,
-            price: 50,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-        {
-          id: "booking2",
-          customer: {
-            id: "user2",
-            firstName: "Jane",
-            lastName: "Doe",
-            email: "jane@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "0987654321",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
-          service: {
-            id: "service2",
-            name: "Styling",
-            description: "Hair styling",
-            duration: 45,
-            price: 75,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.getUpcomingCount();
-      expect(result.count).toBe(2);
-      expect(result.customers).toHaveLength(2);
-      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
-    });
-  });
-});
-````
-
-## File: backend/src/bookings/bookings.service.ts
-````typescript
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In, Between } from "typeorm";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import {
-  UpcomingCountResponseDto,
-  UpcomingCustomerDto,
-} from "./dto/upcoming-count-response.dto";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
-import { ShopCode } from "../shops/entities/shop-code.entity";
-import { UserRole } from "../users/entities/user.entity";
-@Injectable()
-export class BookingsService {
-  private readonly logger = new Logger(BookingsService.name);
-  constructor(
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly usersService: UsersService,
-    private readonly employeesService: EmployeesService,
-    private readonly servicesService: ServicesService,
-    private readonly ordersService: OrdersService
-  ) {}
-  async createWalkIn(
-    createWalkInBookingDto: CreateWalkInBookingDto,
-    shop: ShopCode
-  ): Promise<Booking> {
-    const { serviceId, firstName, phoneNumber, isPaid } =
-      createWalkInBookingDto;
-    // Create temporary customer for walk-in
-    const customer = await this.usersService.create({
-      firstName,
-      lastName: "Walk-in",
-      email: `walkin_${Date.now()}@temp.com`,
-      password: Math.random().toString(36),
-      phoneNumber,
-      role: UserRole.CUSTOMER,
-    });
-    // Verify service exists
-    const service = await this.servicesService.findOne(serviceId);
-    if (!service) {
-      throw new NotFoundException("Service not found");
-    }
-    // Get all employees and filter active ones
-    const allEmployees = await this.employeesService.findAll();
-    const activeEmployees = allEmployees.filter((emp) => emp.isActive);
-    if (activeEmployees.length === 0) {
-      throw new BadRequestException("No employees available");
-    }
-    // Find the employee with the least pending bookings
-    const employeeBookings = await Promise.all(
-      activeEmployees.map(async (emp) => ({
-        employee: emp,
-        bookingCount: (await this.findByEmployee(emp.id)).length,
-      }))
-    );
-    const sortedEmployeeBookings = [...employeeBookings].sort(
-      (a, b) => a.bookingCount - b.bookingCount
-    );
-    const selectedEmployee = sortedEmployeeBookings[0].employee;
-    // Calculate start and end times
-    const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + service.duration * 60000);
-    // Create and save the booking
-    const booking = this.bookingRepository.create({
-      customer,
-      employee: selectedEmployee,
-      service,
-      startTime: startDate,
-      endTime: endDate,
-      notes: `Walk-in booking from ${shop.shopName}`,
-      totalPrice: service.price,
-      status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
-    });
-    return this.bookingRepository.save(booking);
-  }
-  async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    const { customerId, employeeId, serviceId, startTime, notes } =
-      createBookingDto;
-    // Verify customer exists
-    const customer = await this.usersService.findOne(customerId);
-    if (!customer) {
-      throw new NotFoundException("Customer not found");
-    }
-    // Verify employee exists
-    const employee = await this.employeesService.findOne(employeeId);
-    if (!employee) {
-      throw new NotFoundException("Employee not found");
-    }
-    // Verify service exists
-    const service = await this.servicesService.findOne(serviceId);
-    if (!service) {
-      throw new NotFoundException("Service not found");
-    }
-    // Calculate end time based on service duration
-    const startDate = new Date(startTime);
-    const endDate = new Date(startDate.getTime() + service.duration * 60000);
-    // Check if employee is available
-    const isAvailable = await this.employeesService.isAvailable(
-      employeeId,
-      startDate,
-      endDate
-    );
-    if (!isAvailable) {
-      throw new BadRequestException("Employee is not available at this time");
-    }
-    // Create and save the booking
-    const booking = this.bookingRepository.create({
-      customer,
-      employee,
-      service,
-      startTime: startDate,
-      endTime: endDate,
-      notes,
-      totalPrice: service.price,
-      status: BookingStatus.PENDING,
-    });
-    return this.bookingRepository.save(booking);
-  }
-  async findOne(id: string): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id },
-      relations: ["customer", "employee", "employee.user", "service"],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
-    }
-    return booking;
-  }
-  async update(
-    id: string,
-    updateBookingDto: UpdateBookingDto
-  ): Promise<Booking> {
-    const booking = await this.findOne(id);
-    // If updating start time, recalculate end time
-    if (updateBookingDto.startTime) {
-      const startDate = new Date(updateBookingDto.startTime);
-      const service = await this.servicesService.findOne(booking.service.id);
-      const endDate = new Date(startDate.getTime() + service.duration * 60000);
-      // Check employee availability for new time
-      const isAvailable = await this.employeesService.isAvailable(
-        booking.employee.id,
-        startDate,
-        endDate,
-        id // Exclude current booking from availability check
-      );
-      if (!isAvailable) {
-        throw new BadRequestException("Employee is not available at this time");
-      }
-      booking.startTime = startDate;
-      booking.endTime = endDate;
-    }
-    // Update other fields
-    Object.assign(booking, updateBookingDto);
-    return this.bookingRepository.save(booking);
-  }
-  async cancel(id: string, reason: string): Promise<Booking> {
-    const booking = await this.findOne(id);
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancelledAt = new Date();
-    booking.cancellationReason = reason;
-    return this.bookingRepository.save(booking);
-  }
-  async findByCustomer(customerId: string): Promise<Booking[]> {
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: { customer: { id: customerId } },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "DESC" },
-    });
-    return bookings;
-  }
-  async findByEmployee(employeeId: string): Promise<Booking[]> {
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: { employee: { id: employeeId } },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "DESC" },
-    });
-    return bookings;
-  }
-  async findUpcoming(): Promise<Booking[]> {
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-    this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: {
-        startTime: MoreThan(startOfDay),
-        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-      },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "ASC" },
-    });
-    this.logger.debug(`Found ${bookings.length} bookings`);
-    if (bookings.length === 0) {
-      this.logger.debug(
-        "No bookings found. Checking all bookings for debugging..."
-      );
-      const allBookings: Booking[] = await this.bookingRepository.find({
-        relations: ["customer", "employee", "employee.user", "service"],
-      });
-      this.logger.debug(`Total bookings in database: ${allBookings.length}`);
-      this.logger.debug("Sample booking dates:");
-      allBookings.slice(0, 3).forEach((booking: Booking) => {
-        this.logger.debug(
-          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`
-        );
-      });
-    }
-    return bookings;
-  }
-  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: {
-        startTime: Between(startOfDay, endOfDay),
-        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-      },
-      relations: ["customer", "service"],
-      order: { startTime: "ASC" },
-    });
-    const customers: UpcomingCustomerDto[] = bookings.map((booking: Booking, index: number) => {
-      // Calculate waiting time based on previous bookings' service durations
-      const waitingTime: number = bookings
-        .slice(0, index)
-        .reduce((total: number, prev: Booking) => total + prev.service.duration, 0);
-      return {
-        firstName: booking.customer.firstName,
-        estimatedWaitingTime: waitingTime,
-      };
-    });
-    return {
-      count: bookings.length,
-      customers,
-    };
-  }
-}
 ````
 
 ## File: backend/src/config/cache.config.spec.ts
@@ -7567,370 +6744,6 @@ export class Employee {
 }
 ````
 
-## File: backend/src/employees/employees.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { EmployeesController } from "./employees.controller";
-import { EmployeesService } from "./employees.service";
-import {
-  NotFoundException,
-  ConflictException,
-  UnauthorizedException,
-  BadRequestException,
-} from "@nestjs/common";
-import { Employee } from "./entities/employee.entity";
-import { User, UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
-  hashPassword: () => Promise<void>;
-  validatePassword: (_password: string) => Promise<boolean>;
-}
-describe("EmployeesController", () => {
-  let controller: EmployeesController;
-  let service: EmployeesService;
-  const createMockUser = (data: Partial<User>): MockUser => {
-    const user: MockUser = {
-      id: "default-id",
-      firstName: "Default",
-      lastName: "User",
-      email: "default@example.com",
-      password: "password",
-      role: UserRole.CUSTOMER,
-      phoneNumber: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hashPassword: async function () {
-        const salt = await bcrypt.genSalt();
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        user.password = hashedPassword;
-      },
-      validatePassword: async function (password) {
-        return bcrypt.compare(password, user.password);
-      },
-      ...data,
-    };
-    return user;
-  };
-  const mockAdminUser = createMockUser({
-    id: "admin-id",
-    email: "admin@example.com",
-    firstName: "Admin",
-    lastName: "User",
-    role: UserRole.ADMIN,
-  });
-  const mockEmployeeUser = createMockUser({
-    id: "employee-id",
-    email: "employee@example.com",
-    firstName: "John",
-    lastName: "Doe",
-    role: UserRole.EMPLOYEE,
-  });
-  const mockEmployee = {
-    id: "employee-1",
-    user: mockEmployeeUser,
-    specializations: ["haircut"],
-    isActive: true,
-    availability: {},
-  } as Employee;
-  const mockEmployeesService = {
-    create: jest.fn(),
-    resetPassword: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    findByUserId: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    restore: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [EmployeesController],
-      providers: [
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-      ],
-    }).compile();
-    controller = module.get<EmployeesController>(EmployeesController);
-    service = module.get<EmployeesService>(EmployeesService);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("create", () => {
-    const createEmployeeDto = {
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
-      specializations: ["haircut"],
-    };
-    const createResponse = {
-      employee: mockEmployee,
-      temporaryPassword: "temp123",
-    };
-    it("should create an employee successfully", async () => {
-      mockEmployeesService.create.mockResolvedValue(createResponse);
-      const result = await controller.create(createEmployeeDto);
-      expect(result).toEqual(createResponse);
-      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.create.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-  });
-  describe("resetPassword", () => {
-    it("should reset password successfully", async () => {
-      const resetResponse = { temporaryPassword: "newTemp123" };
-      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
-      const result = await controller.resetPassword("employee-1");
-      expect(result).toEqual(resetResponse);
-      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.resetPassword.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("findAll", () => {
-    it("should return all employees", async () => {
-      const employees = [mockEmployee];
-      mockEmployeesService.findAll.mockResolvedValue(employees);
-      const result = await controller.findAll();
-      expect(result).toEqual(employees);
-      expect(service.findAll).toHaveBeenCalled();
-    });
-  });
-  describe("findOne", () => {
-    it("should return an employee by id for admin user", async () => {
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      const result = await controller.findOne("employee-1", mockAdminUser);
-      expect(result).toEqual(mockEmployee);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-      expect(service.findByUserId).not.toHaveBeenCalled();
-    });
-    it("should allow employee to access their own record", async () => {
-      const employeeUser = mockEmployeeUser;
-      const employeeRecord = { ...mockEmployee, id: "employee-1" };
-      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
-      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
-      const result = await controller.findOne("employee-1", employeeUser);
-      expect(result).toEqual(employeeRecord);
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-    });
-    it("should not allow employee to access other employee records", async () => {
-      const employeeUser = createMockUser({
-        id: "different-employee-id",
-        email: "other@example.com",
-        firstName: "Other",
-        lastName: "Employee",
-        role: UserRole.EMPLOYEE,
-      });
-      const ownEmployeeRecord = {
-        ...mockEmployee,
-        id: "own-employee-id",
-        user: employeeUser,
-      };
-      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
-      await expect(
-        controller.findOne("other-employee-id", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found for findByUserId", async () => {
-      const employeeUser = createMockUser({
-        id: "employee-id",
-        role: UserRole.EMPLOYEE,
-      });
-      mockEmployeesService.findByUserId.mockResolvedValue(null);
-      await expect(
-        controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.findOne.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.findOne("non-existent", mockAdminUser)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("update", () => {
-    const updateEmployeeDto = {
-      firstName: "John Updated",
-      email: "john.updated@example.com",
-    };
-    it("should update an employee successfully", async () => {
-      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
-      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
-      const result = await controller.update("employee-1", updateEmployeeDto);
-      expect(result).toEqual(updatedEmployee);
-      expect(service.update).toHaveBeenCalledWith(
-        "employee-1",
-        updateEmployeeDto
-      );
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(
-        controller.update("employee-1", updateEmployeeDto)
-      ).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.update("non-existent", updateEmployeeDto)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("remove", () => {
-    it("should remove an employee successfully", async () => {
-      mockEmployeesService.remove.mockResolvedValue(undefined);
-      await controller.remove("employee-1");
-      expect(service.remove).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee with future bookings error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new BadRequestException(
-          "Kan ikke slette ansatt med fremtidige bestillinger"
-        )
-      );
-      await expect(controller.remove("employee-1")).rejects.toThrow(
-        "Kan ikke slette ansatt med fremtidige bestillinger"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.remove("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("restore", () => {
-    it("should restore an employee successfully", async () => {
-      mockEmployeesService.restore.mockResolvedValue(undefined);
-      await controller.restore("employee-1");
-      expect(service.restore).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.restore.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.restore("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-});
-````
-
-## File: backend/src/employees/employees.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
-    }
-    return this.employeesService.findOne(id);
-  }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
-  }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
-  }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
-  }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
-  }
-}
-````
-
 ## File: backend/src/employees/employees.module.ts
 ````typescript
 import { Module, forwardRef } from '@nestjs/common';
@@ -8294,176 +7107,6 @@ describe('EmployeesService', () => {
 });
 ````
 
-## File: backend/src/employees/employees.service.ts
-````typescript
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
-import { Employee } from './entities/employee.entity';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-interface TimeSlot {
-  start: string;
-  end: string;
-}
-interface Availability {
-  [key: string]: TimeSlot[];
-}
-@Injectable()
-export class EmployeesService {
-  constructor(
-    @InjectRepository(Employee)
-    private readonly employeeRepository: Repository<Employee>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-  ) {}
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    // Check if email already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createEmployeeDto.email }
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    // Create user
-    const user = this.userRepository.create({
-      email: createEmployeeDto.email,
-      firstName: createEmployeeDto.firstName,
-      lastName: createEmployeeDto.lastName,
-      password: hashedPassword,
-      role: UserRole.EMPLOYEE
-    });
-    const savedUser = await this.userRepository.save(user);
-    // Create employee
-    const employee = this.employeeRepository.create({
-      user: savedUser,
-      specializations: createEmployeeDto.specializations,
-      isActive: true,
-      availability: {}
-    });
-    const savedEmployee = await this.employeeRepository.save(employee);
-    return {
-      employee: savedEmployee,
-      temporaryPassword
-    };
-  }
-  async findAll(): Promise<Employee[]> {
-    const employees = await this.employeeRepository.find({
-      relations: ['user', 'services'],
-      where: { isActive: true },
-    });
-    return employees;
-  }
-  async findOne(id: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { id },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee #${id} not found`);
-    }
-    return employee;
-  }
-  async findByUserId(userId: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee with user ID ${userId} not found`);
-    }
-    return employee;
-  }
-  async isAvailable(
-    employeeId: string,
-    startTime: Date,
-    endTime: Date,
-    excludeBookingId?: string
-  ): Promise<boolean> {
-    const employee = await this.findOne(employeeId);
-    // Check if the employee is active
-    if (!employee.isActive) {
-      return false;
-    }
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = startTime.getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-    const dayName = dayNames[dayOfWeek];
-    // Check if employee has availability for this day
-    const availability = employee.availability as Availability;
-    const dayAvailability = availability[dayName];
-    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
-      return false;
-    }
-    // Check if the booking time falls within any of the available time slots
-    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
-    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
-    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
-      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
-        return false;
-      }
-      const [startHour, startMinute] = slot.start.split(':').map(Number);
-      const [endHour, endMinute] = slot.end.split(':').map(Number);
-      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
-        return false;
-      }
-      const slotStart = startHour * 60 + startMinute;
-      const slotEnd = endHour * 60 + endMinute;
-      return bookingStart >= slotStart && bookingEnd <= slotEnd;
-    });
-    if (!isWithinAvailability) {
-      return false;
-    }
-    // Check for overlapping bookings
-    const whereCondition: FindOptionsWhere<Booking> = {
-      employee: { id: employeeId },
-      startTime: Not(MoreThan(endTime)),
-      endTime: Not(LessThan(startTime)),
-    };
-    // Exclude the current booking if an ID is provided
-    if (excludeBookingId) {
-      whereCondition.id = Not(excludeBookingId);
-    }
-    const overlappingBookings = await this.bookingRepository.count({
-      where: whereCondition,
-    });
-    return overlappingBookings === 0;
-  }
-  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const employee = await this.findOne(id);
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    await this.userRepository.update(employee.user.id, {
-      password: hashedPassword
-    });
-    return { temporaryPassword };
-  }
-  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    const employee = await this.findOne(id);
-    const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated);
-  }
-  async remove(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = false;
-    await this.employeeRepository.save(employee);
-  }
-  async restore(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = true;
-    await this.employeeRepository.save(employee);
-  }
-}
-````
-
 ## File: backend/src/orders/entities/order.entity.spec.ts
 ````typescript
 import { Order } from './order.entity';
@@ -8553,199 +7196,6 @@ export class Order {
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
 }
-````
-
-## File: backend/src/orders/orders.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { OrdersController } from "./orders.controller";
-import { OrdersService } from "./orders.service";
-import { Order } from "./entities/order.entity";
-import { User, UserRole } from "../users/entities/user.entity";
-import { UnauthorizedException } from "@nestjs/common";
-import * as bcrypt from "bcrypt";
-describe("OrdersController", () => {
-  let controller: OrdersController;
-  const createMockUser = (data: Partial<User>): User => {
-    const defaultUser: User = {
-      id: "default-id",
-      firstName: "Default",
-      lastName: "User",
-      email: "default@example.com",
-      password: "password",
-      role: UserRole.CUSTOMER,
-      phoneNumber: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hashPassword: async (): Promise<void> => {
-        const salt = await bcrypt.genSalt();
-        defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
-      },
-      validatePassword: async (password: string): Promise<boolean> => {
-        return bcrypt.compare(password, defaultUser.password);
-      },
-      ...data,
-    };
-    return defaultUser;
-  };
-  const mockAdminUser = createMockUser({
-    id: "admin-id",
-    email: "admin@example.com",
-    firstName: "Admin",
-    lastName: "User",
-    role: UserRole.ADMIN,
-  });
-  const mockEmployeeUser = createMockUser({
-    id: "employee-id",
-    email: "employee@example.com",
-    firstName: "Employee",
-    lastName: "User",
-    role: UserRole.EMPLOYEE,
-  });
-  const mockOrdersService = {
-    createFromBooking: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order> =>
-          Promise.resolve({ id: "order-id", totalAmount: 100 } as Order)
-      ),
-    findAll: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order[]> =>
-          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
-      ),
-    findAllByEmployee: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order[]> =>
-          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (id: string): Promise<Order> =>
-          Promise.resolve({ id, totalAmount: 100 } as Order)
-      ),
-    findOneByEmployee: jest
-      .fn()
-      .mockImplementation(
-        (orderId: string): Promise<Order> =>
-          Promise.resolve({ id: orderId, totalAmount: 100 } as Order)
-      ),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [OrdersController],
-      providers: [
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    controller = module.get<OrdersController>(OrdersController);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("create", () => {
-    it("should create an order from a booking", async () => {
-      const bookingId = "booking-id";
-      const mockOrder: Partial<Order> = {
-        id: "order-id",
-        totalAmount: 100,
-      };
-      mockOrdersService.createFromBooking.mockResolvedValue(mockOrder);
-      const result = await controller.create(bookingId);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.createFromBooking).toHaveBeenCalledWith(
-        bookingId
-      );
-    });
-  });
-  describe("findAll", () => {
-    const mockOrders: Partial<Order>[] = [
-      { id: "1", totalAmount: 100 },
-      { id: "2", totalAmount: 200 },
-    ];
-    it("should return all orders for admin user", async () => {
-      mockOrdersService.findAll.mockResolvedValue(mockOrders);
-      const result = await controller.findAll(mockAdminUser);
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAll).toHaveBeenCalled();
-      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
-    });
-    it("should return employee-specific orders for employee user", async () => {
-      mockOrdersService.findAllByEmployee.mockResolvedValue([mockOrders[0]]);
-      const result = await controller.findAll(mockEmployeeUser);
-      expect(result).toEqual([mockOrders[0]]);
-      expect(mockOrdersService.findAll).not.toHaveBeenCalled();
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        mockEmployeeUser.id
-      );
-    });
-  });
-  describe("findAllByEmployee", () => {
-    const mockOrders: Partial<Order>[] = [{ id: "1", totalAmount: 100 }];
-    it("should allow admin to access any employee orders", async () => {
-      const employeeId = "other-employee-id";
-      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
-      const result = await controller.findAllByEmployee(
-        employeeId,
-        mockAdminUser
-      );
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        employeeId
-      );
-    });
-    it("should allow employee to access their own orders", async () => {
-      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
-      const result = await controller.findAllByEmployee(
-        mockEmployeeUser.id,
-        mockEmployeeUser
-      );
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        mockEmployeeUser.id
-      );
-    });
-    it("should not allow employee to access other employee orders", async () => {
-      const otherEmployeeId = "other-employee-id";
-      await expect(
-        controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
-      ).rejects.toThrow(UnauthorizedException);
-      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
-    });
-  });
-  describe("findOne", () => {
-    const orderId = "order-id";
-    const mockOrder: Partial<Order> = {
-      id: orderId,
-      totalAmount: 100,
-    };
-    it("should return any order for admin user", async () => {
-      mockOrdersService.findOne.mockResolvedValue(mockOrder);
-      const result = await controller.findOne(orderId, mockAdminUser);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.findOne).toHaveBeenCalledWith(orderId);
-      expect(mockOrdersService.findOneByEmployee).not.toHaveBeenCalled();
-    });
-    it("should return employee-specific order for employee user", async () => {
-      mockOrdersService.findOneByEmployee.mockResolvedValue(mockOrder);
-      const result = await controller.findOne(orderId, mockEmployeeUser);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.findOne).not.toHaveBeenCalled();
-      expect(mockOrdersService.findOneByEmployee).toHaveBeenCalledWith(
-        orderId,
-        mockEmployeeUser.id
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/orders/orders.controller.ts
@@ -9147,122 +7597,6 @@ describe('OrdersService', () => {
     });
   });
 });
-````
-
-## File: backend/src/orders/orders.service.ts
-````typescript
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly employeesService: EmployeesService,
-  ) {}
-  async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'employee', 'service'],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking #${bookingId} not found`);
-    }
-    // Update booking status to completed
-    booking.status = BookingStatus.COMPLETED;
-    await this.bookingRepository.save(booking);
-    // Create order
-    const order = this.orderRepository.create({
-      booking,
-      completedAt: new Date(),
-      totalAmount: booking.totalPrice,
-    });
-    const savedOrder: Order = await this.orderRepository.save(order);
-    return savedOrder;
-  }
-  async findAll(): Promise<Order[]> {
-    const orders: Order[] = await this.orderRepository.find({
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-    return orders;
-  }
-  async findAllByEmployee(userId: string): Promise<Order[]> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    return this.orderRepository.find({
-      where: {
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-  }
-  async findOne(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-  async findOneByEmployee(id: string, userId: string): Promise<Order> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const order = await this.orderRepository.findOne({
-      where: {
-        id,
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-}
 ````
 
 ## File: backend/src/services/entities/service.entity.spec.ts
@@ -10491,39 +8825,6 @@ describe('UsersService', () => {
 });
 ````
 
-## File: backend/src/users/users.service.ts
-````typescript
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User } from "./entities/user.entity";
-@Injectable()
-export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
-  ) {}
-  async findOne(id: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-    return user;
-  }
-  async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
-  }
-  async create(userData: Partial<User>): Promise<User> {
-    const user = this.usersRepository.create(userData);
-    return this.usersRepository.save(user);
-  }
-  async update(id: string, userData: Partial<User>): Promise<User> {
-    await this.usersRepository.update(id, userData);
-    return this.findOne(id);
-  }
-}
-````
-
 ## File: backend/src/app.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -11003,11 +9304,6 @@ describe("AppController (e2e)", () => {
 .env
 .env*
 node_modules
-````
-
-## File: backend/.npmrc
-````
-ignore-scripts=true
 ````
 
 ## File: backend/eslint.config.js
@@ -17722,175 +16018,6 @@ describe('BookingForm', () => {
 })
 ````
 
-## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
-import { createPinia, setActivePinia } from 'pinia'
-import PaymentForm from '../PaymentForm.vue'
-import { useBookingStore } from '../../stores/booking'
-import { useServicesStore } from '../../stores/services'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-describe('PaymentForm', () => {
-  const mockPendingBooking = {
-    serviceId: '1',
-    firstName: 'Test Customer',
-    phoneNumber: '+4712345678',
-  }
-  const mockService = {
-    id: '1',
-    name: 'Haircut',
-    duration: 30,
-    price: '350',
-  }
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn().mockResolvedValue({}),
-    } as any)
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(mockService),
-    } as any)
-    // Reset timers
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-  const mountComponent = () => {
-    return mount(PaymentForm, {
-      global: {
-        provide: {
-          router: mockRouter,
-        },
-        mocks: {
-          $router: mockRouter,
-        },
-      },
-    })
-  }
-  it('shows message when no booking is found', () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(null),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn(),
-    } as any)
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
-    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
-  })
-  it('displays payment amount correctly', () => {
-    const wrapper = mountComponent()
-    // Price should be formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows loading state during payment processing', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.animate-spin').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Behandler...')
-  })
-  it('shows success message after payment', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    // Wait for payment delay
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    // Wait for store operation
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Betaling vellykket!')
-    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
-  })
-  it('displays error message when payment fails', async () => {
-    const mockError = 'Payment failed'
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(mockError),
-      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
-    } as any)
-    const wrapper = mountComponent()
-    // Attempt payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
-  })
-  it('navigates back to home after successful payment', async () => {
-    const wrapper = mountComponent()
-    // Complete payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Click return button
-    await wrapper.find('button.btn-secondary').trigger('click')
-    expect(mockRouter.push).toHaveBeenCalledWith('/')
-  })
-  it('handles missing service price gracefully', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(null),
-    } as any)
-    const wrapper = mountComponent()
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(0)
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows payment button in correct states', async () => {
-    const wrapper = mountComponent()
-    // Initial state
-    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
-    // During payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
-    // After payment
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Success state should show secondary button
-    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
-    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
-  })
-  it('shows payment instructions', () => {
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
-  })
-})
-````
-
 ## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -18738,136 +16865,6 @@ const router = createRouter({
   ],
 })
 export default router
-````
-
-## File: frontend/customer/src/stores/__tests__/booking.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useBookingStore } from '../booking'
-import type { CreateWalkInBookingParams } from '../types'
-// Test data
-interface MockResponse {
-  id: string
-  serviceId: string
-  firstName: string
-  phoneNumber: string
-  status: 'confirmed'
-}
-const createMockBooking = (
-  overrides: Partial<CreateWalkInBookingParams> = {},
-): CreateWalkInBookingParams => ({
-  serviceId: '1',
-  firstName: 'Test',
-  phoneNumber: '12345678',
-  isPaid: true,
-  ...overrides,
-})
-const createMockResponse = (overrides: Partial<MockResponse> = {}): MockResponse => ({
-  id: '1',
-  serviceId: '1',
-  firstName: 'Test',
-  phoneNumber: '12345678',
-  status: 'confirmed',
-  ...overrides,
-})
-// Helper functions
-const mockFetchSuccess = (response: any) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(response),
-    }),
-  )
-}
-const mockFetchError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({
-      ok: false,
-      json: () => Promise.resolve({ message }),
-    }),
-  )
-}
-const mockNetworkError = (message: string) => {
-  global.fetch = vi.fn().mockImplementation(() => Promise.reject(new Error(message)))
-}
-const verifyFetchCall = (mockBooking: CreateWalkInBookingParams) => {
-  expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/bookings/walk-in', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shop-Code': 'SHOP123',
-      accept: '*/*',
-    },
-    body: JSON.stringify(mockBooking),
-  })
-}
-// Tests
-describe('Booking Store', () => {
-  let store: ReturnType<typeof useBookingStore>
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    store = useBookingStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-  it('has empty initial state', () => {
-    expect(store.currentBooking).toBeNull()
-    expect(store.pendingBooking).toBeNull()
-    expect(store.isLoading).toBeFalsy()
-    expect(store.error).toBeNull()
-  })
-  it('creates walk-in booking successfully', async () => {
-    const mockBooking = createMockBooking()
-    const mockResponse = createMockResponse()
-    mockFetchSuccess(mockResponse)
-    await store.createWalkInBooking(mockBooking)
-    verifyFetchCall(mockBooking)
-    expect(store.currentBooking).toEqual(mockResponse)
-    expect(store.isLoading).toBeFalsy()
-    expect(store.error).toBeNull()
-  })
-  it('handles fetch error in walk-in booking', async () => {
-    const mockBooking = createMockBooking()
-    const errorMessage = 'Failed to create booking'
-    mockFetchError(errorMessage)
-    await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(errorMessage)
-    verifyFetchCall(mockBooking)
-    expect(store.currentBooking).toBeNull()
-    expect(store.isLoading).toBeFalsy()
-    expect(store.error).toBe(errorMessage)
-  })
-  it('handles network error in walk-in booking', async () => {
-    const mockBooking = createMockBooking()
-    const errorMessage = 'Network error'
-    mockNetworkError(errorMessage)
-    await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(errorMessage)
-    verifyFetchCall(mockBooking)
-    expect(store.currentBooking).toBeNull()
-    expect(store.isLoading).toBeFalsy()
-    expect(store.error).toBe(errorMessage)
-  })
-  it('sets pending booking', () => {
-    const pendingBooking = createMockBooking()
-    store.setPendingBooking(pendingBooking)
-    expect(store.pendingBooking).toEqual(pendingBooking)
-  })
-  it('clears booking state', async () => {
-    // Setup: Create a booking first
-    const mockBooking = createMockBooking()
-    const mockResponse = createMockResponse()
-    mockFetchSuccess(mockResponse)
-    await store.createWalkInBooking(mockBooking)
-    expect(store.currentBooking).toEqual(mockResponse)
-    // Test: Clear the booking
-    store.clearBooking()
-    expect(store.currentBooking).toBeNull()
-    expect(store.pendingBooking).toBeNull()
-    expect(store.error).toBeNull()
-  })
-})
 ````
 
 ## File: frontend/customer/src/stores/__tests__/counter.spec.ts
@@ -20785,55 +18782,6 @@ volumes:
   postgres_data:
 ````
 
-## File: Dockerfile
-````dockerfile
-# Multi-stage Dockerfile for building and running both backend and frontend
-
-# Stage 1: Build backend
-FROM node:24 AS backend-builder
-WORKDIR /app/backend
-COPY backend/package.json backend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY backend .
-RUN pnpm build
-
-# Stage 2: Build frontend
-FROM node:24 AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY frontend/admin .
-RUN pnpm build
-
-# Stage 3: Run backend and frontend
-FROM node:24
-WORKDIR /app
-
-# Copy backend build
-COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder /app/backend/package.json ./backend/package.json
-
-# Copy frontend build
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
-
-# Install serve to serve the frontend
-RUN npm install -g serve
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose ports
-EXPOSE 3000
-EXPOSE 5173
-
-# Start both backend and frontend
-CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
-````
-
 ## File: ISSUES.md
 ````markdown
 CRITICAL
@@ -21689,6 +19637,2106 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: backend/src/auth/guards/roles.guard.ts
+````typescript
+import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Request } from "express";
+interface RequestWithUser extends Request {
+  user: User;
+}
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      "roles",
+      [context.getHandler(), context.getClass()],
+    );
+    // Add debug logging
+    console.log('Roles Guard - Required Roles:', requiredRoles);
+    if (!requiredRoles) {
+      console.log('Roles Guard - No roles required');
+      return true;
+    }
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const user = request.user;
+    console.log('Roles Guard - User:', user);
+    console.log('Roles Guard - User Role:', user?.role);
+    if (!user || !user.role) {
+      console.log('Roles Guard - No user or role found in request');
+      return false;
+    }
+    // Ensure user.role is a valid UserRole
+    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
+      console.log('Roles Guard - Invalid user role');
+      return false;
+    }
+    const hasRole: boolean = requiredRoles.includes(user.role);
+    console.log('Roles Guard - Has Required Role:', hasRole);
+    const canActivate: boolean = hasRole;
+    return canActivate;
+  }
+}
+````
+
+## File: backend/src/bookings/bookings.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  UseGuards,
+  BadRequestException,
+  Req,
+  ParseUUIDPipe,
+  ValidationPipe,
+  Type,
+} from "@nestjs/common";
+import { BookingsService } from "./bookings.service";
+import { OrdersService } from "../orders/orders.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { BookingResponseDto } from "./dto/booking-response.dto";
+import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { UserRole } from "../users/entities/user.entity";
+import { Request } from "express";
+import { ShopCode } from "../shops/entities/shop-code.entity";
+import { Order } from "../orders/entities/order.entity";
+// Extend Express Request to include shop property
+interface RequestWithShop extends Request {
+  shop?: ShopCode;
+}
+@Controller("bookings")
+export class BookingsController {
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly ordersService: OrdersService
+  ) {}
+  @Get("upcoming/count")
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
+    return this.bookingsService.getUpcomingCount();
+  }
+  @Post("walk-in")
+  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
+  async createWalkIn(
+    @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
+    @Req() request: RequestWithShop
+  ): Promise<BookingResponseDto> {
+    if (!request.shop) {
+      throw new BadRequestException('Shop information is required for walk-in bookings');
+    }
+    const booking = await this.bookingsService.createWalkIn(
+      createWalkInBookingDto,
+      request.shop
+    );
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Post()
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
+  async create(
+    @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.create(createBookingDto);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Get("upcoming")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findUpcoming(): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findUpcoming();
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get("customer/:customerId")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
+  async findByCustomer(
+    @Param("customerId", new ParseUUIDPipe()) customerId: string
+  ): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findByCustomer(customerId);
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get("employee/:employeeId")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findByEmployee(
+    @Param("employeeId", new ParseUUIDPipe()) employeeId: string
+  ): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findByEmployee(employeeId);
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get(":id")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findOne(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.findOne(id);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async update(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ValidationPipe({ transform: true })) updateBookingDto: UpdateBookingDto
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.update(id, updateBookingDto);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id/cancel")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async cancel(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
+    const reason = "Cancelled by administrator";
+    const booking = await this.bookingsService.cancel(id, reason);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id/complete")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.ADMIN)
+  async complete(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<Order> {
+    return this.ordersService.createFromBooking(id);
+  }
+}
+````
+
+## File: backend/src/bookings/bookings.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { User, UserRole } from "../users/entities/user.entity";
+describe("BookingsService", () => {
+  let service: BookingsService;
+  interface MockUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    phoneNumber: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+  interface FindOneOptions {
+    where: { id: string };
+    relations: string[];
+  }
+  interface FindOptions {
+    where: unknown;
+    relations: string[];
+    order: { startTime: "ASC" | "DESC" };
+  }
+  interface MockBooking {
+    id: string;
+    customer?: Partial<MockUser>;
+    service?: { id: string; duration: number };
+    employee?: { id: string };
+    status?: BookingStatus;
+    startTime?: Date;
+    endTime?: Date;
+    notes?: string;
+    totalPrice?: number;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+  }
+  const mockBookingRepository = {
+    create: jest.fn().mockImplementation(
+      (dto: Partial<Booking>): MockBooking => ({
+        id: "booking1",
+        ...dto,
+      })
+    ),
+    save: jest
+      .fn()
+      .mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> =>
+          Promise.resolve({ id: "booking1", ...booking })
+      ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
+      ),
+    find: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
+      ),
+  };
+  const mockUsersService = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+  };
+  const mockEmployeesService = {
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+    isAvailable: jest.fn(),
+  };
+  const mockServicesService = {
+    findOne: jest.fn(),
+  };
+  const mockOrdersService = {
+    create: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BookingsService,
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+        {
+          provide: ServicesService,
+          useValue: mockServicesService,
+        },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    service = module.get<BookingsService>(BookingsService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  describe("createWalkIn", () => {
+    const mockShop = {
+      id: "shop1",
+      code: "SHOP1",
+      shopName: "Test Shop",
+      isActive: true,
+      dailyBookingLimit: 100,
+      lastBookingTime: new Date(),
+      todayBookingCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const mockEmployee = { id: "emp1", isActive: true };
+    const mockCustomer = { id: "cust1" };
+    const createWalkInDto: CreateWalkInBookingDto = {
+      serviceId: "service1",
+      firstName: "John",
+      phoneNumber: "1234567890",
+      isPaid: true,
+    };
+    it("should create a walk-in booking successfully", async () => {
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
+      mockBookingRepository.find.mockResolvedValue([]);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.createWalkIn(createWalkInDto, mockShop);
+      expect(result).toBeDefined();
+      expect(mockUsersService.create).toHaveBeenCalled();
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createWalkInDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when service not found", async () => {
+      mockServicesService.findOne.mockRejectedValue(
+        new NotFoundException("Service not found")
+      );
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+    it("should throw BadRequestException when no active employees", async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([]);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+  describe("create", () => {
+    const mockCustomer = { id: "cust1" };
+    const mockEmployee = { id: "emp1" };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const createBookingDto: CreateBookingDto = {
+      customerId: "cust1",
+      employeeId: "emp1",
+      serviceId: "service1",
+      startTime: new Date().toISOString(),
+      notes: "Test booking",
+    };
+    it("should create a booking successfully", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.create(createBookingDto);
+      expect(result).toBeDefined();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith(
+        createBookingDto.customerId
+      );
+      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.employeeId
+      );
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when customer not found", async () => {
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException("Customer not found")
+      );
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+    it("should throw BadRequestException when employee not available", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("findOne", () => {
+    it("should return a booking when found", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      const result = await service.findOne("booking1");
+      expect(result).toBe(mockBooking);
+      const expectedOptions: FindOneOptions = {
+        where: { id: "booking1" },
+        relations: ["customer", "employee", "employee.user", "service"],
+      };
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
+        expectedOptions
+      );
+    });
+    it("should throw NotFoundException when booking not found", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+  });
+  describe("update", () => {
+    const mockBooking = {
+      id: "booking1",
+      service: { id: "service1" },
+      employee: { id: "emp1" },
+    };
+    const updateDto: UpdateBookingDto = {
+      startTime: new Date().toISOString(),
+    };
+    it("should update booking successfully", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const updatedBooking: MockBooking = {
+        id: mockBooking.id,
+        startTime: new Date(updateDto.startTime),
+        service: { id: mockBooking.service.id, duration: 30 },
+        employee: { id: mockBooking.employee.id },
+      };
+      mockBookingRepository.save.mockResolvedValue(updatedBooking);
+      const result = await service.update("booking1", updateDto);
+      expect(result).toBeDefined();
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw BadRequestException when employee not available for new time", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("cancel", () => {
+    it("should cancel booking successfully", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      const reason = "Test reason";
+      const expectedSavedBooking = {
+        id: mockBooking.id,
+        status: BookingStatus.CANCELLED,
+        cancelledAt: expect.any(Date) as Date,
+        cancellationReason: reason,
+      };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
+      );
+      const result = await service.cancel("booking1", reason);
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.cancellationReason).toBe(reason);
+      expect(mockBookingRepository.save).toHaveBeenCalledWith(
+        expectedSavedBooking
+      );
+    });
+  });
+  describe("findUpcoming", () => {
+    it("should return upcoming bookings", async () => {
+      const mockBookings: MockBooking[] = [
+        { id: "booking1" },
+        { id: "booking2" },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.findUpcoming();
+      expect(result).toEqual(mockBookings);
+      const expectedFindOptions: FindOptions = {
+        where: expect.any(Object),
+        relations: ["customer", "employee", "employee.user", "service"],
+        order: { startTime: "ASC" },
+      };
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(
+        expectedFindOptions
+      );
+    });
+  });
+  describe("getUpcomingCount", () => {
+    it("should return upcoming count and customers", async () => {
+      const mockBookings: Partial<Booking>[] = [
+        {
+          id: "booking1",
+          customer: {
+            id: "user1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "1234567890",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service1",
+            name: "Haircut",
+            description: "Basic haircut",
+            duration: 30,
+            price: 50,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        {
+          id: "booking2",
+          customer: {
+            id: "user2",
+            firstName: "Jane",
+            lastName: "Doe",
+            email: "jane@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "0987654321",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          } as User,
+          service: {
+            id: "service2",
+            name: "Styling",
+            description: "Hair styling",
+            duration: 45,
+            price: 75,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.getUpcomingCount();
+      expect(result.count).toBe(2);
+      expect(result.customers).toHaveLength(2);
+      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
+    });
+  });
+});
+````
+
+## File: backend/src/bookings/bookings.service.ts
+````typescript
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, MoreThan, In, Between } from "typeorm";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import {
+  UpcomingCountResponseDto,
+  UpcomingCustomerDto,
+} from "./dto/upcoming-count-response.dto";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { OrdersService } from "../orders/orders.service";
+import { ShopCode } from "../shops/entities/shop-code.entity";
+import { UserRole } from "../users/entities/user.entity";
+@Injectable()
+export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+  constructor(
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly usersService: UsersService,
+    private readonly employeesService: EmployeesService,
+    private readonly servicesService: ServicesService,
+    private readonly ordersService: OrdersService
+  ) {}
+  async createWalkIn(
+    createWalkInBookingDto: CreateWalkInBookingDto,
+    shop: ShopCode
+  ): Promise<Booking> {
+    const { serviceId, firstName, phoneNumber, isPaid } =
+      createWalkInBookingDto;
+    // Create temporary customer for walk-in
+    const customer = await this.usersService.create({
+      firstName,
+      lastName: "Walk-in",
+      email: `walkin_${Date.now()}@temp.com`,
+      password: Math.random().toString(36),
+      phoneNumber,
+      role: UserRole.CUSTOMER,
+    });
+    // Verify service exists (findOne throws NotFoundException if not found)
+    const service = await this.servicesService.findOne(serviceId);
+    // Get all employees and filter active ones
+    const allEmployees = await this.employeesService.findAll();
+    const activeEmployees = allEmployees.filter((emp) => emp.isActive);
+    if (activeEmployees.length === 0) {
+      throw new BadRequestException("No employees available");
+    }
+    // Find the employee with the least pending bookings
+    const employeeBookings = await Promise.all(
+      activeEmployees.map(async (emp) => ({
+        employee: emp,
+        bookingCount: (await this.findByEmployee(emp.id)).length,
+      }))
+    );
+    const sortedEmployeeBookings = [...employeeBookings].sort(
+      (a, b) => a.bookingCount - b.bookingCount
+    );
+    const selectedEmployee = sortedEmployeeBookings[0].employee;
+    // Calculate start and end times
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
+    // Create and save the booking
+    const booking = this.bookingRepository.create({
+      customer,
+      employee: selectedEmployee,
+      service,
+      startTime: startDate,
+      endTime: endDate,
+      notes: `Walk-in booking from ${shop.shopName}`,
+      totalPrice: service.price,
+      status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
+    });
+    return await this.bookingRepository.save(booking) as Booking;
+  }
+  async create(createBookingDto: CreateBookingDto): Promise<Booking> {
+    const { customerId, employeeId, serviceId, startTime, notes } =
+      createBookingDto;
+    // Verify customer exists (findOne throws NotFoundException if not found)
+    const customer = await this.usersService.findOne(customerId);
+    // Verify employee exists (findOne throws NotFoundException if not found)
+    const employee = await this.employeesService.findOne(employeeId);
+    // Verify service exists (findOne throws NotFoundException if not found)
+    const service = await this.servicesService.findOne(serviceId);
+    // Calculate end time based on service duration
+    const startDate = new Date(startTime);
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
+    // Check if employee is available
+    const isAvailable = await this.employeesService.isAvailable(
+      employeeId,
+      startDate,
+      endDate
+    );
+    if (!isAvailable) {
+      throw new BadRequestException("Employee is not available at this time");
+    }
+    // Create and save the booking
+    const booking = this.bookingRepository.create({
+      customer,
+      employee,
+      service,
+      startTime: startDate,
+      endTime: endDate,
+      notes,
+      totalPrice: service.price,
+      status: BookingStatus.PENDING,
+    });
+    return await this.bookingRepository.save(booking) as Booking;
+  }
+  async findOne(id: string): Promise<Booking> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: ["customer", "employee", "employee.user", "service"],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+    return booking as Booking;
+  }
+  async update(
+    id: string,
+    updateBookingDto: UpdateBookingDto
+  ): Promise<Booking> {
+    const booking = await this.findOne(id);
+    // If updating start time, recalculate end time
+    if (updateBookingDto.startTime) {
+      const startDate = new Date(updateBookingDto.startTime);
+      const service = await this.servicesService.findOne(booking.service.id);
+      const endDate = new Date(startDate.getTime() + service.duration * 60000);
+      // Check employee availability for new time
+      const isAvailable = await this.employeesService.isAvailable(
+        booking.employee.id,
+        startDate,
+        endDate,
+        id // Exclude current booking from availability check
+      );
+      if (!isAvailable) {
+        throw new BadRequestException("Employee is not available at this time");
+      }
+      booking.startTime = startDate;
+      booking.endTime = endDate;
+    }
+    // Update other fields
+    Object.assign(booking, updateBookingDto);
+    return await this.bookingRepository.save(booking) as Booking;
+  }
+  async cancel(id: string, reason: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancelledAt = new Date();
+    booking.cancellationReason = reason;
+    return this.bookingRepository.save(booking);
+  }
+  async findByCustomer(customerId: string): Promise<Booking[]> {
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: { customer: { id: customerId } },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
+    });
+    return bookings;
+  }
+  async findByEmployee(employeeId: string): Promise<Booking[]> {
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: { employee: { id: employeeId } },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
+    });
+    return bookings;
+  }
+  async findUpcoming(): Promise<Booking[]> {
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: {
+        startTime: MoreThan(startOfDay),
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+      },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "ASC" },
+    });
+    this.logger.debug(`Found ${bookings.length} bookings`);
+    if (bookings.length === 0) {
+      this.logger.debug(
+        "No bookings found. Checking all bookings for debugging..."
+      );
+      const allBookings: Booking[] = await this.bookingRepository.find({
+        relations: ["customer", "employee", "employee.user", "service"],
+      });
+      this.logger.debug(`Total bookings in database: ${allBookings.length}`);
+      this.logger.debug("Sample booking dates:");
+      allBookings.slice(0, 3).forEach((booking: Booking) => {
+        this.logger.debug(
+          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`
+        );
+      });
+    }
+    return bookings;
+  }
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: {
+        startTime: Between(startOfDay, endOfDay),
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+      },
+      relations: ["customer", "service"],
+      order: { startTime: "ASC" },
+    });
+    const customers: UpcomingCustomerDto[] = bookings.map((booking: Booking, index: number) => {
+      // Calculate waiting time based on previous bookings' service durations
+      const waitingTime: number = bookings
+        .slice(0, index)
+        .reduce((total: number, prev: Booking) => total + prev.service.duration, 0);
+      return {
+        firstName: booking.customer.firstName,
+        estimatedWaitingTime: waitingTime,
+      };
+    });
+    return {
+      count: bookings.length,
+      customers,
+    };
+  }
+}
+````
+
+## File: backend/src/employees/employees.controller.spec.ts
+````typescript
+/* eslint-disable @typescript-eslint/unbound-method */
+import { Test, TestingModule } from "@nestjs/testing";
+import { EmployeesController } from "./employees.controller";
+import { EmployeesService } from "./employees.service";
+import {
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from "@nestjs/common";
+import { Employee } from "./entities/employee.entity";
+import { User, UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
+  hashPassword: () => Promise<void>;
+  validatePassword: (_password: string) => Promise<boolean>;
+}
+describe("EmployeesController", () => {
+  let controller: EmployeesController;
+  let service: EmployeesService;
+  const createMockUser = (data: Partial<User>): MockUser => {
+    const user: MockUser = {
+      id: "default-id",
+      firstName: "Default",
+      lastName: "User",
+      email: "default@example.com",
+      password: "password",
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async function () {
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        user.password = hashedPassword;
+      },
+      validatePassword: async function (password: string): Promise<boolean> {
+        return bcrypt.compare(password, user.password) as Promise<boolean>;
+      },
+      ...data,
+    };
+    return user;
+  };
+  const mockAdminUser = createMockUser({
+    id: "admin-id",
+    email: "admin@example.com",
+    firstName: "Admin",
+    lastName: "User",
+    role: UserRole.ADMIN,
+  });
+  const mockEmployeeUser = createMockUser({
+    id: "employee-id",
+    email: "employee@example.com",
+    firstName: "John",
+    lastName: "Doe",
+    role: UserRole.EMPLOYEE,
+  });
+  const mockEmployee = {
+    id: "employee-1",
+    user: mockEmployeeUser,
+    specializations: ["haircut"],
+    isActive: true,
+    availability: {},
+  } as Employee;
+  const mockEmployeesService = {
+    create: jest.fn(),
+    resetPassword: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    findByUserId: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    restore: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [EmployeesController],
+      providers: [
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+      ],
+    }).compile();
+    controller = module.get<EmployeesController>(EmployeesController);
+    service = module.get<EmployeesService>(EmployeesService);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("create", () => {
+    const createEmployeeDto = {
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      specializations: ["haircut"],
+    };
+    const createResponse = {
+      employee: mockEmployee,
+      temporaryPassword: "temp123",
+    };
+    it("should create an employee successfully", async () => {
+      mockEmployeesService.create.mockResolvedValue(createResponse);
+      const result = await controller.create(createEmployeeDto);
+      expect(result).toEqual(createResponse);
+      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.create.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+  });
+  describe("resetPassword", () => {
+    it("should reset password successfully", async () => {
+      const resetResponse = { temporaryPassword: "newTemp123" };
+      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
+      const result = await controller.resetPassword("employee-1");
+      expect(result).toEqual(resetResponse);
+      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.resetPassword.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("findAll", () => {
+    it("should return all employees", async () => {
+      const employees = [mockEmployee];
+      mockEmployeesService.findAll.mockResolvedValue(employees);
+      const result = await controller.findAll();
+      expect(result).toEqual(employees);
+      expect(service.findAll).toHaveBeenCalled();
+    });
+  });
+  describe("findOne", () => {
+    it("should return an employee by id for admin user", async () => {
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      const result = await controller.findOne("employee-1", mockAdminUser);
+      expect(result).toEqual(mockEmployee);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+      expect(service.findByUserId).not.toHaveBeenCalled();
+    });
+    it("should allow employee to access their own record", async () => {
+      const employeeUser = mockEmployeeUser;
+      const employeeRecord = { ...mockEmployee, id: "employee-1" };
+      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
+      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
+      const result = await controller.findOne("employee-1", employeeUser);
+      expect(result).toEqual(employeeRecord);
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+    });
+    it("should not allow employee to access other employee records", async () => {
+      const employeeUser = createMockUser({
+        id: "different-employee-id",
+        email: "other@example.com",
+        firstName: "Other",
+        lastName: "Employee",
+        role: UserRole.EMPLOYEE,
+      });
+      const ownEmployeeRecord = {
+        ...mockEmployee,
+        id: "own-employee-id",
+        user: employeeUser,
+      };
+      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
+      await expect(
+        controller.findOne("other-employee-id", employeeUser)
+      ).rejects.toThrow(
+        "Du har ikke tilgang til å se denne ansattes informasjon"
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found for findByUserId", async () => {
+      const employeeUser = createMockUser({
+        id: "employee-id",
+        role: UserRole.EMPLOYEE,
+      });
+      mockEmployeesService.findByUserId.mockResolvedValue(null);
+      await expect(
+        controller.findOne("employee-1", employeeUser)
+      ).rejects.toThrow(
+        new UnauthorizedException(
+          "Du har ikke tilgang til å se denne ansattes informasjon"
+        )
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.findOne.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.findOne("non-existent", mockAdminUser)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("update", () => {
+    const updateEmployeeDto = {
+      firstName: "John Updated",
+      email: "john.updated@example.com",
+    };
+    it("should update an employee successfully", async () => {
+      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
+      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
+      const result = await controller.update("employee-1", updateEmployeeDto);
+      expect(result).toEqual(updatedEmployee);
+      expect(service.update).toHaveBeenCalledWith(
+        "employee-1",
+        updateEmployeeDto
+      );
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(
+        controller.update("employee-1", updateEmployeeDto)
+      ).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.update("non-existent", updateEmployeeDto)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("remove", () => {
+    it("should remove an employee successfully", async () => {
+      mockEmployeesService.remove.mockResolvedValue(undefined);
+      await controller.remove("employee-1");
+      expect(service.remove).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee with future bookings error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new BadRequestException(
+          "Kan ikke slette ansatt med fremtidige bestillinger"
+        )
+      );
+      await expect(controller.remove("employee-1")).rejects.toThrow(
+        "Kan ikke slette ansatt med fremtidige bestillinger"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.remove("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("restore", () => {
+    it("should restore an employee successfully", async () => {
+      mockEmployeesService.restore.mockResolvedValue(undefined);
+      await controller.restore("employee-1");
+      expect(service.restore).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.restore.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.restore("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+});
+````
+
+## File: backend/src/employees/employees.service.ts
+````typescript
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
+import { Employee } from './entities/employee.entity';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import * as bcrypt from 'bcrypt';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+interface Availability {
+  [key: string]: TimeSlot[] | undefined;
+}
+@Injectable()
+export class EmployeesService {
+  constructor(
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+  ) {}
+  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createEmployeeDto.email }
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    // Create user
+    const user = this.userRepository.create({
+      email: createEmployeeDto.email,
+      firstName: createEmployeeDto.firstName,
+      lastName: createEmployeeDto.lastName,
+      password: hashedPassword,
+      role: UserRole.EMPLOYEE
+    });
+    const savedUser = await this.userRepository.save(user);
+    // Create employee
+    const employee = this.employeeRepository.create({
+      user: savedUser,
+      specializations: createEmployeeDto.specializations,
+      isActive: true,
+      availability: {}
+    });
+    const savedEmployee = await this.employeeRepository.save(employee);
+    return {
+      employee: savedEmployee,
+      temporaryPassword
+    };
+  }
+  async findAll(): Promise<Employee[]> {
+    const employees = await this.employeeRepository.find({
+      relations: ['user', 'services'],
+      where: { isActive: true },
+    });
+    return employees as Employee[];
+  }
+  async findOne(id: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { id },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee #${id} not found`);
+    }
+    return employee as Employee;
+  }
+  async findByUserId(userId: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with user ID ${userId} not found`);
+    }
+    return employee;
+  }
+  async isAvailable(
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingId?: string
+  ): Promise<boolean> {
+    const employee = await this.findOne(employeeId);
+    // Check if the employee is active
+    if (!employee.isActive) {
+      return false;
+    }
+    // Get day of week (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = startTime.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+    const dayName = dayNames[dayOfWeek];
+    // Check if employee has availability for this day
+    const availability = employee.availability as Availability;
+    const dayAvailability = availability[dayName];
+    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
+      return false;
+    }
+    // Check if the booking time falls within any of the available time slots
+    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
+    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
+    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
+      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+        return false;
+      }
+      const [startHour, startMinute] = slot.start.split(':').map(Number);
+      const [endHour, endMinute] = slot.end.split(':').map(Number);
+      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+        return false;
+      }
+      const slotStart = startHour * 60 + startMinute;
+      const slotEnd = endHour * 60 + endMinute;
+      return bookingStart >= slotStart && bookingEnd <= slotEnd;
+    });
+    if (!isWithinAvailability) {
+      return false;
+    }
+    // Check for overlapping bookings
+    const whereCondition: FindOptionsWhere<Booking> = {
+      employee: { id: employeeId },
+      startTime: Not(MoreThan(endTime)),
+      endTime: Not(LessThan(startTime)),
+    };
+    // Exclude the current booking if an ID is provided
+    if (excludeBookingId) {
+      whereCondition.id = Not(excludeBookingId);
+    }
+    const overlappingBookings = await this.bookingRepository.count({
+      where: whereCondition,
+    });
+    return overlappingBookings === 0;
+  }
+  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
+    const employee = await this.findOne(id);
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    await this.userRepository.update(employee.user.id, {
+      password: hashedPassword
+    });
+    return { temporaryPassword };
+  }
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    const employee = await this.findOne(id);
+    const updated = Object.assign(employee, updateEmployeeDto);
+    return await this.employeeRepository.save(updated) as Employee;
+  }
+  async remove(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = false;
+    await this.employeeRepository.save(employee);
+  }
+  async restore(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = true;
+    await this.employeeRepository.save(employee);
+  }
+}
+````
+
+## File: backend/src/orders/orders.service.ts
+````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
+  ) {}
+  async createFromBooking(bookingId: string): Promise<Order> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking #${bookingId} not found`);
+    }
+    // Update booking status to completed
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
+    });
+    const savedOrder = await this.orderRepository.save(order) as Order;
+    return savedOrder;
+  }
+  async findAll(): Promise<Order[]> {
+    const orders = await this.orderRepository.find({
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders as Order[];
+  }
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const orders = await this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders as Order[];
+  }
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order as Order;
+  }
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+}
+````
+
+## File: backend/src/users/users.service.ts
+````typescript
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { User } from "./entities/user.entity";
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+  ) {}
+  async findOne(id: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user as User;
+  }
+  async findByEmail(email: string): Promise<User | null> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    return user as User | null;
+  }
+  async create(userData: Partial<User>): Promise<User> {
+    const user = this.usersRepository.create(userData);
+    return await this.usersRepository.save(user) as User;
+  }
+  async update(id: string, userData: Partial<User>): Promise<User> {
+    await this.usersRepository.update(id, userData);
+    return this.findOne(id);
+  }
+}
+````
+
+## File: backend/pnpm-workspace.yaml
+````yaml
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': true
+  bcrypt: true
+  unrs-resolver: true
+````
+
+## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import PaymentForm from '../PaymentForm.vue'
+import { useBookingStore } from '../../stores/booking'
+import { useServicesStore } from '../../stores/services'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+describe('PaymentForm', () => {
+  const mockPendingBooking = {
+    serviceId: '1',
+    firstName: 'Test Customer',
+    phoneNumber: '+4712345678',
+  }
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn().mockResolvedValue({}),
+    } as unknown)
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    // Reset timers
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const mountComponent = () => {
+    return mount(PaymentForm, {
+      global: {
+        provide: {
+          router: mockRouter,
+        },
+        mocks: {
+          $router: mockRouter,
+        },
+      },
+    })
+  }
+  it('shows message when no booking is found', () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(null),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn(),
+    } as any)
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
+    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
+  })
+  it('displays payment amount correctly', () => {
+    const wrapper = mountComponent()
+    // Price should be formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows loading state during payment processing', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.animate-spin').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Behandler...')
+  })
+  it('shows success message after payment', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    // Wait for payment delay
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Betaling vellykket!')
+    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
+  })
+  it('displays error message when payment fails', async () => {
+    const mockError = 'Payment failed'
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(mockError),
+      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
+    } as any)
+    const wrapper = mountComponent()
+    // Attempt payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
+  })
+  it('navigates back to home after successful payment', async () => {
+    const wrapper = mountComponent()
+    // Complete payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Click return button
+    await wrapper.find('button.btn-secondary').trigger('click')
+    expect(mockRouter.push).toHaveBeenCalledWith('/')
+  })
+  it('handles missing service price gracefully', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mountComponent()
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(0)
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows payment button in correct states', async () => {
+    const wrapper = mountComponent()
+    // Initial state
+    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
+    // During payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
+    // After payment
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Success state should show secondary button
+    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
+    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
+  })
+  it('shows payment instructions', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
+  })
+})
+````
+
+## File: frontend/customer/src/stores/__tests__/booking.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useBookingStore } from '../booking'
+import type { CreateWalkInBookingParams } from '../types'
+// Test data
+interface MockResponse {
+  id: string
+  serviceId: string
+  firstName: string
+  phoneNumber: string
+  status: 'confirmed'
+}
+const createMockBooking = (
+  overrides: Partial<CreateWalkInBookingParams> = {},
+): CreateWalkInBookingParams => ({
+  serviceId: '1',
+  firstName: 'Test',
+  phoneNumber: '12345678',
+  isPaid: true,
+  ...overrides,
+})
+const createMockResponse = (overrides: Partial<MockResponse> = {}): MockResponse => ({
+  id: '1',
+  serviceId: '1',
+  firstName: 'Test',
+  phoneNumber: '12345678',
+  status: 'confirmed',
+  ...overrides,
+})
+// Helper functions
+const mockFetchSuccess = (response: unknown) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+    }),
+  )
+}
+const mockFetchError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({ message }),
+    }),
+  )
+}
+const mockNetworkError = (message: string) => {
+  global.fetch = vi.fn().mockImplementation(() => Promise.reject(new Error(message)))
+}
+const verifyFetchCall = (mockBooking: CreateWalkInBookingParams) => {
+  expect(global.fetch).toHaveBeenCalledWith('http://localhost:3000/bookings/walk-in', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shop-Code': 'SHOP123',
+      accept: '*/*',
+    },
+    body: JSON.stringify(mockBooking),
+  })
+}
+// Tests
+describe('Booking Store', () => {
+  let store: ReturnType<typeof useBookingStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    store = useBookingStore()
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+  it('has empty initial state', () => {
+    expect(store.currentBooking).toBeNull()
+    expect(store.pendingBooking).toBeNull()
+    expect(store.isLoading).toBeFalsy()
+    expect(store.error).toBeNull()
+  })
+  it('creates walk-in booking successfully', async () => {
+    const mockBooking = createMockBooking()
+    const mockResponse = createMockResponse()
+    mockFetchSuccess(mockResponse)
+    await store.createWalkInBooking(mockBooking)
+    verifyFetchCall(mockBooking)
+    expect(store.currentBooking).toEqual(mockResponse)
+    expect(store.isLoading).toBeFalsy()
+    expect(store.error).toBeNull()
+  })
+  it('handles fetch error in walk-in booking', async () => {
+    const mockBooking = createMockBooking()
+    const errorMessage = 'Failed to create booking'
+    mockFetchError(errorMessage)
+    await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(errorMessage)
+    verifyFetchCall(mockBooking)
+    expect(store.currentBooking).toBeNull()
+    expect(store.isLoading).toBeFalsy()
+    expect(store.error).toBe(errorMessage)
+  })
+  it('handles network error in walk-in booking', async () => {
+    const mockBooking = createMockBooking()
+    const errorMessage = 'Network error'
+    mockNetworkError(errorMessage)
+    await expect(store.createWalkInBooking(mockBooking)).rejects.toThrow(errorMessage)
+    verifyFetchCall(mockBooking)
+    expect(store.currentBooking).toBeNull()
+    expect(store.isLoading).toBeFalsy()
+    expect(store.error).toBe(errorMessage)
+  })
+  it('sets pending booking', () => {
+    const pendingBooking = createMockBooking()
+    store.setPendingBooking(pendingBooking)
+    expect(store.pendingBooking).toEqual(pendingBooking)
+  })
+  it('clears booking state', async () => {
+    // Setup: Create a booking first
+    const mockBooking = createMockBooking()
+    const mockResponse = createMockResponse()
+    mockFetchSuccess(mockResponse)
+    await store.createWalkInBooking(mockBooking)
+    expect(store.currentBooking).toEqual(mockResponse)
+    // Test: Clear the booking
+    store.clearBooking()
+    expect(store.currentBooking).toBeNull()
+    expect(store.pendingBooking).toBeNull()
+    expect(store.error).toBeNull()
+  })
+})
+````
+
+## File: frontend/customer/pnpm-workspace.yaml
+````yaml
+allowBuilds:
+  cypress: true
+  esbuild: true
+````
+
+## File: plans/fix-type-errors.md
+````markdown
+# Plan: Fix 75+ HIGH Error-Prone TypeScript/Lint Issues
+
+## Overview
+
+This plan addresses **75+ HIGH severity "error prone"** lint/type issues across the entire monorepo. The errors fall into **7 distinct categories**, each requiring a specific fix pattern.
+
+## Error Categories
+
+### Category 1: Unbound Method References in Tests (15 errors)
+**Pattern:** `expect(service.findOne).toHaveBeenCalled()` — references unbound methods that may lose `this` scoping.
+**Fix:** Wrap in arrow functions or use `expect(service.findOne).toHaveBeenCalled()` with `// eslint-disable-next-line @typescript-eslint/unbound-method` where the mock object has no `this` binding concern.
+
+### Category 2: Unsafe Return of Error-Typed / `any`-Typed Values (25+ errors)  
+**Pattern:** TypeORM `repository.save()`, `repository.findOne()`, `repository.find()` return types that don't match declared Promise return types.
+**Fix:** Add explicit type assertions or use proper generic typing on repository calls.
+
+### Category 3: Unnecessary Conditionals — Always Falsy/Truthy (8 errors)
+**Pattern:** Checking values that TypeScript knows can never be null/undefined because upstream methods throw on null.
+**Fix:** Remove the dead-code conditionals or restructure to handle the thrown exception pattern.
+
+### Category 4: Unsafe `any` Arguments (10+ errors)
+**Pattern:** Values typed as `any` passed to functions expecting specific types.
+**Fix:** Add proper type assertions or narrow the types.
+
+### Category 5: Unnecessary Optional Chains (2 errors)
+**Pattern:** `error.response?.data?.message` where `response` is already confirmed non-null.
+**Fix:** Remove the unnecessary `?` from the chain.
+
+### Category 6: Forbidden Non-Null Assertion (1 error)
+**Pattern:** `stats.get(employeeId)!` with `!` operator.
+**Fix:** Use a guarded access pattern with a fallback.
+
+### Category 7: Promise Handling Issues (2 errors)
+**Pattern:** Unawaited promises or return type mismatches with `setInterval`.
+**Fix:** Add `void` operator or fix return type annotations.
+
+---
+
+## Detailed Fixes By File
+
+### File 1: `backend/src/employees/employees.controller.spec.ts`
+**Errors:** 12 unbound method refs (lines 123, 147, 169, 180, 181, 194, 224, 271, 308, 340), 1 unsafe argument to toThrow (line 218), 1 unsafe return (line 40)
+
+**Fixes:**
+- **Lines 123, 147, 169, 180, 181, 194, 224, 271, 308, 340:** Add `// eslint-disable-next-line @typescript-eslint/unbound-method` before each `expect(service.xxx)` assertion since `service` is a jest mock object where `this` binding is irrelevant.
+- **Line 218:** Cast `new UnauthorizedException(...)` assertion: `expect(...).rejects.toThrow(UnauthorizedException)` or add type annotation.
+- **Line 40:** Change `return bcrypt.compare(password, user.password)` to `return bcrypt.compare(password, user.password) as Promise<boolean>` — or change the function to arrow style with explicit return type.
+
+### File 2: `backend/src/employees/employees.service.ts`
+**Errors:** Unsafe returns (lines 77, 90, 192), unnecessary conditional (line 128)
+
+**Fixes:**
+- **Line 77:** `return employees;` — Add explicit type annotation: `const employees: Employee[] = await ...` (already done) — ensure the `Repository<Employee>.find()` result is compatible. Use `return employees as Employee[]` if needed, or adjust the return type.
+- **Line 90:** `return employee;` — The `findOne` returns `Employee | null`, but the null check + throw above means this is safe. The issue is that `repository.findOne()` returns a potentially wider type. Cast: `return employee as Employee`.
+- **Line 192:** `return await this.employeeRepository.save(updated);` — Cast: `return await this.employeeRepository.save(updated) as Employee`.
+- **Line 128:** `if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0)` — The `dayAvailability` comes from `availability[dayName]` which is typed as `TimeSlot[]` from the `Availability` interface. The `!dayAvailability` check is always falsy because the index signature returns `TimeSlot[]`. Change to: `if (!availability[dayName] || dayAvailability.length === 0)` — or better, use optional chaining with `availability[dayName]` typed as `TimeSlot[] | undefined` by making the interface use `[key: string]: TimeSlot[] | undefined`.
+
+### File 3: `backend/src/employees/employees.controller.ts`
+**Errors:** Unnecessary conditional (line 45)
+
+**Fix:**
+- **Line 45:** `if (!employee || employee.id !== id)` — `findByUserId` throws `NotFoundException` if not found, so `employee` is never null here. The `!employee` check is dead code. Remove `!employee ||` to become: `if (employee.id !== id)`.
+
+### File 4: `backend/src/bookings/bookings.controller.ts`
+**Errors:** Unnecessary conditionals (lines 42, 45), unnecessary optional chain (line 61)
+
+**Fixes:**
+- **Lines 42-47:** `if (!bookingsService)` and `if (!ordersService)` — NestJS DI guarantees these are never falsy in the constructor. Remove both checks entirely.
+- **Line 61:** `if (!request?.shop)` → `if (!request.shop)` — `request` parameter is always defined.
+
+### File 5: `backend/src/bookings/bookings.service.ts`
+**Errors:** Unsafe returns (lines 97, 162), unnecessary conditionals (lines 56, 106, 112)
+
+**Fixes:**
+- **Line 97:** `return this.bookingRepository.save(booking)` → `return this.bookingRepository.save(booking) as Promise<Booking>` or `return await this.bookingRepository.save(booking)` with explicit typing.
+- **Line 162:** Same pattern — cast the return.
+- **Lines 56, 106, 112:** `if (!service)`, `if (!customer)`, `if (!employee)` — these are dead code because `servicesService.findOne()`, `usersService.findOne()`, and `employeesService.findOne()` already throw `NotFoundException`. Remove these conditionals and the associated throw statements.
+
+### File 6: `backend/src/users/users.service.ts`
+**Errors:** Unsafe returns (lines 18, 22, 27)
+
+**Fixes:**
+- **Line 18:** `return user;` — after null check, cast: `return user as User` or use `!` assertion since null case throws above.
+- **Line 22:** `return this.usersRepository.findOne(...)` — Add explicit return type cast: `return this.usersRepository.findOne({ where: { email } }) as Promise<User | null>`.
+- **Line 27:** `return this.usersRepository.save(user)` → `return this.usersRepository.save(user) as Promise<User>`.
+
+### File 7: `backend/src/orders/orders.service.ts`
+**Errors:** Unsafe returns (lines 62, 97)
+
+**Fixes:**
+- **Line 62:** `return this.orderRepository.find(...)` → cast return as `Promise<Order[]>`.
+- **Line 97:** `return order;` → `return order as Order` (after null check + throw).
+
+### File 8: `backend/src/orders/orders.controller.spec.ts`
+**Errors:** Unsafe return (line 28), unsafe argument (line 190)
+
+**Fixes:**
+- **Line 28:** `return bcrypt.compare(password, defaultUser.password)` → `return bcrypt.compare(password, defaultUser.password) as Promise<boolean>`.
+- **Line 190:** `).rejects.toThrow(UnauthorizedException)` → add `as typeof UnauthorizedException` or use string matcher.
+
+### File 9: `backend/src/orders/orders.service.spec.ts`
+**Errors:** Unbound method ref (line 185)
+
+**Fix:**
+- **Line 185:** Add `// eslint-disable-next-line @typescript-eslint/unbound-method` before the expect line.
+
+### File 10: `backend/src/auth/guards/roles.guard.ts`
+**Errors:** Unsafe argument of `any` to `UserRole` (line 40)
+
+**Fix:**
+- **Line 40:** `if (!Object.values(UserRole).includes(user.role))` → Cast: `if (!(Object.values(UserRole) as string[]).includes(user.role as string))`.
+
+### File 11: `backend/src/auth/strategies/jwt.strategy.spec.ts`
+**Errors:** Unsafe arguments to toThrow (lines 108, 121, 145)
+
+**Fixes:**
+- **Lines 108, 121:** `.toThrow(new UnauthorizedException('...'))` → Use string argument: `.toThrow('User not found')` and `.toThrow('Invalid token payload')`.
+- **Line 145:** `.toThrow(UnauthorizedException)` → Add type annotation or use `// eslint-disable-next-line`.
+
+### File 12: `backend/src/services/services.controller.spec.ts`
+**Errors:** Unsafe argument to toThrow (line 66)
+
+**Fix:**
+- **Line 66:** `await expect(controller.findOne('999')).rejects.toThrow(NotFoundException)` → cast or use string: `.rejects.toThrow('Not Found')` or add eslint-disable comment.
+
+### File 13: `backend/src/database/seeds/run-seeds.spec.ts`
+**Errors:** Unsafe return of any (lines 11, 104)
+
+**Fixes:**
+- **Line 11:** `return { ... }` in the mock factory — Add explicit type annotation to the return value.
+- **Line 104:** `expect(() => createDataSource()).toThrow(...)` — Add type assertion to the mock return.
+
+### File 14: `backend/src/database/seeds/create-sample-bookings.seed.ts`
+**Errors:** Unsafe any argument (line 109), unsafe return (line 118)
+
+**Fixes:**
+- **Line 109:** `const endTime = new Date(startTime.getTime() + Number(duration) * 60 * 1000)` — `duration` is already typed as `number` above. The issue is `startTime` typed as `any` from faker. Type it: `const startTime: Date = faker.date.between(...)`.
+- **Line 118:** `notes: faker.helpers.maybe(() => faker.lorem.sentence(), ...) ?? undefined` — Add type assertion: `as string | undefined`.
+
+### File 15: `backend/src/database/seeds/create-sample-orders.seed.ts`
+**Errors:** Unnecessary conditional (line 65), unsafe returns (lines 87, 88)
+
+**Fixes:**
+- **Line 65:** `if (!savedOrder)` — `save()` always returns the entity. Remove the check.
+- **Lines 87-88:** Mock repository type casts — already using `as unknown as Repository<T>`, the issue is in the return context. Wrap with explicit return type annotation.
+
+### File 16: `backend/src/database/seeds/create-initial-data.seed.spec.ts`
+**Errors:** Unsafe return (line 92)
+
+**Fix:**
+- **Line 92:** `return repository as unknown as Repository<T>` — Add explicit function return type annotation to the enclosing function.
+
+### File 17: `frontend/admin/src/stores/auth.ts`
+**Errors:** Unnecessary optional chain (line 117), unsafe any returns (lines 114, 118, 120, 138)
+
+**Fixes:**
+- **Line 117:** `if (error.response?.data?.message)` → `if (error.response.data?.message)` (already inside `if (error.response?.status)` so `response` is guaranteed).
+- **Lines 114, 120:** `return statusMessage` — The method `getHttpStatusErrorMessage` returns `string`, so this should be safe. The `any` typing comes from `this` being untyped in options-API actions. **Fix:** Convert to `setup()` store syntax, or add explicit `this` type annotations, or use `const self = this` pattern.
+- **Line 118:** `return this.extractBackendMessage(error.response.data.message)` — Same `this` as `any` issue. 
+- **Line 138:** `return this.handleAxiosError(error as AxiosError<ErrorResponse>)` — Same issue.
+- **Overall fix for auth.ts:** The core problem is that Pinia options-API stores type `this` as `any` inside `actions`. The cleanest fix is to extract helper functions (`getHttpStatusErrorMessage`, `extractBackendMessage`, `handleAxiosError`, `resolveLoginError`) as standalone functions outside the store definition. This eliminates all `this`-as-`any` issues.
+
+### File 18: `frontend/admin/src/stores/orders.ts`
+**Errors:** Unsafe any args (lines 38, 40, 41, 48), forbidden non-null assertion (line 48), unsafe return (line 28)
+
+**Fixes:**
+- **Lines 38, 40, 41, 48:** The `order` in the forEach is typed via the `Order` interface which has `booking.employee.id` as `string`. The issue is that `order.totalAmount` and `order.booking.employee.id` flow through `any`. Add explicit type to the forEach callback: `state.orders.forEach((order: Order) => { ... })`.
+- **Line 48:** `stats.get(employeeId)!` — Replace with: `const employeeStats = stats.get(employeeId); if (employeeStats) { ... }` to avoid the non-null assertion.
+- **Line 28:** `return state.orders.filter(...)` — Add explicit return type to the getter.
+
+### File 19: `frontend/admin/src/stores/employees.ts`
+**Errors:** Unnecessary conditional (line 53), unsafe any returns (lines 28, 30, 91)
+
+**Fixes:**
+- **Line 53:** `if (response.data.employee)` — `CreateEmployeeResponse.employee` is typed as `Employee` which is always truthy. Remove the conditional, just push directly.
+- **Lines 28, 30:** Getter return types — Add explicit return type annotations: `getActiveEmployees: (state): Employee[] => ...` and `getEmployeeById: (state) => (id: string): Employee | undefined => ...`.
+- **Line 91:** `return response.data` — The `api.patch()` call lacks a generic type. Add `api.patch<Employee>(...)`.
+
+### File 20: `frontend/admin/src/stores/__tests__/auth.spec.ts`
+**Errors:** 6 unbound method refs (lines 65, 91, 116, 183, 192, 204, 209)
+
+**Fix:**
+- Add `// eslint-disable-next-line @typescript-eslint/unbound-method` before each `vi.mocked(api.post)` / `vi.mocked(api.get)` / `expect(api.get)` line. OR add a file-level disable: `/* eslint-disable @typescript-eslint/unbound-method */` at the top since the entire test file uses mocked methods.
+
+### File 21: `frontend/admin/src/main.ts`
+**Errors:** Unsafe any argument for Plugin (line 16)
+
+**Fix:**
+- **Line 16:** `app.use(pinia)` — `createPinia()` returns `Pinia` but may be typed as `any` in certain setups. Add explicit type: `const pinia: Pinia = createPinia()` with `import type { Pinia } from 'pinia'`.
+
+### File 22: `frontend/customer/src/stores/services.ts`
+**Errors:** Unhandled promise (line 47)
+
+**Fix:**
+- **Line 47:** `fetchServices()` → `void fetchServices()` — Already wrapped in `queueMicrotask`, just add the `void` operator.
+
+### File 23: `frontend/customer/src/stores/booking.ts`
+**Errors:** Unsafe any argument (line 54)
+
+**Fix:**
+- **Line 54:** `throw new Error(errorData?.message || 'Failed to create booking')` — `errorData` is typed as `any` from `.json()`. Add type: `const errorData: { message?: string } | null = await response.json().catch(() => null)`.
+
+### File 24: `frontend/customer/src/stores/waiting.ts`
+**Errors:** Promise return in void context (line 59)
+
+**Fix:**
+- **Line 59:** `return setInterval(fetchQueueStatus, intervalMs)` — `fetchQueueStatus` is async, so `setInterval` receives a function returning `Promise<void>` instead of `void`. Wrap: `return setInterval(() => { void fetchQueueStatus() }, intervalMs)`.
+
+### File 25: `frontend/customer/src/stores/__tests__/waiting.spec.ts`
+**Errors:** Unsafe any argument to clearInterval (line 156)
+
+**Fix:**
+- **Line 156:** `clearInterval(intervalId)` — `intervalId` may be typed as `any` from the store return. Add type: `const intervalId: ReturnType<typeof setInterval> = store.startPolling(1000)`.
+
+### File 26: `frontend/customer/src/main.ts`
+**Errors:** Unsafe any argument for Plugin (line 12)
+
+**Fix:**
+- **Line 12:** `app.use(createPinia())` — Same as admin main.ts. Extract and type: `const pinia: Pinia = createPinia()` then `app.use(pinia)`, with `import type { Pinia } from 'pinia'`.
+
+---
+
+## Implementation Order
+
+The fixes should be applied in this order to minimize cascading issues:
+
+1. **Backend source files first** — service/controller fixes that change types
+2. **Backend test files** — test fixes that depend on source types  
+3. **Frontend source files** — store and main.ts fixes
+4. **Frontend test files** — test fixes last
+
+## Risk Assessment
+
+- **Low risk:** eslint-disable comments for unbound methods in tests, optional chain removals, void operators
+- **Medium risk:** Type assertions on TypeORM returns — these are semantically correct but bypass type checking
+- **Higher risk:** Removing unnecessary conditionals in bookings.service.ts — ensure the called methods truly throw on null before removing null guards. Verified: `findOne` methods in UsersService, EmployeesService, and ServicesService all throw NotFoundException on null.
+````
+
+## File: Dockerfile
+````dockerfile
+# Multi-stage Dockerfile for building and running both backend and frontend
+
+# Stage 1: Build backend
+FROM node:24 AS backend-builder
+WORKDIR /app/backend
+COPY backend/package.json backend/pnpm-lock.yaml ./
+RUN npm install -g pnpm@11 && pnpm install
+COPY backend .
+RUN pnpm build
+
+# Stage 2: Build frontend
+FROM node:24 AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
+RUN npm install -g pnpm@11 && pnpm install
+COPY frontend/admin .
+RUN pnpm build
+
+# Stage 3: Run backend and frontend
+FROM node:24
+WORKDIR /app
+
+# Copy backend build
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/package.json
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Install serve to serve the frontend
+RUN npm install -g serve
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 5173
+
+# Start both backend and frontend
+CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
+````
+
+## File: backend/src/employees/employees.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (!employee || employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
+}
+````
+
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -21784,6 +21832,204 @@ jobs:
           fail_ci_if_error: true
 ````
 
+## File: backend/src/orders/orders.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { OrdersController } from "./orders.controller";
+import { OrdersService } from "./orders.service";
+import { Order } from "./entities/order.entity";
+import { User, UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+describe("OrdersController", () => {
+  let controller: OrdersController;
+  const createMockUser = (data: Partial<User>): User => {
+    const defaultUser: User = {
+      id: "default-id",
+      firstName: "Default",
+      lastName: "User",
+      email: "default@example.com",
+      password: "password",
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async (): Promise<void> => {
+        const salt = await bcrypt.genSalt();
+        defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
+      },
+      validatePassword: async (password: string): Promise<boolean> => {
+        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
+      },
+      ...data,
+    };
+    return defaultUser;
+  };
+  const mockAdminUser = createMockUser({
+    id: "admin-id",
+    email: "admin@example.com",
+    firstName: "Admin",
+    lastName: "User",
+    role: UserRole.ADMIN,
+  });
+  const mockEmployeeUser = createMockUser({
+    id: "employee-id",
+    email: "employee@example.com",
+    firstName: "Employee",
+    lastName: "User",
+    role: UserRole.EMPLOYEE,
+  });
+  const mockOrdersService = {
+    createFromBooking: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order> =>
+          Promise.resolve({ id: "order-id", totalAmount: 100 } as Order)
+      ),
+    findAll: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order[]> =>
+          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
+      ),
+    findAllByEmployee: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order[]> =>
+          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
+      ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (id: string): Promise<Order> =>
+          Promise.resolve({ id, totalAmount: 100 } as Order)
+      ),
+    findOneByEmployee: jest
+      .fn()
+      .mockImplementation(
+        (orderId: string): Promise<Order> =>
+          Promise.resolve({ id: orderId, totalAmount: 100 } as Order)
+      ),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [OrdersController],
+      providers: [
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    controller = module.get<OrdersController>(OrdersController);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("create", () => {
+    it("should create an order from a booking", async () => {
+      const bookingId = "booking-id";
+      const mockOrder: Partial<Order> = {
+        id: "order-id",
+        totalAmount: 100,
+      };
+      mockOrdersService.createFromBooking.mockResolvedValue(mockOrder);
+      const result = await controller.create(bookingId);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.createFromBooking).toHaveBeenCalledWith(
+        bookingId
+      );
+    });
+  });
+  describe("findAll", () => {
+    const mockOrders: Partial<Order>[] = [
+      { id: "1", totalAmount: 100 },
+      { id: "2", totalAmount: 200 },
+    ];
+    it("should return all orders for admin user", async () => {
+      mockOrdersService.findAll.mockResolvedValue(mockOrders);
+      const result = await controller.findAll(mockAdminUser);
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAll).toHaveBeenCalled();
+      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
+    });
+    it("should return employee-specific orders for employee user", async () => {
+      mockOrdersService.findAllByEmployee.mockResolvedValue([mockOrders[0]]);
+      const result = await controller.findAll(mockEmployeeUser);
+      expect(result).toEqual([mockOrders[0]]);
+      expect(mockOrdersService.findAll).not.toHaveBeenCalled();
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        mockEmployeeUser.id
+      );
+    });
+  });
+  describe("findAllByEmployee", () => {
+    const mockOrders: Partial<Order>[] = [{ id: "1", totalAmount: 100 }];
+    it("should allow admin to access any employee orders", async () => {
+      const employeeId = "other-employee-id";
+      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
+      const result = await controller.findAllByEmployee(
+        employeeId,
+        mockAdminUser
+      );
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        employeeId
+      );
+    });
+    it("should allow employee to access their own orders", async () => {
+      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
+      const result = await controller.findAllByEmployee(
+        mockEmployeeUser.id,
+        mockEmployeeUser
+      );
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        mockEmployeeUser.id
+      );
+    });
+    it("should not allow employee to access other employee orders", async () => {
+      const otherEmployeeId = "other-employee-id";
+      await expect(
+        controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
+      ).rejects.toThrow('Du har ikke tilgang til å se disse ordrene');
+      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
+    });
+  });
+  describe("findOne", () => {
+    const orderId = "order-id";
+    const mockOrder: Partial<Order> = {
+      id: orderId,
+      totalAmount: 100,
+    };
+    it("should return any order for admin user", async () => {
+      mockOrdersService.findOne.mockResolvedValue(mockOrder);
+      const result = await controller.findOne(orderId, mockAdminUser);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.findOne).toHaveBeenCalledWith(orderId);
+      expect(mockOrdersService.findOneByEmployee).not.toHaveBeenCalled();
+    });
+    it("should return employee-specific order for employee user", async () => {
+      mockOrdersService.findOneByEmployee.mockResolvedValue(mockOrder);
+      const result = await controller.findOne(orderId, mockEmployeeUser);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.findOne).not.toHaveBeenCalled();
+      expect(mockOrdersService.findOneByEmployee).toHaveBeenCalledWith(
+        orderId,
+        mockEmployeeUser.id
+      );
+    });
+  });
+});
+````
+
+## File: backend/.npmrc
+````
+# Supply chain security: prevent lifecycle scripts from running during install
+ignore-scripts=true
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -21793,6 +22039,11 @@ jobs:
   "author": "",
   "private": true,
   "license": "MIT",
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -21865,6 +22116,14 @@ jobs:
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@scarf/scarf",
+      "bcrypt",
+      "unrs-resolver"
+    ]
   }
 }
 ````
@@ -21875,6 +22134,11 @@ jobs:
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -21891,7 +22155,7 @@ jobs:
     "axios": "1.16.0",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.14",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6"
@@ -21925,6 +22189,11 @@ jobs:
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
@@ -21962,7 +22231,7 @@ jobs:
     "eslint-plugin-vue": "^10.9.0",
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.14",
     "prettier": "^3.8.3",
     "start-server-and-test": "^3.0.2",
     "tailwindcss": "^3.4.19",
