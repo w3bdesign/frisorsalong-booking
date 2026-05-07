@@ -38,14 +38,7 @@ export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
     private readonly ordersService: OrdersService
-  ) {
-    if (!bookingsService) {
-      throw new Error('BookingsService is required');
-    }
-    if (!ordersService) {
-      throw new Error('OrdersService is required');
-    }
-  }
+  ) {}
 
   @Get("upcoming/count")
   async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
@@ -58,7 +51,7 @@ export class BookingsController {
     @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
     @Req() request: RequestWithShop
   ): Promise<BookingResponseDto> {
-    if (!request?.shop) {
+    if (!request.shop) {
       throw new BadRequestException('Shop information is required for walk-in bookings');
     }
 

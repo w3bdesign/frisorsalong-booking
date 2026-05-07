@@ -2,6 +2,11 @@
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

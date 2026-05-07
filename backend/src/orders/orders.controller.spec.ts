@@ -3,7 +3,6 @@ import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { Order } from "./entities/order.entity";
 import { User, UserRole } from "../users/entities/user.entity";
-import { UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 
 describe("OrdersController", () => {
@@ -25,7 +24,7 @@ describe("OrdersController", () => {
         defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
       },
       validatePassword: async (password: string): Promise<boolean> => {
-        return bcrypt.compare(password, defaultUser.password);
+        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
       },
       ...data,
     };
@@ -187,7 +186,7 @@ describe("OrdersController", () => {
 
       await expect(
         controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow('Du har ikke tilgang til å se disse ordrene');
 
       expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
     });

@@ -51,11 +51,8 @@ export class BookingsService {
       role: UserRole.CUSTOMER,
     });
 
-    // Verify service exists
+    // Verify service exists (findOne throws NotFoundException if not found)
     const service = await this.servicesService.findOne(serviceId);
-    if (!service) {
-      throw new NotFoundException("Service not found");
-    }
 
     // Get all employees and filter active ones
     const allEmployees = await this.employeesService.findAll();
@@ -94,30 +91,21 @@ export class BookingsService {
       status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
     });
 
-    return this.bookingRepository.save(booking);
+    return await this.bookingRepository.save(booking) as Booking;
   }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     const { customerId, employeeId, serviceId, startTime, notes } =
       createBookingDto;
 
-    // Verify customer exists
+    // Verify customer exists (findOne throws NotFoundException if not found)
     const customer = await this.usersService.findOne(customerId);
-    if (!customer) {
-      throw new NotFoundException("Customer not found");
-    }
 
-    // Verify employee exists
+    // Verify employee exists (findOne throws NotFoundException if not found)
     const employee = await this.employeesService.findOne(employeeId);
-    if (!employee) {
-      throw new NotFoundException("Employee not found");
-    }
 
-    // Verify service exists
+    // Verify service exists (findOne throws NotFoundException if not found)
     const service = await this.servicesService.findOne(serviceId);
-    if (!service) {
-      throw new NotFoundException("Service not found");
-    }
 
     // Calculate end time based on service duration
     const startDate = new Date(startTime);
@@ -146,7 +134,7 @@ export class BookingsService {
       status: BookingStatus.PENDING,
     });
 
-    return this.bookingRepository.save(booking);
+    return await this.bookingRepository.save(booking) as Booking;
   }
 
   async findOne(id: string): Promise<Booking> {
@@ -159,7 +147,7 @@ export class BookingsService {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }
 
-    return booking;
+    return booking as Booking;
   }
 
   async update(
@@ -193,7 +181,7 @@ export class BookingsService {
     // Update other fields
     Object.assign(booking, updateBookingDto);
 
-    return this.bookingRepository.save(booking);
+    return await this.bookingRepository.save(booking) as Booking;
   }
 
   async cancel(id: string, reason: string): Promise<Booking> {
