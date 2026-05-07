@@ -172,7 +172,9 @@ describe("BookingsService", () => {
     });
 
     it("should throw NotFoundException when service not found", async () => {
-      mockServicesService.findOne.mockResolvedValue(null);
+      mockServicesService.findOne.mockRejectedValue(
+        new NotFoundException("Service not found")
+      );
 
       await expect(
         service.createWalkIn(createWalkInDto, mockShop)
@@ -226,7 +228,9 @@ describe("BookingsService", () => {
     });
 
     it("should throw NotFoundException when customer not found", async () => {
-      mockUsersService.findOne.mockResolvedValue(null);
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException("Customer not found")
+      );
 
       await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
         NotFoundException

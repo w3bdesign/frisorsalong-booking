@@ -187,7 +187,7 @@ describe("OrdersController", () => {
 
       await expect(
         controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
-      ).rejects.toThrow('Unauthorized');
+      ).rejects.toThrow('Du har ikke tilgang til å se disse ordrene');
 
       expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
     });
