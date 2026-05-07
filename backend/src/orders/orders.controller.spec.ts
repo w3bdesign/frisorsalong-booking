@@ -25,7 +25,7 @@ describe("OrdersController", () => {
         defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
       },
       validatePassword: async (password: string): Promise<boolean> => {
-        return bcrypt.compare(password, defaultUser.password);
+        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
       },
       ...data,
     };
@@ -187,7 +187,7 @@ describe("OrdersController", () => {
 
       await expect(
         controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow('Unauthorized');
 
       expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
     });
