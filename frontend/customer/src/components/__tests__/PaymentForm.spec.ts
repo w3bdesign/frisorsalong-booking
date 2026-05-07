@@ -48,7 +48,7 @@ describe('PaymentForm', () => {
       isLoading: ref(false),
       error: ref(null),
       createWalkInBooking: vi.fn().mockResolvedValue({}),
-    } as any)
+    } as unknown)
 
     vi.mocked(useServicesStore).mockReturnValue({
       selectedService: ref(mockService),

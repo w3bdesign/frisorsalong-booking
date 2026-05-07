@@ -32,7 +32,7 @@ const createMockResponse = (overrides: Partial<MockResponse> = {}): MockResponse
 })
 
 // Helper functions
-const mockFetchSuccess = (response: any) => {
+const mockFetchSuccess = (response: unknown) => {
   global.fetch = vi.fn().mockImplementation(() =>
     Promise.resolve({
       ok: true,
