@@ -17,7 +17,6 @@ import {
 import { UsersService } from "../users/users.service";
 import { EmployeesService } from "../employees/employees.service";
 import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
 import { ShopCode } from "../shops/entities/shop-code.entity";
 import { UserRole } from "../users/entities/user.entity";
 
@@ -31,12 +30,11 @@ export class BookingsService {
     private readonly usersService: UsersService,
     private readonly employeesService: EmployeesService,
     private readonly servicesService: ServicesService,
-    private readonly ordersService: OrdersService
   ) {}
 
   async createWalkIn(
     createWalkInBookingDto: CreateWalkInBookingDto,
-    shop: ShopCode
+    shop: ShopCode,
   ): Promise<Booking> {
     const { serviceId, firstName, phoneNumber, isPaid } =
       createWalkInBookingDto;
@@ -67,11 +65,11 @@ export class BookingsService {
       activeEmployees.map(async (emp) => ({
         employee: emp,
         bookingCount: (await this.findByEmployee(emp.id)).length,
-      }))
+      })),
     );
 
     const sortedEmployeeBookings = [...employeeBookings].sort(
-      (a, b) => a.bookingCount - b.bookingCount
+      (a, b) => a.bookingCount - b.bookingCount,
     );
     const selectedEmployee = sortedEmployeeBookings[0].employee;
 
@@ -91,7 +89,7 @@ export class BookingsService {
       status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
     });
 
-    return await this.bookingRepository.save(booking) as Booking;
+    return (await this.bookingRepository.save(booking)) as Booking;
   }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -115,7 +113,7 @@ export class BookingsService {
     const isAvailable = await this.employeesService.isAvailable(
       employeeId,
       startDate,
-      endDate
+      endDate,
     );
 
     if (!isAvailable) {
@@ -134,7 +132,7 @@ export class BookingsService {
       status: BookingStatus.PENDING,
     });
 
-    return await this.bookingRepository.save(booking) as Booking;
+    return (await this.bookingRepository.save(booking)) as Booking;
   }
 
   async findOne(id: string): Promise<Booking> {
@@ -152,7 +150,7 @@ export class BookingsService {
 
   async update(
     id: string,
-    updateBookingDto: UpdateBookingDto
+    updateBookingDto: UpdateBookingDto,
   ): Promise<Booking> {
     const booking = await this.findOne(id);
 
@@ -167,7 +165,7 @@ export class BookingsService {
         booking.employee.id,
         startDate,
         endDate,
-        id // Exclude current booking from availability check
+        id, // Exclude current booking from availability check
       );
 
       if (!isAvailable) {
@@ -181,7 +179,7 @@ export class BookingsService {
     // Update other fields
     Object.assign(booking, updateBookingDto);
 
-    return await this.bookingRepository.save(booking) as Booking;
+    return (await this.bookingRepository.save(booking)) as Booking;
   }
 
   async cancel(id: string, reason: string): Promise<Booking> {
@@ -217,7 +215,7 @@ export class BookingsService {
     const startOfDay = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate()
+      now.getDate(),
     );
     this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
 
@@ -233,7 +231,7 @@ export class BookingsService {
     this.logger.debug(`Found ${bookings.length} bookings`);
     if (bookings.length === 0) {
       this.logger.debug(
-        "No bookings found. Checking all bookings for debugging..."
+        "No bookings found. Checking all bookings for debugging...",
       );
       const allBookings: Booking[] = await this.bookingRepository.find({
         relations: ["customer", "employee", "employee.user", "service"],
@@ -242,7 +240,7 @@ export class BookingsService {
       this.logger.debug("Sample booking dates:");
       allBookings.slice(0, 3).forEach((booking: Booking) => {
         this.logger.debug(
-          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`
+          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`,
         );
       });
     }
@@ -255,7 +253,7 @@ export class BookingsService {
     const startOfDay = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate()
+      now.getDate(),
     );
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
@@ -269,17 +267,22 @@ export class BookingsService {
       order: { startTime: "ASC" },
     });
 
-    const customers: UpcomingCustomerDto[] = bookings.map((booking: Booking, index: number) => {
-      // Calculate waiting time based on previous bookings' service durations
-      const waitingTime: number = bookings
-        .slice(0, index)
-        .reduce((total: number, prev: Booking) => total + prev.service.duration, 0);
+    const customers: UpcomingCustomerDto[] = bookings.map(
+      (booking: Booking, index: number) => {
+        // Calculate waiting time based on previous bookings' service durations
+        const waitingTime: number = bookings
+          .slice(0, index)
+          .reduce(
+            (total: number, prev: Booking) => total + prev.service.duration,
+            0,
+          );
 
-      return {
-        firstName: booking.customer.firstName,
-        estimatedWaitingTime: waitingTime,
-      };
-    });
+        return {
+          firstName: booking.customer.firstName,
+          estimatedWaitingTime: waitingTime,
+        };
+      },
+    );
 
     return {
       count: bookings.length,

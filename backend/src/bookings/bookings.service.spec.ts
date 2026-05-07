@@ -5,7 +5,6 @@ import { Booking, BookingStatus } from "./entities/booking.entity";
 import { UsersService } from "../users/users.service";
 import { EmployeesService } from "../employees/employees.service";
 import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
@@ -92,10 +91,6 @@ describe("BookingsService", () => {
     findOne: jest.fn(),
   };
 
-  const mockOrdersService = {
-    create: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -115,10 +110,6 @@ describe("BookingsService", () => {
         {
           provide: ServicesService,
           useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
         },
       ],
     }).compile();

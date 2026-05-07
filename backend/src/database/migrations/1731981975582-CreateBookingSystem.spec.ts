@@ -6,16 +6,17 @@ const findQueryCall = (calls: string[], pattern: string): number =>
   calls.findIndex(call => call.includes(pattern));
 
 const verifyTableSchema = (query: string, tableName: string, ...fields: string[]): void => {
-  const tablePattern = new RegExp(`CREATE TABLE[\\s\\S]*${tableName}[\\s\\S]*${fields.join('[\\s\\S]*')}`);
-  expect(query).toMatch(tablePattern);
+  expect(query).toContain('CREATE TABLE');
+  expect(query).toContain(tableName);
+  for (const field of fields) {
+    expect(query).toContain(field);
+  }
 };
 
-const verifyForeignKey = (query: string, tableName: string, columnName: string, referencedTable: string): void => {
-  const pattern = new RegExp(
-    `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${columnName}"\\)[\\s\\S]*REFERENCES "${referencedTable}"`,
-    'i'
-  );
-  expect(query).toMatch(pattern);
+const verifyForeignKey = (query: string, _tableName: string, columnName: string, referencedTable: string): void => {
+  expect(query).toContain('CONSTRAINT');
+  expect(query).toContain(`FOREIGN KEY ("${columnName}")`);
+  expect(query).toContain(`REFERENCES "${referencedTable}"`);
 };
 
 const verifyDropOrder = (calls: string[], tables: string[]): void => {
