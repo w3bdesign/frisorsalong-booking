@@ -4,7 +4,7 @@
 FROM node:24 AS backend-builder
 WORKDIR /app/backend
 COPY backend/package.json backend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
+RUN npm install -g pnpm@11 && pnpm install
 COPY backend .
 RUN pnpm build
 
@@ -12,7 +12,7 @@ RUN pnpm build
 FROM node:24 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
+RUN npm install -g pnpm@11 && pnpm install
 COPY frontend/admin .
 RUN pnpm build
 
