@@ -5,6 +5,11 @@
   "author": "",
   "private": true,
   "license": "MIT",
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
