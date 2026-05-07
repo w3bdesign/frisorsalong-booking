@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmployeesController } from "./employees.controller";
 import { EmployeesService } from "./employees.service";
@@ -36,8 +37,8 @@ describe("EmployeesController", () => {
         const hashedPassword = await bcrypt.hash(user.password, salt);
         user.password = hashedPassword;
       },
-      validatePassword: async function (password) {
-        return bcrypt.compare(password, user.password);
+      validatePassword: async function (password: string): Promise<boolean> {
+        return bcrypt.compare(password, user.password) as Promise<boolean>;
       },
       ...data,
     };
@@ -215,9 +216,7 @@ describe("EmployeesController", () => {
       await expect(
         controller.findOne("other-employee-id", employeeUser)
       ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
+        "Du har ikke tilgang til å se denne ansattes informasjon"
       );
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
