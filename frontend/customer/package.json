@@ -51,6 +51,10 @@
     "vue-tsc": "^3.2.6"
   },
   "pnpm": {
-    "onlyBuiltDependencies": []
+    "onlyBuiltDependencies": [],
+    "ignoredBuiltDependencies": [
+      "cypress",
+      "esbuild"
+    ]
   }
 }
