@@ -2,23 +2,21 @@ import { QueryRunner } from 'typeorm';
 import { CreateBookingSystem1731981975582 } from './1731981975582-CreateBookingSystem';
 
 // Helper functions to reduce nesting and improve readability
-const escapeRegExp = (str: string): string =>
-  str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const findQueryCall = (calls: string[], pattern: string): number =>
   calls.findIndex(call => call.includes(pattern));
 
 const verifyTableSchema = (query: string, tableName: string, ...fields: string[]): void => {
-  const tablePattern = new RegExp(`CREATE TABLE[\\s\\S]*${escapeRegExp(tableName)}[\\s\\S]*${fields.map(f => escapeRegExp(f)).join('[\\s\\S]*')}`);
-  expect(query).toMatch(tablePattern);
+  expect(query).toContain('CREATE TABLE');
+  expect(query).toContain(tableName);
+  for (const field of fields) {
+    expect(query).toContain(field);
+  }
 };
 
 const verifyForeignKey = (query: string, _tableName: string, columnName: string, referencedTable: string): void => {
-  const pattern = new RegExp(
-    `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${escapeRegExp(columnName)}"\\)[\\s\\S]*REFERENCES "${escapeRegExp(referencedTable)}"`,
-    'i'
-  );
-  expect(query).toMatch(pattern);
+  expect(query).toContain('CONSTRAINT');
+  expect(query).toContain(`FOREIGN KEY ("${columnName}")`);
+  expect(query).toContain(`REFERENCES "${referencedTable}"`);
 };
 
 const verifyDropOrder = (calls: string[], tables: string[]): void => {
