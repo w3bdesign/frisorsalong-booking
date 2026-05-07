@@ -91,10 +91,6 @@ describe("BookingsService", () => {
     findOne: jest.fn(),
   };
 
-  const mockOrdersService = {
-    create: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -114,10 +110,6 @@ describe("BookingsService", () => {
         {
           provide: ServicesService,
           useValue: mockServicesService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
         },
       ],
     }).compile();
