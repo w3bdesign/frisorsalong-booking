@@ -5,7 +5,6 @@ import { Booking, BookingStatus } from "./entities/booking.entity";
 import { UsersService } from "../users/users.service";
 import { EmployeesService } from "../employees/employees.service";
 import { ServicesService } from "../services/services.service";
-import { OrdersService } from "../orders/orders.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
