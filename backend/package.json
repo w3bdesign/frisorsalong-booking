@@ -79,12 +79,13 @@
     "typescript": "^5.9.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [],
-    "ignoredBuiltDependencies": [
-      "@nestjs/core",
-      "@scarf/scarf",
+    "onlyBuiltDependencies": [
       "bcrypt",
       "unrs-resolver"
+    ],
+    "ignoredBuiltDependencies": [
+      "@nestjs/core",
+      "@scarf/scarf"
     ]
   }
 }
