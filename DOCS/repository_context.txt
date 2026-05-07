@@ -21913,7 +21913,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "typescript": "~5.9.3",
     "vite": "^7.3.2",
     "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.7"
+    "vue-tsc": "^3.2.8"
   }
 }
 ````
@@ -21970,7 +21970,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "vite": "^7.3.2",
     "vite-plugin-vue-devtools": "^8.1.1",
     "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.7"
+    "vue-tsc": "^3.2.8"
   }
 }
 ````
