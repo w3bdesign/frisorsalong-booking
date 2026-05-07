@@ -3,7 +3,6 @@ import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { Order } from "./entities/order.entity";
 import { User, UserRole } from "../users/entities/user.entity";
-import { UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 
 describe("OrdersController", () => {
