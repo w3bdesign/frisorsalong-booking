@@ -15,16 +15,17 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return user;
+    return user as User;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
+    const user = await this.usersRepository.findOne({ where: { email } });
+    return user as User | null;
   }
 
   async create(userData: Partial<User>): Promise<User> {
     const user = this.usersRepository.create(userData);
-    return this.usersRepository.save(user);
+    return await this.usersRepository.save(user) as User;
   }
 
   async update(id: string, userData: Partial<User>): Promise<User> {
