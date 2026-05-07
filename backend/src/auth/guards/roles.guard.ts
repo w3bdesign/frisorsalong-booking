@@ -37,7 +37,7 @@ export class RolesGuard implements CanActivate {
     }
 
     // Ensure user.role is a valid UserRole
-    if (!Object.values(UserRole).includes(user.role)) {
+    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
       console.log('Roles Guard - Invalid user role');
       return false;
     }
