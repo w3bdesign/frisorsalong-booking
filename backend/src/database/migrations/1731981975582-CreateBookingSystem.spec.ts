@@ -2,17 +2,20 @@ import { QueryRunner } from 'typeorm';
 import { CreateBookingSystem1731981975582 } from './1731981975582-CreateBookingSystem';
 
 // Helper functions to reduce nesting and improve readability
+const escapeRegExp = (str: string): string =>
+  str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const findQueryCall = (calls: string[], pattern: string): number =>
   calls.findIndex(call => call.includes(pattern));
 
 const verifyTableSchema = (query: string, tableName: string, ...fields: string[]): void => {
-  const tablePattern = new RegExp(`CREATE TABLE[\\s\\S]*${tableName}[\\s\\S]*${fields.join('[\\s\\S]*')}`);
+  const tablePattern = new RegExp(`CREATE TABLE[\\s\\S]*${escapeRegExp(tableName)}[\\s\\S]*${fields.map(f => escapeRegExp(f)).join('[\\s\\S]*')}`);
   expect(query).toMatch(tablePattern);
 };
 
-const verifyForeignKey = (query: string, tableName: string, columnName: string, referencedTable: string): void => {
+const verifyForeignKey = (query: string, _tableName: string, columnName: string, referencedTable: string): void => {
   const pattern = new RegExp(
-    `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${columnName}"\\)[\\s\\S]*REFERENCES "${referencedTable}"`,
+    `CONSTRAINT[\\s\\S]*FOREIGN KEY \\("${escapeRegExp(columnName)}"\\)[\\s\\S]*REFERENCES "${escapeRegExp(referencedTable)}"`,
     'i'
   );
   expect(query).toMatch(pattern);
