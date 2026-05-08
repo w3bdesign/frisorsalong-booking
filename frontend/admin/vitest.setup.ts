@@ -20,6 +20,6 @@ if (
     get length() {
       return storage.size;
     },
-    key: (index: number) => [...storage.keys()][index] ?? null,
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
   } as Storage;
 }
