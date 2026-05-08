@@ -37,7 +37,7 @@ export const useOrdersStore = defineStore("orders", {
 
       state.orders.forEach((order: Order) => {
         const employeeId: string = order.booking.employee.id;
-        const amount: number = parseFloat(order.totalAmount);
+        const amount: number = Number.parseFloat(order.totalAmount);
 
         if (!stats.has(employeeId)) {
           stats.set(employeeId, {
