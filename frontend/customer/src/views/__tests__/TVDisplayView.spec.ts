@@ -45,7 +45,7 @@ describe('TVDisplayView', () => {
     waitingCount: 2,
     fetchWaitingSlots: vi.fn(),
     ...overrides,
-  })
+  }) as unknown as ReturnType<typeof useDisplayStore>
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -108,10 +108,10 @@ describe('TVDisplayView', () => {
     expect(wrapper.text()).toContain('2 frisører på jobb')
 
     mockEmployees.forEach((employee, index) => {
-      const element = employeeElements.at(index)
-      expect(element).toBeDefined()
-      expect(element?.text()).toContain(employee.name)
-      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
+      expect(index).toBeLessThan(employeeElements.length)
+      const [element] = employeeElements.filter((_, i) => i === index)
+      expect(element.text()).toContain(employee.name)
+      expect(element.find(`.${employee.color}`).exists()).toBe(true)
     })
   })
 
