@@ -32,7 +32,7 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   className: ''
 });
 
-const emit = defineEmits<{
+const _emit = defineEmits<{
   (e: 'click', event: MouseEvent): void;
 }>();
 
