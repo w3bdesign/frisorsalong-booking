@@ -2,13 +2,17 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { useAuthStore } from "../auth";
 import { AxiosError } from "axios";
-import api from "../../lib/api";
+
+const { mockPost, mockGet } = vi.hoisted(() => ({
+  mockPost: vi.fn(),
+  mockGet: vi.fn(),
+}));
 
 vi.mock("../../lib/api", () => {
   return {
     default: {
-      post: vi.fn(),
-      get: vi.fn(),
+      post: mockPost,
+      get: mockGet,
       interceptors: {
         request: { use: vi.fn() },
         response: { use: vi.fn() },
@@ -62,7 +66,7 @@ describe("Auth Store", () => {
     };
 
     it("should successfully login admin user", async () => {
-      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
+      mockPost.mockResolvedValueOnce(mockAdminResponse);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
@@ -88,7 +92,7 @@ describe("Auth Store", () => {
           },
         },
       };
-      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
+      mockPost.mockResolvedValueOnce(mockUserResponse);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
@@ -113,7 +117,7 @@ describe("Auth Store", () => {
         },
       } as unknown as typeof mockError.response;
 
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      mockPost.mockRejectedValueOnce(mockError);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
@@ -128,7 +132,7 @@ describe("Auth Store", () => {
       const mockError = new AxiosError("Network Error", "ECONNREFUSED");
       mockError.code = "ECONNREFUSED";
 
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
+      mockPost.mockRejectedValueOnce(mockError);
 
       const store = useAuthStore();
       const success = await store.login(mockCredentials);
@@ -180,7 +184,7 @@ describe("Auth Store", () => {
 
     it("should fetch profile and return true when token is valid", async () => {
       localStorage.setItem("admin_token", "test-token");
-      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
+      mockGet.mockResolvedValueOnce({ data: mockUserProfile });
 
       const store = useAuthStore();
       const isValid = await store.checkAuth();
@@ -189,7 +193,7 @@ describe("Auth Store", () => {
       expect(store.token).toBe("test-token");
       expect(store.isAuthenticated).toBeTruthy();
       expect(store.user).toEqual(mockUserProfile);
-      expect(api.get).toHaveBeenCalledWith("/auth/profile");
+      expect(mockGet).toHaveBeenCalledWith("/auth/profile");
     });
 
     it("should not re-fetch profile if user data already exists", async () => {
@@ -201,12 +205,12 @@ describe("Auth Store", () => {
       const isValid = await store.checkAuth();
 
       expect(isValid).toBeTruthy();
-      expect(api.get).not.toHaveBeenCalled();
+      expect(mockGet).not.toHaveBeenCalled();
     });
 
     it("should logout when profile fetch fails (expired token)", async () => {
       localStorage.setItem("admin_token", "expired-token");
-      vi.mocked(api.get).mockRejectedValueOnce(
+      mockGet.mockRejectedValueOnce(
         new AxiosError("Unauthorized", "401")
       );
 
@@ -227,7 +231,7 @@ describe("Auth Store", () => {
       expect(isValid).toBeFalsy();
       expect(store.token).toBeNull();
       expect(store.isAuthenticated).toBeFalsy();
-      expect(api.get).not.toHaveBeenCalled();
+      expect(mockGet).not.toHaveBeenCalled();
     });
   });
 

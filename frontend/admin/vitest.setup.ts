@@ -2,26 +2,24 @@
 // The devtools-kit accesses localStorage.getItem at module load time,
 // which can fire before jsdom has fully set up the Storage prototype.
 if (
-  globalThis.localStorage === undefined ||
+  (globalThis.localStorage as Storage | undefined) === undefined ||
   typeof globalThis.localStorage.getItem !== 'function'
 ) {
-  const storage: Record<string, string> = {};
+  const storage = new Map<string, string>();
   globalThis.localStorage = {
-    getItem: (key: string) => storage[key] ?? null,
+    getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => {
-      storage[key] = value;
+      storage.set(key, value);
     },
     removeItem: (key: string) => {
-      delete storage[key];
+      storage.delete(key);
     },
     clear: () => {
-      for (const key of Object.keys(storage)) {
-        delete storage[key];
-      }
+      storage.clear();
     },
     get length() {
-      return Object.keys(storage).length;
+      return storage.size;
     },
-    key: (index: number) => Object.keys(storage)[index] ?? null,
+    key: (index: number) => [...storage.keys()][index] ?? null,
   } as Storage;
 }

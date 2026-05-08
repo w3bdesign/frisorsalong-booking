@@ -50,9 +50,7 @@ export const useEmployeesStore = defineStore('employees', {
       try {
         const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
         
-        if (response.data.employee) {
-          this.employees.push(response.data.employee)
-        }
+        this.employees.push(response.data.employee)
         
         return response.data
       } catch (error) {
@@ -83,7 +81,7 @@ export const useEmployeesStore = defineStore('employees', {
       this.loading = true
       this.error = null
       try {
-        const response = await api.patch(`/employees/${id}`, employeeData)
+        const response = await api.patch<Employee>(`/employees/${id}`, employeeData)
         const index = this.employees.findIndex(emp => emp.id === id)
         if (index !== -1) {
           this.employees.splice(index, 1, response.data)
