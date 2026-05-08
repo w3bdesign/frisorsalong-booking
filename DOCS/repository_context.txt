@@ -4593,292 +4593,6 @@ export const createAdminUser = async (dataSource: DataSource): Promise<void> => 
 };
 ````
 
-## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
-````typescript
-import { DataSource, Repository, EntityTarget } from "typeorm";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Employee } from "../../employees/entities/employee.entity";
-import { Service } from "../../services/entities/service.entity";
-import { createInitialData } from "./create-initial-data.seed";
-import * as bcrypt from "bcrypt";
-jest.mock("bcrypt");
-interface RepositoryMapping {
-  User: Repository<User>;
-  Employee: Repository<Employee>;
-  Service: Repository<Service>;
-}
-type SupportedEntity = User | Employee | Service;
-function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
-  if (typeof entity === "function") {
-    return entity.name as keyof RepositoryMapping;
-  }
-  throw new Error("Unsupported entity type");
-}
-describe("createInitialData", () => {
-  let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockEmployeeRepository: Partial<Repository<Employee>>;
-  let mockServiceRepository: Partial<Repository<Service>>;
-  let mockQueryBuilder: {
-    insert: jest.Mock;
-    into: jest.Mock;
-    values: jest.Mock;
-    execute: jest.Mock;
-  };
-  const originalEnv = process.env;
-  beforeEach(() => {
-    // Mock repositories with proper typing
-    mockUserRepository = {
-      findOne: jest.fn().mockResolvedValue(null),
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<User>): Promise<User> =>
-          Promise.resolve({ id: "user-1", ...data } as User)
-        ),
-    };
-    mockEmployeeRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
-          Promise.resolve({ id: "employee-1", ...data } as Employee)
-        ),
-    };
-    mockServiceRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
-          Promise.resolve(
-            Array.isArray(services)
-              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
-              : { ...services, id: 'service-1' } as Service
-          )
-        ),
-    };
-    // Mock query builder for service associations
-    mockQueryBuilder = {
-      insert: jest.fn().mockReturnThis(),
-      into: jest.fn().mockReturnThis(),
-      values: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue(undefined),
-    };
-    // Mock DataSource with proper typing
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories: RepositoryMapping = {
-        User: mockUserRepository as Repository<User>,
-        Employee: mockEmployeeRepository as Repository<Employee>,
-        Service: mockServiceRepository as Repository<Service>,
-      };
-      const entityName = getEntityName(entity);
-      const repository = repositories[entityName];
-      if (!repository) {
-        throw new Error(`Repository not mocked for entity: ${entityName}`);
-      }
-      return repository as unknown as Repository<T>;
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockImplementation(mockGetRepository),
-      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
-    };
-    // Mock bcrypt
-    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
-    // Setup test environment variables
-    process.env = {
-      ...originalEnv,
-      EMPLOYEE_EMAIL: "employee@example.com",
-      EMPLOYEE_PASSWORD: "employee123",
-      EMPLOYEE_PHONE: "+1234567890",
-    };
-    // Mock console methods
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    process.env = originalEnv;
-    jest.clearAllMocks();
-  });
-  test("creates services, employee user, and employee when they do not exist", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [
-      { id: "service-1", name: "Standard Klipp" },
-      { id: "service-2", name: "Styling Klipp" },
-      { id: "service-3", name: "Skjegg Trim" },
-      { id: "service-4", name: "Full Service" },
-    ];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were created
-    expect(mockServiceRepository.save).toHaveBeenCalledWith([
-      expect.objectContaining({ name: "Standard Klipp" }),
-      expect.objectContaining({ name: "Styling Klipp" }),
-      expect.objectContaining({ name: "Skjegg Trim" }),
-      expect.objectContaining({ name: "Full Service" }),
-    ]);
-    // Verify employee user was created
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: "employee@example.com",
-        role: UserRole.EMPLOYEE,
-      })
-    );
-    // Verify employee was created
-    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user: mockEmployeeUser,
-        specializations: ["klipp", "styling", "skjegg"],
-      })
-    );
-    // Verify services were associated with employee
-    expect(mockQueryBuilder.insert).toHaveBeenCalled();
-    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
-    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
-      mockServices.map((service) => ({
-        employee_id: mockEmployee.id,
-        service_id: service.id,
-      }))
-    );
-    // Verify success message was logged
-    expect(console.log).toHaveBeenCalledWith(
-      "Initial data seeded successfully"
-    );
-  });
-  test("does not create employee when it already exists", async () => {
-    // Mock that employee already exists
-    const existingEmployee = {
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
-      existingEmployee
-    );
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were still created
-    expect(mockServiceRepository.save).toHaveBeenCalled();
-    // Verify no employee creation attempts were made
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
-    // Verify appropriate message was logged
-    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
-  });
-  test("throws error when employee email is missing", async () => {
-    delete process.env.EMPLOYEE_EMAIL;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("throws error when employee password is missing", async () => {
-    delete process.env.EMPLOYEE_PASSWORD;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("handles database errors during service creation", async () => {
-    const dbError = new Error("Database error during service creation");
-    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles database errors during employee creation", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock employee creation error
-    const dbError = new Error("Database error during employee creation");
-    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles password hashing errors", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock bcrypt error
-    const hashError = new Error("Hashing failed");
-    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(hashError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      hashError.message
-    );
-  });
-  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
-    // Remove EMPLOYEE_PHONE from environment
-    delete process.env.EMPLOYEE_PHONE;
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify employee user was created with default phone number
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phoneNumber: "+1234567890", // This is the default value
-      })
-    );
-  });
-});
-````
-
 ## File: backend/src/database/seeds/create-initial-data.seed.ts
 ````typescript
 import { DataSource } from "typeorm";
@@ -5684,87 +5398,6 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
 };
 ````
 
-## File: backend/src/database/seeds/create-services.seed.spec.ts
-````typescript
-import { DataSource } from 'typeorm';
-import { CreateServicesSeed } from './create-services.seed';
-import { Service } from '../../services/entities/service.entity';
-interface MockServiceRepository {
-  clear: jest.Mock<Promise<void>, []>;
-  save: jest.Mock<Promise<Service[]>, [Service[]]>;
-}
-type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
-const expectedServices: ServiceData[] = [
-  {
-    name: 'Standard Klipp',
-    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
-    duration: 20,
-    price: 299,
-    isActive: true,
-  },
-  {
-    name: 'Styling Klipp',
-    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
-    duration: 30,
-    price: 399,
-    isActive: true,
-  },
-  {
-    name: 'Skjegg Trim',
-    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
-    duration: 15,
-    price: 199,
-    isActive: true,
-  },
-  {
-    name: 'Full Service',
-    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
-    duration: 45,
-    price: 549,
-    isActive: true,
-  }
-];
-describe('CreateServicesSeed', () => {
-  let seed: CreateServicesSeed;
-  let mockDataSource: Partial<DataSource>;
-  let mockServiceRepository: MockServiceRepository;
-  beforeEach(() => {
-    mockServiceRepository = {
-      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
-      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
-        return Promise.resolve(
-          services.map(service => ({
-            ...service,
-            id: 'test-id',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))
-        );
-      }),
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
-    };
-    seed = new CreateServicesSeed();
-  });
-  it('should clear existing services and create new ones', async () => {
-    await seed.run(mockDataSource as DataSource);
-    expect(mockServiceRepository.clear).toHaveBeenCalled();
-    const savedServices = mockServiceRepository.save.mock.calls[0][0];
-    expectedServices.forEach((expectedService, index) => {
-      expect(savedServices[index]).toEqual(
-        expect.objectContaining(expectedService)
-      );
-    });
-  });
-  it('should handle database errors gracefully', async () => {
-    const dbError = new Error('Database connection error');
-    mockServiceRepository.clear.mockRejectedValue(dbError);
-    await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
-  });
-});
-````
-
 ## File: backend/src/database/seeds/create-services.seed.ts
 ````typescript
 import { DataSource } from 'typeorm';
@@ -6204,61 +5837,6 @@ describe('updateAdminPassword', () => {
     expect(console.log).toHaveBeenCalledWith('Password verification after update:', true);
   });
 });
-````
-
-## File: backend/src/database/seeds/update-admin-password.seed.ts
-````typescript
-import { DataSource } from "typeorm";
-import { User } from "../../users/entities/user.entity";
-import * as fs from 'fs';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-export const updateAdminPassword = async (dataSource: DataSource): Promise<void> => {
-  const userRepository = dataSource.getRepository(User);
-  try {
-    // Read .env file directly and parse it properly
-    const envPath = path.resolve(process.cwd(), '.env');
-    const envConfig = dotenv.parse(fs.readFileSync(envPath));
-    const adminEmail = envConfig.ADMIN_EMAIL;
-    const adminPassword = envConfig.ADMIN_PASSWORD;
-    if (!adminEmail || !adminPassword) {
-      throw new Error(
-        "Admin email and password must be set in environment variables",
-      );
-    }
-    console.log("\nPassword analysis before update:");
-    console.log("Raw password:", adminPassword);
-    console.log("Length:", adminPassword.length);
-    console.log("Character codes:");
-    for (let i = 0; i < adminPassword.length; i++) {
-      console.log(`${i}: '${adminPassword[i]}' (${adminPassword.charCodeAt(i)})`);
-    }
-    // Find admin user
-    const adminUser = await userRepository.findOne({
-      where: { email: adminEmail },
-    });
-    if (!adminUser) {
-      throw new Error("Admin user not found");
-    }
-    // Update with raw password - let the entity handle hashing
-    adminUser.password = adminPassword;
-    await userRepository.save(adminUser);
-    console.log("Admin password updated in database");
-    // Verify the update
-    const updatedUser = await userRepository.findOne({
-      where: { email: adminEmail },
-    });
-    if (!updatedUser) {
-      throw new Error("Could not verify password update");
-    }
-    // Use the entity's validatePassword method
-    const isPasswordValid = await updatedUser.validatePassword(adminPassword);
-    console.log("Password verification after update:", isPasswordValid);
-  } catch (error) {
-    console.error("Error updating admin password:", error);
-    throw error;
-  }
-};
 ````
 
 ## File: backend/src/employees/dto/create-employee.dto.spec.ts
@@ -9525,31 +9103,6 @@ MIT
 }
 ````
 
-## File: backend/tsconfig.json
-````json
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2021",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
-  }
-}
-````
-
 ## File: backend/typeorm.config.ts
 ````typescript
 import { DataSource } from "typeorm";
@@ -11164,128 +10717,6 @@ describe('Button', () => {
 });
 ````
 
-## File: frontend/admin/src/components/base/__tests__/Card.spec.ts
-````typescript
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
-import Card from '../Card.vue';
-describe('Card', () => {
-  it('renders properly with default props', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test Title',
-        value: '42'
-      }
-    });
-    expect(wrapper.text()).toContain('Test Title');
-    expect(wrapper.text()).toContain('42');
-    expect(wrapper.find('.bg-indigo-100').exists()).toBe(true);
-    expect(wrapper.find('.text-indigo-600').exists()).toBe(true);
-  });
-  it('applies different colors correctly', () => {
-    const colors = ['green', 'blue', 'red', 'yellow'] as const;
-    colors.forEach(color => {
-      const wrapper = mount(Card, {
-        props: {
-          title: 'Test',
-          value: '42',
-          color
-        }
-      });
-      expect(wrapper.find(`.bg-${color}-100`).exists()).toBe(true);
-      expect(wrapper.find(`.text-${color}-600`).exists()).toBe(true);
-    });
-  });
-  it('renders slot content', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test',
-        value: '42'
-      },
-      slots: {
-        icon: '<svg data-testid="test-icon">Test Icon</svg>'
-      }
-    });
-    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
-  });
-  it('formats number values correctly', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test',
-        value: 42
-      }
-    });
-    expect(wrapper.text()).toContain('42');
-  });
-  it('renders with all props', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Complex Test',
-        value: 1000,
-        color: 'green'
-      },
-      slots: {
-        icon: '<svg data-testid="test-icon">Test Icon</svg>'
-      }
-    });
-    expect(wrapper.text()).toContain('Complex Test');
-    expect(wrapper.text()).toContain('1000');
-    expect(wrapper.find('.bg-green-100').exists()).toBe(true);
-    expect(wrapper.find('.text-green-600').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
-  });
-});
-````
-
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
-});
-const emit = defineEmits<{
-  (e: 'click', event: MouseEvent): void;
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
-````
-
 ## File: frontend/admin/src/components/base/Card.vue
 ````vue
 <template>
@@ -11845,76 +11276,6 @@ export function extractErrorMessage(
 export default api;
 ````
 
-## File: frontend/admin/src/router/index.ts
-````typescript
-import { createRouter, createWebHistory } from "vue-router";
-import { useAuthStore } from "../stores/auth";
-const routes = [
-  {
-    path: "/login",
-    name: "Login",
-    component: () => import("../views/LoginView.vue"),
-    meta: { requiresAuth: false },
-  },
-  {
-    path: "/dashboard",
-    name: "Dashboard",
-    component: () => import("../views/DashboardView.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/bookings",
-    name: "Bookings",
-    component: () => import("../views/BookingsView.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/orders",
-    name: "Orders",
-    component: () => import("../views/OrdersView.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/employees",
-    name: "Employees",
-    component: () => import("../views/EmployeesView.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
-  },
-  {
-    path: "/",
-    redirect: "/dashboard",
-  },
-];
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-});
-// Navigation guard
-router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore();
-  const requiresAuth = to.meta.requiresAuth !== false;
-  const requiresAdmin = to.meta.requiresAdmin === true;
-  if (requiresAuth) {
-    const isAuthenticated = await authStore.checkAuth();
-    if (!isAuthenticated && to.name !== "Login") {
-      next({ name: "Login" });
-      return;
-    }
-    // Check admin access
-    if (requiresAdmin && !authStore.isAdmin) {
-      next({ name: "Dashboard" });
-      return;
-    }
-  }
-  if (to.name === "Login" && authStore.isAuthenticated) {
-    next({ name: "Dashboard" });
-    return;
-  }
-  next();
-});
-export default router;
-````
-
 ## File: frontend/admin/src/stores/__tests__/auth.spec.ts
 ````typescript
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -12401,112 +11762,6 @@ export const useBookingStore = defineStore("bookings", {
     },
   },
 });
-````
-
-## File: frontend/admin/src/stores/employees.ts
-````typescript
-import { defineStore } from 'pinia'
-import api, { extractErrorMessage } from '../lib/api'
-import type { Employee } from '../types'
-interface EmployeeState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
-}
-interface CreateEmployeeResponse {
-  employee: Employee;
-  temporaryPassword: string;
-}
-interface ResetPasswordResponse {
-  temporaryPassword: string;
-}
-export const useEmployeesStore = defineStore('employees', {
-  state: (): EmployeeState => ({
-    employees: [],
-    loading: false,
-    error: null
-  }),
-  getters: {
-    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
-    getEmployeeById: (state) => (id: string) => 
-      state.employees.find(emp => emp.id === id)
-  },
-  actions: {
-    async fetchEmployees() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.get<Employee[]>('/employees')
-        this.employees = response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
-      } finally {
-        this.loading = false
-      }
-    },
-    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
-        if (response.data.employee) {
-          this.employees.push(response.data.employee)
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async resetPassword(id: string): Promise<ResetPasswordResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<ResetPasswordResponse>(
-          `/employees/${id}/reset-password`
-        )
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async updateEmployee(id: string, employeeData: Partial<Employee>) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.patch(`/employees/${id}`, employeeData)
-        const index = this.employees.findIndex(emp => emp.id === id)
-        if (index !== -1) {
-          this.employees[index] = response.data
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async deleteEmployee(id: string) {
-      this.loading = true
-      this.error = null
-      try {
-        await api.delete(`/employees/${id}`)
-        this.employees = this.employees.filter(emp => emp.id !== id)
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    }
-  }
-})
 ````
 
 ## File: frontend/admin/src/stores/orders.ts
@@ -14659,82 +13914,6 @@ export default {
 }
 ````
 
-## File: frontend/admin/tsconfig.app.json
-````json
-{
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "Bundler",
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "jsx": "preserve",
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
-}
-````
-
-## File: frontend/admin/tsconfig.json
-````json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "preserve",
-
-    /* Vue specific */
-    "allowJs": true,
-    "esModuleInterop": true,
-
-    /* Type Checking */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-
-    /* Path aliases */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "types": ["vite/client", "vue"]
-  },
-  "include": [
-    "src/**/*.ts", 
-    "src/**/*.d.ts", 
-    "src/**/*.tsx", 
-    "src/**/*.vue",
-    "vite.config.ts"
-  ],
-  "references": [{ "path": "./tsconfig.node.json" }]
-}
-````
-
 ## File: frontend/admin/tsconfig.node.json
 ````json
 {
@@ -15884,237 +15063,6 @@ describe('BookingForm', () => {
       phoneNumber: '+4712345678',
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/payment')
-  })
-})
-````
-
-## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createTestingPinia } from '@pinia/testing'
-import { useServicesStore } from '@/stores/services'
-import ServiceList from '../ServiceList.vue'
-import { createRouter, createWebHistory } from 'vue-router'
-// Create router instance for testing
-const router = createRouter({
-  history: createWebHistory(),
-  routes: [
-    {
-      path: '/booking',
-      name: 'booking',
-      component: { template: '<div>Booking</div>' },
-    },
-  ],
-})
-// Mock service data
-const mockServices = [
-  {
-    id: '1',
-    name: 'Haircut',
-    description: 'Basic haircut',
-    duration: 30,
-    price: '300',
-    isActive: true,
-    createdAt: '2023-01-01',
-    updatedAt: '2023-01-01',
-  },
-]
-describe('ServiceList', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-  describe('Loading State', () => {
-    it('should show loading skeleton', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: true,
-                  services: [],
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.find('.animate-pulse').exists()).toBe(true)
-      expect(wrapper.findAll('.animate-pulse')).toHaveLength(4)
-    })
-  })
-  describe('Error State', () => {
-    it('should show error message', () => {
-      const errorMessage = 'Failed to fetch services'
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: [],
-                  error: errorMessage,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain(errorMessage)
-      expect(wrapper.find('.bg-red-50').exists()).toBe(true)
-    })
-  })
-  describe('Empty State', () => {
-    it('should show empty message when no services', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: [],
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain('Ingen tjenester tilgjengelig for øyeblikket')
-    })
-  })
-  describe('Services Display', () => {
-    it('should display services correctly', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain(mockServices[0].name)
-      expect(wrapper.text()).toContain(mockServices[0].description)
-      expect(wrapper.text()).toContain(`${mockServices[0].duration} min`)
-      // Check for price in Norwegian format (kr 300,00)
-      const formattedPrice = new Intl.NumberFormat('nb-NO', {
-        style: 'currency',
-        currency: 'NOK',
-      }).format(parseFloat(mockServices[0].price))
-      expect(wrapper.text()).toContain(formattedPrice)
-    })
-    it('should select service on click', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const store = useServicesStore()
-      await wrapper.find('.group').trigger('click')
-      expect(store.selectService).toHaveBeenCalledWith(mockServices[0])
-    })
-  })
-  describe('Selected Service Actions', () => {
-    it('should show bottom sheet when service is selected', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.find('.fixed.bottom-0').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Bestill nå')
-      expect(wrapper.text()).toContain('Avbryt')
-    })
-    it('should clear selection when cancel is clicked', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const store = useServicesStore()
-      await wrapper.find('.btn-secondary').trigger('click')
-      expect(store.clearSelection).toHaveBeenCalled()
-    })
-    it('should navigate to booking when book button is clicked', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const push = vi.spyOn(router, 'push')
-      await wrapper.find('.btn-primary').trigger('click')
-      expect(push).toHaveBeenCalledWith('/booking')
-    })
   })
 })
 ````
@@ -17508,124 +16456,6 @@ export const useWaitingStore = defineStore('waiting', () => {
 })
 ````
 
-## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '../../stores/display'
-vi.mock('axios')
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('TVDisplayView', () => {
-  const mockEmployees = [
-    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
-    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
-  ]
-  const mockWaitingSlots = [
-    {
-      id: 'slot-1',
-      customerName: 'Vada',
-      estimatedTime: 0,
-      assignedTo: '1',
-    },
-    {
-      id: 'slot-2',
-      customerName: 'Lavinia',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-  ]
-  const createMockStore = (overrides = {}) => ({
-    hasAvailableSlot: false,
-    activeEmployees: mockEmployees,
-    waitingSlots: mockWaitingSlots,
-    lastUpdate: new Date('2024-01-01T12:00:00'),
-    updateLastUpdate: vi.fn(),
-    employees: mockEmployees,
-    startPolling: vi.fn(),
-    stopPolling: vi.fn(),
-    cleanup: vi.fn(),
-    isLoading: false,
-    error: null,
-    waitingCount: 2,
-    fetchWaitingSlots: vi.fn(),
-    ...overrides,
-  })
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-    // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('displays correct status when slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: true,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Ledig')
-    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
-  })
-  it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: false,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Opptatt')
-    expect(wrapper.find('h1').classes()).toContain('text-red-500')
-  })
-  it('renders waiting list correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const waitingSlots = wrapper.findAll('.space-y-16 > div')
-    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
-    // Check first slot (Vada)
-    const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Vada')
-    expect(firstSlot.text()).toContain('0 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
-    // Check second slot (Lavinia)
-    const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Lavinia')
-    expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
-  })
-  it('displays active employees correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const employeeElements = wrapper.findAll('[data-testid="employee"]')
-    expect(employeeElements).toHaveLength(mockEmployees.length)
-    expect(wrapper.text()).toContain('2 frisører på jobb')
-    mockEmployees.forEach((employee, index) => {
-      const element = employeeElements[index]
-      expect(element.text()).toContain(employee.name)
-      expect(element.find(`.${employee.color}`).exists()).toBe(true)
-    })
-  })
-  it('formats last update time correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.text()).toContain('12:00:00')
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn()
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(mockStartPolling).toHaveBeenCalled()
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-})
-````
-
 ## File: frontend/customer/src/views/TVDisplayView.vue
 ````vue
 <template>
@@ -18076,34 +16906,6 @@ export default {
 }
 ````
 
-## File: frontend/customer/tsconfig.app.json
-````json
-{
-  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
-  "exclude": ["src/**/__tests__/*"],
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "strict": true,
-    "noEmit": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "useDefineForClassFields": true,
-
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
-}
-````
-
 ## File: frontend/customer/tsconfig.json
 ````json
 {
@@ -18157,21 +16959,6 @@ export default {
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": ["node"]
-  }
-}
-````
-
-## File: frontend/customer/tsconfig.vitest.json
-````json
-{
-  "extends": "./tsconfig.app.json",
-  "exclude": [],
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
-
-    "lib": [],
-    "types": ["node", "jsdom"]
   }
 }
 ````
@@ -19685,6 +18472,144 @@ export class BookingsController {
 }
 ````
 
+## File: backend/src/database/seeds/create-services.seed.spec.ts
+````typescript
+import { DataSource } from 'typeorm';
+import { CreateServicesSeed } from './create-services.seed';
+import { Service } from '../../services/entities/service.entity';
+interface MockServiceRepository {
+  clear: jest.Mock<Promise<void>, []>;
+  save: jest.Mock<Promise<Service[]>, [Service[]]>;
+}
+type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
+const expectedServices: ServiceData[] = [
+  {
+    name: 'Standard Klipp',
+    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
+    duration: 20,
+    price: 299,
+    isActive: true,
+  },
+  {
+    name: 'Styling Klipp',
+    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
+    duration: 30,
+    price: 399,
+    isActive: true,
+  },
+  {
+    name: 'Skjegg Trim',
+    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
+    duration: 15,
+    price: 199,
+    isActive: true,
+  },
+  {
+    name: 'Full Service',
+    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
+    duration: 45,
+    price: 549,
+    isActive: true,
+  }
+];
+describe('CreateServicesSeed', () => {
+  let seed: CreateServicesSeed;
+  let mockDataSource: Partial<DataSource>;
+  let mockServiceRepository: MockServiceRepository;
+  beforeEach(() => {
+    mockServiceRepository = {
+      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
+        return Promise.resolve(
+          services.map(service => ({
+            ...service,
+            id: 'test-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        );
+      }),
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
+    };
+    seed = new CreateServicesSeed();
+  });
+  it('should clear existing services and create new ones', async () => {
+    await seed.run(mockDataSource as DataSource);
+    expect(mockServiceRepository.clear).toHaveBeenCalled();
+    const savedServices = mockServiceRepository.save.mock.calls[0][0];
+    expectedServices.forEach((expectedService, index) => {
+      const service = savedServices.at(index);
+      expect(service).toBeDefined();
+      expect(service).toEqual(
+        expect.objectContaining(expectedService)
+      );
+    });
+  });
+  it('should handle database errors gracefully', async () => {
+    const dbError = new Error('Database connection error');
+    mockServiceRepository.clear.mockRejectedValue(dbError);
+    await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
+  });
+});
+````
+
+## File: backend/src/database/seeds/update-admin-password.seed.ts
+````typescript
+import { DataSource } from "typeorm";
+import { User } from "../../users/entities/user.entity";
+import * as fs from 'fs';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+export const updateAdminPassword = async (dataSource: DataSource): Promise<void> => {
+  const userRepository = dataSource.getRepository(User);
+  try {
+    // Read .env file directly and parse it properly
+    const envPath = path.resolve(process.cwd(), '.env');
+    const envConfig = dotenv.parse(fs.readFileSync(envPath));
+    const adminEmail = envConfig.ADMIN_EMAIL;
+    const adminPassword = envConfig.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      throw new Error(
+        "Admin email and password must be set in environment variables",
+      );
+    }
+    console.log("\nPassword analysis before update:");
+    console.log("Raw password:", adminPassword);
+    console.log("Length:", adminPassword.length);
+    console.log("Character codes:");
+    for (let i = 0; i < adminPassword.length; i++) {
+      console.log(`${i}: '${adminPassword.charAt(i)}' (${adminPassword.charCodeAt(i)})`);
+    }
+    // Find admin user
+    const adminUser = await userRepository.findOne({
+      where: { email: adminEmail },
+    });
+    if (!adminUser) {
+      throw new Error("Admin user not found");
+    }
+    // Update with raw password - let the entity handle hashing
+    adminUser.password = adminPassword;
+    await userRepository.save(adminUser);
+    console.log("Admin password updated in database");
+    // Verify the update
+    const updatedUser = await userRepository.findOne({
+      where: { email: adminEmail },
+    });
+    if (!updatedUser) {
+      throw new Error("Could not verify password update");
+    }
+    // Use the entity's validatePassword method
+    const isPasswordValid = await updatedUser.validatePassword(adminPassword);
+    console.log("Password verification after update:", isPasswordValid);
+  } catch (error) {
+    console.error("Error updating admin password:", error);
+    throw error;
+  }
+};
+````
+
 ## File: backend/src/employees/employees.controller.spec.ts
 ````typescript
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -19977,176 +18902,6 @@ describe("EmployeesController", () => {
 });
 ````
 
-## File: backend/src/employees/employees.service.ts
-````typescript
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
-import { Employee } from './entities/employee.entity';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-interface TimeSlot {
-  start: string;
-  end: string;
-}
-interface Availability {
-  [key: string]: TimeSlot[] | undefined;
-}
-@Injectable()
-export class EmployeesService {
-  constructor(
-    @InjectRepository(Employee)
-    private readonly employeeRepository: Repository<Employee>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-  ) {}
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    // Check if email already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createEmployeeDto.email }
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    // Create user
-    const user = this.userRepository.create({
-      email: createEmployeeDto.email,
-      firstName: createEmployeeDto.firstName,
-      lastName: createEmployeeDto.lastName,
-      password: hashedPassword,
-      role: UserRole.EMPLOYEE
-    });
-    const savedUser = await this.userRepository.save(user);
-    // Create employee
-    const employee = this.employeeRepository.create({
-      user: savedUser,
-      specializations: createEmployeeDto.specializations,
-      isActive: true,
-      availability: {}
-    });
-    const savedEmployee = await this.employeeRepository.save(employee);
-    return {
-      employee: savedEmployee,
-      temporaryPassword
-    };
-  }
-  async findAll(): Promise<Employee[]> {
-    const employees = await this.employeeRepository.find({
-      relations: ['user', 'services'],
-      where: { isActive: true },
-    });
-    return employees as Employee[];
-  }
-  async findOne(id: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { id },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee #${id} not found`);
-    }
-    return employee as Employee;
-  }
-  async findByUserId(userId: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee with user ID ${userId} not found`);
-    }
-    return employee;
-  }
-  async isAvailable(
-    employeeId: string,
-    startTime: Date,
-    endTime: Date,
-    excludeBookingId?: string
-  ): Promise<boolean> {
-    const employee = await this.findOne(employeeId);
-    // Check if the employee is active
-    if (!employee.isActive) {
-      return false;
-    }
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = startTime.getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-    const dayName = dayNames[dayOfWeek];
-    // Check if employee has availability for this day
-    const availability = employee.availability as Availability;
-    const dayAvailability = availability[dayName];
-    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
-      return false;
-    }
-    // Check if the booking time falls within any of the available time slots
-    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
-    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
-    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
-      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
-        return false;
-      }
-      const [startHour, startMinute] = slot.start.split(':').map(Number);
-      const [endHour, endMinute] = slot.end.split(':').map(Number);
-      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
-        return false;
-      }
-      const slotStart = startHour * 60 + startMinute;
-      const slotEnd = endHour * 60 + endMinute;
-      return bookingStart >= slotStart && bookingEnd <= slotEnd;
-    });
-    if (!isWithinAvailability) {
-      return false;
-    }
-    // Check for overlapping bookings
-    const whereCondition: FindOptionsWhere<Booking> = {
-      employee: { id: employeeId },
-      startTime: Not(MoreThan(endTime)),
-      endTime: Not(LessThan(startTime)),
-    };
-    // Exclude the current booking if an ID is provided
-    if (excludeBookingId) {
-      whereCondition.id = Not(excludeBookingId);
-    }
-    const overlappingBookings = await this.bookingRepository.count({
-      where: whereCondition,
-    });
-    return overlappingBookings === 0;
-  }
-  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const employee = await this.findOne(id);
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    await this.userRepository.update(employee.user.id, {
-      password: hashedPassword
-    });
-    return { temporaryPassword };
-  }
-  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    const employee = await this.findOne(id);
-    const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated) as Employee;
-  }
-  async remove(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = false;
-    await this.employeeRepository.save(employee);
-  }
-  async restore(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = true;
-    await this.employeeRepository.save(employee);
-  }
-}
-````
-
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -20307,171 +19062,567 @@ allowBuilds:
   unrs-resolver: true
 ````
 
-## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
-import { createPinia, setActivePinia } from 'pinia'
-import PaymentForm from '../PaymentForm.vue'
-import { useBookingStore } from '../../stores/booking'
-import { useServicesStore } from '../../stores/services'
-// Mock vue-router
-const mockRouter = {
-  push: vi.fn(),
-}
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-}))
-// Mock the stores
-vi.mock('../../stores/booking', () => ({
-  useBookingStore: vi.fn(),
-}))
-vi.mock('../../stores/services', () => ({
-  useServicesStore: vi.fn(),
-}))
-describe('PaymentForm', () => {
-  const mockPendingBooking = {
-    serviceId: '1',
-    firstName: 'Test Customer',
-    phoneNumber: '+4712345678',
+## File: backend/tsconfig.json
+````json
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2022",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false
   }
-  const mockService = {
+}
+````
+
+## File: frontend/admin/src/components/base/__tests__/Card.spec.ts
+````typescript
+import { describe, it, expect } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
+import Card from '../Card.vue';
+const TestIconComponent = defineComponent({
+  name: 'TestIcon',
+  render() {
+    return h('svg', { 'data-testid': 'test-icon' }, 'Test Icon');
+  },
+});
+describe('Card', () => {
+  it('renders properly with default props', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test Title',
+        value: '42'
+      }
+    });
+    expect(wrapper.text()).toContain('Test Title');
+    expect(wrapper.text()).toContain('42');
+    expect(wrapper.find('.bg-indigo-100').exists()).toBe(true);
+    expect(wrapper.find('.text-indigo-600').exists()).toBe(true);
+  });
+  it('applies different colors correctly', () => {
+    const colors = ['green', 'blue', 'red', 'yellow'] as const;
+    colors.forEach(color => {
+      const wrapper = mount(Card, {
+        props: {
+          title: 'Test',
+          value: '42',
+          color
+        }
+      });
+      expect(wrapper.find(`.bg-${color}-100`).exists()).toBe(true);
+      expect(wrapper.find(`.text-${color}-600`).exists()).toBe(true);
+    });
+  });
+  it('renders slot content', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test',
+        value: '42'
+      },
+      slots: {
+        icon: () => h(TestIconComponent)
+      }
+    });
+    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
+  });
+  it('formats number values correctly', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test',
+        value: 42
+      }
+    });
+    expect(wrapper.text()).toContain('42');
+  });
+  it('renders with all props', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Complex Test',
+        value: 1000,
+        color: 'green'
+      },
+      slots: {
+        icon: () => h(TestIconComponent)
+      }
+    });
+    expect(wrapper.text()).toContain('Complex Test');
+    expect(wrapper.text()).toContain('1000');
+    expect(wrapper.find('.bg-green-100').exists()).toBe(true);
+    expect(wrapper.find('.text-green-600').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
+  });
+});
+````
+
+## File: frontend/admin/src/router/index.ts
+````typescript
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+const routes = [
+  {
+    path: "/login",
+    name: "Login",
+    component: () => import("../views/LoginView.vue"),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: "/dashboard",
+    name: "Dashboard",
+    component: () => import("../views/DashboardView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/bookings",
+    name: "Bookings",
+    component: () => import("../views/BookingsView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/orders",
+    name: "Orders",
+    component: () => import("../views/OrdersView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/employees",
+    name: "Employees",
+    component: () => import("../views/EmployeesView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/",
+    redirect: "/dashboard",
+  },
+];
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+});
+// Navigation guard
+router.beforeEach(async (to, _from, next) => {
+  const authStore = useAuthStore();
+  const requiresAuth = to.meta.requiresAuth !== false;
+  const requiresAdmin = to.meta.requiresAdmin === true;
+  if (requiresAuth) {
+    const isAuthenticated = await authStore.checkAuth();
+    if (!isAuthenticated && to.name !== "Login") {
+      next({ name: "Login" });
+      return;
+    }
+    // Check admin access
+    if (requiresAdmin && !authStore.isAdmin) {
+      next({ name: "Dashboard" });
+      return;
+    }
+  }
+  if (to.name === "Login" && authStore.isAuthenticated) {
+    next({ name: "Dashboard" });
+    return;
+  }
+  next();
+});
+export default router;
+````
+
+## File: frontend/admin/src/stores/employees.ts
+````typescript
+import { defineStore } from 'pinia'
+import api, { extractErrorMessage } from '../lib/api'
+import type { Employee } from '../types'
+interface EmployeeState {
+  employees: Employee[]
+  loading: boolean
+  error: string | null
+}
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+export const useEmployeesStore = defineStore('employees', {
+  state: (): EmployeeState => ({
+    employees: [],
+    loading: false,
+    error: null
+  }),
+  getters: {
+    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
+    getEmployeeById: (state) => (id: string) => 
+      state.employees.find(emp => emp.id === id)
+  },
+  actions: {
+    async fetchEmployees() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get<Employee[]>('/employees')
+        this.employees = response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
+      } finally {
+        this.loading = false
+      }
+    },
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
+        if (response.data.employee) {
+          this.employees.push(response.data.employee)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resetPassword(id: string): Promise<ResetPasswordResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<ResetPasswordResponse>(
+          `/employees/${id}/reset-password`
+        )
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateEmployee(id: string, employeeData: Partial<Employee>) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.patch(`/employees/${id}`, employeeData)
+        const index = this.employees.findIndex(emp => emp.id === id)
+        if (index !== -1) {
+          this.employees.splice(index, 1, response.data)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async deleteEmployee(id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/employees/${id}`)
+        this.employees = this.employees.filter(emp => emp.id !== id)
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
+````
+
+## File: frontend/admin/tsconfig.json
+````json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+
+    /* Vue specific */
+    "allowJs": true,
+    "esModuleInterop": true,
+
+    /* Type Checking */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["vite/client", "vue"]
+  },
+  "include": [
+    "src/**/*.ts", 
+    "src/**/*.d.ts", 
+    "src/**/*.tsx", 
+    "src/**/*.vue",
+    "vite.config.ts"
+  ],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+````
+
+## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+import { useServicesStore } from '@/stores/services'
+import ServiceList from '../ServiceList.vue'
+import { createRouter, createWebHistory } from 'vue-router'
+import { defineComponent, h } from 'vue'
+const BookingStub = defineComponent({
+  name: 'BookingStub',
+  render() {
+    return h('div', 'Booking')
+  },
+})
+// Create router instance for testing
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/booking',
+      name: 'booking',
+      component: BookingStub,
+    },
+  ],
+})
+// Mock service data
+const mockServices = [
+  {
     id: '1',
     name: 'Haircut',
+    description: 'Basic haircut',
     duration: 30,
-    price: '350',
-  }
+    price: '300',
+    isActive: true,
+    createdAt: '2023-01-01',
+    updatedAt: '2023-01-01',
+  },
+]
+describe('ServiceList', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
     vi.clearAllMocks()
-    mockRouter.push.mockClear()
-    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn().mockResolvedValue({}),
-    } as unknown)
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(mockService),
-    } as any)
-    // Reset timers
-    vi.useFakeTimers()
   })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-  const mountComponent = () => {
-    return mount(PaymentForm, {
-      global: {
-        provide: {
-          router: mockRouter,
+  describe('Loading State', () => {
+    it('should show loading skeleton', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: true,
+                  services: [],
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
         },
-        mocks: {
-          $router: mockRouter,
-        },
-      },
+      })
+      expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+      expect(wrapper.findAll('.animate-pulse')).toHaveLength(4)
     })
-  }
-  it('shows message when no booking is found', () => {
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(null),
-      isLoading: ref(false),
-      error: ref(null),
-      createWalkInBooking: vi.fn(),
-    } as any)
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
-    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
   })
-  it('displays payment amount correctly', () => {
-    const wrapper = mountComponent()
-    // Price should be formatted using Intl.NumberFormat with nb-NO locale
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(parseFloat(mockService.price))
-    expect(wrapper.text()).toContain(formattedPrice)
+  describe('Error State', () => {
+    it('should show error message', () => {
+      const errorMessage = 'Failed to fetch services'
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: [],
+                  error: errorMessage,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain(errorMessage)
+      expect(wrapper.find('.bg-red-50').exists()).toBe(true)
+    })
   })
-  it('shows loading state during payment processing', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.animate-spin').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Behandler...')
+  describe('Empty State', () => {
+    it('should show empty message when no services', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: [],
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain('Ingen tjenester tilgjengelig for øyeblikket')
+    })
   })
-  it('shows success message after payment', async () => {
-    const wrapper = mountComponent()
-    // Start payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    // Wait for payment delay
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    // Wait for store operation
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Betaling vellykket!')
-    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
+  describe('Services Display', () => {
+    it('should display services correctly', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain(mockServices[0].name)
+      expect(wrapper.text()).toContain(mockServices[0].description)
+      expect(wrapper.text()).toContain(`${mockServices[0].duration} min`)
+      // Check for price in Norwegian format (kr 300,00)
+      const formattedPrice = new Intl.NumberFormat('nb-NO', {
+        style: 'currency',
+        currency: 'NOK',
+      }).format(parseFloat(mockServices[0].price))
+      expect(wrapper.text()).toContain(formattedPrice)
+    })
+    it('should select service on click', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const store = useServicesStore()
+      await wrapper.find('.group').trigger('click')
+      expect(store.selectService).toHaveBeenCalledWith(mockServices[0])
+    })
   })
-  it('displays error message when payment fails', async () => {
-    const mockError = 'Payment failed'
-    vi.mocked(useBookingStore).mockReturnValue({
-      pendingBooking: ref(mockPendingBooking),
-      isLoading: ref(false),
-      error: ref(mockError),
-      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
-    } as any)
-    const wrapper = mountComponent()
-    // Attempt payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
-  })
-  it('navigates back to home after successful payment', async () => {
-    const wrapper = mountComponent()
-    // Complete payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Click return button
-    await wrapper.find('button.btn-secondary').trigger('click')
-    expect(mockRouter.push).toHaveBeenCalledWith('/')
-  })
-  it('handles missing service price gracefully', () => {
-    vi.mocked(useServicesStore).mockReturnValue({
-      selectedService: ref(null),
-    } as any)
-    const wrapper = mountComponent()
-    const formattedPrice = new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: 'NOK',
-    }).format(0)
-    expect(wrapper.text()).toContain(formattedPrice)
-  })
-  it('shows payment button in correct states', async () => {
-    const wrapper = mountComponent()
-    // Initial state
-    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
-    // During payment
-    await wrapper.find('button.btn-primary').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
-    // After payment
-    await vi.advanceTimersByTime(1500)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-    // Success state should show secondary button
-    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
-    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
-  })
-  it('shows payment instructions', () => {
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
+  describe('Selected Service Actions', () => {
+    it('should show bottom sheet when service is selected', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.find('.fixed.bottom-0').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Bestill nå')
+      expect(wrapper.text()).toContain('Avbryt')
+    })
+    it('should clear selection when cancel is clicked', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const store = useServicesStore()
+      await wrapper.find('.btn-secondary').trigger('click')
+      expect(store.clearSelection).toHaveBeenCalled()
+    })
+    it('should navigate to booking when book button is clicked', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const push = vi.spyOn(router, 'push')
+      await wrapper.find('.btn-primary').trigger('click')
+      expect(push).toHaveBeenCalledWith('/booking')
+    })
   })
 })
 ````
@@ -20611,6 +19762,49 @@ describe('Booking Store', () => {
 allowBuilds:
   cypress: true
   esbuild: true
+````
+
+## File: frontend/customer/tsconfig.app.json
+````json
+{
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  "exclude": ["src/**/__tests__/*"],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+````
+
+## File: frontend/customer/tsconfig.vitest.json
+````json
+{
+  "extends": "./tsconfig.app.json",
+  "exclude": [],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+
+    "lib": ["ES2022"],
+    "types": ["node", "jsdom"]
+  }
+}
 ````
 
 ## File: plans/fix-type-errors.md
@@ -21355,6 +20549,260 @@ export class EmployeesController {
 }
 ````
 
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  (e: 'click', event: MouseEvent): void;
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
+````
+
+## File: frontend/admin/tsconfig.app.json
+````json
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "preserve",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+}
+````
+
+## File: frontend/customer/src/components/__tests__/PaymentForm.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import PaymentForm from '../PaymentForm.vue'
+import { useBookingStore } from '../../stores/booking'
+import { useServicesStore } from '../../stores/services'
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+}
+vi.mock('vue-router', () => ({
+  useRouter: () => mockRouter,
+}))
+// Mock the stores
+vi.mock('../../stores/booking', () => ({
+  useBookingStore: vi.fn(),
+}))
+vi.mock('../../stores/services', () => ({
+  useServicesStore: vi.fn(),
+}))
+describe('PaymentForm', () => {
+  const mockPendingBooking = {
+    serviceId: '1',
+    firstName: 'Test Customer',
+    phoneNumber: '+4712345678',
+  }
+  const mockService = {
+    id: '1',
+    name: 'Haircut',
+    duration: 30,
+    price: '350',
+  }
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockRouter.push.mockClear()
+    // Setup default store mocks - values must be ref() for storeToRefs() to extract them
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn().mockResolvedValue({}),
+    } as unknown as ReturnType<typeof useBookingStore>)
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(mockService),
+    } as any)
+    // Reset timers
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const mountComponent = () => {
+    return mount(PaymentForm, {
+      global: {
+        provide: {
+          router: mockRouter,
+        },
+        mocks: {
+          $router: mockRouter,
+        },
+      },
+    })
+  }
+  it('shows message when no booking is found', () => {
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(null),
+      isLoading: ref(false),
+      error: ref(null),
+      createWalkInBooking: vi.fn(),
+    } as any)
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Ingen aktiv bestilling funnet')
+    expect(wrapper.find('button').text()).toBe('Tilbake til tjenester')
+  })
+  it('displays payment amount correctly', () => {
+    const wrapper = mountComponent()
+    // Price should be formatted using Intl.NumberFormat with nb-NO locale
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(parseFloat(mockService.price))
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows loading state during payment processing', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.animate-spin').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Behandler...')
+  })
+  it('shows success message after payment', async () => {
+    const wrapper = mountComponent()
+    // Start payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    // Wait for payment delay
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    // Wait for store operation
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Betaling vellykket!')
+    expect(wrapper.text()).toContain(mockPendingBooking.firstName)
+  })
+  it('displays error message when payment fails', async () => {
+    const mockError = 'Payment failed'
+    vi.mocked(useBookingStore).mockReturnValue({
+      pendingBooking: ref(mockPendingBooking),
+      isLoading: ref(false),
+      error: ref(mockError),
+      createWalkInBooking: vi.fn().mockRejectedValue(new Error(mockError)),
+    } as any)
+    const wrapper = mountComponent()
+    // Attempt payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.text-red-600').text()).toBe(mockError)
+  })
+  it('navigates back to home after successful payment', async () => {
+    const wrapper = mountComponent()
+    // Complete payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Click return button
+    await wrapper.find('button.btn-secondary').trigger('click')
+    expect(mockRouter.push).toHaveBeenCalledWith('/')
+  })
+  it('handles missing service price gracefully', () => {
+    vi.mocked(useServicesStore).mockReturnValue({
+      selectedService: ref(null),
+    } as any)
+    const wrapper = mountComponent()
+    const formattedPrice = new Intl.NumberFormat('nb-NO', {
+      style: 'currency',
+      currency: 'NOK',
+    }).format(0)
+    expect(wrapper.text()).toContain(formattedPrice)
+  })
+  it('shows payment button in correct states', async () => {
+    const wrapper = mountComponent()
+    // Initial state
+    expect(wrapper.find('button.btn-primary').text()).toBe('Trykk for å betale')
+    // During payment
+    await wrapper.find('button.btn-primary').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button.btn-primary').text()).toContain('Behandler...')
+    // After payment
+    await vi.advanceTimersByTime(1500)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    // Success state should show secondary button
+    expect(wrapper.find('button.btn-primary').exists()).toBe(false)
+    expect(wrapper.find('button.btn-secondary').text()).toBe('Tilbake til forsiden')
+  })
+  it('shows payment instructions', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
+  })
+})
+````
+
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -21828,6 +21276,188 @@ describe("BookingsService", () => {
 });
 ````
 
+## File: backend/src/employees/employees.service.ts
+````typescript
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
+import { Employee } from './entities/employee.entity';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import * as bcrypt from 'bcrypt';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+type Availability = Record<DayName, TimeSlot[] | undefined>;
+@Injectable()
+export class EmployeesService {
+  constructor(
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+  ) {}
+  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createEmployeeDto.email }
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    // Create user
+    const user = this.userRepository.create({
+      email: createEmployeeDto.email,
+      firstName: createEmployeeDto.firstName,
+      lastName: createEmployeeDto.lastName,
+      password: hashedPassword,
+      role: UserRole.EMPLOYEE
+    });
+    const savedUser = await this.userRepository.save(user);
+    // Create employee
+    const employee = this.employeeRepository.create({
+      user: savedUser,
+      specializations: createEmployeeDto.specializations,
+      isActive: true,
+      availability: {}
+    });
+    const savedEmployee = await this.employeeRepository.save(employee);
+    return {
+      employee: savedEmployee,
+      temporaryPassword
+    };
+  }
+  async findAll(): Promise<Employee[]> {
+    const employees = await this.employeeRepository.find({
+      relations: ['user', 'services'],
+      where: { isActive: true },
+    });
+    return employees as Employee[];
+  }
+  async findOne(id: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { id },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee #${id} not found`);
+    }
+    return employee as Employee;
+  }
+  async findByUserId(userId: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with user ID ${userId} not found`);
+    }
+    return employee;
+  }
+  async isAvailable(
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingId?: string
+  ): Promise<boolean> {
+    const employee = await this.findOne(employeeId);
+    // Check if the employee is active
+    if (!employee.isActive) {
+      return false;
+    }
+    // Get day of week (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = startTime.getDay();
+    const dayNameMap = new Map<number, DayName>([
+      [0, 'sunday'],
+      [1, 'monday'],
+      [2, 'tuesday'],
+      [3, 'wednesday'],
+      [4, 'thursday'],
+      [5, 'friday'],
+      [6, 'saturday'],
+    ]);
+    const dayName = dayNameMap.get(dayOfWeek);
+    if (!dayName) {
+      return false;
+    }
+    // Check if employee has availability for this day
+    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
+      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
+    );
+    const dayAvailability = availabilityMap.get(dayName);
+    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
+      return false;
+    }
+    // Check if the booking time falls within any of the available time slots
+    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
+    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
+    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
+      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+        return false;
+      }
+      const [startHour, startMinute] = slot.start.split(':').map(Number);
+      const [endHour, endMinute] = slot.end.split(':').map(Number);
+      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+        return false;
+      }
+      const slotStart = startHour * 60 + startMinute;
+      const slotEnd = endHour * 60 + endMinute;
+      return bookingStart >= slotStart && bookingEnd <= slotEnd;
+    });
+    if (!isWithinAvailability) {
+      return false;
+    }
+    // Check for overlapping bookings
+    const whereCondition: FindOptionsWhere<Booking> = {
+      employee: { id: employeeId },
+      startTime: Not(MoreThan(endTime)),
+      endTime: Not(LessThan(startTime)),
+    };
+    // Exclude the current booking if an ID is provided
+    if (excludeBookingId) {
+      whereCondition.id = Not(excludeBookingId);
+    }
+    const overlappingBookings = await this.bookingRepository.count({
+      where: whereCondition,
+    });
+    return overlappingBookings === 0;
+  }
+  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
+    const employee = await this.findOne(id);
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    await this.userRepository.update(employee.user.id, {
+      password: hashedPassword
+    });
+    return { temporaryPassword };
+  }
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    const employee = await this.findOne(id);
+    const updated = Object.assign(employee, updateEmployeeDto);
+    return await this.employeeRepository.save(updated) as Employee;
+  }
+  async remove(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = false;
+    await this.employeeRepository.save(employee);
+  }
+  async restore(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = true;
+    await this.employeeRepository.save(employee);
+  }
+}
+````
+
 ## File: backend/src/orders/orders.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -22024,6 +21654,413 @@ describe("OrdersController", () => {
 ````
 # Supply chain security: prevent lifecycle scripts from running during install
 ignore-scripts=true
+````
+
+## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import TVDisplayView from '../TVDisplayView.vue'
+import { useDisplayStore } from '../../stores/display'
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('TVDisplayView', () => {
+  const mockEmployees = [
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
+  ]
+  const mockWaitingSlots = [
+    {
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
+      assignedTo: '1',
+    },
+    {
+      id: 'slot-2',
+      customerName: 'Lavinia',
+      estimatedTime: 45,
+      assignedTo: '2',
+    },
+  ]
+  const createMockStore = (overrides = {}) => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof useDisplayStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
+    // Mock store with default values
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Ledig')
+    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
+  })
+  it('displays correct status when no slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: false,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Opptatt')
+    expect(wrapper.find('h1').classes()).toContain('text-red-500')
+  })
+  it('renders waiting list correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const waitingSlots = wrapper.findAll('.space-y-16 > div')
+    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
+    // Check first slot (Vada)
+    const firstSlot = waitingSlots[0]
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
+    // Check second slot (Lavinia)
+    const secondSlot = waitingSlots[1]
+    expect(secondSlot.text()).toContain('Lavinia')
+    expect(secondSlot.text()).toContain('45 min')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
+  })
+  it('displays active employees correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const employeeElements = wrapper.findAll('[data-testid="employee"]')
+    expect(employeeElements).toHaveLength(mockEmployees.length)
+    expect(wrapper.text()).toContain('2 frisører på jobb')
+    mockEmployees.forEach((employee, index) => {
+      expect(index).toBeLessThan(employeeElements.length)
+      const element = employeeElements.find((_, i) => i === index)
+      expect(element).toBeDefined()
+      expect(element?.text()).toContain(employee.name)
+      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
+    })
+  })
+  it('formats last update time correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.text()).toContain('12:00:00')
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(mockStartPolling).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+})
+````
+
+## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
+````typescript
+import { DataSource, Repository } from "typeorm";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import { createInitialData } from "./create-initial-data.seed";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt");
+type SupportedEntity = User | Employee | Service;
+type SupportedEntityName = "User" | "Employee" | "Service";
+const VALID_ENTITY_NAMES = new Set<SupportedEntityName>(["User", "Employee", "Service"]);
+function isSupportedEntityName(name: string): name is SupportedEntityName {
+  return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
+}
+function getEntityName(entity: { name: string }): SupportedEntityName {
+  const name: string = entity.name;
+  if (isSupportedEntityName(name)) {
+    return name;
+  }
+  throw new Error(`Unsupported entity type: ${name}`);
+}
+describe("createInitialData", () => {
+  let mockDataSource: Partial<DataSource>;
+  let mockUserRepository: Partial<Repository<User>>;
+  let mockEmployeeRepository: Partial<Repository<Employee>>;
+  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockQueryBuilder: {
+    insert: jest.Mock;
+    into: jest.Mock;
+    values: jest.Mock;
+    execute: jest.Mock;
+  };
+  const originalEnv = process.env;
+  beforeEach(() => {
+    // Mock repositories with proper typing
+    mockUserRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<User>): Promise<User> =>
+          Promise.resolve({ id: "user-1", ...data } as User)
+        ),
+    };
+    mockEmployeeRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
+          Promise.resolve({ id: "employee-1", ...data } as Employee)
+        ),
+    };
+    mockServiceRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
+          Promise.resolve(
+            Array.isArray(services)
+              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
+              : { ...services, id: 'service-1' } as Service
+          )
+        ),
+    };
+    // Mock query builder for service associations
+    mockQueryBuilder = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
+    // Mock DataSource with proper typing
+    const mockGetRepository = (entity: { name: string }): Partial<Repository<SupportedEntity>> => {
+      const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
+        ["User", mockUserRepository],
+        ["Employee", mockEmployeeRepository],
+        ["Service", mockServiceRepository],
+      ]);
+      const entityName = getEntityName(entity);
+      const repository = repositories.get(entityName);
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+      return repository;
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    };
+    // Mock bcrypt
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
+    // Setup test environment variables
+    process.env = {
+      ...originalEnv,
+      EMPLOYEE_EMAIL: "employee@example.com",
+      EMPLOYEE_PASSWORD: "employee123",
+      EMPLOYEE_PHONE: "+1234567890",
+    };
+    // Mock console methods
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.clearAllMocks();
+  });
+  test("creates services, employee user, and employee when they do not exist", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [
+      { id: "service-1", name: "Standard Klipp" },
+      { id: "service-2", name: "Styling Klipp" },
+      { id: "service-3", name: "Skjegg Trim" },
+      { id: "service-4", name: "Full Service" },
+    ];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were created
+    expect(mockServiceRepository.save).toHaveBeenCalledWith([
+      expect.objectContaining({ name: "Standard Klipp" }),
+      expect.objectContaining({ name: "Styling Klipp" }),
+      expect.objectContaining({ name: "Skjegg Trim" }),
+      expect.objectContaining({ name: "Full Service" }),
+    ]);
+    // Verify employee user was created
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "employee@example.com",
+        role: UserRole.EMPLOYEE,
+      })
+    );
+    // Verify employee was created
+    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: mockEmployeeUser,
+        specializations: ["klipp", "styling", "skjegg"],
+      })
+    );
+    // Verify services were associated with employee
+    expect(mockQueryBuilder.insert).toHaveBeenCalled();
+    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
+    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
+      mockServices.map((service) => ({
+        employee_id: mockEmployee.id,
+        service_id: service.id,
+      }))
+    );
+    // Verify success message was logged
+    expect(console.log).toHaveBeenCalledWith(
+      "Initial data seeded successfully"
+    );
+  });
+  test("does not create employee when it already exists", async () => {
+    // Mock that employee already exists
+    const existingEmployee = {
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
+      existingEmployee
+    );
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were still created
+    expect(mockServiceRepository.save).toHaveBeenCalled();
+    // Verify no employee creation attempts were made
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
+    // Verify appropriate message was logged
+    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
+  });
+  test("throws error when employee email is missing", async () => {
+    delete process.env.EMPLOYEE_EMAIL;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("throws error when employee password is missing", async () => {
+    delete process.env.EMPLOYEE_PASSWORD;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("handles database errors during service creation", async () => {
+    const dbError = new Error("Database error during service creation");
+    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles database errors during employee creation", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock employee creation error
+    const dbError = new Error("Database error during employee creation");
+    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles password hashing errors", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock bcrypt error
+    const hashError = new Error("Hashing failed");
+    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(hashError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      hashError.message
+    );
+  });
+  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
+    // Remove EMPLOYEE_PHONE from environment
+    delete process.env.EMPLOYEE_PHONE;
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify employee user was created with default phone number
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phoneNumber: "+1234567890", // This is the default value
+      })
+    );
+  });
+});
 ````
 
 ## File: backend/package.json
