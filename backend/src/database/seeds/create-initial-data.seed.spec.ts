@@ -8,10 +8,14 @@ import * as bcrypt from "bcrypt";
 jest.mock("bcrypt");
 
 type SupportedEntity = User | Employee | Service;
+type SupportedEntityName = "User" | "Employee" | "Service";
 
-function getEntityName(entity: EntityTarget<SupportedEntity>): string {
+function getEntityName(entity: EntityTarget<SupportedEntity>): SupportedEntityName {
   if (typeof entity === "function") {
-    return entity.name;
+    const name = entity.name;
+    if (name === "User" || name === "Employee" || name === "Service") {
+      return name;
+    }
   }
   throw new Error("Unsupported entity type");
 }
@@ -70,10 +74,10 @@ describe("createInitialData", () => {
 
     // Mock DataSource with proper typing
     const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories = new Map<string, Repository<User> | Repository<Employee> | Repository<Service>>([
-        ["User", mockUserRepository as Repository<User>],
-        ["Employee", mockEmployeeRepository as Repository<Employee>],
-        ["Service", mockServiceRepository as Repository<Service>],
+      const repositories = new Map<SupportedEntityName, Partial<Repository<User>> | Partial<Repository<Employee>> | Partial<Repository<Service>>>([
+        ["User", mockUserRepository],
+        ["Employee", mockEmployeeRepository],
+        ["Service", mockServiceRepository],
       ]);
 
       const entityName = getEntityName(entity);
