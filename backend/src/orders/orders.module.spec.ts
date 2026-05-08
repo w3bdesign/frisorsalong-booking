@@ -75,12 +75,12 @@ describe('OrdersModule', () => {
   });
 
   it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
+    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
     expect(exports).toContain(TypeOrmModule);
   });
 
   it('should import required modules', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule) as Array<unknown>;
+    const imports = Reflect.getMetadata('imports', OrdersModule) as unknown[];
     expect(imports).toContain(BookingsModule);
   });
 });

@@ -13,9 +13,9 @@ interface JwtPayload {
   exp?: number;
 }
 
-type MockConfigService = {
+interface MockConfigService {
   get: jest.Mock<string | undefined, [string]>;
-};
+}
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;

@@ -50,9 +50,7 @@ export interface Customer {
 export interface Employee {
   id: string
   specializations: string[]
-  availability: {
-    [key: string]: Array<{ start: string; end: string }>
-  }
+  availability: Record<string, { start: string; end: string }[]>
   isActive: boolean
   createdAt: string
   updatedAt: string
