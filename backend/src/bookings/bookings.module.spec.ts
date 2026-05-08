@@ -55,9 +55,7 @@ describe("BookingsModule", () => {
   });
 
   it("should export BookingsService and TypeOrmModule", () => {
-    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
-      Type<unknown> | DynamicModule
-    >;
+    const exports = Reflect.getMetadata("exports", BookingsModule) as (Type<unknown> | DynamicModule)[];
     expect(exports).toContain(BookingsService);
 
     const hasTypeOrmExport = exports.some(

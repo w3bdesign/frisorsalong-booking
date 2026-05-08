@@ -68,7 +68,7 @@ describe('CreateServicesSeed', () => {
   });
 
   it('should clear existing services and create new ones', async () => {
-    await seed.run(mockDataSource as DataSource);
+    await seed.run(mockDataSource);
 
     expect(mockServiceRepository.clear).toHaveBeenCalled();
 

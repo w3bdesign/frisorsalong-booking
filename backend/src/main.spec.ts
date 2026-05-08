@@ -165,9 +165,7 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
-      [ValidationPipe]
-    >;
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
     if (!validationPipeCalls.length) {
       throw new Error("Expected at least one validation pipe call");
     }
