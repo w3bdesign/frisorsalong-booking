@@ -1,4 +1,4 @@
-import { DataSource, Repository, EntityTarget } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { User, UserRole } from "../../users/entities/user.entity";
 import { Employee } from "../../employees/entities/employee.entity";
 import { Service } from "../../services/entities/service.entity";
@@ -10,14 +10,18 @@ jest.mock("bcrypt");
 type SupportedEntity = User | Employee | Service;
 type SupportedEntityName = "User" | "Employee" | "Service";
 
-function getEntityName(entity: EntityTarget<SupportedEntity>): SupportedEntityName {
-  if (typeof entity === "function") {
-    const name = entity.name;
-    if (name === "User" || name === "Employee" || name === "Service") {
-      return name;
-    }
+const VALID_ENTITY_NAMES = new Set<SupportedEntityName>(["User", "Employee", "Service"]);
+
+function isSupportedEntityName(name: string): name is SupportedEntityName {
+  return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
+}
+
+function getEntityName(entity: new (...args: never[]) => SupportedEntity): SupportedEntityName {
+  const name: string = entity.name;
+  if (isSupportedEntityName(name)) {
+    return name;
   }
-  throw new Error("Unsupported entity type");
+  throw new Error(`Unsupported entity type: ${name}`);
 }
 
 describe("createInitialData", () => {
@@ -73,8 +77,8 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories = new Map<SupportedEntityName, Partial<Repository<User>> | Partial<Repository<Employee>> | Partial<Repository<Service>>>([
+    const mockGetRepository = (entity: new (...args: never[]) => SupportedEntity) => {
+      const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
         ["User", mockUserRepository],
         ["Employee", mockEmployeeRepository],
         ["Service", mockServiceRepository],
@@ -87,7 +91,7 @@ describe("createInitialData", () => {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
       }
 
-      return repository as unknown as Repository<T>;
+      return repository;
     };
 
     mockDataSource = {
