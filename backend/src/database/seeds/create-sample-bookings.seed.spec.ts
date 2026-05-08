@@ -121,8 +121,8 @@ describe("createSampleBookings", () => {
       EMPLOYEE_EMAIL: "employee@example.com",
     };
 
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(jest.fn());
+    jest.spyOn(console, "error").mockImplementation(jest.fn());
 
     jest.clearAllMocks();
   });
