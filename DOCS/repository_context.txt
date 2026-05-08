@@ -1626,184 +1626,6 @@ export * from "./jwt-auth.guard";
 export * from "./roles.guard";
 ````
 
-## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
-````typescript
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { Test, TestingModule } from '@nestjs/testing';
-describe('JwtAuthGuard', () => {
-  let guard: JwtAuthGuard;
-  interface RequestMock {
-    headers: {
-      authorization?: string | string[];
-    };
-  }
-  const createMockContext = (request: RequestMock): ExecutionContext => ({
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-    getHandler: jest.fn(),
-    getClass: jest.fn(),
-    getArgs: jest.fn(),
-    getArgByIndex: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-  } as unknown as ExecutionContext);
-  const testUnauthorizedScenario = (
-    scenario: {
-      headers: { authorization?: string | string[] },
-      expectedError: string
-    }
-  ) => {
-    const context = createMockContext({ headers: scenario.headers });
-    expect(() => guard.canActivate(context)).toThrow(
-      scenario.expectedError
-    );
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard],
-    }).compile();
-    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-  });
-  describe('canActivate', () => {
-    const authorizationScenarios = [
-      {
-        description: 'missing Authorization header',
-        headers: {},
-        expectedError: 'Missing Authorization header'
-      },
-      {
-        description: 'non-string Authorization header',
-        headers: { authorization: ['Bearer token'] },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'wrong auth type',
-        headers: { authorization: 'Basic token' },
-        expectedError: 'Authorization header must start with "Bearer "'
-      },
-      {
-        description: 'wrong format',
-        headers: { authorization: 'Bearer token extra' },
-        expectedError: 'Invalid Authorization header format'
-      },
-      {
-        description: 'missing token',
-        headers: { authorization: 'Bearer ' },
-        expectedError: 'Token not provided'
-      }
-    ];
-    authorizationScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
-        testUnauthorizedScenario(scenario);
-      });
-    });
-    it('should call super.canActivate when token is valid', () => {
-      const context = createMockContext({
-        headers: { authorization: 'Bearer valid-token' }
-      });
-      const superCanActivateSpy = jest
-        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
-        .mockImplementation(() => true);
-      const result = guard.canActivate(context);
-      expect(result).toBe(true);
-      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
-    });
-  });
-  describe('handleRequest', () => {
-    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
-    interface JwtError extends Error {
-      name: JwtErrorName;
-    }
-    function createJwtError(message: string, name: JwtErrorName): JwtError {
-      const error = new Error(message) as JwtError;
-      error.name = name;
-      return error;
-    }
-    const expectHandleRequestToThrow = (
-      error: Error | null,
-      info: JwtError | null,
-      expectedMessage: string
-    ): void => {
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, info);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(Error);
-      expect((thrownError).message).toContain(expectedMessage);
-    };
-    it('should return user when authentication is successful', () => {
-      const user = { id: '1', email: 'test@example.com' };
-      const result = guard.handleRequest(null, user, null);
-      expect(result).toBe(user);
-    });
-    const errorScenarios: Array<{
-      description: string;
-      error: Error | null;
-      info: JwtError | null;
-      expectedMessage: string;
-      expectedType: typeof UnauthorizedException | typeof Error;
-    }> = [
-      {
-        description: 'user not authenticated',
-        error: null,
-        info: null,
-        expectedMessage: 'User not authenticated',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'invalid token format',
-        error: null,
-        info: createJwtError('invalid token', 'JsonWebTokenError'),
-        expectedMessage: 'Invalid token format',
-        expectedType: UnauthorizedException
-      },
-      {
-        description: 'expired token',
-        error: null,
-        info: createJwtError('jwt expired', 'TokenExpiredError'),
-        expectedMessage: 'Token has expired',
-        expectedType: UnauthorizedException
-      }
-    ];
-    errorScenarios.forEach(scenario => {
-      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
-        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
-      });
-    });
-    it('should throw original error when error is provided', () => {
-      const error = new Error('Custom error');
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBe(error);
-    });
-    it('should convert non-Error error to UnauthorizedException', () => {
-      const errorMessage = 'string error';
-      // Pass a non-Error value to exercise the guard's String(err) branch
-      let thrownError: Error | undefined;
-      try {
-        guard.handleRequest(errorMessage as unknown as Error, false, null);
-      } catch (e: unknown) {
-        thrownError = e as Error;
-      }
-      expect(thrownError).toBeDefined();
-      expect(thrownError).toBeInstanceOf(UnauthorizedException);
-      expect((thrownError).message).toContain(errorMessage);
-    });
-  });
-});
-````
-
 ## File: backend/src/auth/guards/jwt-auth.guard.ts
 ````typescript
 import { Injectable, ExecutionContext, UnauthorizedException, Logger } from "@nestjs/common";
@@ -2474,113 +2296,6 @@ export class AuthController {
     return user as UserResponse;
   }
 }
-````
-
-## File: backend/src/auth/auth.module.spec.ts
-````typescript
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth.module';
-import { UsersModule } from '../users/users.module';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guards/roles.guard';
-import { User } from '../users/entities/user.entity';
-import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
-type Constructor<T> = new (..._args: unknown[]) => T;
-interface ModuleMetadata {
-  imports: Array<Type<unknown> | DynamicModule>;
-  providers: Provider[];
-  exports: Array<Type<unknown> | DynamicModule>;
-  controllers: Constructor<unknown>[];
-}
-interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
-  provide: string;
-  useValue: { defaultStrategy: string };
-}
-interface JwtConfig extends FactoryProvider {
-  provide: string;
-  useFactory: (..._args: unknown[]) => unknown;
-  inject: Type<unknown>[];
-}
-interface TypeOrmEntityConfig {
-  provide: string;
-  useValue: {
-    targetEntitySchema: {
-      target: Constructor<User>;
-    };
-  };
-}
-jest.mock('../users/users.module');
-describe('AuthModule', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  describe('module metadata', () => {
-    it('should have the correct imports', () => {
-      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
-      // Check UsersModule
-      expect(imports).toContain(UsersModule);
-      // Check PassportModule (as dynamic module)
-      const passportModuleConfig = imports.find(
-        (imp): imp is DynamicModule => 
-          typeof imp === 'object' && 
-          'module' in imp && 
-          imp.module === PassportModule
-      );
-      expect(passportModuleConfig).toBeDefined();
-      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
-      expect(passportProvider).toBeDefined();
-      expect(passportProvider?.useValue).toEqual({
-        defaultStrategy: 'jwt'
-      });
-      // Check JwtModule
-      const jwtModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === JwtModule
-      );
-      expect(jwtModuleConfig).toBeDefined();
-      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
-      expect(jwtProvider).toBeDefined();
-      expect(jwtProvider?.inject).toContain(ConfigService);
-      // Check TypeOrmModule
-      const typeOrmModuleConfig = imports.find(
-        (imp): imp is DynamicModule =>
-          typeof imp === 'object' &&
-          'module' in imp &&
-          imp.module === TypeOrmModule
-      );
-      expect(typeOrmModuleConfig).toBeDefined();
-      // TypeOrmModule may not expose entity config in exports depending on version
-      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
-      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
-      expect(typeof hasEntityConfig).toBe('boolean');
-    });
-    it('should have the correct providers', () => {
-      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
-      expect(providers).toContain(AuthService);
-      expect(providers).toContain(JwtStrategy);
-      expect(providers).toContain(RolesGuard);
-    });
-    it('should have the correct exports', () => {
-      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
-      expect(exports).toContain(AuthService);
-      expect(exports).toContain(JwtStrategy);
-      expect(exports).toContain(RolesGuard);
-      expect(exports).toContain(JwtModule);
-      expect(exports).toContain(PassportModule);
-    });
-    it('should have the correct controllers', () => {
-      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
-      expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(1);
-    });
-  });
-});
 ````
 
 ## File: backend/src/auth/auth.module.ts
@@ -3265,76 +2980,6 @@ describe("BookingsController", () => {
       expect(result.count).toBe(mockCount);
       expect(mockBookingsService.getUpcomingCount).toHaveBeenCalled();
     });
-  });
-});
-````
-
-## File: backend/src/bookings/bookings.module.spec.ts
-````typescript
-import { BookingsModule } from "./bookings.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
-type ModuleImport =
-  | Type<unknown>
-  | DynamicModule
-  | Promise<DynamicModule>
-  | ForwardReference;
-describe("BookingsModule", () => {
-  it("should have correct module metadata", () => {
-    // Get module metadata directly from the decorator
-    const moduleDecorator = Reflect.getMetadata(
-      "imports",
-      BookingsModule
-    ) as ModuleImport[];
-    // Check TypeOrmModule.forFeature
-    const typeOrmFeature = moduleDecorator.find(
-      (item): item is DynamicModule =>
-        item !== null &&
-        typeof item === "object" &&
-        "module" in item &&
-        item.module === TypeOrmModule
-    );
-    expect(typeOrmFeature).toBeDefined();
-    // Get all module names
-    const moduleNames = moduleDecorator
-      .map((item): string | null => {
-        if (typeof item === "function") {
-          const name: string = item.name;
-          return name;
-        }
-        if (item && typeof item === "object" && "name" in item) {
-          const nameValue: unknown = (item as Record<string, unknown>).name;
-          return typeof nameValue === 'string' ? nameValue : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name));
-    // Check for expected modules
-    const expectedModules = [
-      "UsersModule",
-      "ServicesModule",
-      "ShopsModule",
-      "AuthModule",
-    ];
-    expectedModules.forEach((moduleName) => {
-      expect(moduleNames).toContain(moduleName);
-    });
-  });
-  it("should export BookingsService and TypeOrmModule", () => {
-    const exports = Reflect.getMetadata("exports", BookingsModule) as Array<
-      Type<unknown> | DynamicModule
-    >;
-    expect(exports).toContain(BookingsService);
-    const hasTypeOrmExport = exports.some(
-      (exp): boolean =>
-        exp === TypeOrmModule ||
-        (exp !== null &&
-          typeof exp === "object" &&
-          "module" in exp &&
-          exp.module === TypeOrmModule)
-    );
-    expect(hasTypeOrmExport).toBe(true);
   });
 });
 ````
@@ -6711,85 +6356,6 @@ export class OrdersController {
 }
 ````
 
-## File: backend/src/orders/orders.module.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { OrdersModule } from './orders.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from './entities/order.entity';
-import { OrdersService } from './orders.service';
-import { BookingsModule } from '../bookings/bookings.module';
-import { Repository } from 'typeorm';
-interface MockOrdersService {
-  findAll: jest.Mock;
-  findOne: jest.Mock;
-  createFromBooking: jest.Mock;
-}
-// Mock OrdersService
-const mockOrdersService: MockOrdersService = {
-  findAll: jest.fn(),
-  findOne: jest.fn(),
-  createFromBooking: jest.fn(),
-};
-// Mock repository
-const mockRepository: Partial<Repository<Order>> = {
-  find: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-  create: jest.fn(),
-};
-// Mock BookingsModule
-jest.mock('../bookings/bookings.module', () => ({
-  BookingsModule: class MockBookingsModule {},
-}));
-describe('OrdersModule', () => {
-  let moduleRef: TestingModule;
-  beforeEach(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        {
-          module: class MockTypeOrmFeatureModule {},
-          providers: [
-            {
-              provide: 'OrderRepository',
-              useValue: mockRepository,
-            },
-          ],
-        },
-        BookingsModule,
-      ],
-      providers: [
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [OrdersService, TypeOrmModule], OrdersModule);
-    Reflect.defineMetadata('imports', [
-      TypeOrmModule.forFeature([Order]),
-      BookingsModule,
-    ], OrdersModule);
-  });
-  it('should be defined', () => {
-    expect(moduleRef).toBeDefined();
-  });
-  it('should export OrdersService', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
-    expect(exports).toContain(OrdersService);
-  });
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
-    expect(exports).toContain(TypeOrmModule);
-  });
-  it('should import required modules', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule) as Array<unknown>;
-    expect(imports).toContain(BookingsModule);
-  });
-});
-````
-
 ## File: backend/src/orders/orders.module.ts
 ````typescript
 import { Module, forwardRef } from '@nestjs/common';
@@ -8050,80 +7616,6 @@ export enum Role {
 }
 ````
 
-## File: backend/src/users/users.module.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { UsersModule } from './users.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
-import { UsersService } from './users.service';
-import { DynamicModule, Type } from '@nestjs/common';
-// Mock UsersService
-const mockUsersService = {
-  findAll: jest.fn(),
-  findOne: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  remove: jest.fn(),
-};
-// Mock repository
-const mockRepository = {
-  find: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
-// Define metadata types
-type ModuleExports = Array<Type<unknown> | DynamicModule>;
-type ModuleImports = Array<Type<unknown> | DynamicModule>;
-describe('UsersModule', () => {
-  let moduleRef: TestingModule;
-  beforeEach(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        {
-          module: class MockTypeOrmFeatureModule {},
-          providers: [
-            {
-              provide: 'UserRepository',
-              useValue: mockRepository,
-            },
-          ],
-        },
-      ],
-      providers: [
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-      ],
-    }).compile();
-    // Set metadata for exports and imports
-    const moduleExports: ModuleExports = [UsersService, TypeOrmModule];
-    const moduleImports: ModuleImports = [TypeOrmModule.forFeature([User])];
-    Reflect.defineMetadata('exports', moduleExports, UsersModule);
-    Reflect.defineMetadata('imports', moduleImports, UsersModule);
-  });
-  it('should be defined', () => {
-    expect(moduleRef).toBeDefined();
-  });
-  it('should export UsersService', () => {
-    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
-    expect(exports.includes(UsersService)).toBe(true);
-  });
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
-    expect(exports.includes(TypeOrmModule)).toBe(true);
-  });
-  it('should not have any controllers', () => {
-    const controllers = Reflect.getMetadata('controllers', UsersModule) as Type<unknown>[];
-    expect(controllers).toEqual([]);
-  });
-});
-````
-
 ## File: backend/src/users/users.module.ts
 ````typescript
 import { Module } from "@nestjs/common";
@@ -8414,230 +7906,6 @@ export class AppService {
     return `Welcome to the Hair Salon Booking API! Please visit /api-docs for the API documentation.`;
   }
 }
-````
-
-## File: backend/src/main.spec.ts
-````typescript
-import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { NestFactory } from "@nestjs/core";
-import { bootstrap } from "./main";
-// Mock all external modules
-jest.mock("@nestjs/typeorm", () => ({
-  TypeOrmModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-    forRootAsync: jest.fn().mockReturnValue({}),
-    forFeature: jest.fn().mockReturnValue({}),
-  },
-  getRepositoryToken: jest.fn(),
-  InjectRepository: () => jest.fn(),
-}));
-jest.mock("@nestjs/cache-manager", () => ({
-  CacheModule: {
-    register: jest.fn().mockReturnValue({}),
-    registerAsync: jest.fn().mockReturnValue({}),
-  },
-}));
-jest.mock("@nestjs/config", () => ({
-  ConfigModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-  },
-  ConfigService: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key: string) => {
-      if (key === "cache") {
-        return {
-          host: "localhost",
-          port: 6379,
-          ttl: 300,
-        };
-      }
-      return null;
-    }),
-  })),
-}));
-// Mock feature modules
-jest.mock("./auth/auth.module", () => ({
-  AuthModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./users/users.module", () => ({
-  UsersModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./services/services.module", () => ({
-  ServicesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: jest.fn().mockReturnValue({}),
-}));
-// Mock app module
-jest.mock("./app.module", () => ({
-  AppModule: jest.fn().mockReturnValue({}),
-}));
-type MockNestApp = {
-  [_K in keyof INestApplication]: jest.Mock;
-};
-interface SwaggerSetupOptions {
-  swaggerOptions: {
-    persistAuthorization: boolean;
-    docExpansion: string;
-    filter: boolean;
-    showRequestDuration: boolean;
-  };
-}
-describe("Bootstrap", () => {
-  let app: MockNestApp;
-  const mockSwaggerDoc: OpenAPIObject = {
-    openapi: "3.0.0",
-    paths: {},
-    components: {},
-    info: {
-      title: "Test API",
-      version: "1.0",
-    },
-  };
-  beforeEach(() => {
-    // Reset modules before each test
-    jest.resetModules();
-    // Create a more complete mock implementation of INestApplication
-    app = {
-      enableCors: jest.fn().mockReturnThis(),
-      useGlobalPipes: jest.fn().mockReturnThis(),
-      listen: jest.fn().mockResolvedValue(undefined),
-      init: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      useGlobalFilters: jest.fn().mockReturnThis(),
-      useGlobalInterceptors: jest.fn().mockReturnThis(),
-      useGlobalGuards: jest.fn().mockReturnThis(),
-      use: jest.fn().mockReturnThis(),
-      setGlobalPrefix: jest.fn().mockReturnThis(),
-      enableVersioning: jest.fn().mockReturnThis(),
-      getUrl: jest.fn().mockReturnThis(),
-      useWebSocketAdapter: jest.fn().mockReturnThis(),
-      connectMicroservice: jest.fn().mockReturnThis(),
-      getMicroservices: jest.fn().mockReturnThis(),
-      getHttpServer: jest.fn().mockReturnThis(),
-      startAllMicroservices: jest.fn().mockReturnThis(),
-      stopAllMicroservices: jest.fn().mockReturnThis(),
-      createNestApplication: jest.fn().mockReturnThis(),
-      registerRequestByName: jest.fn().mockReturnThis(),
-      registerRequestById: jest.fn().mockReturnThis(),
-      flushLogs: jest.fn().mockReturnThis(),
-      getHttpAdapter: jest.fn().mockReturnThis(),
-      resolve: jest.fn().mockReturnThis(),
-      registerRequestByContextId: jest.fn().mockReturnThis(),
-      useLogger: jest.fn().mockReturnThis(),
-      enableShutdownHooks: jest.fn().mockReturnThis(),
-    } as unknown as MockNestApp;
-    jest
-      .spyOn(NestFactory, "create")
-      .mockResolvedValue(app as unknown as INestApplication);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
-    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
-    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
-    jest.spyOn(console, "log").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  it("should create NestJS application", async () => {
-    await bootstrap();
-    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
-  });
-  it("should enable CORS with correct configuration", async () => {
-    await bootstrap();
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
-    expect(app.enableCors).toHaveBeenCalledWith({
-      origin: true,
-      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-      credentials: true,
-    });
-  });
-  it("should set up global validation pipe", async () => {
-    await bootstrap();
-    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
-      [ValidationPipe]
-    >;
-    if (!validationPipeCalls.length) {
-      throw new Error("Expected at least one validation pipe call");
-    }
-    const validationPipe = validationPipeCalls[0][0];
-    expect(validationPipe).toBeInstanceOf(ValidationPipe);
-  });
-  it("should set up Swagger documentation", async () => {
-    await bootstrap();
-    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
-      "Hair Salon Booking API"
-    );
-    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
-      "API documentation for the Hair Salon Booking System"
-    );
-    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
-    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth"
-    );
-    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
-    expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls as Array<
-      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
-    >;
-    if (!setupCalls.length) {
-      throw new Error("Expected at least one Swagger setup call");
-    }
-    const [path, setupApp, document, options] = setupCalls[0];
-    expect(path).toBe("api-docs");
-    expect(setupApp).toBe(app);
-    expect(document).toEqual<OpenAPIObject>({
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: expect.any(String) as string,
-        version: expect.any(String) as string,
-      },
-    });
-    expect(options).toEqual<SwaggerSetupOptions>({
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: "none",
-        filter: true,
-        showRequestDuration: true,
-      },
-    });
-  });
-  it("should listen on the configured port", async () => {
-    const originalEnv = process.env.PORT;
-    process.env.PORT = "4000";
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith("4000");
-    process.env.PORT = originalEnv;
-  });
-  it("should use default port 3000 when PORT env is not set", async () => {
-    const originalEnv = process.env.PORT;
-    delete process.env.PORT;
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith(3000);
-    process.env.PORT = originalEnv;
-  });
-});
 ````
 
 ## File: backend/src/main.ts
@@ -17510,6 +16778,113 @@ export class RolesGuard implements CanActivate {
 }
 ````
 
+## File: backend/src/auth/auth.module.spec.ts
+````typescript
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth.module';
+import { UsersModule } from '../users/users.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { User } from '../users/entities/user.entity';
+import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@nestjs/common';
+type Constructor<T> = new (..._args: unknown[]) => T;
+interface ModuleMetadata {
+  imports: (Type<unknown> | DynamicModule)[];
+  providers: Provider[];
+  exports: (Type<unknown> | DynamicModule)[];
+  controllers: Constructor<unknown>[];
+}
+interface PassportConfig extends ValueProvider<{ defaultStrategy: string }> {
+  provide: string;
+  useValue: { defaultStrategy: string };
+}
+interface JwtConfig extends FactoryProvider {
+  provide: string;
+  useFactory: (..._args: unknown[]) => unknown;
+  inject: Type<unknown>[];
+}
+interface TypeOrmEntityConfig {
+  provide: string;
+  useValue: {
+    targetEntitySchema: {
+      target: Constructor<User>;
+    };
+  };
+}
+jest.mock('../users/users.module');
+describe('AuthModule', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  describe('module metadata', () => {
+    it('should have the correct imports', () => {
+      const imports = Reflect.getMetadata('imports', AuthModule) as ModuleMetadata['imports'];
+      // Check UsersModule
+      expect(imports).toContain(UsersModule);
+      // Check PassportModule (as dynamic module)
+      const passportModuleConfig = imports.find(
+        (imp): imp is DynamicModule => 
+          typeof imp === 'object' && 
+          'module' in imp && 
+          imp.module === PassportModule
+      );
+      expect(passportModuleConfig).toBeDefined();
+      const passportProvider = passportModuleConfig?.providers?.[0] as PassportConfig | undefined;
+      expect(passportProvider).toBeDefined();
+      expect(passportProvider?.useValue).toEqual({
+        defaultStrategy: 'jwt'
+      });
+      // Check JwtModule
+      const jwtModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === JwtModule
+      );
+      expect(jwtModuleConfig).toBeDefined();
+      const jwtProvider = jwtModuleConfig?.providers?.[0] as JwtConfig | undefined;
+      expect(jwtProvider).toBeDefined();
+      expect(jwtProvider?.inject).toContain(ConfigService);
+      // Check TypeOrmModule
+      const typeOrmModuleConfig = imports.find(
+        (imp): imp is DynamicModule =>
+          typeof imp === 'object' &&
+          'module' in imp &&
+          imp.module === TypeOrmModule
+      );
+      expect(typeOrmModuleConfig).toBeDefined();
+      // TypeOrmModule may not expose entity config in exports depending on version
+      const typeOrmProvider = typeOrmModuleConfig?.exports?.[0] as TypeOrmEntityConfig | undefined;
+      const hasEntityConfig = typeOrmProvider?.useValue !== undefined;
+      expect(typeof hasEntityConfig).toBe('boolean');
+    });
+    it('should have the correct providers', () => {
+      const providers = Reflect.getMetadata('providers', AuthModule) as Provider[];
+      expect(providers).toContain(AuthService);
+      expect(providers).toContain(JwtStrategy);
+      expect(providers).toContain(RolesGuard);
+    });
+    it('should have the correct exports', () => {
+      const exports = Reflect.getMetadata('exports', AuthModule) as ModuleMetadata['exports'];
+      expect(exports).toContain(AuthService);
+      expect(exports).toContain(JwtStrategy);
+      expect(exports).toContain(RolesGuard);
+      expect(exports).toContain(JwtModule);
+      expect(exports).toContain(PassportModule);
+    });
+    it('should have the correct controllers', () => {
+      const controllers = Reflect.getMetadata('controllers', AuthModule) as Constructor<unknown>[];
+      expect(controllers).toBeDefined();
+      expect(controllers.length).toBe(1);
+    });
+  });
+});
+````
+
 ## File: backend/src/bookings/bookings.controller.ts
 ````typescript
 import {
@@ -17642,89 +17017,6 @@ export class BookingsController {
     return this.ordersService.createFromBooking(id);
   }
 }
-````
-
-## File: backend/src/database/seeds/create-services.seed.spec.ts
-````typescript
-import { DataSource } from 'typeorm';
-import { CreateServicesSeed } from './create-services.seed';
-import { Service } from '../../services/entities/service.entity';
-interface MockServiceRepository {
-  clear: jest.Mock<Promise<void>, []>;
-  save: jest.Mock<Promise<Service[]>, [Service[]]>;
-}
-type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
-const expectedServices: ServiceData[] = [
-  {
-    name: 'Standard Klipp',
-    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
-    duration: 20,
-    price: 299,
-    isActive: true,
-  },
-  {
-    name: 'Styling Klipp',
-    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
-    duration: 30,
-    price: 399,
-    isActive: true,
-  },
-  {
-    name: 'Skjegg Trim',
-    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
-    duration: 15,
-    price: 199,
-    isActive: true,
-  },
-  {
-    name: 'Full Service',
-    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
-    duration: 45,
-    price: 549,
-    isActive: true,
-  }
-];
-describe('CreateServicesSeed', () => {
-  let seed: CreateServicesSeed;
-  let mockDataSource: Partial<DataSource>;
-  let mockServiceRepository: MockServiceRepository;
-  beforeEach(() => {
-    mockServiceRepository = {
-      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
-      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
-        return Promise.resolve(
-          services.map(service => ({
-            ...service,
-            id: 'test-id',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))
-        );
-      }),
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
-    };
-    seed = new CreateServicesSeed();
-  });
-  it('should clear existing services and create new ones', async () => {
-    await seed.run(mockDataSource as DataSource);
-    expect(mockServiceRepository.clear).toHaveBeenCalled();
-    const savedServices = mockServiceRepository.save.mock.calls[0][0];
-    expectedServices.forEach((expectedService, index) => {
-      const service = savedServices.at(index);
-      expect(service).toBeDefined();
-      expect(service).toEqual(
-        expect.objectContaining(expectedService)
-      );
-    });
-  });
-  it('should handle database errors gracefully', async () => {
-    const dbError = new Error('Database connection error');
-    mockServiceRepository.clear.mockRejectedValue(dbError);
-    await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
-  });
-});
 ````
 
 ## File: backend/src/database/seeds/update-admin-password.seed.ts
@@ -18074,6 +17366,85 @@ describe("EmployeesController", () => {
 });
 ````
 
+## File: backend/src/orders/orders.module.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { OrdersModule } from './orders.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Order } from './entities/order.entity';
+import { OrdersService } from './orders.service';
+import { BookingsModule } from '../bookings/bookings.module';
+import { Repository } from 'typeorm';
+interface MockOrdersService {
+  findAll: jest.Mock;
+  findOne: jest.Mock;
+  createFromBooking: jest.Mock;
+}
+// Mock OrdersService
+const mockOrdersService: MockOrdersService = {
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  createFromBooking: jest.fn(),
+};
+// Mock repository
+const mockRepository: Partial<Repository<Order>> = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+};
+// Mock BookingsModule
+jest.mock('../bookings/bookings.module', () => ({
+  BookingsModule: class MockBookingsModule {},
+}));
+describe('OrdersModule', () => {
+  let moduleRef: TestingModule;
+  beforeEach(async () => {
+    moduleRef = await Test.createTestingModule({
+      imports: [
+        {
+          module: class MockTypeOrmFeatureModule {},
+          providers: [
+            {
+              provide: 'OrderRepository',
+              useValue: mockRepository,
+            },
+          ],
+        },
+        BookingsModule,
+      ],
+      providers: [
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    // Set metadata for exports and imports
+    Reflect.defineMetadata('exports', [OrdersService, TypeOrmModule], OrdersModule);
+    Reflect.defineMetadata('imports', [
+      TypeOrmModule.forFeature([Order]),
+      BookingsModule,
+    ], OrdersModule);
+  });
+  it('should be defined', () => {
+    expect(moduleRef).toBeDefined();
+  });
+  it('should export OrdersService', () => {
+    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
+    expect(exports).toContain(OrdersService);
+  });
+  it('should export TypeOrmModule', () => {
+    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
+    expect(exports).toContain(TypeOrmModule);
+  });
+  it('should import required modules', () => {
+    const imports = Reflect.getMetadata('imports', OrdersModule) as Array<unknown>;
+    expect(imports).toContain(BookingsModule);
+  });
+});
+````
+
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -18189,6 +17560,80 @@ export class OrdersService {
     return order;
   }
 }
+````
+
+## File: backend/src/users/users.module.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { UsersModule } from './users.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from './entities/user.entity';
+import { UsersService } from './users.service';
+import { DynamicModule, Type } from '@nestjs/common';
+// Mock UsersService
+const mockUsersService = {
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+};
+// Mock repository
+const mockRepository = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+// Define metadata types
+type ModuleExports = (Type<unknown> | DynamicModule)[];
+type ModuleImports = (Type<unknown> | DynamicModule)[];
+describe('UsersModule', () => {
+  let moduleRef: TestingModule;
+  beforeEach(async () => {
+    moduleRef = await Test.createTestingModule({
+      imports: [
+        {
+          module: class MockTypeOrmFeatureModule {},
+          providers: [
+            {
+              provide: 'UserRepository',
+              useValue: mockRepository,
+            },
+          ],
+        },
+      ],
+      providers: [
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+      ],
+    }).compile();
+    // Set metadata for exports and imports
+    const moduleExports: ModuleExports = [UsersService, TypeOrmModule];
+    const moduleImports: ModuleImports = [TypeOrmModule.forFeature([User])];
+    Reflect.defineMetadata('exports', moduleExports, UsersModule);
+    Reflect.defineMetadata('imports', moduleImports, UsersModule);
+  });
+  it('should be defined', () => {
+    expect(moduleRef).toBeDefined();
+  });
+  it('should export UsersService', () => {
+    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
+    expect(exports.includes(UsersService)).toBe(true);
+  });
+  it('should export TypeOrmModule', () => {
+    const exports = Reflect.getMetadata('exports', UsersModule) as ModuleExports;
+    expect(exports.includes(TypeOrmModule)).toBe(true);
+  });
+  it('should not have any controllers', () => {
+    const controllers = Reflect.getMetadata('controllers', UsersModule) as Type<unknown>[];
+    expect(controllers).toEqual([]);
+  });
+});
 ````
 
 ## File: backend/src/users/users.service.ts
@@ -19720,6 +19165,253 @@ jobs:
           fail_ci_if_error: true
 ````
 
+## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
+````typescript
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Test, TestingModule } from '@nestjs/testing';
+describe('JwtAuthGuard', () => {
+  let guard: JwtAuthGuard;
+  interface RequestMock {
+    headers: {
+      authorization?: string | string[];
+    };
+  }
+  const createMockContext = (request: RequestMock): ExecutionContext => ({
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    getHandler: jest.fn(),
+    getClass: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  });
+  const testUnauthorizedScenario = (
+    scenario: {
+      headers: { authorization?: string | string[] },
+      expectedError: string
+    }
+  ) => {
+    const context = createMockContext({ headers: scenario.headers });
+    expect(() => guard.canActivate(context)).toThrow(
+      scenario.expectedError
+    );
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [JwtAuthGuard],
+    }).compile();
+    guard = module.get<JwtAuthGuard>(JwtAuthGuard);
+  });
+  describe('canActivate', () => {
+    const authorizationScenarios = [
+      {
+        description: 'missing Authorization header',
+        headers: {},
+        expectedError: 'Missing Authorization header'
+      },
+      {
+        description: 'non-string Authorization header',
+        headers: { authorization: ['Bearer token'] },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'wrong auth type',
+        headers: { authorization: 'Basic token' },
+        expectedError: 'Authorization header must start with "Bearer "'
+      },
+      {
+        description: 'wrong format',
+        headers: { authorization: 'Bearer token extra' },
+        expectedError: 'Invalid Authorization header format'
+      },
+      {
+        description: 'missing token',
+        headers: { authorization: 'Bearer ' },
+        expectedError: 'Token not provided'
+      }
+    ];
+    authorizationScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException when ${scenario.description}`, () => {
+        testUnauthorizedScenario(scenario);
+      });
+    });
+    it('should call super.canActivate when token is valid', () => {
+      const context = createMockContext({
+        headers: { authorization: 'Bearer valid-token' }
+      });
+      const superCanActivateSpy = jest
+        .spyOn(AuthGuard('jwt').prototype, 'canActivate')
+        .mockImplementation(() => true);
+      const result = guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(superCanActivateSpy).toHaveBeenCalledWith(context);
+    });
+  });
+  describe('handleRequest', () => {
+    type JwtErrorName = 'JsonWebTokenError' | 'TokenExpiredError';
+    interface JwtError extends Error {
+      name: JwtErrorName;
+    }
+    function createJwtError(message: string, name: JwtErrorName): JwtError {
+      const error = new Error(message) as JwtError;
+      error.name = name;
+      return error;
+    }
+    const expectHandleRequestToThrow = (
+      error: Error | null,
+      info: JwtError | null,
+      expectedMessage: string
+    ): void => {
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, info);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(Error);
+      expect((thrownError).message).toContain(expectedMessage);
+    };
+    it('should return user when authentication is successful', () => {
+      const user = { id: '1', email: 'test@example.com' };
+      const result = guard.handleRequest(null, user, null);
+      expect(result).toBe(user);
+    });
+    const errorScenarios: {
+      description: string;
+      error: Error | null;
+      info: JwtError | null;
+      expectedMessage: string;
+      expectedType: typeof UnauthorizedException | typeof Error;
+    }[] = [
+      {
+        description: 'user not authenticated',
+        error: null,
+        info: null,
+        expectedMessage: 'User not authenticated',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'invalid token format',
+        error: null,
+        info: createJwtError('invalid token', 'JsonWebTokenError'),
+        expectedMessage: 'Invalid token format',
+        expectedType: UnauthorizedException
+      },
+      {
+        description: 'expired token',
+        error: null,
+        info: createJwtError('jwt expired', 'TokenExpiredError'),
+        expectedMessage: 'Token has expired',
+        expectedType: UnauthorizedException
+      }
+    ];
+    errorScenarios.forEach(scenario => {
+      it(`should throw UnauthorizedException for ${scenario.description}`, () => {
+        expectHandleRequestToThrow(scenario.error, scenario.info, scenario.expectedMessage);
+      });
+    });
+    it('should throw original error when error is provided', () => {
+      const error = new Error('Custom error');
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBe(error);
+    });
+    it('should convert non-Error error to UnauthorizedException', () => {
+      const errorMessage = 'string error';
+      // Pass a non-Error value to exercise the guard's String(err) branch
+      let thrownError: Error | undefined;
+      try {
+        guard.handleRequest(errorMessage as unknown as Error, false, null);
+      } catch (e: unknown) {
+        thrownError = e as Error;
+      }
+      expect(thrownError).toBeDefined();
+      expect(thrownError).toBeInstanceOf(UnauthorizedException);
+      expect((thrownError).message).toContain(errorMessage);
+    });
+  });
+});
+````
+
+## File: backend/src/bookings/bookings.module.spec.ts
+````typescript
+import { BookingsModule } from "./bookings.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
+type ModuleImport =
+  | Type<unknown>
+  | DynamicModule
+  | Promise<DynamicModule>
+  | ForwardReference;
+describe("BookingsModule", () => {
+  it("should have correct module metadata", () => {
+    // Get module metadata directly from the decorator
+    const moduleDecorator = Reflect.getMetadata(
+      "imports",
+      BookingsModule
+    ) as ModuleImport[];
+    // Check TypeOrmModule.forFeature
+    const typeOrmFeature = moduleDecorator.find(
+      (item): item is DynamicModule =>
+        item !== null &&
+        typeof item === "object" &&
+        "module" in item &&
+        item.module === TypeOrmModule
+    );
+    expect(typeOrmFeature).toBeDefined();
+    // Get all module names
+    const moduleNames = moduleDecorator
+      .map((item): string | null => {
+        if (typeof item === "function") {
+          const name: string = item.name;
+          return name;
+        }
+        if (item && typeof item === "object" && "name" in item) {
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
+        }
+        return null;
+      })
+      .filter((name): name is string => Boolean(name));
+    // Check for expected modules
+    const expectedModules = [
+      "UsersModule",
+      "ServicesModule",
+      "ShopsModule",
+      "AuthModule",
+    ];
+    expectedModules.forEach((moduleName) => {
+      expect(moduleNames).toContain(moduleName);
+    });
+  });
+  it("should export BookingsService and TypeOrmModule", () => {
+    const rawExports: unknown = Reflect.getMetadata("exports", BookingsModule);
+    const exports = rawExports as (Type<unknown> | DynamicModule)[];
+    expect(exports).toContain(BookingsService);
+    const hasTypeOrmExport = exports.some(
+      (exp): boolean =>
+        exp === TypeOrmModule ||
+        (exp !== null &&
+          typeof exp === "object" &&
+          "module" in exp &&
+          exp.module === TypeOrmModule)
+    );
+    expect(hasTypeOrmExport).toBe(true);
+  });
+});
+````
+
 ## File: backend/src/bookings/bookings.service.ts
 ````typescript
 import {
@@ -20171,6 +19863,228 @@ export class EmployeesController {
     return this.employeesService.restore(id);
   }
 }
+````
+
+## File: backend/src/main.spec.ts
+````typescript
+import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
+import { bootstrap } from "./main";
+// Mock all external modules
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+    forRootAsync: jest.fn().mockReturnValue({}),
+    forFeature: jest.fn().mockReturnValue({}),
+  },
+  getRepositoryToken: jest.fn(),
+  InjectRepository: () => jest.fn(),
+}));
+jest.mock("@nestjs/cache-manager", () => ({
+  CacheModule: {
+    register: jest.fn().mockReturnValue({}),
+    registerAsync: jest.fn().mockReturnValue({}),
+  },
+}));
+jest.mock("@nestjs/config", () => ({
+  ConfigModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+  },
+  ConfigService: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === "cache") {
+        return {
+          host: "localhost",
+          port: 6379,
+          ttl: 300,
+        };
+      }
+      return null;
+    }),
+  })),
+}));
+// Mock feature modules
+jest.mock("./auth/auth.module", () => ({
+  AuthModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./users/users.module", () => ({
+  UsersModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./employees/employees.module", () => ({
+  EmployeesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./services/services.module", () => ({
+  ServicesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./bookings/bookings.module", () => ({
+  BookingsModule: jest.fn().mockReturnValue({}),
+}));
+// Mock app module
+jest.mock("./app.module", () => ({
+  AppModule: jest.fn().mockReturnValue({}),
+}));
+type MockNestApp = {
+  [_K in keyof INestApplication]: jest.Mock;
+};
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+describe("Bootstrap", () => {
+  let app: MockNestApp;
+  const mockSwaggerDoc: OpenAPIObject = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
+  beforeEach(() => {
+    // Reset modules before each test
+    jest.resetModules();
+    // Create a more complete mock implementation of INestApplication
+    app = {
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
+      listen: jest.fn().mockResolvedValue(undefined),
+      init: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
+    jest
+      .spyOn(NestFactory, "create")
+      .mockResolvedValue(app);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
+    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
+    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it("should create NestJS application", async () => {
+    await bootstrap();
+    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
+  });
+  it("should enable CORS with correct configuration", async () => {
+    await bootstrap();
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
+    expect(app.enableCors).toHaveBeenCalledWith({
+      origin: true,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+      credentials: true,
+    });
+  });
+  it("should set up global validation pipe", async () => {
+    await bootstrap();
+    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
+    if (!validationPipeCalls.length) {
+      throw new Error("Expected at least one validation pipe call");
+    }
+    const validationPipe = validationPipeCalls[0][0];
+    expect(validationPipe).toBeInstanceOf(ValidationPipe);
+  });
+  it("should set up Swagger documentation", async () => {
+    await bootstrap();
+    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
+      "Hair Salon Booking API"
+    );
+    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
+      "API documentation for the Hair Salon Booking System"
+    );
+    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
+    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth"
+    );
+    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
+    expect(SwaggerModule.createDocument).toHaveBeenCalled();
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls as Array<
+      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
+    >;
+    if (!setupCalls.length) {
+      throw new Error("Expected at least one Swagger setup call");
+    }
+    const [path, setupApp, document, options] = setupCalls[0];
+    expect(path).toBe("api-docs");
+    expect(setupApp).toBe(app);
+    expect(document).toEqual<OpenAPIObject>({
+      openapi: "3.0.0",
+      paths: {},
+      components: {},
+      info: {
+        title: expect.any(String) as string,
+        version: expect.any(String) as string,
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+  });
+  it("should listen on the configured port", async () => {
+    const originalEnv = process.env.PORT;
+    process.env.PORT = "4000";
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith("4000");
+    process.env.PORT = originalEnv;
+  });
+  it("should use default port 3000 when PORT env is not set", async () => {
+    const originalEnv = process.env.PORT;
+    delete process.env.PORT;
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith(3000);
+    process.env.PORT = originalEnv;
+  });
+});
 ````
 
 ## File: frontend/admin/src/stores/auth.ts
@@ -21671,6 +21585,89 @@ app.use(router)
 app.mount('#app')
 ````
 
+## File: backend/src/database/seeds/create-services.seed.spec.ts
+````typescript
+import { DataSource } from 'typeorm';
+import { CreateServicesSeed } from './create-services.seed';
+import { Service } from '../../services/entities/service.entity';
+interface MockServiceRepository {
+  clear: jest.Mock<Promise<void>, []>;
+  save: jest.Mock<Promise<Service[]>, [Service[]]>;
+}
+type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
+const expectedServices: ServiceData[] = [
+  {
+    name: 'Standard Klipp',
+    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
+    duration: 20,
+    price: 299,
+    isActive: true,
+  },
+  {
+    name: 'Styling Klipp',
+    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
+    duration: 30,
+    price: 399,
+    isActive: true,
+  },
+  {
+    name: 'Skjegg Trim',
+    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
+    duration: 15,
+    price: 199,
+    isActive: true,
+  },
+  {
+    name: 'Full Service',
+    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
+    duration: 45,
+    price: 549,
+    isActive: true,
+  }
+];
+describe('CreateServicesSeed', () => {
+  let seed: CreateServicesSeed;
+  let mockDataSource: DataSource;
+  let mockServiceRepository: MockServiceRepository;
+  beforeEach(() => {
+    mockServiceRepository = {
+      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
+        return Promise.resolve(
+          services.map(service => ({
+            ...service,
+            id: 'test-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        );
+      }),
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
+    } as unknown as DataSource;
+    seed = new CreateServicesSeed();
+  });
+  it('should clear existing services and create new ones', async () => {
+    await seed.run(mockDataSource);
+    expect(mockServiceRepository.clear).toHaveBeenCalled();
+    const savedServices = mockServiceRepository.save.mock.calls[0][0];
+    expectedServices.forEach((expectedService, index) => {
+      const service = savedServices.at(index);
+      expect(service).toBeDefined();
+      expect(service).toEqual(
+        expect.objectContaining(expectedService)
+      );
+    });
+  });
+  it('should handle database errors gracefully', async () => {
+    const dbError = new Error('Database connection error');
+    mockServiceRepository.clear.mockRejectedValue(dbError);
+    await expect(seed.run(mockDataSource)).rejects.toThrow('Database connection error');
+  });
+});
+````
+
 ## File: backend/.npmrc
 ````
 # Supply chain security: prevent lifecycle scripts from running during install
@@ -22182,35 +22179,6 @@ describe('TVDisplayView', () => {
 })
 ````
 
-## File: frontend/admin/vitest.setup.ts
-````typescript
-// Ensure localStorage is available before @vue/devtools-kit initializes.
-// The devtools-kit accesses localStorage.getItem at module load time,
-// which can fire before jsdom has fully set up the Storage prototype.
-if (
-  globalThis.localStorage === undefined ||
-  typeof globalThis.localStorage.getItem !== 'function'
-) {
-  const storage = new Map<string, string>();
-  globalThis.localStorage = {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      storage.set(key, value);
-    },
-    removeItem: (key: string) => {
-      storage.delete(key);
-    },
-    clear: () => {
-      storage.clear();
-    },
-    get length() {
-      return storage.size;
-    },
-    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
-  } as Storage;
-}
-````
-
 ## File: frontend/admin/package.json
 ````json
 {
@@ -22262,6 +22230,35 @@ if (
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.8"
   }
+}
+````
+
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+    clear: () => {
+      storage.clear();
+    },
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
+  } as Storage;
 }
 ````
 
