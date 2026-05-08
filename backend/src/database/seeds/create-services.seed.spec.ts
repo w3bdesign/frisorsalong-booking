@@ -87,6 +87,6 @@ describe('CreateServicesSeed', () => {
     const dbError = new Error('Database connection error');
     mockServiceRepository.clear.mockRejectedValue(dbError);
 
-    await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
+    await expect(seed.run(mockDataSource)).rejects.toThrow('Database connection error');
   });
 });

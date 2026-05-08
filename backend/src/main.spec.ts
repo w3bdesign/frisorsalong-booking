@@ -130,7 +130,7 @@ describe("Bootstrap", () => {
 
     jest
       .spyOn(NestFactory, "create")
-      .mockResolvedValue(app as unknown as INestApplication);
+      .mockResolvedValue(app);
     jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
