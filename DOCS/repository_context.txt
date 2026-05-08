@@ -11278,379 +11278,6 @@ export function extractErrorMessage(
 export default api;
 ````
 
-## File: frontend/admin/src/stores/__tests__/auth.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { useAuthStore } from "../auth";
-import { AxiosError } from "axios";
-import api from "../../lib/api";
-vi.mock("../../lib/api", () => {
-  return {
-    default: {
-      post: vi.fn(),
-      get: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    },
-  };
-});
-describe("Auth Store", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    localStorage.clear();
-    vi.clearAllMocks();
-  });
-  describe("Initial State", () => {
-    it("should have correct initial state", () => {
-      const store = useAuthStore();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(store.isLoading).toBeFalsy();
-    });
-    it("should initialize with token from localStorage", () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-    });
-  });
-  describe("Login", () => {
-    const mockCredentials = {
-      email: "admin@test.com",
-      password: "password123",
-    };
-    const mockAdminResponse = {
-      data: {
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-      },
-    };
-    it("should successfully login admin user", async () => {
-      vi.mocked(api.post).mockResolvedValueOnce(mockAdminResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.user).toEqual(mockAdminResponse.data.user);
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBe("test-token");
-    });
-    it("should reject regular user login", async () => {
-      const mockUserResponse = {
-        data: {
-          token: "test-token",
-          user: {
-            id: "2",
-            email: "user@test.com",
-            role: "user",
-            firstName: "Regular",
-            lastName: "User",
-          },
-        },
-      };
-      vi.mocked(api.post).mockResolvedValueOnce(mockUserResponse);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Ingen tilgang: Krever ansatt- eller administratortilgang"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-    it("should handle login error with invalid credentials", async () => {
-      const mockError = new AxiosError("Unauthorized");
-      mockError.response = {
-        status: 401,
-        statusText: "Unauthorized",
-        data: { message: "Invalid credentials" },
-        headers: {},
-        config: {
-          url: "/auth/login",
-          method: "post",
-        },
-      } as unknown as typeof mockError.response;
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe("Feil e-postadresse eller passord");
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should handle server connection error", async () => {
-      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
-      mockError.code = "ECONNREFUSED";
-      vi.mocked(api.post).mockRejectedValueOnce(mockError);
-      const store = useAuthStore();
-      const success = await store.login(mockCredentials);
-      expect(success).toBeFalsy();
-      expect(store.error).toBe(
-        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
-      );
-      expect(store.isAuthenticated).toBeFalsy();
-    });
-  });
-  describe("Logout", () => {
-    it("should clear auth state and localStorage", () => {
-      const store = useAuthStore();
-      // Setup initial authenticated state
-      localStorage.setItem("admin_token", "test-token");
-      store.$patch({
-        token: "test-token",
-        user: {
-          id: "1",
-          email: "admin@test.com",
-          role: "admin",
-          firstName: "Admin",
-          lastName: "User",
-        },
-        isAuthenticated: true,
-      });
-      store.logout();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(store.error).toBeNull();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-  });
-  describe("Check Auth", () => {
-    const mockUserProfile = {
-      id: "1",
-      email: "admin@test.com",
-      firstName: "Admin",
-      lastName: "User",
-      role: "admin" as const,
-    };
-    it("should fetch profile and return true when token is valid", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      vi.mocked(api.get).mockResolvedValueOnce({ data: mockUserProfile });
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(store.token).toBe("test-token");
-      expect(store.isAuthenticated).toBeTruthy();
-      expect(store.user).toEqual(mockUserProfile);
-      expect(api.get).toHaveBeenCalledWith("/auth/profile");
-    });
-    it("should not re-fetch profile if user data already exists", async () => {
-      localStorage.setItem("admin_token", "test-token");
-      const store = useAuthStore();
-      store.$patch({ user: mockUserProfile });
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeTruthy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-    it("should logout when profile fetch fails (expired token)", async () => {
-      localStorage.setItem("admin_token", "expired-token");
-      vi.mocked(api.get).mockRejectedValueOnce(
-        new AxiosError("Unauthorized", "401")
-      );
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(localStorage.getItem("admin_token")).toBeNull();
-    });
-    it("should return false when no token in localStorage", async () => {
-      const store = useAuthStore();
-      const isValid = await store.checkAuth();
-      expect(isValid).toBeFalsy();
-      expect(store.token).toBeNull();
-      expect(store.isAuthenticated).toBeFalsy();
-      expect(api.get).not.toHaveBeenCalled();
-    });
-  });
-  describe("Error Handling", () => {
-    it("should clear error message", () => {
-      const store = useAuthStore();
-      // Set an error
-      store.$patch({ error: "Test error" });
-      expect(store.error).toBe("Test error");
-      // Clear error
-      store.clearError();
-      expect(store.error).toBeNull();
-    });
-  });
-});
-````
-
-## File: frontend/admin/src/stores/auth.ts
-````typescript
-import { defineStore } from "pinia";
-import { AxiosError } from "axios";
-import api from "../lib/api";
-interface AuthState {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  error: string | null;
-  isLoading: boolean;
-}
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "employee";
-}
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-interface ErrorResponse {
-  message?: string | string[];
-}
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    token: localStorage.getItem("admin_token"),
-    user: null,
-    isAuthenticated: !!localStorage.getItem("admin_token"),
-    error: null,
-    isLoading: false,
-  }),
-  getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isEmployee: (state) => state.user?.role === "employee",
-    hasAdminAccess: (state) =>
-      state.user?.role === "admin" || state.user?.role === "employee",
-  },
-  actions: {
-    async login(credentials: LoginCredentials): Promise<boolean> {
-      try {
-        this.isLoading = true;
-        this.error = null;
-        const response = await api.post<AuthResponse>(
-          "/auth/login",
-          credentials
-        );
-        const { token, user } = response.data;
-        // Only allow admin and employee users to access the admin panel
-        if (user.role === "user") {
-          throw new Error(
-            "Ingen tilgang: Krever ansatt- eller administratortilgang"
-          );
-        }
-        this.token = token;
-        this.user = user;
-        this.isAuthenticated = true;
-        // Store token in localStorage
-        localStorage.setItem("admin_token", token);
-        return true;
-      } catch (error) {
-        console.error("Login error:", error);
-        this.error = this.resolveLoginError(error);
-        return false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    getHttpStatusErrorMessage(status: number): string {
-      switch (status) {
-        case 401:
-          return "Feil e-postadresse eller passord";
-        case 403:
-          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-        case 404:
-          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-        case 500:
-          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-        default:
-          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-    },
-    extractBackendMessage(message: string | string[]): string {
-      return Array.isArray(message) ? message.join(", ") : message;
-    },
-    handleAxiosError(error: AxiosError<ErrorResponse>): string {
-      // Handle specific HTTP status codes first
-      if (error.response?.status) {
-        const statusMessage = this.getHttpStatusErrorMessage(
-          error.response.status
-        );
-        if (error.response.status >= 400 && error.response.status < 500) {
-          return statusMessage; // Use localized message for client errors
-        }
-        // For server errors, try backend message first, then fallback to localized
-        if (error.response?.data?.message) {
-          return this.extractBackendMessage(error.response.data.message);
-        }
-        return statusMessage;
-      }
-      // No status code, try backend message
-      if (error.response?.data?.message) {
-        return this.extractBackendMessage(error.response.data.message);
-      }
-      // Handle network/connection errors
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    resolveLoginError(error: unknown): string {
-      if (error instanceof AxiosError) {
-        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
-      }
-      if (error instanceof Error) {
-        return error.message;
-      }
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-    logout() {
-      // Clear state
-      this.token = null;
-      this.user = null;
-      this.isAuthenticated = false;
-      this.error = null;
-      // Remove token from localStorage
-      localStorage.removeItem("admin_token");
-    },
-    async checkAuth(): Promise<boolean> {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        this.logout();
-        return false;
-      }
-      this.token = token;
-      this.isAuthenticated = true;
-      // If we don't have user data yet, fetch the profile to restore it
-      if (!this.user) {
-        try {
-          const response = await api.get<User>("/auth/profile");
-          this.user = response.data;
-        } catch {
-          // Token is invalid or expired — log out
-          this.logout();
-          return false;
-        }
-      }
-      return true;
-    },
-    clearError() {
-      this.error = null;
-    },
-  },
-});
-````
-
 ## File: frontend/admin/src/stores/bookings.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -11761,82 +11388,6 @@ export const useBookingStore = defineStore("bookings", {
           new Date(booking.startTime).toDateString() === today.toDateString(),
       ).length;
       this.upcomingBookings = this.bookings.length; // All bookings from /bookings/upcoming are upcoming
-    },
-  },
-});
-````
-
-## File: frontend/admin/src/stores/orders.ts
-````typescript
-import { defineStore } from "pinia";
-import { AxiosError } from "axios";
-import { useAuthStore } from "./auth";
-import api from "../lib/api";
-import type { Order } from "../types";
-interface OrdersState {
-  orders: Order[];
-  loading: boolean;
-  error: string | null;
-}
-interface EmployeeStats {
-  id: string;
-  count: number;
-  revenue: number;
-}
-export const useOrdersStore = defineStore("orders", {
-  state: (): OrdersState => ({
-    orders: [],
-    loading: false,
-    error: null,
-  }),
-  getters: {
-    getOrdersByEmployee: (state) => (employeeId: string) => {
-      return state.orders.filter(
-        (order) => order.booking.employee.id === employeeId
-      );
-    },
-    getEmployeeStats: (state) => {
-      const stats = new Map<string, EmployeeStats>();
-      state.orders.forEach((order) => {
-        const employeeId = order.booking.employee.id;
-        const amount = parseFloat(order.totalAmount);
-        if (!stats.has(employeeId)) {
-          stats.set(employeeId, {
-            id: employeeId,
-            count: 0,
-            revenue: 0,
-          });
-        }
-        const employeeStats = stats.get(employeeId)!;
-        employeeStats.count++;
-        employeeStats.revenue += amount;
-      });
-      return Array.from(stats.values());
-    },
-  },
-  actions: {
-    async fetchOrders(forceRefresh = false) {
-      try {
-        if (this.loading && !forceRefresh) return;
-        this.loading = true;
-        this.error = null;
-        const authStore = useAuthStore();
-        let endpoint = "/orders";
-        // If user is an employee, use the employee-specific endpoint
-        if (!authStore.isAdmin && authStore.user?.id) {
-          endpoint = `/orders/employee/${authStore.user.id}`;
-        }
-        const response = await api.get<Order[]>(endpoint);
-        this.orders = response.data;
-      } catch (error) {
-        if (error instanceof AxiosError && error.response?.status === 403) {
-          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
-        } else {
-          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
-        }
-      } finally {
-        this.loading = false;
-      }
     },
   },
 });
@@ -15883,222 +15434,6 @@ describe('Services Store', () => {
 });
 ````
 
-## File: frontend/customer/src/stores/__tests__/waiting.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useWaitingStore } from '../waiting'
-import { flushPromises } from '@vue/test-utils'
-describe('Waiting Store', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    // Mock fetch for all tests
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(0),
-    })
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-  describe('Initial State', () => {
-    it('initializes with default values', () => {
-      const store = useWaitingStore()
-      expect(store.queueStatus).toMatchObject({
-        peopleWaiting: 0,
-        estimatedWaitTime: 0,
-      })
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBeNull()
-    })
-  })
-  describe('Computed Properties', () => {
-    it('formats wait time correctly with only minutes', () => {
-      const store = useWaitingStore()
-      store.queueStatus.estimatedWaitTime = 45
-      expect(store.formattedWaitTime).toBe('45min')
-    })
-    it('formats wait time correctly with hours and minutes', () => {
-      const store = useWaitingStore()
-      store.queueStatus.estimatedWaitTime = 90 // 1h 30min
-      expect(store.formattedWaitTime).toBe('1h 30min')
-    })
-  })
-  describe('API Methods', () => {
-    it('fetches queue status successfully', async () => {
-      const mockResponse = 3 // 3 people waiting
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      })
-      const store = useWaitingStore()
-      await store.fetchQueueStatus()
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBeNull()
-      expect(store.queueStatus).toMatchObject({
-        peopleWaiting: 3,
-        estimatedWaitTime: 90, // 3 people * 30 minutes
-      })
-      expect(store.queueStatus.lastUpdated).toBeDefined()
-    })
-    it('handles fetch error correctly with Error instance', async () => {
-      const errorMessage = 'Failed to fetch queue status'
-      global.fetch = vi.fn().mockRejectedValue(new Error(errorMessage))
-      const store = useWaitingStore()
-      await store.fetchQueueStatus()
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe(errorMessage)
-      expect(store.queueStatus).toMatchObject({
-        peopleWaiting: 0,
-        estimatedWaitTime: 0,
-      })
-    })
-    it('handles fetch error correctly with non-Error instance', async () => {
-      const errorMessage = 'Network error'
-      global.fetch = vi.fn().mockRejectedValue(errorMessage)
-      const store = useWaitingStore()
-      await store.fetchQueueStatus()
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Failed to fetch queue status')
-      expect(store.queueStatus).toMatchObject({
-        peopleWaiting: 0,
-        estimatedWaitTime: 0,
-      })
-    })
-    it('handles non-ok response correctly', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-      })
-      const store = useWaitingStore()
-      await store.fetchQueueStatus()
-      expect(store.isLoading).toBe(false)
-      expect(store.error).toBe('Failed to fetch queue status')
-    })
-  })
-  describe('Polling', () => {
-    it('starts polling and fetches initial data', async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(0),
-      })
-      global.fetch = fetchMock
-      const store = useWaitingStore()
-      store.startPolling(1000)
-      await flushPromises()
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-    })
-    it('continues polling at specified interval', async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(0),
-      })
-      global.fetch = fetchMock
-      const store = useWaitingStore()
-      store.startPolling(1000) // 1 second interval
-      await flushPromises()
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      // Advance timer by 2 seconds
-      await vi.advanceTimersByTimeAsync(2000)
-      await flushPromises()
-      expect(fetchMock).toHaveBeenCalledTimes(3)
-    })
-    it('returns interval ID that can be cleared', async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(0),
-      })
-      global.fetch = fetchMock
-      const store = useWaitingStore()
-      const intervalId = store.startPolling(1000)
-      await flushPromises()
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      clearInterval(intervalId)
-      await vi.advanceTimersByTimeAsync(2000)
-      await flushPromises()
-      expect(fetchMock).toHaveBeenCalledTimes(1) // No additional calls after clearing
-    })
-  })
-})
-````
-
-## File: frontend/customer/src/stores/booking.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-// TODO: This should be stored securely and provided by environment variables
-const SHOP_CODE = 'SHOP123'
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-export interface Booking {
-  serviceId: string
-  firstName: string
-  phoneNumber?: string
-  status: 'pending' | 'confirmed' | 'cancelled'
-}
-export interface CreateWalkInBookingParams {
-  serviceId: string
-  firstName: string
-  phoneNumber?: string
-  isPaid: boolean
-}
-export const useBookingStore = defineStore('booking', () => {
-  const currentBooking = ref<Booking | null>(null)
-  const pendingBooking = ref<Omit<CreateWalkInBookingParams, 'isPaid'> | null>(null)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const setPendingBooking = (booking: Omit<CreateWalkInBookingParams, 'isPaid'>) => {
-    pendingBooking.value = booking
-  }
-  const createWalkInBooking = async (booking: CreateWalkInBookingParams) => {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await fetch(`${API_URL}/bookings/walk-in`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shop-Code': SHOP_CODE,
-          accept: '*/*',
-        },
-        body: JSON.stringify({
-          serviceId: booking.serviceId,
-          firstName: booking.firstName,
-          phoneNumber: booking.phoneNumber,
-          isPaid: booking.isPaid,
-        }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.message || 'Failed to create booking')
-      }
-      const data = await response.json()
-      currentBooking.value = data
-      pendingBooking.value = null
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create booking'
-      throw error.value
-    } finally {
-      isLoading.value = false
-    }
-  }
-  const clearBooking = () => {
-    currentBooking.value = null
-    pendingBooking.value = null
-    error.value = null
-  }
-  return {
-    currentBooking,
-    pendingBooking,
-    isLoading,
-    error,
-    setPendingBooking,
-    createWalkInBooking,
-    clearBooking,
-  }
-})
-````
-
 ## File: frontend/customer/src/stores/counter.ts
 ````typescript
 import { ref, computed } from 'vue'
@@ -16265,62 +15600,6 @@ export const useDisplayStore = defineStore('display', () => {
 })
 ````
 
-## File: frontend/customer/src/stores/services.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-export interface Service {
-  id: string
-  name: string
-  description: string
-  duration: number
-  price: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-export const useServicesStore = defineStore('services', () => {
-  // Initialize state
-  const services = ref<Service[]>([])
-  const isLoading = ref(true)  // Initialize as true
-  const error = ref<string | null>(null)
-  const selectedService = ref<Service | null>(null)
-  const fetchServices = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/services')
-      if (!response.ok) {
-        throw new Error('Failed to fetch services')
-      }
-      services.value = await response.json()
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch services'
-      services.value = []
-    } finally {
-      isLoading.value = false
-    }
-  }
-  const selectService = (service: Service) => {
-    selectedService.value = service
-  }
-  const clearSelection = () => {
-    selectedService.value = null
-  }
-  // Schedule the initial fetch on next microtask tick
-  queueMicrotask(() => {
-    fetchServices()
-  })
-  return {
-    services,
-    isLoading,
-    error,
-    selectedService,
-    fetchServices,
-    selectService,
-    clearSelection,
-  }
-})
-````
-
 ## File: frontend/customer/src/stores/types.ts
 ````typescript
 export interface CreateWalkInBookingParams {
@@ -16363,71 +15642,6 @@ export interface ServicesState {
   isLoading: boolean;
   error: string | null;
 }
-````
-
-## File: frontend/customer/src/stores/waiting.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-interface QueueStatus {
-  peopleWaiting: number
-  estimatedWaitTime: number // in minutes
-  lastUpdated: string
-}
-export const useWaitingStore = defineStore('waiting', () => {
-  const queueStatus = ref<QueueStatus>({
-    peopleWaiting: 0,
-    estimatedWaitTime: 0,
-    lastUpdated: new Date().toISOString(),
-  })
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const formattedWaitTime = computed(() => {
-    const hours = Math.floor(queueStatus.value.estimatedWaitTime / 60)
-    const minutes = queueStatus.value.estimatedWaitTime % 60
-    if (hours > 0) {
-      return `${hours}h ${minutes}min`
-    }
-    return `${minutes}min`
-  })
-  const fetchQueueStatus = async () => {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await fetch('/bookings/upcoming/count', {
-        headers: {
-          accept: '*/*',
-        },
-      })
-      if (!response.ok) {
-        throw new Error('Failed to fetch queue status')
-      }
-      const count = await response.json()
-      queueStatus.value = {
-        peopleWaiting: count,
-        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
-        lastUpdated: new Date().toISOString(),
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch queue status'
-    } finally {
-      isLoading.value = false
-    }
-  }
-  // Start polling for queue status
-  const startPolling = (intervalMs: number = 60000): ReturnType<typeof setInterval> => {
-    void fetchQueueStatus()
-    return setInterval(fetchQueueStatus, intervalMs)
-  }
-  return {
-    queueStatus,
-    isLoading,
-    error,
-    formattedWaitTime,
-    fetchQueueStatus,
-    startPolling,
-  }
-})
 ````
 
 ## File: frontend/customer/src/views/TVDisplayView.vue
@@ -16623,22 +15837,6 @@ import WaitingTimeDisplay from './components/WaitingTimeDisplay.vue'
 const route = useRoute()
 const isTVDisplay = computed(() => route.name === 'tv-display')
 </script>
-````
-
-## File: frontend/customer/src/main.ts
-````typescript
-import './assets/main.css'
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-// Create the app instance
-const app = createApp(App)
-// Use plugins
-app.use(createPinia())
-app.use(router)
-// Mount the app
-app.mount('#app')
 ````
 
 ## File: frontend/customer/.editorconfig
@@ -19211,110 +18409,218 @@ router.beforeEach(async (to, _from, next) => {
 export default router;
 ````
 
-## File: frontend/admin/src/stores/employees.ts
+## File: frontend/admin/src/stores/__tests__/auth.spec.ts
 ````typescript
-import { defineStore } from 'pinia'
-import api, { extractErrorMessage } from '../lib/api'
-import type { Employee } from '../types'
-interface EmployeeState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
-}
-interface CreateEmployeeResponse {
-  employee: Employee;
-  temporaryPassword: string;
-}
-interface ResetPasswordResponse {
-  temporaryPassword: string;
-}
-export const useEmployeesStore = defineStore('employees', {
-  state: (): EmployeeState => ({
-    employees: [],
-    loading: false,
-    error: null
-  }),
-  getters: {
-    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
-    getEmployeeById: (state) => (id: string) => 
-      state.employees.find(emp => emp.id === id)
-  },
-  actions: {
-    async fetchEmployees() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.get<Employee[]>('/employees')
-        this.employees = response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
-      } finally {
-        this.loading = false
-      }
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { useAuthStore } from "../auth";
+import { AxiosError } from "axios";
+const { mockPost, mockGet } = vi.hoisted(() => ({
+  mockPost: vi.fn(),
+  mockGet: vi.fn(),
+}));
+vi.mock("../../lib/api", () => {
+  return {
+    default: {
+      post: mockPost,
+      get: mockGet,
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
     },
-    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
-        if (response.data.employee) {
-          this.employees.push(response.data.employee)
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async resetPassword(id: string): Promise<ResetPasswordResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<ResetPasswordResponse>(
-          `/employees/${id}/reset-password`
-        )
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async updateEmployee(id: string, employeeData: Partial<Employee>) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.patch(`/employees/${id}`, employeeData)
-        const index = this.employees.findIndex(emp => emp.id === id)
-        if (index !== -1) {
-          this.employees.splice(index, 1, response.data)
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async deleteEmployee(id: string) {
-      this.loading = true
-      this.error = null
-      try {
-        await api.delete(`/employees/${id}`)
-        this.employees = this.employees.filter(emp => emp.id !== id)
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    }
-  }
-})
+  };
+});
+describe("Auth Store", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+  describe("Initial State", () => {
+    it("should have correct initial state", () => {
+      const store = useAuthStore();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(store.isLoading).toBeFalsy();
+    });
+    it("should initialize with token from localStorage", () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+    });
+  });
+  describe("Login", () => {
+    const mockCredentials = {
+      email: "admin@test.com",
+      password: "password123",
+    };
+    const mockAdminResponse = {
+      data: {
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+      },
+    };
+    it("should successfully login admin user", async () => {
+      mockPost.mockResolvedValueOnce(mockAdminResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.user).toEqual(mockAdminResponse.data.user);
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBe("test-token");
+    });
+    it("should reject regular user login", async () => {
+      const mockUserResponse = {
+        data: {
+          token: "test-token",
+          user: {
+            id: "2",
+            email: "user@test.com",
+            role: "user",
+            firstName: "Regular",
+            lastName: "User",
+          },
+        },
+      };
+      mockPost.mockResolvedValueOnce(mockUserResponse);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Ingen tilgang: Krever ansatt- eller administratortilgang"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+    it("should handle login error with invalid credentials", async () => {
+      const mockError = new AxiosError("Unauthorized");
+      mockError.response = {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { message: "Invalid credentials" },
+        headers: {},
+        config: {
+          url: "/auth/login",
+          method: "post",
+        },
+      } as unknown as typeof mockError.response;
+      mockPost.mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe("Feil e-postadresse eller passord");
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should handle server connection error", async () => {
+      const mockError = new AxiosError("Network Error", "ECONNREFUSED");
+      mockError.code = "ECONNREFUSED";
+      mockPost.mockRejectedValueOnce(mockError);
+      const store = useAuthStore();
+      const success = await store.login(mockCredentials);
+      expect(success).toBeFalsy();
+      expect(store.error).toBe(
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen din"
+      );
+      expect(store.isAuthenticated).toBeFalsy();
+    });
+  });
+  describe("Logout", () => {
+    it("should clear auth state and localStorage", () => {
+      const store = useAuthStore();
+      // Setup initial authenticated state
+      localStorage.setItem("admin_token", "test-token");
+      store.$patch({
+        token: "test-token",
+        user: {
+          id: "1",
+          email: "admin@test.com",
+          role: "admin",
+          firstName: "Admin",
+          lastName: "User",
+        },
+        isAuthenticated: true,
+      });
+      store.logout();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(store.error).toBeNull();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+  });
+  describe("Check Auth", () => {
+    const mockUserProfile = {
+      id: "1",
+      email: "admin@test.com",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin" as const,
+    };
+    it("should fetch profile and return true when token is valid", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      mockGet.mockResolvedValueOnce({ data: mockUserProfile });
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(store.token).toBe("test-token");
+      expect(store.isAuthenticated).toBeTruthy();
+      expect(store.user).toEqual(mockUserProfile);
+      expect(mockGet).toHaveBeenCalledWith("/auth/profile");
+    });
+    it("should not re-fetch profile if user data already exists", async () => {
+      localStorage.setItem("admin_token", "test-token");
+      const store = useAuthStore();
+      store.$patch({ user: mockUserProfile });
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeTruthy();
+      expect(mockGet).not.toHaveBeenCalled();
+    });
+    it("should logout when profile fetch fails (expired token)", async () => {
+      localStorage.setItem("admin_token", "expired-token");
+      mockGet.mockRejectedValueOnce(
+        new AxiosError("Unauthorized", "401")
+      );
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(localStorage.getItem("admin_token")).toBeNull();
+    });
+    it("should return false when no token in localStorage", async () => {
+      const store = useAuthStore();
+      const isValid = await store.checkAuth();
+      expect(isValid).toBeFalsy();
+      expect(store.token).toBeNull();
+      expect(store.isAuthenticated).toBeFalsy();
+      expect(mockGet).not.toHaveBeenCalled();
+    });
+  });
+  describe("Error Handling", () => {
+    it("should clear error message", () => {
+      const store = useAuthStore();
+      // Set an error
+      store.$patch({ error: "Test error" });
+      expect(store.error).toBe("Test error");
+      // Clear error
+      store.clearError();
+      expect(store.error).toBeNull();
+    });
+  });
+});
 ````
 
 ## File: frontend/admin/tsconfig.json
@@ -19640,6 +18946,343 @@ describe('ServiceList', () => {
       expect(push).toHaveBeenCalledWith('/booking')
     })
   })
+})
+````
+
+## File: frontend/customer/src/stores/__tests__/waiting.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useWaitingStore } from '../waiting'
+import { flushPromises } from '@vue/test-utils'
+describe('Waiting Store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    // Mock fetch for all tests
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(0),
+    })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+  describe('Initial State', () => {
+    it('initializes with default values', () => {
+      const store = useWaitingStore()
+      expect(store.queueStatus).toMatchObject({
+        peopleWaiting: 0,
+        estimatedWaitTime: 0,
+      })
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBeNull()
+    })
+  })
+  describe('Computed Properties', () => {
+    it('formats wait time correctly with only minutes', () => {
+      const store = useWaitingStore()
+      store.queueStatus.estimatedWaitTime = 45
+      expect(store.formattedWaitTime).toBe('45min')
+    })
+    it('formats wait time correctly with hours and minutes', () => {
+      const store = useWaitingStore()
+      store.queueStatus.estimatedWaitTime = 90 // 1h 30min
+      expect(store.formattedWaitTime).toBe('1h 30min')
+    })
+  })
+  describe('API Methods', () => {
+    it('fetches queue status successfully', async () => {
+      const mockResponse = 3 // 3 people waiting
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      })
+      const store = useWaitingStore()
+      await store.fetchQueueStatus()
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBeNull()
+      expect(store.queueStatus).toMatchObject({
+        peopleWaiting: 3,
+        estimatedWaitTime: 90, // 3 people * 30 minutes
+      })
+      expect(store.queueStatus.lastUpdated).toBeDefined()
+    })
+    it('handles fetch error correctly with Error instance', async () => {
+      const errorMessage = 'Failed to fetch queue status'
+      global.fetch = vi.fn().mockRejectedValue(new Error(errorMessage))
+      const store = useWaitingStore()
+      await store.fetchQueueStatus()
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBe(errorMessage)
+      expect(store.queueStatus).toMatchObject({
+        peopleWaiting: 0,
+        estimatedWaitTime: 0,
+      })
+    })
+    it('handles fetch error correctly with non-Error instance', async () => {
+      const errorMessage = 'Network error'
+      global.fetch = vi.fn().mockRejectedValue(errorMessage)
+      const store = useWaitingStore()
+      await store.fetchQueueStatus()
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBe('Failed to fetch queue status')
+      expect(store.queueStatus).toMatchObject({
+        peopleWaiting: 0,
+        estimatedWaitTime: 0,
+      })
+    })
+    it('handles non-ok response correctly', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+      })
+      const store = useWaitingStore()
+      await store.fetchQueueStatus()
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBe('Failed to fetch queue status')
+    })
+  })
+  describe('Polling', () => {
+    it('starts polling and fetches initial data', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
+      const store = useWaitingStore()
+      store.startPolling(1000)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+    it('continues polling at specified interval', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
+      const store = useWaitingStore()
+      store.startPolling(1000) // 1 second interval
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      // Advance timer by 2 seconds
+      await vi.advanceTimersByTimeAsync(2000)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+    it('returns interval ID that can be cleared', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(0),
+      })
+      global.fetch = fetchMock
+      const store = useWaitingStore()
+      const intervalId: ReturnType<typeof setInterval> = store.startPolling(1000)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      clearInterval(intervalId)
+      await vi.advanceTimersByTimeAsync(2000)
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(1) // No additional calls after clearing
+    })
+  })
+})
+````
+
+## File: frontend/customer/src/stores/booking.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+// TODO: This should be stored securely and provided by environment variables
+const SHOP_CODE = 'SHOP123'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+export interface Booking {
+  serviceId: string
+  firstName: string
+  phoneNumber?: string
+  status: 'pending' | 'confirmed' | 'cancelled'
+}
+export interface CreateWalkInBookingParams {
+  serviceId: string
+  firstName: string
+  phoneNumber?: string
+  isPaid: boolean
+}
+export const useBookingStore = defineStore('booking', () => {
+  const currentBooking = ref<Booking | null>(null)
+  const pendingBooking = ref<Omit<CreateWalkInBookingParams, 'isPaid'> | null>(null)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const setPendingBooking = (booking: Omit<CreateWalkInBookingParams, 'isPaid'>) => {
+    pendingBooking.value = booking
+  }
+  const createWalkInBooking = async (booking: CreateWalkInBookingParams) => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch(`${API_URL}/bookings/walk-in`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shop-Code': SHOP_CODE,
+          accept: '*/*',
+        },
+        body: JSON.stringify({
+          serviceId: booking.serviceId,
+          firstName: booking.firstName,
+          phoneNumber: booking.phoneNumber,
+          isPaid: booking.isPaid,
+        }),
+      })
+      if (!response.ok) {
+        const errorData: { message?: string } | null = await response.json().catch(() => null)
+        throw new Error(errorData?.message ?? 'Failed to create booking')
+      }
+      const data = await response.json()
+      currentBooking.value = data
+      pendingBooking.value = null
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create booking'
+      throw error.value
+    } finally {
+      isLoading.value = false
+    }
+  }
+  const clearBooking = () => {
+    currentBooking.value = null
+    pendingBooking.value = null
+    error.value = null
+  }
+  return {
+    currentBooking,
+    pendingBooking,
+    isLoading,
+    error,
+    setPendingBooking,
+    createWalkInBooking,
+    clearBooking,
+  }
+})
+````
+
+## File: frontend/customer/src/stores/services.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+export interface Service {
+  id: string
+  name: string
+  description: string
+  duration: number
+  price: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+export const useServicesStore = defineStore('services', () => {
+  // Initialize state
+  const services = ref<Service[]>([])
+  const isLoading = ref(true)  // Initialize as true
+  const error = ref<string | null>(null)
+  const selectedService = ref<Service | null>(null)
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/services')
+      if (!response.ok) {
+        throw new Error('Failed to fetch services')
+      }
+      services.value = await response.json()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch services'
+      services.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+  const selectService = (service: Service) => {
+    selectedService.value = service
+  }
+  const clearSelection = () => {
+    selectedService.value = null
+  }
+  // Schedule the initial fetch on next microtask tick
+  queueMicrotask(() => {
+    void fetchServices()
+  })
+  return {
+    services,
+    isLoading,
+    error,
+    selectedService,
+    fetchServices,
+    selectService,
+    clearSelection,
+  }
+})
+````
+
+## File: frontend/customer/src/stores/waiting.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+interface QueueStatus {
+  peopleWaiting: number
+  estimatedWaitTime: number // in minutes
+  lastUpdated: string
+}
+export const useWaitingStore = defineStore('waiting', () => {
+  const queueStatus = ref<QueueStatus>({
+    peopleWaiting: 0,
+    estimatedWaitTime: 0,
+    lastUpdated: new Date().toISOString(),
+  })
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const formattedWaitTime = computed(() => {
+    const hours = Math.floor(queueStatus.value.estimatedWaitTime / 60)
+    const minutes = queueStatus.value.estimatedWaitTime % 60
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`
+    }
+    return `${minutes}min`
+  })
+  const fetchQueueStatus = async () => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await fetch('/bookings/upcoming/count', {
+        headers: {
+          accept: '*/*',
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch queue status')
+      }
+      const count = await response.json()
+      queueStatus.value = {
+        peopleWaiting: count,
+        estimatedWaitTime: count * 30, // Rough estimate: 30 minutes per booking
+        lastUpdated: new Date().toISOString(),
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch queue status'
+    } finally {
+      isLoading.value = false
+    }
+  }
+  // Start polling for queue status
+  const startPolling = (intervalMs: number = 60000): ReturnType<typeof setInterval> => {
+    void fetchQueueStatus()
+    return setInterval(() => void fetchQueueStatus(), intervalMs)
+  }
+  return {
+    queueStatus,
+    isLoading,
+    error,
+    formattedWaitTime,
+    fetchQueueStatus,
+    startPolling,
+  }
 })
 ````
 
@@ -19980,6 +19623,101 @@ EXPOSE 5173
 
 # Start both backend and frontend
 CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
+````
+
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
 ````
 
 ## File: backend/src/bookings/bookings.service.ts
@@ -20435,53 +20173,268 @@ export class EmployeesController {
 }
 ````
 
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
+## File: frontend/admin/src/stores/auth.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import api from "../lib/api";
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
+  isLoading: boolean;
+}
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "user" | "admin" | "employee";
+}
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+interface ErrorResponse {
+  message?: string | string[];
+}
+function getHttpStatusErrorMessage(status: number): string {
+  switch (status) {
+    case 401:
+      return "Feil e-postadresse eller passord";
+    case 403:
+      return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+    case 404:
+      return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+    case 500:
+      return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+    default:
+      return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+  }
+}
+function extractBackendMessage(message: string | string[]): string {
+  return Array.isArray(message) ? message.join(", ") : message;
+}
+function handleAxiosError(error: AxiosError<ErrorResponse>): string {
+  // Handle specific HTTP status codes first
+  if (error.response?.status) {
+    const statusMessage = getHttpStatusErrorMessage(error.response.status);
+    if (error.response.status >= 400 && error.response.status < 500) {
+      return statusMessage; // Use localized message for client errors
+    }
+    // For server errors, try backend message first, then fallback to localized
+    if (error.response.data.message) {
+      return extractBackendMessage(error.response.data.message);
+    }
+    return statusMessage;
+  }
+  // No status code, try backend message
+  if (error.response?.data?.message) {
+    return extractBackendMessage(error.response.data.message);
+  }
+  // Handle network/connection errors
+  if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+    return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+  }
+  return "En feil oppstod under innlogging. Vennligst prøv igjen";
+}
+function resolveLoginError(error: unknown): string {
+  if (error instanceof AxiosError) {
+    return handleAxiosError(error as AxiosError<ErrorResponse>);
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "En feil oppstod under innlogging. Vennligst prøv igjen";
+}
+export const useAuthStore = defineStore("auth", {
+  state: (): AuthState => ({
+    token: localStorage.getItem("admin_token"),
+    user: null,
+    isAuthenticated: !!localStorage.getItem("admin_token"),
+    error: null,
+    isLoading: false,
+  }),
+  getters: {
+    isAdmin: (state) => state.user?.role === "admin",
+    isEmployee: (state) => state.user?.role === "employee",
+    hasAdminAccess: (state) =>
+      state.user?.role === "admin" || state.user?.role === "employee",
+  },
+  actions: {
+    async login(credentials: LoginCredentials): Promise<boolean> {
+      try {
+        this.isLoading = true;
+        this.error = null;
+        const response = await api.post<AuthResponse>(
+          "/auth/login",
+          credentials
+        );
+        const { token, user } = response.data;
+        // Only allow admin and employee users to access the admin panel
+        if (user.role === "user") {
+          throw new Error(
+            "Ingen tilgang: Krever ansatt- eller administratortilgang"
+          );
+        }
+        this.token = token;
+        this.user = user;
+        this.isAuthenticated = true;
+        // Store token in localStorage
+        localStorage.setItem("admin_token", token);
+        return true;
+      } catch (error) {
+        console.error("Login error:", error);
+        this.error = resolveLoginError(error);
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    logout() {
+      // Clear state
+      this.token = null;
+      this.user = null;
+      this.isAuthenticated = false;
+      this.error = null;
+      // Remove token from localStorage
+      localStorage.removeItem("admin_token");
+    },
+    async checkAuth(): Promise<boolean> {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        this.logout();
+        return false;
+      }
+      this.token = token;
+      this.isAuthenticated = true;
+      // If we don't have user data yet, fetch the profile to restore it
+      if (!this.user) {
+        try {
+          const response = await api.get<User>("/auth/profile");
+          this.user = response.data;
+        } catch {
+          // Token is invalid or expired — log out
+          this.logout();
+          return false;
+        }
+      }
+      return true;
+    },
+    clearError() {
+      this.error = null;
+    },
+  },
 });
-defineEmits<{
-  (e: 'click', event: MouseEvent): void;
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
+````
+
+## File: frontend/admin/src/stores/employees.ts
+````typescript
+import { defineStore } from 'pinia'
+import api, { extractErrorMessage } from '../lib/api'
+import type { Employee } from '../types'
+interface EmployeeState {
+  employees: Employee[]
+  loading: boolean
+  error: string | null
+}
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+export const useEmployeesStore = defineStore('employees', {
+  state: (): EmployeeState => ({
+    employees: [],
+    loading: false,
+    error: null
+  }),
+  getters: {
+    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
+    getEmployeeById: (state) => (id: string) => 
+      state.employees.find(emp => emp.id === id)
+  },
+  actions: {
+    async fetchEmployees() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get<Employee[]>('/employees')
+        this.employees = response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
+      } finally {
+        this.loading = false
+      }
+    },
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
+        this.employees.push(response.data.employee)
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resetPassword(id: string): Promise<ResetPasswordResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<ResetPasswordResponse>(
+          `/employees/${id}/reset-password`
+        )
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateEmployee(id: string, employeeData: Partial<Employee>) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.patch<Employee>(`/employees/${id}`, employeeData)
+        const index = this.employees.findIndex(emp => emp.id === id)
+        if (index !== -1) {
+          this.employees.splice(index, 1, response.data)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async deleteEmployee(id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/employees/${id}`)
+        this.employees = this.employees.filter(emp => emp.id !== id)
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
 ````
 
 ## File: frontend/admin/tsconfig.app.json
@@ -20517,37 +20470,6 @@ const sizeClasses = {
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
-}
-````
-
-## File: frontend/admin/vitest.setup.ts
-````typescript
-// Ensure localStorage is available before @vue/devtools-kit initializes.
-// The devtools-kit accesses localStorage.getItem at module load time,
-// which can fire before jsdom has fully set up the Storage prototype.
-if (
-  globalThis.localStorage === undefined ||
-  typeof globalThis.localStorage.getItem !== 'function'
-) {
-  const storage: Record<string, string> = {};
-  globalThis.localStorage = {
-    getItem: (key: string) => storage[key] ?? null,
-    setItem: (key: string, value: string) => {
-      storage[key] = value;
-    },
-    removeItem: (key: string) => {
-      delete storage[key];
-    },
-    clear: () => {
-      for (const key of Object.keys(storage)) {
-        delete storage[key];
-      }
-    },
-    get length() {
-      return Object.keys(storage).length;
-    },
-    key: (index: number) => Object.keys(storage)[index] ?? null,
-  } as Storage;
 }
 ````
 
@@ -20848,101 +20770,6 @@ describe('Booking Store', () => {
     expect(store.error).toBeNull()
   })
 })
-````
-
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
 ````
 
 ## File: backend/src/bookings/bookings.service.spec.ts
@@ -21697,130 +21524,157 @@ describe("OrdersController", () => {
 });
 ````
 
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components/button';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  (e: 'click', event: MouseEvent): void;
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
+````
+
+## File: frontend/admin/src/stores/orders.ts
+````typescript
+import { defineStore } from "pinia";
+import { AxiosError } from "axios";
+import { useAuthStore } from "./auth";
+import api from "../lib/api";
+import type { Order } from "../types";
+interface OrdersState {
+  orders: Order[];
+  loading: boolean;
+  error: string | null;
+}
+interface EmployeeStats {
+  id: string;
+  count: number;
+  revenue: number;
+}
+export const useOrdersStore = defineStore("orders", {
+  state: (): OrdersState => ({
+    orders: [],
+    loading: false,
+    error: null,
+  }),
+  getters: {
+    getOrdersByEmployee: (state) => {
+      return (employeeId: string): Order[] => {
+        return state.orders.filter(
+          (order: Order) => order.booking.employee.id === employeeId
+        );
+      };
+    },
+    getEmployeeStats: (state): EmployeeStats[] => {
+      const stats = new Map<string, EmployeeStats>();
+      state.orders.forEach((order: Order) => {
+        const employeeId: string = order.booking.employee.id;
+        const amount: number = Number.parseFloat(order.totalAmount);
+        if (!stats.has(employeeId)) {
+          stats.set(employeeId, {
+            id: employeeId,
+            count: 0,
+            revenue: 0,
+          });
+        }
+        const employeeStats = stats.get(employeeId);
+        if (employeeStats) {
+          employeeStats.count++;
+          employeeStats.revenue += amount;
+        }
+      });
+      return Array.from(stats.values());
+    },
+  },
+  actions: {
+    async fetchOrders(forceRefresh = false) {
+      try {
+        if (this.loading && !forceRefresh) return;
+        this.loading = true;
+        this.error = null;
+        const authStore = useAuthStore();
+        let endpoint = "/orders";
+        // If user is an employee, use the employee-specific endpoint
+        if (!authStore.isAdmin && authStore.user?.id) {
+          endpoint = `/orders/employee/${authStore.user.id}`;
+        }
+        const response = await api.get<Order[]>(endpoint);
+        this.orders = response.data;
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 403) {
+          this.error = "Ingen tilgang: Du har ikke tillatelse til å se disse ordrene";
+        } else {
+          this.error = "Kunne ikke hente ordrer. Vennligst prøv igjen senere.";
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+});
+````
+
+## File: frontend/customer/src/main.ts
+````typescript
+import './assets/main.css'
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
+// Create the app instance
+const app = createApp(App)
+// Use plugins
+const pinia = createPinia()
+// Pinia's install() method is fully compatible with Vue's plugin system
+app.use(pinia as unknown as Parameters<typeof app.use>[0])
+app.use(router)
+// Mount the app
+app.mount('#app')
+````
+
 ## File: backend/.npmrc
 ````
 # Supply chain security: prevent lifecycle scripts from running during install
 ignore-scripts=true
-````
-
-## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '../../stores/display'
-vi.mock('axios')
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('TVDisplayView', () => {
-  const mockEmployees = [
-    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
-    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
-  ]
-  const mockWaitingSlots = [
-    {
-      id: 'slot-1',
-      customerName: 'Vada',
-      estimatedTime: 0,
-      assignedTo: '1',
-    },
-    {
-      id: 'slot-2',
-      customerName: 'Lavinia',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-  ]
-  const createMockStore = (overrides = {}) => ({
-    hasAvailableSlot: false,
-    activeEmployees: mockEmployees,
-    waitingSlots: mockWaitingSlots,
-    lastUpdate: new Date('2024-01-01T12:00:00'),
-    updateLastUpdate: vi.fn(),
-    employees: mockEmployees,
-    startPolling: vi.fn(),
-    stopPolling: vi.fn(),
-    cleanup: vi.fn(),
-    isLoading: false,
-    error: null,
-    waitingCount: 2,
-    fetchWaitingSlots: vi.fn(),
-    ...overrides,
-  }) as unknown as ReturnType<typeof useDisplayStore>
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-    // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('displays correct status when slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: true,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Ledig')
-    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
-  })
-  it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: false,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Opptatt')
-    expect(wrapper.find('h1').classes()).toContain('text-red-500')
-  })
-  it('renders waiting list correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const waitingSlots = wrapper.findAll('.space-y-16 > div')
-    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
-    // Check first slot (Vada)
-    const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Vada')
-    expect(firstSlot.text()).toContain('0 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
-    // Check second slot (Lavinia)
-    const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Lavinia')
-    expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
-  })
-  it('displays active employees correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const employeeElements = wrapper.findAll('[data-testid="employee"]')
-    expect(employeeElements).toHaveLength(mockEmployees.length)
-    expect(wrapper.text()).toContain('2 frisører på jobb')
-    mockEmployees.forEach((employee, index) => {
-      expect(index).toBeLessThan(employeeElements.length)
-      const element = employeeElements.find((_, i) => i === index)
-      expect(element).toBeDefined()
-      expect(element?.text()).toContain(employee.name)
-      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
-    })
-  })
-  it('formats last update time correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.text()).toContain('12:00:00')
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn()
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(mockStartPolling).toHaveBeenCalled()
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-})
 ````
 
 ## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
@@ -22205,6 +22059,155 @@ describe("createInitialData", () => {
       "unrs-resolver"
     ]
   }
+}
+````
+
+## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import TVDisplayView from '../TVDisplayView.vue'
+import { useDisplayStore } from '../../stores/display'
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('TVDisplayView', () => {
+  const mockEmployees = [
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
+  ]
+  const mockWaitingSlots = [
+    {
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
+      assignedTo: '1',
+    },
+    {
+      id: 'slot-2',
+      customerName: 'Lavinia',
+      estimatedTime: 45,
+      assignedTo: '2',
+    },
+  ]
+  const createMockStore = (overrides: Record<string, unknown> = {}): ReturnType<typeof useDisplayStore> => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof useDisplayStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
+    // Mock store with default values
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Ledig')
+    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
+  })
+  it('displays correct status when no slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: false,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Opptatt')
+    expect(wrapper.find('h1').classes()).toContain('text-red-500')
+  })
+  it('renders waiting list correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const waitingSlots = wrapper.findAll('.space-y-16 > div')
+    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
+    // Check first slot (Vada)
+    const firstSlot = waitingSlots[0]
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
+    // Check second slot (Lavinia)
+    const secondSlot = waitingSlots[1]
+    expect(secondSlot.text()).toContain('Lavinia')
+    expect(secondSlot.text()).toContain('45 min')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
+  })
+  it('displays active employees correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const employeeElements = wrapper.findAll('[data-testid="employee"]')
+    expect(employeeElements).toHaveLength(mockEmployees.length)
+    expect(wrapper.text()).toContain('2 frisører på jobb')
+    mockEmployees.forEach((employee, index) => {
+      expect(index).toBeLessThan(employeeElements.length)
+      const element = employeeElements.find((_, i) => i === index)
+      expect(element).toBeDefined()
+      expect(element?.text()).toContain(employee.name)
+      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
+    })
+  })
+  it('formats last update time correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.text()).toContain('12:00:00')
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(mockStartPolling).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+})
+````
+
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+    clear: () => {
+      storage.clear();
+    },
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
+  } as Storage;
 }
 ````
 
