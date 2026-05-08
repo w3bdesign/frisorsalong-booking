@@ -24,8 +24,8 @@ export const useOrdersStore = defineStore("orders", {
   }),
 
   getters: {
-    getOrdersByEmployee: (state): ((employeeId: string) => Order[]) => {
-      return (employeeId: string) => {
+    getOrdersByEmployee: (state) => {
+      return (employeeId: string): Order[] => {
         return state.orders.filter(
           (order: Order) => order.booking.employee.id === employeeId
         );

@@ -1,7 +1,7 @@
 import './assets/main.css'
 
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createPinia, type Pinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
@@ -9,7 +9,7 @@ import router from './router'
 const app = createApp(App)
 
 // Use plugins
-const pinia = createPinia()
+const pinia: Pinia = createPinia()
 app.use(pinia)
 app.use(router)
 

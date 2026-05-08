@@ -59,7 +59,7 @@ function handleAxiosError(error: AxiosError<ErrorResponse>): string {
       return statusMessage; // Use localized message for client errors
     }
     // For server errors, try backend message first, then fallback to localized
-    if (error.response.data?.message) {
+    if (error.response.data.message) {
       return extractBackendMessage(error.response.data.message);
     }
     return statusMessage;
