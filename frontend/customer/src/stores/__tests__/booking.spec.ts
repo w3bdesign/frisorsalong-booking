@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useBookingStore } from '../booking'
+
 import type { CreateWalkInBookingParams } from '../types'
 
 // Test data
