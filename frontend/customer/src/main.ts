@@ -1,7 +1,7 @@
 import './assets/main.css'
 
 import { createApp } from 'vue'
-import { createPinia, type Pinia } from 'pinia'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
@@ -9,8 +9,9 @@ import router from './router'
 const app = createApp(App)
 
 // Use plugins
-const pinia: Pinia = createPinia()
-app.use(pinia)
+const pinia = createPinia()
+// Pinia's install() method is fully compatible with Vue's plugin system
+app.use(pinia as unknown as Parameters<typeof app.use>[0])
 app.use(router)
 
 // Mount the app
