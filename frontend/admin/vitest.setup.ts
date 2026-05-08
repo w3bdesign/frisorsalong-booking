@@ -2,7 +2,7 @@
 // The devtools-kit accesses localStorage.getItem at module load time,
 // which can fire before jsdom has fully set up the Storage prototype.
 if (
-  (globalThis.localStorage as Storage | undefined) === undefined ||
+  typeof globalThis.localStorage === 'undefined' ||
   typeof globalThis.localStorage.getItem !== 'function'
 ) {
   const storage = new Map<string, string>();
