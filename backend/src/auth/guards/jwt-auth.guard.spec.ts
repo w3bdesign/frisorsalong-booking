@@ -131,13 +131,13 @@ describe('JwtAuthGuard', () => {
       expect(result).toBe(user);
     });
 
-    const errorScenarios: Array<{
+    const errorScenarios: {
       description: string;
       error: Error | null;
       info: JwtError | null;
       expectedMessage: string;
       expectedType: typeof UnauthorizedException | typeof Error;
-    }> = [
+    }[] = [
       {
         description: 'user not authenticated',
         error: null,
