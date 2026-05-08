@@ -16,7 +16,7 @@ function isSupportedEntityName(name: string): name is SupportedEntityName {
   return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
 }
 
-function getEntityName(entity: new (..._args: never[]) => SupportedEntity): SupportedEntityName {
+function getEntityName(entity: { name: string }): SupportedEntityName {
   const name: string = entity.name;
   if (isSupportedEntityName(name)) {
     return name;
@@ -77,7 +77,7 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = (entity: new (..._args: never[]) => SupportedEntity): Partial<Repository<SupportedEntity>> => {
+    const mockGetRepository = (entity: { name: string }): Partial<Repository<SupportedEntity>> => {
       const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
         ["User", mockUserRepository],
         ["Employee", mockEmployeeRepository],
