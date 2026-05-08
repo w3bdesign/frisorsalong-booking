@@ -108,9 +108,10 @@ describe('TVDisplayView', () => {
     expect(wrapper.text()).toContain('2 frisører på jobb')
 
     mockEmployees.forEach((employee, index) => {
-      const element = employeeElements[index]
-      expect(element.text()).toContain(employee.name)
-      expect(element.find(`.${employee.color}`).exists()).toBe(true)
+      const element = employeeElements.at(index)
+      expect(element).toBeDefined()
+      expect(element!.text()).toContain(employee.name)
+      expect(element!.find(`.${employee.color}`).exists()).toBe(true)
     })
   })
 

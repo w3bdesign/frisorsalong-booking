@@ -119,11 +119,17 @@ export class EmployeesService {
     // Get day of week (0 = Sunday, 1 = Monday, etc.)
     const dayOfWeek = startTime.getDay();
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-    const dayName = dayNames[dayOfWeek];
+    const dayName = dayNames.at(dayOfWeek);
+
+    if (!dayName) {
+      return false;
+    }
 
     // Check if employee has availability for this day
     const availability = employee.availability as Availability;
-    const dayAvailability = availability[dayName];
+    const dayAvailability = Object.hasOwn(availability, dayName)
+      ? availability[dayName]
+      : undefined;
     
     if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
       return false;

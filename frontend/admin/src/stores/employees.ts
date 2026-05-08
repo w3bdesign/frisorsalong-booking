@@ -86,7 +86,7 @@ export const useEmployeesStore = defineStore('employees', {
         const response = await api.patch(`/employees/${id}`, employeeData)
         const index = this.employees.findIndex(emp => emp.id === id)
         if (index !== -1) {
-          this.employees[index] = response.data
+          this.employees.splice(index, 1, response.data)
         }
         return response.data
       } catch (error) {

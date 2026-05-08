@@ -7,17 +7,11 @@ import * as bcrypt from "bcrypt";
 
 jest.mock("bcrypt");
 
-interface RepositoryMapping {
-  User: Repository<User>;
-  Employee: Repository<Employee>;
-  Service: Repository<Service>;
-}
-
 type SupportedEntity = User | Employee | Service;
 
-function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
+function getEntityName(entity: EntityTarget<SupportedEntity>): string {
   if (typeof entity === "function") {
-    return entity.name as keyof RepositoryMapping;
+    return entity.name;
   }
   throw new Error("Unsupported entity type");
 }
@@ -76,14 +70,14 @@ describe("createInitialData", () => {
 
     // Mock DataSource with proper typing
     const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories: RepositoryMapping = {
-        User: mockUserRepository as Repository<User>,
-        Employee: mockEmployeeRepository as Repository<Employee>,
-        Service: mockServiceRepository as Repository<Service>,
-      };
+      const repositories = new Map<string, Repository<User> | Repository<Employee> | Repository<Service>>([
+        ["User", mockUserRepository as Repository<User>],
+        ["Employee", mockEmployeeRepository as Repository<Employee>],
+        ["Service", mockServiceRepository as Repository<Service>],
+      ]);
 
       const entityName = getEntityName(entity);
-      const repository = repositories[entityName];
+      const repository = repositories.get(entityName);
 
       if (!repository) {
         throw new Error(`Repository not mocked for entity: ${entityName}`);

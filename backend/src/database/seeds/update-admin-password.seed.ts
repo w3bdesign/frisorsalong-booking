@@ -26,7 +26,7 @@ export const updateAdminPassword = async (dataSource: DataSource): Promise<void>
     console.log("Length:", adminPassword.length);
     console.log("Character codes:");
     for (let i = 0; i < adminPassword.length; i++) {
-      console.log(`${i}: '${adminPassword[i]}' (${adminPassword.charCodeAt(i)})`);
+      console.log(`${i}: '${adminPassword.charAt(i)}' (${adminPassword.charCodeAt(i)})`);
     }
 
     // Find admin user
