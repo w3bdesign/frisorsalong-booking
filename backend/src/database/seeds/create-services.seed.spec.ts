@@ -42,7 +42,7 @@ const expectedServices: ServiceData[] = [
 
 describe('CreateServicesSeed', () => {
   let seed: CreateServicesSeed;
-  let mockDataSource: Partial<DataSource>;
+  let mockDataSource: DataSource;
   let mockServiceRepository: MockServiceRepository;
 
   beforeEach(() => {
@@ -62,7 +62,7 @@ describe('CreateServicesSeed', () => {
 
     mockDataSource = {
       getRepository: jest.fn().mockReturnValue(mockServiceRepository),
-    };
+    } as unknown as DataSource;
 
     seed = new CreateServicesSeed();
   });
