@@ -1850,135 +1850,6 @@ export interface JwtPayload {
 }
 ````
 
-## File: backend/src/auth/strategies/jwt.strategy.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { UnauthorizedException } from '@nestjs/common';
-import { JwtStrategy } from './jwt.strategy';
-import { User, UserRole } from '../../users/entities/user.entity';
-import { Request } from 'express';
-interface JwtPayload {
-  sub: string;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
-type MockConfigService = {
-  get: jest.Mock<string | undefined, [string]>;
-};
-describe('JwtStrategy', () => {
-  let strategy: JwtStrategy;
-  let configService: MockConfigService;
-  const mockConfigService: MockConfigService = {
-    get: jest.fn((key: string) => key === 'JWT_SECRET' ? 'test-secret' : undefined),
-  };
-  const mockUsersRepository = {
-    findOne: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JwtStrategy,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUsersRepository,
-        },
-      ],
-    }).compile();
-    strategy = module.get<JwtStrategy>(JwtStrategy);
-    configService = module.get(ConfigService);
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  it('should be defined', () => {
-    expect(strategy).toBeDefined();
-  });
-  it('should use the secret from config service', () => {
-    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
-    expect(configService.get('JWT_SECRET')).toBe('test-secret');
-  });
-  describe('validate', () => {
-    const mockRequest = {
-      headers: {
-        authorization: 'Bearer test-token'
-      }
-    } as Request;
-    const mockPayload: JwtPayload = {
-      sub: 'user-123',
-      email: 'test@example.com'
-    };
-    const mockUser: Partial<User> = {
-      id: 'user-123',
-      email: 'test@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      role: UserRole.CUSTOMER,
-    };
-    it('should return user when payload is valid', async () => {
-      mockUsersRepository.findOne.mockResolvedValue(mockUser);
-      const result = await strategy.validate(mockRequest, mockPayload);
-      expect(result).toEqual({
-        id: mockUser.id,
-        email: mockUser.email,
-        firstName: mockUser.firstName,
-        lastName: mockUser.lastName,
-        role: mockUser.role,
-      });
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-    });
-    it('should throw UnauthorizedException when user is not found', async () => {
-      mockUsersRepository.findOne.mockResolvedValue(null);
-      await expect(strategy.validate(mockRequest, mockPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('User not found'));
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-    });
-    it('should throw UnauthorizedException when payload is invalid', async () => {
-      const invalidPayload = {} as JwtPayload;
-      await expect(strategy.validate(mockRequest, invalidPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('Invalid token payload'));
-      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
-    });
-    it('should throw UnauthorizedException when payload is missing required fields', async () => {
-      const incompletePayload: Partial<JwtPayload> = { iat: 123456789 };
-      await expect(strategy.validate(mockRequest, incompletePayload as JwtPayload))
-        .rejects
-        .toThrow(new UnauthorizedException('Invalid token payload'));
-      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
-    });
-    it('should handle repository errors gracefully', async () => {
-      const dbError = new Error('Database connection failed');
-      mockUsersRepository.findOne.mockRejectedValue(dbError);
-      // Suppress console.error for this test
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      await expect(strategy.validate(mockRequest, mockPayload))
-        .rejects
-        .toThrow(UnauthorizedException);
-      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockPayload.sub },
-        select: ['id', 'email', 'firstName', 'lastName', 'role'],
-      });
-      // Restore console.error
-      consoleErrorSpy.mockRestore();
-    });
-  });
-});
-````
-
 ## File: backend/src/auth/strategies/jwt.strategy.ts
 ````typescript
 import { Injectable, UnauthorizedException } from "@nestjs/common";
@@ -3595,114 +3466,6 @@ export class CreateBookingSystem1731981975582 implements MigrationInterface {
 }
 ````
 
-## File: backend/src/database/migrations/1731981975583-CreateOrders.spec.ts
-````typescript
-import { QueryRunner, Table, TableForeignKey } from "typeorm";
-import { CreateOrders1731981975583 } from "./1731981975583-CreateOrders";
-type SafeQueryRunner = {
-  createTable: jest.Mock<Promise<Table>, [Table, boolean]>;
-  createForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
-  getTable: jest.Mock<Promise<Table>, [string]>;
-  dropForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
-  dropTable: jest.Mock<Promise<void>, [string]>;
-};
-describe("CreateOrders1731981975583", () => {
-  let migration: CreateOrders1731981975583;
-  let queryRunner: SafeQueryRunner;
-  beforeEach(() => {
-    migration = new CreateOrders1731981975583();
-    queryRunner = {
-      createTable: jest.fn<Promise<Table>, [Table, boolean]>().mockResolvedValue(
-        new Table({ name: "orders", columns: [] })
-      ),
-      createForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
-      getTable: jest.fn<Promise<Table>, [string]>().mockResolvedValue(
-        new Table({
-          name: "orders",
-          columns: [],
-          foreignKeys: [
-            new TableForeignKey({
-              columnNames: ["booking_id"],
-              referencedColumnNames: ["id"],
-              referencedTableName: "bookings",
-              onDelete: "CASCADE",
-            }),
-          ],
-        })
-      ),
-      dropForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
-      dropTable: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
-    };
-  });
-  describe("up", () => {
-    it("should create orders table with correct columns", async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.createTable).toHaveBeenCalledWith(
-        expect.any(Table),
-        true,
-      );
-      const table = queryRunner.createTable.mock.calls[0]?.[0];
-      if (!(table instanceof Table)) {
-        throw new Error('Invalid createTable mock call');
-      }
-      expect(table.name).toBe("orders");
-      expect(table.columns).toHaveLength(7);
-      // Check specific columns
-      const columns = table.columns;
-      expect(columns[0].name).toBe("id");
-      expect(columns[0].type).toBe("uuid");
-      expect(columns[0].isPrimary).toBe(true);
-      expect(columns[1].name).toBe("booking_id");
-      expect(columns[1].type).toBe("uuid");
-      expect(columns[2].name).toBe("completed_at");
-      expect(columns[2].type).toBe("timestamp");
-      expect(columns[3].name).toBe("total_amount");
-      expect(columns[3].type).toBe("decimal");
-      expect(columns[3].precision).toBe(10);
-      expect(columns[3].scale).toBe(2);
-      expect(columns[4].name).toBe("notes");
-      expect(columns[4].type).toBe("text");
-      expect(columns[4].isNullable).toBe(true);
-      expect(columns[5].name).toBe("created_at");
-      expect(columns[5].type).toBe("timestamp");
-      expect(columns[6].name).toBe("updated_at");
-      expect(columns[6].type).toBe("timestamp");
-    });
-    it("should create foreign key for booking_id", async () => {
-      await migration.up(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.createForeignKey).toHaveBeenCalledWith(
-        "orders",
-        expect.any(TableForeignKey),
-      );
-      const foreignKey = queryRunner.createForeignKey.mock.calls[0]?.[1];
-      if (!(foreignKey instanceof TableForeignKey)) {
-        throw new Error('Invalid createForeignKey mock call');
-      }
-      expect(foreignKey.columnNames).toEqual(["booking_id"]);
-      expect(foreignKey.referencedColumnNames).toEqual(["id"]);
-      expect(foreignKey.referencedTableName).toBe("bookings");
-      expect(foreignKey.onDelete).toBe("CASCADE");
-    });
-  });
-  describe("down", () => {
-    it("should drop foreign key and table", async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.getTable).toHaveBeenCalledWith("orders");
-      expect(queryRunner.dropForeignKey).toHaveBeenCalledWith(
-        "orders",
-        expect.any(TableForeignKey)
-      );
-      expect(queryRunner.dropTable).toHaveBeenCalledWith("orders");
-      // Verify the mock calls have correct types
-      const foreignKey = queryRunner.dropForeignKey.mock.calls[0]?.[1];
-      if (!(foreignKey instanceof TableForeignKey)) {
-        throw new Error('Invalid dropForeignKey mock call');
-      }
-    });
-  });
-});
-````
-
 ## File: backend/src/database/migrations/1731981975583-CreateOrders.ts
 ````typescript
 import { MigrationInterface, QueryRunner, Table, TableForeignKey } from "typeorm";
@@ -3803,83 +3566,6 @@ export class CreateOrders1731981975583 implements MigrationInterface {
     );
   }
 }
-````
-
-## File: backend/src/database/migrations/1731981975584-AddShopCodes.spec.ts
-````typescript
-import { QueryRunner } from 'typeorm';
-import { AddShopCodes1731981975584 } from './1731981975584-AddShopCodes';
-type SafeQueryRunner = {
-  hasTable: jest.Mock<Promise<boolean>, [string]>;
-  query: jest.Mock<Promise<void>, [string]>;
-};
-describe('AddShopCodes1731981975584', () => {
-  let migration: AddShopCodes1731981975584;
-  let queryRunner: SafeQueryRunner;
-  beforeEach(() => {
-    migration = new AddShopCodes1731981975584();
-    queryRunner = {
-      hasTable: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
-      query: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
-    };
-  });
-  it('should have correct name', () => {
-    expect(migration.name).toBe('AddShopCodes1731981975584');
-  });
-  describe('up', () => {
-    it('should create shop_codes table if it does not exist', async () => {
-      queryRunner.hasTable.mockResolvedValue(false);
-      await migration.up(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
-      expect(queryRunner.query).toHaveBeenCalledTimes(2);
-      const calls = queryRunner.query.mock.calls;
-      if (!Array.isArray(calls) || calls.length < 2) {
-        throw new Error('Expected at least 2 query calls');
-      }
-      const createTableQuery = calls[0][0];
-      const insertDataQuery = calls[1][0];
-      if (typeof createTableQuery !== 'string' || typeof insertDataQuery !== 'string') {
-        throw new Error('Expected string queries');
-      }
-      // Verify create table query
-      expect(createTableQuery).toContain('CREATE TABLE "shop_codes"');
-      expect(createTableQuery).toContain('"id" uuid NOT NULL DEFAULT uuid_generate_v4()');
-      expect(createTableQuery).toContain('"code" character varying NOT NULL');
-      expect(createTableQuery).toContain('"shop_name" character varying NOT NULL');
-      expect(createTableQuery).toContain('"is_active" boolean NOT NULL DEFAULT true');
-      expect(createTableQuery).toContain('"daily_booking_limit" integer NOT NULL DEFAULT 100');
-      expect(createTableQuery).toContain('"last_booking_time" TIMESTAMP');
-      expect(createTableQuery).toContain('"today_booking_count" integer NOT NULL DEFAULT 0');
-      expect(createTableQuery).toContain('"created_at" TIMESTAMP NOT NULL DEFAULT now()');
-      expect(createTableQuery).toContain('"updated_at" TIMESTAMP NOT NULL DEFAULT now()');
-      // Verify initial data insertion
-      expect(insertDataQuery).toContain('INSERT INTO "shop_codes"');
-      expect(insertDataQuery).toContain('SHOP123');
-      expect(insertDataQuery).toContain('Test Shop');
-    });
-    it('should not create shop_codes table if it already exists', async () => {
-      queryRunner.hasTable.mockResolvedValue(true);
-      await migration.up(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
-      expect(queryRunner.query).not.toHaveBeenCalled();
-    });
-  });
-  describe('down', () => {
-    it('should drop shop_codes table', async () => {
-      await migration.down(queryRunner as unknown as QueryRunner);
-      expect(queryRunner.query).toHaveBeenCalledWith('DROP TABLE IF EXISTS "shop_codes"');
-      const calls = queryRunner.query.mock.calls;
-      if (!Array.isArray(calls) || calls.length === 0) {
-        throw new Error('Expected at least one query call');
-      }
-      const dropTableQuery = calls[0][0];
-      if (typeof dropTableQuery !== 'string') {
-        throw new Error('Expected string query');
-      }
-      expect(dropTableQuery).toBe('DROP TABLE IF EXISTS "shop_codes"');
-    });
-  });
-});
 ````
 
 ## File: backend/src/database/migrations/1731981975584-AddShopCodes.ts
@@ -4353,299 +4039,6 @@ export const createInitialData = async (dataSource: DataSource): Promise<void> =
     throw error;
   }
 };
-````
-
-## File: backend/src/database/seeds/create-sample-bookings.seed.spec.ts
-````typescript
-import { DataSource, Repository, EntityTarget } from "typeorm";
-import { User } from "../../users/entities/user.entity";
-import { Employee } from "../../employees/entities/employee.entity";
-import { Service } from "../../services/entities/service.entity";
-import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
-import { createSampleBookings } from "./create-sample-bookings.seed";
-import * as bcrypt from "bcrypt";
-import { faker } from "@faker-js/faker";
-jest.mock("bcrypt");
-jest.mock("@faker-js/faker", () => ({
-  faker: {
-    person: {
-      firstName: jest.fn().mockReturnValue("John"),
-      lastName: jest.fn().mockReturnValue("Doe"),
-    },
-    internet: {
-      email: jest.fn().mockReturnValue("john.doe@example.com"),
-    },
-    string: {
-      numeric: jest.fn().mockReturnValue("12345678"),
-    },
-    helpers: {
-      arrayElement: jest.fn(),
-      maybe: jest.fn(),
-    },
-    date: {
-      between: jest.fn(),
-    },
-    lorem: {
-      sentence: jest.fn().mockReturnValue("Sample note"),
-    },
-  },
-}));
-type SupportedEntity = User | Employee | Service | Booking;
-interface RepositoryMapping {
-  User: Repository<User>;
-  Employee: Repository<Employee>;
-  Service: Repository<Service>;
-  Booking: Repository<Booking>;
-}
-interface MockCall<T> {
-  calls: Array<[T]>;
-}
-describe("createSampleBookings", () => {
-  let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockEmployeeRepository: Partial<Repository<Employee>>;
-  let mockServiceRepository: Partial<Repository<Service>>;
-  let mockBookingRepository: Partial<Repository<Booking>>;
-  const originalEnv = process.env;
-  const originalRandom = Math.random;
-  beforeEach(() => {
-    mockUserRepository = {
-      save: jest
-        .fn()
-        .mockImplementation(
-          (data: Partial<User>): Promise<User> =>
-            Promise.resolve({ id: "user-1", ...data } as User)
-        ),
-    };
-    mockEmployeeRepository = {
-      findOne: jest.fn().mockResolvedValue(null),
-    };
-    mockServiceRepository = {
-      find: jest.fn().mockResolvedValue([]),
-    };
-    mockBookingRepository = {
-      save: jest
-        .fn()
-        .mockImplementation(
-          (
-            bookings: Partial<Booking> | Partial<Booking>[]
-          ): Promise<Booking | Booking[]> =>
-            Promise.resolve(
-              Array.isArray(bookings)
-                ? bookings.map(
-                    (b, i) => ({ id: `booking-${i}`, ...b }) as Booking
-                  )
-                : ({ id: "booking-1", ...bookings } as Booking)
-            )
-        ),
-    };
-    const repositories: RepositoryMapping = {
-      User: mockUserRepository as Repository<User>,
-      Employee: mockEmployeeRepository as Repository<Employee>,
-      Service: mockServiceRepository as Repository<Service>,
-      Booking: mockBookingRepository as Repository<Booking>,
-    };
-    const mockGetRepository = <T extends SupportedEntity>(
-      entity: EntityTarget<T>
-    ): Repository<T> => {
-      const entityName = typeof entity === "function" ? entity.name : "Unknown";
-      const repository = repositories[entityName as keyof RepositoryMapping];
-      if (!repository) {
-        throw new Error(`Repository not mocked for entity: ${entityName}`);
-      }
-      return repository as Repository<T>;
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockImplementation(mockGetRepository),
-    };
-    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
-    process.env = {
-      ...originalEnv,
-      EMPLOYEE_EMAIL: "employee@example.com",
-    };
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.clearAllMocks();
-  });
-  afterEach(() => {
-    process.env = originalEnv;
-    Math.random = originalRandom;
-    jest.clearAllMocks();
-  });
-  it("should create sample customers and bookings when employee and services exist", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    const mockServices = [
-      { id: "service-1", name: "Haircut", duration: 30, price: 30 },
-      { id: "service-2", name: "Styling", duration: 45, price: 40 },
-    ];
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
-    mockArrayElement
-      .mockReturnValueOnce(mockServices[0])
-      .mockReturnValue({ id: "customer-1" });
-    const mockDate = new Date("2024-01-01T10:00:00Z");
-    (faker.date.between as jest.Mock).mockReturnValue(mockDate);
-    (faker.helpers.maybe as jest.Mock).mockImplementation(
-      (callback: () => string) => callback()
-    );
-    await createSampleBookings(mockDataSource as DataSource);
-    const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
-    if (!mockCalls.calls.length) {
-      throw new Error("Expected at least one booking save call");
-    }
-    const savedBookings = mockCalls.calls[0][0];
-    if (!Array.isArray(savedBookings)) {
-      throw new Error("Expected an array of bookings");
-    }
-    expect(savedBookings).toHaveLength(20);
-    expect(savedBookings[0]).toEqual(
-      expect.objectContaining({
-        employee: mockEmployee,
-        service: mockServices[0],
-        startTime: mockDate,
-        endTime: expect.any(Date) as Date,
-        notes: "Sample note",
-      })
-    );
-    expect(console.log).toHaveBeenCalledWith(
-      "Sample bookings created successfully"
-    );
-  });
-  it("should throw error when employee is not found", async () => {
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(null);
-    await expect(
-      createSampleBookings(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee not found. Please run initial data seed first."
-    );
-    expect(mockBookingRepository.save).not.toHaveBeenCalled();
-  });
-  it("should throw error when customer creation fails", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(
-      new Error("Database error")
-    );
-    await expect(
-      createSampleBookings(mockDataSource as DataSource)
-    ).rejects.toThrow("Failed to create customer 1");
-  });
-  it("should throw error when service/customer selection fails", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    (faker.helpers.arrayElement as jest.Mock).mockReturnValue(null);
-    await expect(
-      createSampleBookings(mockDataSource as DataSource)
-    ).rejects.toThrow("Failed to select service or customer for booking 1");
-  });
-  it("should throw error when saving bookings fails", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    const mockCustomer = { id: "customer-1" };
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    (faker.helpers.arrayElement as jest.Mock)
-      .mockReturnValueOnce(mockServices[0]) // First call for service
-      .mockReturnValue(mockCustomer); // Subsequent calls for customer
-    (mockBookingRepository.save as jest.Mock).mockResolvedValue(null);
-    await expect(
-      createSampleBookings(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Failed to save bookings - no bookings returned from save operation"
-    );
-  });
-  it("should throw error when status weight determination fails", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    const mockCustomer = { id: "customer-1" };
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    (faker.helpers.arrayElement as jest.Mock)
-      .mockReturnValueOnce(mockServices[0]) // First call for service
-      .mockReturnValue(mockCustomer); // Subsequent calls for customer
-    // Set Math.random to return a value greater than all weights
-    Math.random = jest.fn().mockReturnValue(2.0);
-    await expect(
-      createSampleBookings(mockDataSource as DataSource)
-    ).rejects.toThrow("Failed to determine status for booking 1");
-  });
-  it("should create bookings with cancelled status and cancellation details", async () => {
-    const mockEmployee = {
-      id: "employee-1",
-      user: { email: "employee@example.com" },
-    };
-    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
-    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
-      mockEmployee
-    );
-    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
-    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
-    mockArrayElement
-      .mockReturnValueOnce(mockServices[0])
-      .mockReturnValue({ id: "customer-1" });
-    Math.random = jest.fn().mockReturnValue(0.95);
-    const mockStartDate = new Date("2024-01-01T10:00:00Z");
-    const mockCancelDate = new Date("2024-01-01T09:00:00Z");
-    const mockDateBetween = faker.date.between as jest.Mock;
-    mockDateBetween
-      .mockReturnValueOnce(mockStartDate)
-      .mockReturnValue(mockCancelDate);
-    await createSampleBookings(mockDataSource as DataSource);
-    const saveBookingMock = mockBookingRepository.save as jest.Mock;
-    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
-    if (!mockCalls.calls.length) {
-      throw new Error("Expected at least one booking save call");
-    }
-    const savedBookings = mockCalls.calls[0][0];
-    if (!Array.isArray(savedBookings)) {
-      throw new Error("Expected an array of bookings");
-    }
-    const cancelledBooking = savedBookings.find(
-      (b) => b.status === BookingStatus.CANCELLED
-    );
-    expect(cancelledBooking).toBeDefined();
-    if (cancelledBooking) {
-      expect(cancelledBooking).toEqual(
-        expect.objectContaining({
-          status: BookingStatus.CANCELLED,
-          cancelledAt: mockCancelDate,
-          cancellationReason: "Sample note",
-        })
-      );
-    }
-  });
-});
 ````
 
 ## File: backend/src/database/seeds/create-sample-bookings.seed.ts
@@ -6817,76 +6210,6 @@ export class ServicesController {
 }
 ````
 
-## File: backend/src/services/services.module.spec.ts
-````typescript
-import { Test } from '@nestjs/testing';
-import { ServicesModule } from './services.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Service } from './entities/service.entity';
-import { ServicesService } from './services.service';
-import { Type } from '@nestjs/common';
-// Mock ServicesService
-const mockServicesService = {
-  findAll: jest.fn(),
-  findOne: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  remove: jest.fn(),
-};
-// Mock repository
-const mockRepository = {
-  find: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
-describe('ServicesModule', () => {
-  let moduleRef;
-  beforeEach(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        {
-          module: class MockTypeOrmFeatureModule {},
-          providers: [
-            {
-              provide: 'ServiceRepository',
-              useValue: mockRepository,
-            },
-          ],
-        },
-      ],
-      providers: [
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-      ],
-    }).compile();
-    // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [ServicesService, TypeOrmModule], ServicesModule);
-    Reflect.defineMetadata('imports', [TypeOrmModule.forFeature([Service])], ServicesModule);
-    Reflect.defineMetadata('controllers', [], ServicesModule);
-  });
-  it('should be defined', () => {
-    expect(moduleRef).toBeDefined();
-  });
-  it('should export ServicesService', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
-    expect(exports).toContain(ServicesService);
-  });
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
-    expect(exports).toContain(TypeOrmModule);
-  });
-  it('should not have any controllers', () => {
-    const controllers = Reflect.getMetadata('controllers', ServicesModule) as Array<Type>;
-    expect(controllers).toEqual([]);
-  });
-});
-````
-
 ## File: backend/src/services/services.module.ts
 ````typescript
 import { Module } from '@nestjs/common';
@@ -7629,142 +6952,6 @@ import { UsersService } from "./users.service";
   exports: [TypeOrmModule, UsersService],
 })
 export class UsersModule {}
-````
-
-## File: backend/src/users/users.service.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { FindOneOptions } from 'typeorm';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
-import { NotFoundException } from '@nestjs/common';
-type JestMock = jest.Mock;
-type MockCalls = Array<Array<unknown>>;
-describe('UsersService', () => {
-  let service: UsersService;
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com',
-    firstName: 'John',
-    lastName: 'Doe',
-    password: 'hashedPassword',
-  };
-  const mockUserRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
-        },
-      ],
-    }).compile();
-    service = module.get<UsersService>(UsersService);
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-  describe('findOne', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findOne('user-1');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-  describe('findByEmail', () => {
-    it('should return a user when found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
-      const result = await service.findByEmail('test@example.com');
-      expect(result).toEqual(mockUser);
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const calls = findOneMock.mock.calls as MockCalls;
-      const lastCall = calls[calls.length - 1];
-      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
-      expect(lastCallArgs).toEqual({
-        where: { email: 'test@example.com' },
-      });
-    });
-    it('should return null when user not found', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      const result = await service.findByEmail('nonexistent@example.com');
-      expect(result).toBeNull();
-    });
-  });
-  describe('create', () => {
-    const createUserData = {
-      email: 'new@example.com',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      password: 'password123',
-    };
-    it('should create and return a new user', async () => {
-      mockUserRepository.create.mockReturnValue(createUserData);
-      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
-      const result = await service.create(createUserData);
-      expect(result).toEqual({ id: 'new-user', ...createUserData });
-      const createMock = mockUserRepository.create as JestMock;
-      const saveMock = mockUserRepository.save as JestMock;
-      const createCalls = createMock.mock.calls as MockCalls;
-      const saveCalls = saveMock.mock.calls as MockCalls;
-      const lastCreateCall = createCalls[createCalls.length - 1];
-      const lastSaveCall = saveCalls[saveCalls.length - 1];
-      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
-      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
-      expect(lastCreateArgs).toEqual(createUserData);
-      expect(lastSaveArgs).toEqual(createUserData);
-    });
-  });
-  describe('update', () => {
-    const updateData = {
-      firstName: 'Updated',
-      lastName: 'Name',
-    };
-    it('should update and return the user', async () => {
-      const updatedUser = { ...mockUser, ...updateData };
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(updatedUser);
-      const result = await service.update('user-1', updateData);
-      expect(result).toEqual(updatedUser);
-      const updateMock = mockUserRepository.update as JestMock;
-      const findOneMock = mockUserRepository.findOne as JestMock;
-      const updateCalls = updateMock.mock.calls as MockCalls;
-      const findOneCalls = findOneMock.mock.calls as MockCalls;
-      const lastUpdateCall = updateCalls[updateCalls.length - 1];
-      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
-      expect(lastUpdateCall).toEqual(['user-1', updateData]);
-      expect(lastFindOneCall[0]).toEqual({
-        where: { id: 'user-1' },
-      });
-    });
-    it('should throw NotFoundException when user not found during update', async () => {
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
-      mockUserRepository.findOne.mockResolvedValue(null);
-      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/app.controller.spec.ts
@@ -10694,82 +9881,6 @@ export interface CardProps {
   title: string;
   value: string | number;
   color?: CardColor;
-}
-````
-
-## File: frontend/admin/src/types/index.ts
-````typescript
-export interface Order {
-  id: string
-  completedAt: string
-  totalAmount: string
-  notes: string
-  createdAt: string
-  updatedAt: string
-  booking: Booking
-}
-export interface Booking {
-  id: string
-  startTime: string
-  endTime: string
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED'
-  notes: string
-  totalPrice: string
-  reminderSent: boolean
-  cancelledAt: string | null
-  cancellationReason: string | null
-  createdAt: string
-  updatedAt: string
-  customer: Customer
-  employee: Employee
-  service: Service
-}
-// This interface represents the simplified booking data used in views
-export interface BookingView {
-  id: string | number;
-  customerName: string;
-  employeeName: string;
-  serviceName: string;
-  startTime: string;
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED';
-  notes?: string;
-}
-export interface Customer {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  phoneNumber: string
-  role: string
-  createdAt: string
-  updatedAt: string
-}
-export interface Employee {
-  id: string
-  specializations: string[]
-  availability: {
-    [key: string]: Array<{ start: string; end: string }>
-  }
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-  user: {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    role: string
-  }
-}
-export interface Service {
-  id: string
-  name: string
-  description: string
-  duration: number
-  price: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
 }
 ````
 
@@ -16734,6 +15845,101 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
+````
+
 ## File: backend/src/auth/guards/roles.guard.ts
 ````typescript
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
@@ -16776,6 +15982,135 @@ export class RolesGuard implements CanActivate {
     return canActivate;
   }
 }
+````
+
+## File: backend/src/auth/strategies/jwt.strategy.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { UnauthorizedException } from '@nestjs/common';
+import { JwtStrategy } from './jwt.strategy';
+import { User, UserRole } from '../../users/entities/user.entity';
+import { Request } from 'express';
+interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+interface MockConfigService {
+  get: jest.Mock<string | undefined, [string]>;
+}
+describe('JwtStrategy', () => {
+  let strategy: JwtStrategy;
+  let configService: MockConfigService;
+  const mockConfigService: MockConfigService = {
+    get: jest.fn((key: string) => key === 'JWT_SECRET' ? 'test-secret' : undefined),
+  };
+  const mockUsersRepository = {
+    findOne: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        JwtStrategy,
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUsersRepository,
+        },
+      ],
+    }).compile();
+    strategy = module.get<JwtStrategy>(JwtStrategy);
+    configService = module.get(ConfigService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it('should be defined', () => {
+    expect(strategy).toBeDefined();
+  });
+  it('should use the secret from config service', () => {
+    expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
+    expect(configService.get('JWT_SECRET')).toBe('test-secret');
+  });
+  describe('validate', () => {
+    const mockRequest = {
+      headers: {
+        authorization: 'Bearer test-token'
+      }
+    } as Request;
+    const mockPayload: JwtPayload = {
+      sub: 'user-123',
+      email: 'test@example.com'
+    };
+    const mockUser: Partial<User> = {
+      id: 'user-123',
+      email: 'test@example.com',
+      firstName: 'John',
+      lastName: 'Doe',
+      role: UserRole.CUSTOMER,
+    };
+    it('should return user when payload is valid', async () => {
+      mockUsersRepository.findOne.mockResolvedValue(mockUser);
+      const result = await strategy.validate(mockRequest, mockPayload);
+      expect(result).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        role: mockUser.role,
+      });
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+    });
+    it('should throw UnauthorizedException when user is not found', async () => {
+      mockUsersRepository.findOne.mockResolvedValue(null);
+      await expect(strategy.validate(mockRequest, mockPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('User not found'));
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+    });
+    it('should throw UnauthorizedException when payload is invalid', async () => {
+      const invalidPayload = {} as JwtPayload;
+      await expect(strategy.validate(mockRequest, invalidPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('Invalid token payload'));
+      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
+    });
+    it('should throw UnauthorizedException when payload is missing required fields', async () => {
+      const incompletePayload: Partial<JwtPayload> = { iat: 123456789 };
+      await expect(strategy.validate(mockRequest, incompletePayload as JwtPayload))
+        .rejects
+        .toThrow(new UnauthorizedException('Invalid token payload'));
+      expect(mockUsersRepository.findOne).not.toHaveBeenCalled();
+    });
+    it('should handle repository errors gracefully', async () => {
+      const dbError = new Error('Database connection failed');
+      mockUsersRepository.findOne.mockRejectedValue(dbError);
+      // Suppress console.error for this test
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(strategy.validate(mockRequest, mockPayload))
+        .rejects
+        .toThrow(UnauthorizedException);
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockPayload.sub },
+        select: ['id', 'email', 'firstName', 'lastName', 'role'],
+      });
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
+    });
+  });
+});
 ````
 
 ## File: backend/src/auth/auth.module.spec.ts
@@ -17017,6 +16352,191 @@ export class BookingsController {
     return this.ordersService.createFromBooking(id);
   }
 }
+````
+
+## File: backend/src/database/migrations/1731981975583-CreateOrders.spec.ts
+````typescript
+import { QueryRunner, Table, TableForeignKey } from "typeorm";
+import { CreateOrders1731981975583 } from "./1731981975583-CreateOrders";
+interface SafeQueryRunner {
+  createTable: jest.Mock<Promise<Table>, [Table, boolean]>;
+  createForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
+  getTable: jest.Mock<Promise<Table>, [string]>;
+  dropForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
+  dropTable: jest.Mock<Promise<void>, [string]>;
+}
+describe("CreateOrders1731981975583", () => {
+  let migration: CreateOrders1731981975583;
+  let queryRunner: SafeQueryRunner;
+  beforeEach(() => {
+    migration = new CreateOrders1731981975583();
+    queryRunner = {
+      createTable: jest.fn<Promise<Table>, [Table, boolean]>().mockResolvedValue(
+        new Table({ name: "orders", columns: [] })
+      ),
+      createForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      getTable: jest.fn<Promise<Table>, [string]>().mockResolvedValue(
+        new Table({
+          name: "orders",
+          columns: [],
+          foreignKeys: [
+            new TableForeignKey({
+              columnNames: ["booking_id"],
+              referencedColumnNames: ["id"],
+              referencedTableName: "bookings",
+              onDelete: "CASCADE",
+            }),
+          ],
+        })
+      ),
+      dropForeignKey: jest.fn<Promise<void>, [string, TableForeignKey]>().mockResolvedValue(undefined),
+      dropTable: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+    };
+  });
+  describe("up", () => {
+    it("should create orders table with correct columns", async () => {
+      await migration.up(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.createTable).toHaveBeenCalledWith(
+        expect.any(Table),
+        true,
+      );
+      const table = queryRunner.createTable.mock.calls[0]?.[0];
+      if (!(table instanceof Table)) {
+        throw new Error('Invalid createTable mock call');
+      }
+      expect(table.name).toBe("orders");
+      expect(table.columns).toHaveLength(7);
+      // Check specific columns
+      const columns = table.columns;
+      expect(columns[0].name).toBe("id");
+      expect(columns[0].type).toBe("uuid");
+      expect(columns[0].isPrimary).toBe(true);
+      expect(columns[1].name).toBe("booking_id");
+      expect(columns[1].type).toBe("uuid");
+      expect(columns[2].name).toBe("completed_at");
+      expect(columns[2].type).toBe("timestamp");
+      expect(columns[3].name).toBe("total_amount");
+      expect(columns[3].type).toBe("decimal");
+      expect(columns[3].precision).toBe(10);
+      expect(columns[3].scale).toBe(2);
+      expect(columns[4].name).toBe("notes");
+      expect(columns[4].type).toBe("text");
+      expect(columns[4].isNullable).toBe(true);
+      expect(columns[5].name).toBe("created_at");
+      expect(columns[5].type).toBe("timestamp");
+      expect(columns[6].name).toBe("updated_at");
+      expect(columns[6].type).toBe("timestamp");
+    });
+    it("should create foreign key for booking_id", async () => {
+      await migration.up(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.createForeignKey).toHaveBeenCalledWith(
+        "orders",
+        expect.any(TableForeignKey),
+      );
+      const foreignKey = queryRunner.createForeignKey.mock.calls[0]?.[1];
+      if (!(foreignKey instanceof TableForeignKey)) {
+        throw new Error('Invalid createForeignKey mock call');
+      }
+      expect(foreignKey.columnNames).toEqual(["booking_id"]);
+      expect(foreignKey.referencedColumnNames).toEqual(["id"]);
+      expect(foreignKey.referencedTableName).toBe("bookings");
+      expect(foreignKey.onDelete).toBe("CASCADE");
+    });
+  });
+  describe("down", () => {
+    it("should drop foreign key and table", async () => {
+      await migration.down(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.getTable).toHaveBeenCalledWith("orders");
+      expect(queryRunner.dropForeignKey).toHaveBeenCalledWith(
+        "orders",
+        expect.any(TableForeignKey)
+      );
+      expect(queryRunner.dropTable).toHaveBeenCalledWith("orders");
+      // Verify the mock calls have correct types
+      const foreignKey = queryRunner.dropForeignKey.mock.calls[0]?.[1];
+      if (!(foreignKey instanceof TableForeignKey)) {
+        throw new Error('Invalid dropForeignKey mock call');
+      }
+    });
+  });
+});
+````
+
+## File: backend/src/database/migrations/1731981975584-AddShopCodes.spec.ts
+````typescript
+import { QueryRunner } from 'typeorm';
+import { AddShopCodes1731981975584 } from './1731981975584-AddShopCodes';
+interface SafeQueryRunner {
+  hasTable: jest.Mock<Promise<boolean>, [string]>;
+  query: jest.Mock<Promise<void>, [string]>;
+}
+describe('AddShopCodes1731981975584', () => {
+  let migration: AddShopCodes1731981975584;
+  let queryRunner: SafeQueryRunner;
+  beforeEach(() => {
+    migration = new AddShopCodes1731981975584();
+    queryRunner = {
+      hasTable: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
+      query: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+    };
+  });
+  it('should have correct name', () => {
+    expect(migration.name).toBe('AddShopCodes1731981975584');
+  });
+  describe('up', () => {
+    it('should create shop_codes table if it does not exist', async () => {
+      queryRunner.hasTable.mockResolvedValue(false);
+      await migration.up(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
+      expect(queryRunner.query).toHaveBeenCalledTimes(2);
+      const calls = queryRunner.query.mock.calls;
+      if (!Array.isArray(calls) || calls.length < 2) {
+        throw new Error('Expected at least 2 query calls');
+      }
+      const createTableQuery = calls[0][0];
+      const insertDataQuery = calls[1][0];
+      if (typeof createTableQuery !== 'string' || typeof insertDataQuery !== 'string') {
+        throw new Error('Expected string queries');
+      }
+      // Verify create table query
+      expect(createTableQuery).toContain('CREATE TABLE "shop_codes"');
+      expect(createTableQuery).toContain('"id" uuid NOT NULL DEFAULT uuid_generate_v4()');
+      expect(createTableQuery).toContain('"code" character varying NOT NULL');
+      expect(createTableQuery).toContain('"shop_name" character varying NOT NULL');
+      expect(createTableQuery).toContain('"is_active" boolean NOT NULL DEFAULT true');
+      expect(createTableQuery).toContain('"daily_booking_limit" integer NOT NULL DEFAULT 100');
+      expect(createTableQuery).toContain('"last_booking_time" TIMESTAMP');
+      expect(createTableQuery).toContain('"today_booking_count" integer NOT NULL DEFAULT 0');
+      expect(createTableQuery).toContain('"created_at" TIMESTAMP NOT NULL DEFAULT now()');
+      expect(createTableQuery).toContain('"updated_at" TIMESTAMP NOT NULL DEFAULT now()');
+      // Verify initial data insertion
+      expect(insertDataQuery).toContain('INSERT INTO "shop_codes"');
+      expect(insertDataQuery).toContain('SHOP123');
+      expect(insertDataQuery).toContain('Test Shop');
+    });
+    it('should not create shop_codes table if it already exists', async () => {
+      queryRunner.hasTable.mockResolvedValue(true);
+      await migration.up(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.hasTable).toHaveBeenCalledWith('shop_codes');
+      expect(queryRunner.query).not.toHaveBeenCalled();
+    });
+  });
+  describe('down', () => {
+    it('should drop shop_codes table', async () => {
+      await migration.down(queryRunner as unknown as QueryRunner);
+      expect(queryRunner.query).toHaveBeenCalledWith('DROP TABLE IF EXISTS "shop_codes"');
+      const calls = queryRunner.query.mock.calls;
+      if (!Array.isArray(calls) || calls.length === 0) {
+        throw new Error('Expected at least one query call');
+      }
+      const dropTableQuery = calls[0][0];
+      if (typeof dropTableQuery !== 'string') {
+        throw new Error('Expected string query');
+      }
+      expect(dropTableQuery).toBe('DROP TABLE IF EXISTS "shop_codes"');
+    });
+  });
+});
 ````
 
 ## File: backend/src/database/seeds/update-admin-password.seed.ts
@@ -17366,85 +16886,6 @@ describe("EmployeesController", () => {
 });
 ````
 
-## File: backend/src/orders/orders.module.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { OrdersModule } from './orders.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from './entities/order.entity';
-import { OrdersService } from './orders.service';
-import { BookingsModule } from '../bookings/bookings.module';
-import { Repository } from 'typeorm';
-interface MockOrdersService {
-  findAll: jest.Mock;
-  findOne: jest.Mock;
-  createFromBooking: jest.Mock;
-}
-// Mock OrdersService
-const mockOrdersService: MockOrdersService = {
-  findAll: jest.fn(),
-  findOne: jest.fn(),
-  createFromBooking: jest.fn(),
-};
-// Mock repository
-const mockRepository: Partial<Repository<Order>> = {
-  find: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-  create: jest.fn(),
-};
-// Mock BookingsModule
-jest.mock('../bookings/bookings.module', () => ({
-  BookingsModule: class MockBookingsModule {},
-}));
-describe('OrdersModule', () => {
-  let moduleRef: TestingModule;
-  beforeEach(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        {
-          module: class MockTypeOrmFeatureModule {},
-          providers: [
-            {
-              provide: 'OrderRepository',
-              useValue: mockRepository,
-            },
-          ],
-        },
-        BookingsModule,
-      ],
-      providers: [
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    // Set metadata for exports and imports
-    Reflect.defineMetadata('exports', [OrdersService, TypeOrmModule], OrdersModule);
-    Reflect.defineMetadata('imports', [
-      TypeOrmModule.forFeature([Order]),
-      BookingsModule,
-    ], OrdersModule);
-  });
-  it('should be defined', () => {
-    expect(moduleRef).toBeDefined();
-  });
-  it('should export OrdersService', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
-    expect(exports).toContain(OrdersService);
-  });
-  it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
-    expect(exports).toContain(TypeOrmModule);
-  });
-  it('should import required modules', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule) as Array<unknown>;
-    expect(imports).toContain(BookingsModule);
-  });
-});
-````
-
 ## File: backend/src/orders/orders.service.ts
 ````typescript
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -17562,6 +17003,76 @@ export class OrdersService {
 }
 ````
 
+## File: backend/src/services/services.module.spec.ts
+````typescript
+import { Test } from '@nestjs/testing';
+import { ServicesModule } from './services.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Service } from './entities/service.entity';
+import { ServicesService } from './services.service';
+import { Type } from '@nestjs/common';
+// Mock ServicesService
+const mockServicesService = {
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+};
+// Mock repository
+const mockRepository = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+describe('ServicesModule', () => {
+  let moduleRef;
+  beforeEach(async () => {
+    moduleRef = await Test.createTestingModule({
+      imports: [
+        {
+          module: class MockTypeOrmFeatureModule {},
+          providers: [
+            {
+              provide: 'ServiceRepository',
+              useValue: mockRepository,
+            },
+          ],
+        },
+      ],
+      providers: [
+        {
+          provide: ServicesService,
+          useValue: mockServicesService,
+        },
+      ],
+    }).compile();
+    // Set metadata for exports and imports
+    Reflect.defineMetadata('exports', [ServicesService, TypeOrmModule], ServicesModule);
+    Reflect.defineMetadata('imports', [TypeOrmModule.forFeature([Service])], ServicesModule);
+    Reflect.defineMetadata('controllers', [], ServicesModule);
+  });
+  it('should be defined', () => {
+    expect(moduleRef).toBeDefined();
+  });
+  it('should export ServicesService', () => {
+    const exports = Reflect.getMetadata('exports', ServicesModule) as (Type | typeof TypeOrmModule)[];
+    expect(exports).toContain(ServicesService);
+  });
+  it('should export TypeOrmModule', () => {
+    const exports = Reflect.getMetadata('exports', ServicesModule) as (Type | typeof TypeOrmModule)[];
+    expect(exports).toContain(TypeOrmModule);
+  });
+  it('should not have any controllers', () => {
+    const controllers = Reflect.getMetadata('controllers', ServicesModule) as Type[];
+    expect(controllers).toEqual([]);
+  });
+});
+````
+
 ## File: backend/src/users/users.module.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -17632,6 +17143,142 @@ describe('UsersModule', () => {
   it('should not have any controllers', () => {
     const controllers = Reflect.getMetadata('controllers', UsersModule) as Type<unknown>[];
     expect(controllers).toEqual([]);
+  });
+});
+````
+
+## File: backend/src/users/users.service.spec.ts
+````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { FindOneOptions } from 'typeorm';
+import { UsersService } from './users.service';
+import { User } from './entities/user.entity';
+import { NotFoundException } from '@nestjs/common';
+type JestMock = jest.Mock;
+type MockCalls = Array<unknown>[];
+describe('UsersService', () => {
+  let service: UsersService;
+  const mockUser = {
+    id: 'user-1',
+    email: 'test@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    password: 'hashedPassword',
+  };
+  const mockUserRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+      ],
+    }).compile();
+    service = module.get<UsersService>(UsersService);
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+  describe('findOne', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findOne('user-1');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+  describe('findByEmail', () => {
+    it('should return a user when found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      const result = await service.findByEmail('test@example.com');
+      expect(result).toEqual(mockUser);
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const calls = findOneMock.mock.calls as MockCalls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallArgs = lastCall[0] as FindOneOptions<User>;
+      expect(lastCallArgs).toEqual({
+        where: { email: 'test@example.com' },
+      });
+    });
+    it('should return null when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      const result = await service.findByEmail('nonexistent@example.com');
+      expect(result).toBeNull();
+    });
+  });
+  describe('create', () => {
+    const createUserData = {
+      email: 'new@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      password: 'password123',
+    };
+    it('should create and return a new user', async () => {
+      mockUserRepository.create.mockReturnValue(createUserData);
+      mockUserRepository.save.mockResolvedValue({ id: 'new-user', ...createUserData });
+      const result = await service.create(createUserData);
+      expect(result).toEqual({ id: 'new-user', ...createUserData });
+      const createMock = mockUserRepository.create as JestMock;
+      const saveMock = mockUserRepository.save as JestMock;
+      const createCalls = createMock.mock.calls as MockCalls;
+      const saveCalls = saveMock.mock.calls as MockCalls;
+      const lastCreateCall = createCalls[createCalls.length - 1];
+      const lastSaveCall = saveCalls[saveCalls.length - 1];
+      const lastCreateArgs = lastCreateCall[0] as Partial<User>;
+      const lastSaveArgs = lastSaveCall[0] as Partial<User>;
+      expect(lastCreateArgs).toEqual(createUserData);
+      expect(lastSaveArgs).toEqual(createUserData);
+    });
+  });
+  describe('update', () => {
+    const updateData = {
+      firstName: 'Updated',
+      lastName: 'Name',
+    };
+    it('should update and return the user', async () => {
+      const updatedUser = { ...mockUser, ...updateData };
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(updatedUser);
+      const result = await service.update('user-1', updateData);
+      expect(result).toEqual(updatedUser);
+      const updateMock = mockUserRepository.update as JestMock;
+      const findOneMock = mockUserRepository.findOne as JestMock;
+      const updateCalls = updateMock.mock.calls as MockCalls;
+      const findOneCalls = findOneMock.mock.calls as MockCalls;
+      const lastUpdateCall = updateCalls[updateCalls.length - 1];
+      const lastFindOneCall = findOneCalls[findOneCalls.length - 1];
+      expect(lastUpdateCall).toEqual(['user-1', updateData]);
+      expect(lastFindOneCall[0]).toEqual({
+        where: { id: 'user-1' },
+      });
+    });
+    it('should throw NotFoundException when user not found during update', async () => {
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.findOne.mockResolvedValue(null);
+      await expect(service.update('non-existent', updateData)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
   });
 });
 ````
@@ -18066,6 +17713,80 @@ describe("Auth Store", () => {
     });
   });
 });
+````
+
+## File: frontend/admin/src/types/index.ts
+````typescript
+export interface Order {
+  id: string
+  completedAt: string
+  totalAmount: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+  booking: Booking
+}
+export interface Booking {
+  id: string
+  startTime: string
+  endTime: string
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED'
+  notes: string
+  totalPrice: string
+  reminderSent: boolean
+  cancelledAt: string | null
+  cancellationReason: string | null
+  createdAt: string
+  updatedAt: string
+  customer: Customer
+  employee: Employee
+  service: Service
+}
+// This interface represents the simplified booking data used in views
+export interface BookingView {
+  id: string | number;
+  customerName: string;
+  employeeName: string;
+  serviceName: string;
+  startTime: string;
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED';
+  notes?: string;
+}
+export interface Customer {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phoneNumber: string
+  role: string
+  createdAt: string
+  updatedAt: string
+}
+export interface Employee {
+  id: string
+  specializations: string[]
+  availability: Record<string, { start: string; end: string }[]>
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    role: string
+  }
+}
+export interface Service {
+  id: string
+  name: string
+  description: string
+  duration: number
+  price: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
 ````
 
 ## File: frontend/admin/tsconfig.json
@@ -19070,101 +18791,6 @@ EXPOSE 5173
 CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
 ````
 
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
-````
-
 ## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
@@ -19794,6 +19420,299 @@ describe('CreateBookingSystem1731981975582', () => {
 });
 ````
 
+## File: backend/src/database/seeds/create-sample-bookings.seed.spec.ts
+````typescript
+import { DataSource, Repository, EntityTarget } from "typeorm";
+import { User } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import { Booking, BookingStatus } from "../../bookings/entities/booking.entity";
+import { createSampleBookings } from "./create-sample-bookings.seed";
+import * as bcrypt from "bcrypt";
+import { faker } from "@faker-js/faker";
+jest.mock("bcrypt");
+jest.mock("@faker-js/faker", () => ({
+  faker: {
+    person: {
+      firstName: jest.fn().mockReturnValue("John"),
+      lastName: jest.fn().mockReturnValue("Doe"),
+    },
+    internet: {
+      email: jest.fn().mockReturnValue("john.doe@example.com"),
+    },
+    string: {
+      numeric: jest.fn().mockReturnValue("12345678"),
+    },
+    helpers: {
+      arrayElement: jest.fn(),
+      maybe: jest.fn(),
+    },
+    date: {
+      between: jest.fn(),
+    },
+    lorem: {
+      sentence: jest.fn().mockReturnValue("Sample note"),
+    },
+  },
+}));
+type SupportedEntity = User | Employee | Service | Booking;
+interface RepositoryMapping {
+  User: Repository<User>;
+  Employee: Repository<Employee>;
+  Service: Repository<Service>;
+  Booking: Repository<Booking>;
+}
+interface MockCall<T> {
+  calls: [T][];
+}
+describe("createSampleBookings", () => {
+  let mockDataSource: Partial<DataSource>;
+  let mockUserRepository: Partial<Repository<User>>;
+  let mockEmployeeRepository: Partial<Repository<Employee>>;
+  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockBookingRepository: Partial<Repository<Booking>>;
+  const originalEnv = process.env;
+  const originalRandom = Math.random;
+  beforeEach(() => {
+    mockUserRepository = {
+      save: jest
+        .fn()
+        .mockImplementation(
+          (data: Partial<User>): Promise<User> =>
+            Promise.resolve({ id: "user-1", ...data } as User)
+        ),
+    };
+    mockEmployeeRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+    mockServiceRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    };
+    mockBookingRepository = {
+      save: jest
+        .fn()
+        .mockImplementation(
+          (
+            bookings: Partial<Booking> | Partial<Booking>[]
+          ): Promise<Booking | Booking[]> =>
+            Promise.resolve(
+              Array.isArray(bookings)
+                ? bookings.map(
+                    (b, i) => ({ id: `booking-${i}`, ...b }) as Booking
+                  )
+                : ({ id: "booking-1", ...bookings } as Booking)
+            )
+        ),
+    };
+    const repositories: RepositoryMapping = {
+      User: mockUserRepository as Repository<User>,
+      Employee: mockEmployeeRepository as Repository<Employee>,
+      Service: mockServiceRepository as Repository<Service>,
+      Booking: mockBookingRepository as Repository<Booking>,
+    };
+    const mockGetRepository = <T extends SupportedEntity>(
+      entity: EntityTarget<T>
+    ): Repository<T> => {
+      const entityName = typeof entity === "function" ? entity.name : "Unknown";
+      const repository = repositories[entityName as keyof RepositoryMapping];
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+      return repository as Repository<T>;
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
+    };
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
+    process.env = {
+      ...originalEnv,
+      EMPLOYEE_EMAIL: "employee@example.com",
+    };
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+    Math.random = originalRandom;
+    jest.clearAllMocks();
+  });
+  it("should create sample customers and bookings when employee and services exist", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    const mockServices = [
+      { id: "service-1", name: "Haircut", duration: 30, price: 30 },
+      { id: "service-2", name: "Styling", duration: 45, price: 40 },
+    ];
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
+    mockArrayElement
+      .mockReturnValueOnce(mockServices[0])
+      .mockReturnValue({ id: "customer-1" });
+    const mockDate = new Date("2024-01-01T10:00:00Z");
+    (faker.date.between as jest.Mock).mockReturnValue(mockDate);
+    (faker.helpers.maybe as jest.Mock).mockImplementation(
+      (callback: () => string) => callback()
+    );
+    await createSampleBookings(mockDataSource as DataSource);
+    const saveBookingMock = mockBookingRepository.save as jest.Mock;
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
+    if (!mockCalls.calls.length) {
+      throw new Error("Expected at least one booking save call");
+    }
+    const savedBookings = mockCalls.calls[0][0];
+    if (!Array.isArray(savedBookings)) {
+      throw new Error("Expected an array of bookings");
+    }
+    expect(savedBookings).toHaveLength(20);
+    expect(savedBookings[0]).toEqual(
+      expect.objectContaining({
+        employee: mockEmployee,
+        service: mockServices[0],
+        startTime: mockDate,
+        endTime: expect.any(Date) as Date,
+        notes: "Sample note",
+      })
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      "Sample bookings created successfully"
+    );
+  });
+  it("should throw error when employee is not found", async () => {
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(null);
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee not found. Please run initial data seed first."
+    );
+    expect(mockBookingRepository.save).not.toHaveBeenCalled();
+  });
+  it("should throw error when customer creation fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(
+      new Error("Database error")
+    );
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to create customer 1");
+  });
+  it("should throw error when service/customer selection fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock).mockReturnValue(null);
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to select service or customer for booking 1");
+  });
+  it("should throw error when saving bookings fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    const mockCustomer = { id: "customer-1" };
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock)
+      .mockReturnValueOnce(mockServices[0]) // First call for service
+      .mockReturnValue(mockCustomer); // Subsequent calls for customer
+    (mockBookingRepository.save as jest.Mock).mockResolvedValue(null);
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Failed to save bookings - no bookings returned from save operation"
+    );
+  });
+  it("should throw error when status weight determination fails", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    const mockCustomer = { id: "customer-1" };
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    (faker.helpers.arrayElement as jest.Mock)
+      .mockReturnValueOnce(mockServices[0]) // First call for service
+      .mockReturnValue(mockCustomer); // Subsequent calls for customer
+    // Set Math.random to return a value greater than all weights
+    Math.random = jest.fn().mockReturnValue(2.0);
+    await expect(
+      createSampleBookings(mockDataSource as DataSource)
+    ).rejects.toThrow("Failed to determine status for booking 1");
+  });
+  it("should create bookings with cancelled status and cancellation details", async () => {
+    const mockEmployee = {
+      id: "employee-1",
+      user: { email: "employee@example.com" },
+    };
+    const mockServices = [{ id: "service-1", duration: 30, price: 30 }];
+    (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(
+      mockEmployee
+    );
+    (mockServiceRepository.find as jest.Mock).mockResolvedValue(mockServices);
+    const mockArrayElement = faker.helpers.arrayElement as jest.Mock;
+    mockArrayElement
+      .mockReturnValueOnce(mockServices[0])
+      .mockReturnValue({ id: "customer-1" });
+    Math.random = jest.fn().mockReturnValue(0.95);
+    const mockStartDate = new Date("2024-01-01T10:00:00Z");
+    const mockCancelDate = new Date("2024-01-01T09:00:00Z");
+    const mockDateBetween = faker.date.between as jest.Mock;
+    mockDateBetween
+      .mockReturnValueOnce(mockStartDate)
+      .mockReturnValue(mockCancelDate);
+    await createSampleBookings(mockDataSource as DataSource);
+    const saveBookingMock = mockBookingRepository.save as jest.Mock;
+    const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
+    if (!mockCalls.calls.length) {
+      throw new Error("Expected at least one booking save call");
+    }
+    const savedBookings = mockCalls.calls[0][0];
+    if (!Array.isArray(savedBookings)) {
+      throw new Error("Expected an array of bookings");
+    }
+    const cancelledBooking = savedBookings.find(
+      (b) => b.status === BookingStatus.CANCELLED
+    );
+    expect(cancelledBooking).toBeDefined();
+    if (cancelledBooking) {
+      expect(cancelledBooking).toEqual(
+        expect.objectContaining({
+          status: BookingStatus.CANCELLED,
+          cancelledAt: mockCancelDate,
+          cancellationReason: "Sample note",
+        })
+      );
+    }
+  });
+});
+````
+
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -19865,224 +19784,81 @@ export class EmployeesController {
 }
 ````
 
-## File: backend/src/main.spec.ts
+## File: backend/src/orders/orders.module.spec.ts
 ````typescript
-import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { NestFactory } from "@nestjs/core";
-import { bootstrap } from "./main";
-// Mock all external modules
-jest.mock("@nestjs/typeorm", () => ({
-  TypeOrmModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-    forRootAsync: jest.fn().mockReturnValue({}),
-    forFeature: jest.fn().mockReturnValue({}),
-  },
-  getRepositoryToken: jest.fn(),
-  InjectRepository: () => jest.fn(),
-}));
-jest.mock("@nestjs/cache-manager", () => ({
-  CacheModule: {
-    register: jest.fn().mockReturnValue({}),
-    registerAsync: jest.fn().mockReturnValue({}),
-  },
-}));
-jest.mock("@nestjs/config", () => ({
-  ConfigModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-  },
-  ConfigService: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key: string) => {
-      if (key === "cache") {
-        return {
-          host: "localhost",
-          port: 6379,
-          ttl: 300,
-        };
-      }
-      return null;
-    }),
-  })),
-}));
-// Mock feature modules
-jest.mock("./auth/auth.module", () => ({
-  AuthModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./users/users.module", () => ({
-  UsersModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./services/services.module", () => ({
-  ServicesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: jest.fn().mockReturnValue({}),
-}));
-// Mock app module
-jest.mock("./app.module", () => ({
-  AppModule: jest.fn().mockReturnValue({}),
-}));
-type MockNestApp = {
-  [_K in keyof INestApplication]: jest.Mock;
-};
-interface SwaggerSetupOptions {
-  swaggerOptions: {
-    persistAuthorization: boolean;
-    docExpansion: string;
-    filter: boolean;
-    showRequestDuration: boolean;
-  };
+import { Test, TestingModule } from '@nestjs/testing';
+import { OrdersModule } from './orders.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Order } from './entities/order.entity';
+import { OrdersService } from './orders.service';
+import { BookingsModule } from '../bookings/bookings.module';
+import { Repository } from 'typeorm';
+interface MockOrdersService {
+  findAll: jest.Mock;
+  findOne: jest.Mock;
+  createFromBooking: jest.Mock;
 }
-describe("Bootstrap", () => {
-  let app: MockNestApp;
-  const mockSwaggerDoc: OpenAPIObject = {
-    openapi: "3.0.0",
-    paths: {},
-    components: {},
-    info: {
-      title: "Test API",
-      version: "1.0",
-    },
-  };
-  beforeEach(() => {
-    // Reset modules before each test
-    jest.resetModules();
-    // Create a more complete mock implementation of INestApplication
-    app = {
-      enableCors: jest.fn().mockReturnThis(),
-      useGlobalPipes: jest.fn().mockReturnThis(),
-      listen: jest.fn().mockResolvedValue(undefined),
-      init: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      useGlobalFilters: jest.fn().mockReturnThis(),
-      useGlobalInterceptors: jest.fn().mockReturnThis(),
-      useGlobalGuards: jest.fn().mockReturnThis(),
-      use: jest.fn().mockReturnThis(),
-      setGlobalPrefix: jest.fn().mockReturnThis(),
-      enableVersioning: jest.fn().mockReturnThis(),
-      getUrl: jest.fn().mockReturnThis(),
-      useWebSocketAdapter: jest.fn().mockReturnThis(),
-      connectMicroservice: jest.fn().mockReturnThis(),
-      getMicroservices: jest.fn().mockReturnThis(),
-      getHttpServer: jest.fn().mockReturnThis(),
-      startAllMicroservices: jest.fn().mockReturnThis(),
-      stopAllMicroservices: jest.fn().mockReturnThis(),
-      createNestApplication: jest.fn().mockReturnThis(),
-      registerRequestByName: jest.fn().mockReturnThis(),
-      registerRequestById: jest.fn().mockReturnThis(),
-      flushLogs: jest.fn().mockReturnThis(),
-      getHttpAdapter: jest.fn().mockReturnThis(),
-      resolve: jest.fn().mockReturnThis(),
-      registerRequestByContextId: jest.fn().mockReturnThis(),
-      useLogger: jest.fn().mockReturnThis(),
-      enableShutdownHooks: jest.fn().mockReturnThis(),
-    } as unknown as MockNestApp;
-    jest
-      .spyOn(NestFactory, "create")
-      .mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
-    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
-    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
-    jest.spyOn(console, "log").mockImplementation(() => {});
+// Mock OrdersService
+const mockOrdersService: MockOrdersService = {
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  createFromBooking: jest.fn(),
+};
+// Mock repository
+const mockRepository: Partial<Repository<Order>> = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+};
+// Mock BookingsModule
+jest.mock('../bookings/bookings.module', () => ({
+  BookingsModule: class MockBookingsModule {},
+}));
+describe('OrdersModule', () => {
+  let moduleRef: TestingModule;
+  beforeEach(async () => {
+    moduleRef = await Test.createTestingModule({
+      imports: [
+        {
+          module: class MockTypeOrmFeatureModule {},
+          providers: [
+            {
+              provide: 'OrderRepository',
+              useValue: mockRepository,
+            },
+          ],
+        },
+        BookingsModule,
+      ],
+      providers: [
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    // Set metadata for exports and imports
+    Reflect.defineMetadata('exports', [OrdersService, TypeOrmModule], OrdersModule);
+    Reflect.defineMetadata('imports', [
+      TypeOrmModule.forFeature([Order]),
+      BookingsModule,
+    ], OrdersModule);
   });
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('should be defined', () => {
+    expect(moduleRef).toBeDefined();
   });
-  it("should create NestJS application", async () => {
-    await bootstrap();
-    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
+  it('should export OrdersService', () => {
+    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
+    expect(exports).toContain(OrdersService);
   });
-  it("should enable CORS with correct configuration", async () => {
-    await bootstrap();
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
-    expect(app.enableCors).toHaveBeenCalledWith({
-      origin: true,
-      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-      credentials: true,
-    });
+  it('should export TypeOrmModule', () => {
+    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
+    expect(exports).toContain(TypeOrmModule);
   });
-  it("should set up global validation pipe", async () => {
-    await bootstrap();
-    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
-    if (!validationPipeCalls.length) {
-      throw new Error("Expected at least one validation pipe call");
-    }
-    const validationPipe = validationPipeCalls[0][0];
-    expect(validationPipe).toBeInstanceOf(ValidationPipe);
-  });
-  it("should set up Swagger documentation", async () => {
-    await bootstrap();
-    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
-      "Hair Salon Booking API"
-    );
-    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
-      "API documentation for the Hair Salon Booking System"
-    );
-    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
-    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth"
-    );
-    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
-    expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls as Array<
-      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
-    >;
-    if (!setupCalls.length) {
-      throw new Error("Expected at least one Swagger setup call");
-    }
-    const [path, setupApp, document, options] = setupCalls[0];
-    expect(path).toBe("api-docs");
-    expect(setupApp).toBe(app);
-    expect(document).toEqual<OpenAPIObject>({
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: expect.any(String) as string,
-        version: expect.any(String) as string,
-      },
-    });
-    expect(options).toEqual<SwaggerSetupOptions>({
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: "none",
-        filter: true,
-        showRequestDuration: true,
-      },
-    });
-  });
-  it("should listen on the configured port", async () => {
-    const originalEnv = process.env.PORT;
-    process.env.PORT = "4000";
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith("4000");
-    process.env.PORT = originalEnv;
-  });
-  it("should use default port 3000 when PORT env is not set", async () => {
-    const originalEnv = process.env.PORT;
-    delete process.env.PORT;
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith(3000);
-    process.env.PORT = originalEnv;
+  it('should import required modules', () => {
+    const imports = Reflect.getMetadata('imports', OrdersModule) as unknown[];
+    expect(imports).toContain(BookingsModule);
   });
 });
 ````
@@ -21438,53 +21214,224 @@ describe("OrdersController", () => {
 });
 ````
 
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components/button';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
+## File: backend/src/main.spec.ts
+````typescript
+import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
+import { bootstrap } from "./main";
+// Mock all external modules
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+    forRootAsync: jest.fn().mockReturnValue({}),
+    forFeature: jest.fn().mockReturnValue({}),
+  },
+  getRepositoryToken: jest.fn(),
+  InjectRepository: () => jest.fn(),
+}));
+jest.mock("@nestjs/cache-manager", () => ({
+  CacheModule: {
+    register: jest.fn().mockReturnValue({}),
+    registerAsync: jest.fn().mockReturnValue({}),
+  },
+}));
+jest.mock("@nestjs/config", () => ({
+  ConfigModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+  },
+  ConfigService: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === "cache") {
+        return {
+          host: "localhost",
+          port: 6379,
+          ttl: 300,
+        };
+      }
+      return null;
+    }),
+  })),
+}));
+// Mock feature modules
+jest.mock("./auth/auth.module", () => ({
+  AuthModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./users/users.module", () => ({
+  UsersModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./employees/employees.module", () => ({
+  EmployeesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./services/services.module", () => ({
+  ServicesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./bookings/bookings.module", () => ({
+  BookingsModule: jest.fn().mockReturnValue({}),
+}));
+// Mock app module
+jest.mock("./app.module", () => ({
+  AppModule: jest.fn().mockReturnValue({}),
+}));
+type MockNestApp = {
+  [_K in keyof INestApplication]: jest.Mock;
+};
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+describe("Bootstrap", () => {
+  let app: MockNestApp;
+  const mockSwaggerDoc: OpenAPIObject = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
+  beforeEach(() => {
+    // Reset modules before each test
+    jest.resetModules();
+    // Create a more complete mock implementation of INestApplication
+    app = {
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
+      listen: jest.fn().mockResolvedValue(undefined),
+      init: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
+    jest
+      .spyOn(NestFactory, "create")
+      .mockResolvedValue(app);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
+    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
+    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it("should create NestJS application", async () => {
+    await bootstrap();
+    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
+  });
+  it("should enable CORS with correct configuration", async () => {
+    await bootstrap();
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
+    expect(app.enableCors).toHaveBeenCalledWith({
+      origin: true,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+      credentials: true,
+    });
+  });
+  it("should set up global validation pipe", async () => {
+    await bootstrap();
+    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
+    if (!validationPipeCalls.length) {
+      throw new Error("Expected at least one validation pipe call");
+    }
+    const validationPipe = validationPipeCalls[0][0];
+    expect(validationPipe).toBeInstanceOf(ValidationPipe);
+  });
+  it("should set up Swagger documentation", async () => {
+    await bootstrap();
+    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
+      "Hair Salon Booking API"
+    );
+    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
+      "API documentation for the Hair Salon Booking System"
+    );
+    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
+    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth"
+    );
+    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
+    expect(SwaggerModule.createDocument).toHaveBeenCalled();
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions][];
+    if (!setupCalls.length) {
+      throw new Error("Expected at least one Swagger setup call");
+    }
+    const [path, setupApp, document, options] = setupCalls[0];
+    expect(path).toBe("api-docs");
+    expect(setupApp).toBe(app);
+    expect(document).toEqual<OpenAPIObject>({
+      openapi: "3.0.0",
+      paths: {},
+      components: {},
+      info: {
+        title: expect.any(String) as string,
+        version: expect.any(String) as string,
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+  });
+  it("should listen on the configured port", async () => {
+    const originalEnv = process.env.PORT;
+    process.env.PORT = "4000";
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith("4000");
+    process.env.PORT = originalEnv;
+  });
+  it("should use default port 3000 when PORT env is not set", async () => {
+    const originalEnv = process.env.PORT;
+    delete process.env.PORT;
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith(3000);
+    process.env.PORT = originalEnv;
+  });
 });
-defineEmits<{
-  (e: 'click', event: MouseEvent): void;
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
 ````
 
 ## File: frontend/admin/src/stores/orders.ts
@@ -21567,6 +21514,60 @@ export const useOrdersStore = defineStore("orders", {
 });
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.16.0",
+    "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.10",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-vue": "^10.9.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.8"
+  }
+}
+````
+
 ## File: frontend/customer/src/main.ts
 ````typescript
 import './assets/main.css'
@@ -21583,6 +21584,68 @@ app.use(pinia as unknown as Parameters<typeof app.use>[0])
 app.use(router)
 // Mount the app
 app.mount('#app')
+````
+
+## File: frontend/customer/package.json
+````json
+{
+  "name": "customer-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "axios": "^1.16.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "4.1.5",
+    "@vitest/eslint-plugin": "1.6.16",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.10",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.5.0",
+    "cypress": "^15.14.2",
+    "eslint": "^10.3.0",
+    "eslint-plugin-cypress": "^6.4.0",
+    "eslint-plugin-vue": "^10.9.0",
+    "jsdom": "^28.1.0",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.5.14",
+    "prettier": "^3.8.3",
+    "start-server-and-test": "^3.0.2",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.10",
+    "vite-plugin-vue-devtools": "^8.1.1",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.8"
+  }
+}
 ````
 
 ## File: backend/src/database/seeds/create-services.seed.spec.ts
@@ -21672,6 +21735,153 @@ describe('CreateServicesSeed', () => {
 ````
 # Supply chain security: prevent lifecycle scripts from running during install
 ignore-scripts=true
+````
+
+## File: backend/package.json
+````json
+{
+  "name": "backend",
+  "version": "0.0.4",
+  "description": "Hair Salon Booking System Backend",
+  "author": "",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
+    "test": "jest --passWithNoTests --coverage",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
+    "seed": "ts-node src/database/seeds/run-seeds.ts",
+    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
+    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
+    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
+  },
+  "dependencies": {
+    "@nestjs/cache-manager": "^3.1.2",
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.19",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.19",
+    "@nestjs/swagger": "^11.4.2",
+    "@nestjs/typeorm": "^11.0.1",
+    "bcrypt": "^6.0.0",
+    "cache-manager": "7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "dotenv": "^17.4.2",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
+    "@nestjs/cli": "^11.0.21",
+    "@nestjs/schematics": "^11.1.0",
+    "@nestjs/testing": "^11.1.19",
+    "@types/bcrypt": "^6.0.0",    
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.3",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-loader": "^9.5.7",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@scarf/scarf",
+      "bcrypt",
+      "unrs-resolver"
+    ]
+  }
+}
+````
+
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components/button';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  click: [event: MouseEvent];
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
 ````
 
 ## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
@@ -21961,104 +22171,6 @@ describe("createInitialData", () => {
 });
 ````
 
-## File: backend/package.json
-````json
-{
-  "name": "backend",
-  "version": "0.0.4",
-  "description": "Hair Salon Booking System Backend",
-  "author": "",
-  "private": true,
-  "license": "MIT",
-  "packageManager": "pnpm@11.0.8",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:strict": "eslint \"{src,apps,libs,test}/**/*.ts\" --max-warnings 0",
-    "test": "jest --passWithNoTests --coverage",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm -- migration:create",
-    "migration:generate": "npm run typeorm -- migration:generate -d typeorm.config.ts",
-    "migration:run": "npm run typeorm -- migration:run -d typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d typeorm.config.ts",
-    "seed": "ts-node src/database/seeds/run-seeds.ts",
-    "seed:admin-password": "ts-node src/database/seeds/update-admin-password-runner.ts",
-    "verify:admin-password": "ts-node src/database/seeds/verify-admin-password.ts",
-    "remove-admin": "ts-node src/database/seeds/remove-admin-user.ts"
-  },
-  "dependencies": {
-    "@nestjs/cache-manager": "^3.1.2",
-    "@nestjs/common": "^11.1.19",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.1.19",
-    "@nestjs/jwt": "^11.0.2",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.19",
-    "@nestjs/swagger": "^11.4.2",
-    "@nestjs/typeorm": "^11.0.1",
-    "bcrypt": "^6.0.0",
-    "cache-manager": "7.2.8",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.0",
-    "dotenv": "^17.4.2",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "pg": "^8.20.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "typeorm": "^0.3.28"
-  },
-  "devDependencies": {
-    "@faker-js/faker": "^10.4.0",
-    "@nestjs/cli": "^11.0.21",
-    "@nestjs/schematics": "^11.1.0",
-    "@nestjs/testing": "^11.1.19",
-    "@types/bcrypt": "^6.0.0",    
-    "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.2",
-    "eslint": "^10.3.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.3",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.7",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "@scarf/scarf",
-      "bcrypt",
-      "unrs-resolver"
-    ]
-  }
-}
-````
-
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -22179,60 +22291,6 @@ describe('TVDisplayView', () => {
 })
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "packageManager": "pnpm@11.0.8",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.16.0",
-    "chart.js": "^4.5.1",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.33",
-    "vue-router": "^5.0.6"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.10",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-vue": "^10.9.0",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.8"
-  }
-}
-````
-
 ## File: frontend/admin/vitest.setup.ts
 ````typescript
 // Ensure localStorage is available before @vue/devtools-kit initializes.
@@ -22259,67 +22317,5 @@ if (
     },
     key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
   } as Storage;
-}
-````
-
-## File: frontend/customer/package.json
-````json
-{
-  "name": "customer-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "packageManager": "pnpm@11.0.8",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
-    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "axios": "^1.16.0",
-    "pinia": "^3.0.4",
-    "vue": "^3.5.33",
-    "vue-router": "^5.0.6"
-  },
-  "devDependencies": {
-    "@pinia/testing": "^1.0.3",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/coverage-v8": "4.1.5",
-    "@vitest/eslint-plugin": "1.6.16",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.10",
-    "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.5.0",
-    "cypress": "^15.14.2",
-    "eslint": "^10.3.0",
-    "eslint-plugin-cypress": "^6.4.0",
-    "eslint-plugin-vue": "^10.9.0",
-    "jsdom": "^28.1.0",
-    "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.14",
-    "prettier": "^3.8.3",
-    "start-server-and-test": "^3.0.2",
-    "tailwindcss": "^3.4.19",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.10",
-    "vite-plugin-vue-devtools": "^8.1.1",
-    "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.8"
-  }
 }
 ````
