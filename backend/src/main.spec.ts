@@ -198,9 +198,7 @@ describe("Bootstrap", () => {
     expect(SwaggerModule.createDocument).toHaveBeenCalled();
 
     const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls as Array<
-      [string, INestApplication, OpenAPIObject, SwaggerSetupOptions]
-    >;
+    const setupCalls = setupMock.mock.calls as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions][];
     if (!setupCalls.length) {
       throw new Error("Expected at least one Swagger setup call");
     }

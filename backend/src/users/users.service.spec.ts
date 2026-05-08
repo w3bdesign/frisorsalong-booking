@@ -6,7 +6,7 @@ import { User } from './entities/user.entity';
 import { NotFoundException } from '@nestjs/common';
 
 type JestMock = jest.Mock;
-type MockCalls = Array<Array<unknown>>;
+type MockCalls = Array<unknown>[];
 
 describe('UsersService', () => {
   let service: UsersService;

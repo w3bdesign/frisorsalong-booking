@@ -43,7 +43,7 @@ interface RepositoryMapping {
 }
 
 interface MockCall<T> {
-  calls: Array<[T]>;
+  calls: [T][];
 }
 
 describe("createSampleBookings", () => {

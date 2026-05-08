@@ -33,7 +33,7 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 });
 
 defineEmits<{
-  (e: 'click', event: MouseEvent): void;
+  click: [event: MouseEvent];
 }>();
 
 const variantClasses = {

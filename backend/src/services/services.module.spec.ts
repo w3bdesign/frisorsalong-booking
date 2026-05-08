@@ -59,17 +59,17 @@ describe('ServicesModule', () => {
   });
 
   it('should export ServicesService', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
+    const exports = Reflect.getMetadata('exports', ServicesModule) as (Type | typeof TypeOrmModule)[];
     expect(exports).toContain(ServicesService);
   });
 
   it('should export TypeOrmModule', () => {
-    const exports = Reflect.getMetadata('exports', ServicesModule) as Array<Type | typeof TypeOrmModule>;
+    const exports = Reflect.getMetadata('exports', ServicesModule) as (Type | typeof TypeOrmModule)[];
     expect(exports).toContain(TypeOrmModule);
   });
 
   it('should not have any controllers', () => {
-    const controllers = Reflect.getMetadata('controllers', ServicesModule) as Array<Type>;
+    const controllers = Reflect.getMetadata('controllers', ServicesModule) as Type[];
     expect(controllers).toEqual([]);
   });
 });

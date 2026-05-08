@@ -1,13 +1,13 @@
 import { QueryRunner, Table, TableForeignKey } from "typeorm";
 import { CreateOrders1731981975583 } from "./1731981975583-CreateOrders";
 
-type SafeQueryRunner = {
+interface SafeQueryRunner {
   createTable: jest.Mock<Promise<Table>, [Table, boolean]>;
   createForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
   getTable: jest.Mock<Promise<Table>, [string]>;
   dropForeignKey: jest.Mock<Promise<void>, [string, TableForeignKey]>;
   dropTable: jest.Mock<Promise<void>, [string]>;
-};
+}
 
 describe("CreateOrders1731981975583", () => {
   let migration: CreateOrders1731981975583;

@@ -1,10 +1,10 @@
 import { QueryRunner } from 'typeorm';
 import { AddShopCodes1731981975584 } from './1731981975584-AddShopCodes';
 
-type SafeQueryRunner = {
+interface SafeQueryRunner {
   hasTable: jest.Mock<Promise<boolean>, [string]>;
   query: jest.Mock<Promise<void>, [string]>;
-};
+}
 
 describe('AddShopCodes1731981975584', () => {
   let migration: AddShopCodes1731981975584;
