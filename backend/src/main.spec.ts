@@ -130,7 +130,7 @@ describe("Bootstrap", () => {
 
     jest
       .spyOn(NestFactory, "create")
-      .mockResolvedValue(app as unknown as INestApplication);
+      .mockResolvedValue(app);
     jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
     jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
     jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
@@ -165,9 +165,7 @@ describe("Bootstrap", () => {
     await bootstrap();
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
 
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as Array<
-      [ValidationPipe]
-    >;
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
     if (!validationPipeCalls.length) {
       throw new Error("Expected at least one validation pipe call");
     }

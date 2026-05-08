@@ -42,7 +42,7 @@ const expectedServices: ServiceData[] = [
 
 describe('CreateServicesSeed', () => {
   let seed: CreateServicesSeed;
-  let mockDataSource: Partial<DataSource>;
+  let mockDataSource: DataSource;
   let mockServiceRepository: MockServiceRepository;
 
   beforeEach(() => {
@@ -62,13 +62,13 @@ describe('CreateServicesSeed', () => {
 
     mockDataSource = {
       getRepository: jest.fn().mockReturnValue(mockServiceRepository),
-    };
+    } as unknown as DataSource;
 
     seed = new CreateServicesSeed();
   });
 
   it('should clear existing services and create new ones', async () => {
-    await seed.run(mockDataSource as DataSource);
+    await seed.run(mockDataSource);
 
     expect(mockServiceRepository.clear).toHaveBeenCalled();
 
@@ -87,6 +87,6 @@ describe('CreateServicesSeed', () => {
     const dbError = new Error('Database connection error');
     mockServiceRepository.clear.mockRejectedValue(dbError);
 
-    await expect(seed.run(mockDataSource as DataSource)).rejects.toThrow('Database connection error');
+    await expect(seed.run(mockDataSource)).rejects.toThrow('Database connection error');
   });
 });

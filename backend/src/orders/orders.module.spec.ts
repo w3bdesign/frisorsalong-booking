@@ -70,7 +70,7 @@ describe('OrdersModule', () => {
   });
 
   it('should export OrdersService', () => {
-    const exports = Reflect.getMetadata('exports', OrdersModule) as Array<unknown>;
+    const exports = Reflect.getMetadata('exports', OrdersModule) as unknown[];
     expect(exports).toContain(OrdersService);
   });
 

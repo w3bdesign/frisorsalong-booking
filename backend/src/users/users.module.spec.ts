@@ -25,8 +25,8 @@ const mockRepository = {
 };
 
 // Define metadata types
-type ModuleExports = Array<Type<unknown> | DynamicModule>;
-type ModuleImports = Array<Type<unknown> | DynamicModule>;
+type ModuleExports = (Type<unknown> | DynamicModule)[];
+type ModuleImports = (Type<unknown> | DynamicModule)[];
 
 describe('UsersModule', () => {
   let moduleRef: TestingModule;

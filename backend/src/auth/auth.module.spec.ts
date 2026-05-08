@@ -13,9 +13,9 @@ import { DynamicModule, Provider, Type, ValueProvider, FactoryProvider } from '@
 type Constructor<T> = new (..._args: unknown[]) => T;
 
 interface ModuleMetadata {
-  imports: Array<Type<unknown> | DynamicModule>;
+  imports: (Type<unknown> | DynamicModule)[];
   providers: Provider[];
-  exports: Array<Type<unknown> | DynamicModule>;
+  exports: (Type<unknown> | DynamicModule)[];
   controllers: Constructor<unknown>[];
 }
 
