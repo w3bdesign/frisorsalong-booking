@@ -50,8 +50,8 @@ export const useBookingStore = defineStore('booking', () => {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(errorData?.message || 'Failed to create booking')
+        const errorData: { message?: string } | null = await response.json().catch(() => null)
+        throw new Error(errorData?.message ?? 'Failed to create booking')
       }
 
       const data = await response.json()
