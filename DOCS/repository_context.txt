@@ -291,6 +291,8 @@ frontend/
     tsconfig.json
     tsconfig.node.json
     vite.config.ts
+    vitest.config.ts
+    vitest.setup.ts
   customer/
     .vscode/
       extensions.json
@@ -13929,34 +13931,6 @@ export default {
 }
 ````
 
-## File: frontend/admin/vite.config.ts
-````typescript
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import { fileURLToPath, URL } from 'node:url';
-export default defineConfig({
-  plugins: [vue()],
-  test: {
-    environment: 'jsdom',
-    globals: true
-  },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    }
-  },
-  server: {
-    port: 3001,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
-      }
-    }
-  }
-});
-````
-
 ## File: frontend/customer/.vscode/extensions.json
 ````json
 {
@@ -19389,6 +19363,48 @@ export const useEmployeesStore = defineStore('employees', {
 }
 ````
 
+## File: frontend/admin/vite.config.ts
+````typescript
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import { fileURLToPath, URL } from 'node:url';
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  server: {
+    port: 3001,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
+    }
+  }
+});
+````
+
+## File: frontend/admin/vitest.config.ts
+````typescript
+import { fileURLToPath } from 'node:url'
+import { mergeConfig, defineConfig } from 'vitest/config'
+import viteConfig from './vite.config'
+export default mergeConfig(
+  viteConfig,
+  defineConfig({
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./vitest.setup.ts'],
+      root: fileURLToPath(new URL('./', import.meta.url)),
+    },
+  }),
+)
+````
+
 ## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -20631,6 +20647,37 @@ const sizeClasses = {
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+}
+````
+
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage: Record<string, string> = {};
+  globalThis.localStorage = {
+    getItem: (key: string) => storage[key] ?? null,
+    setItem: (key: string, value: string) => {
+      storage[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete storage[key];
+    },
+    clear: () => {
+      for (const key of Object.keys(storage)) {
+        delete storage[key];
+      }
+    },
+    get length() {
+      return Object.keys(storage).length;
+    },
+    key: (index: number) => Object.keys(storage)[index] ?? null,
+  } as Storage;
 }
 ````
 
@@ -22135,8 +22182,8 @@ describe("createInitialData", () => {
     "@types/node": "^24.12.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.1",
-    "@typescript-eslint/parser": "^8.59.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
