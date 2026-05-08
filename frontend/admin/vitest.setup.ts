@@ -2,7 +2,7 @@
 // The devtools-kit accesses localStorage.getItem at module load time,
 // which can fire before jsdom has fully set up the Storage prototype.
 if (
-  typeof globalThis.localStorage === 'undefined' ||
+  globalThis.localStorage === undefined ||
   typeof globalThis.localStorage.getItem !== 'function'
 ) {
   const storage: Record<string, string> = {};
