@@ -44,7 +44,7 @@ export const useServicesStore = defineStore('services', () => {
 
   // Schedule the initial fetch on next microtask tick
   queueMicrotask(() => {
-    fetchServices()
+    void fetchServices()
   })
 
   return {

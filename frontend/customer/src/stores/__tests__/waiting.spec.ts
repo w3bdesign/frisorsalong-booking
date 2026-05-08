@@ -149,7 +149,7 @@ describe('Waiting Store', () => {
       global.fetch = fetchMock
 
       const store = useWaitingStore()
-      const intervalId = store.startPolling(1000)
+      const intervalId: ReturnType<typeof setInterval> = store.startPolling(1000)
       await flushPromises()
       expect(fetchMock).toHaveBeenCalledTimes(1)
 

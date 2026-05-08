@@ -30,7 +30,7 @@ describe('TVDisplayView', () => {
     },
   ]
 
-  const createMockStore = (overrides = {}) => ({
+  const createMockStore = (overrides: Record<string, unknown> = {}): ReturnType<typeof useDisplayStore> => ({
     hasAvailableSlot: false,
     activeEmployees: mockEmployees,
     waitingSlots: mockWaitingSlots,

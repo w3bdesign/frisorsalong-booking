@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ButtonProps } from '@/types/components';
+import type { ButtonProps } from '@/types/components/button';
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   variant: 'primary',

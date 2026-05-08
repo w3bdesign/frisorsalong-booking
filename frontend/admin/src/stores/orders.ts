@@ -24,18 +24,20 @@ export const useOrdersStore = defineStore("orders", {
   }),
 
   getters: {
-    getOrdersByEmployee: (state) => (employeeId: string) => {
-      return state.orders.filter(
-        (order) => order.booking.employee.id === employeeId
-      );
+    getOrdersByEmployee: (state) => {
+      return (employeeId: string): Order[] => {
+        return state.orders.filter(
+          (order: Order) => order.booking.employee.id === employeeId
+        );
+      };
     },
 
-    getEmployeeStats: (state) => {
+    getEmployeeStats: (state): EmployeeStats[] => {
       const stats = new Map<string, EmployeeStats>();
 
-      state.orders.forEach((order) => {
-        const employeeId = order.booking.employee.id;
-        const amount = parseFloat(order.totalAmount);
+      state.orders.forEach((order: Order) => {
+        const employeeId: string = order.booking.employee.id;
+        const amount: number = Number.parseFloat(order.totalAmount);
 
         if (!stats.has(employeeId)) {
           stats.set(employeeId, {
@@ -45,9 +47,11 @@ export const useOrdersStore = defineStore("orders", {
           });
         }
 
-        const employeeStats = stats.get(employeeId)!;
-        employeeStats.count++;
-        employeeStats.revenue += amount;
+        const employeeStats = stats.get(employeeId);
+        if (employeeStats) {
+          employeeStats.count++;
+          employeeStats.revenue += amount;
+        }
       });
 
       return Array.from(stats.values());

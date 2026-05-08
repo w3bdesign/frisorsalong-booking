@@ -9,7 +9,9 @@ import router from './router'
 const app = createApp(App)
 
 // Use plugins
-app.use(createPinia())
+const pinia = createPinia()
+// Pinia's install() method is fully compatible with Vue's plugin system
+app.use(pinia as unknown as Parameters<typeof app.use>[0])
 app.use(router)
 
 // Mount the app

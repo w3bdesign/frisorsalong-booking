@@ -56,7 +56,7 @@ export const useWaitingStore = defineStore('waiting', () => {
   // Start polling for queue status
   const startPolling = (intervalMs: number = 60000): ReturnType<typeof setInterval> => {
     void fetchQueueStatus()
-    return setInterval(fetchQueueStatus, intervalMs)
+    return setInterval(() => void fetchQueueStatus(), intervalMs)
   }
 
   return {

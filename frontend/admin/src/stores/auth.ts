@@ -32,6 +32,64 @@ interface ErrorResponse {
   message?: string | string[];
 }
 
+function getHttpStatusErrorMessage(status: number): string {
+  switch (status) {
+    case 401:
+      return "Feil e-postadresse eller passord";
+    case 403:
+      return "Ingen tilgang: Krever ansatt- eller administratortilgang";
+    case 404:
+      return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
+    case 500:
+      return "En serverfeil har oppstått. Vennligst prøv igjen senere";
+    default:
+      return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+  }
+}
+
+function extractBackendMessage(message: string | string[]): string {
+  return Array.isArray(message) ? message.join(", ") : message;
+}
+
+function handleAxiosError(error: AxiosError<ErrorResponse>): string {
+  // Handle specific HTTP status codes first
+  if (error.response?.status) {
+    const statusMessage = getHttpStatusErrorMessage(error.response.status);
+    if (error.response.status >= 400 && error.response.status < 500) {
+      return statusMessage; // Use localized message for client errors
+    }
+    // For server errors, try backend message first, then fallback to localized
+    if (error.response.data.message) {
+      return extractBackendMessage(error.response.data.message);
+    }
+    return statusMessage;
+  }
+
+  // No status code, try backend message
+  if (error.response?.data?.message) {
+    return extractBackendMessage(error.response.data.message);
+  }
+
+  // Handle network/connection errors
+  if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+    return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
+  }
+
+  return "En feil oppstod under innlogging. Vennligst prøv igjen";
+}
+
+function resolveLoginError(error: unknown): string {
+  if (error instanceof AxiosError) {
+    return handleAxiosError(error as AxiosError<ErrorResponse>);
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "En feil oppstod under innlogging. Vennligst prøv igjen";
+}
+
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
     token: localStorage.getItem("admin_token"),
@@ -78,71 +136,11 @@ export const useAuthStore = defineStore("auth", {
         return true;
       } catch (error) {
         console.error("Login error:", error);
-        this.error = this.resolveLoginError(error);
+        this.error = resolveLoginError(error);
         return false;
       } finally {
         this.isLoading = false;
       }
-    },
-
-    getHttpStatusErrorMessage(status: number): string {
-      switch (status) {
-        case 401:
-          return "Feil e-postadresse eller passord";
-        case 403:
-          return "Ingen tilgang: Krever ansatt- eller administratortilgang";
-        case 404:
-          return "Tjenesten er ikke tilgjengelig. Vennligst prøv igjen senere";
-        case 500:
-          return "En serverfeil har oppstått. Vennligst prøv igjen senere";
-        default:
-          return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-    },
-
-    extractBackendMessage(message: string | string[]): string {
-      return Array.isArray(message) ? message.join(", ") : message;
-    },
-
-    handleAxiosError(error: AxiosError<ErrorResponse>): string {
-      // Handle specific HTTP status codes first
-      if (error.response?.status) {
-        const statusMessage = this.getHttpStatusErrorMessage(
-          error.response.status
-        );
-        if (error.response.status >= 400 && error.response.status < 500) {
-          return statusMessage; // Use localized message for client errors
-        }
-        // For server errors, try backend message first, then fallback to localized
-        if (error.response?.data?.message) {
-          return this.extractBackendMessage(error.response.data.message);
-        }
-        return statusMessage;
-      }
-
-      // No status code, try backend message
-      if (error.response?.data?.message) {
-        return this.extractBackendMessage(error.response.data.message);
-      }
-
-      // Handle network/connection errors
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-        return "Kunne ikke koble til serveren. Sjekk internettforbindelsen din";
-      }
-
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
-    },
-
-    resolveLoginError(error: unknown): string {
-      if (error instanceof AxiosError) {
-        return this.handleAxiosError(error as AxiosError<ErrorResponse>);
-      }
-
-      if (error instanceof Error) {
-        return error.message;
-      }
-
-      return "En feil oppstod under innlogging. Vennligst prøv igjen";
     },
 
     logout() {
