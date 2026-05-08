@@ -13,9 +13,9 @@ interface TimeSlot {
   end: string;
 }
 
-interface Availability {
-  [key: string]: TimeSlot[] | undefined;
-}
+type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+
+type Availability = Record<DayName, TimeSlot[] | undefined>;
 
 @Injectable()
 export class EmployeesService {
@@ -118,12 +118,26 @@ export class EmployeesService {
 
     // Get day of week (0 = Sunday, 1 = Monday, etc.)
     const dayOfWeek = startTime.getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-    const dayName = dayNames[dayOfWeek];
+    const dayNameMap = new Map<number, DayName>([
+      [0, 'sunday'],
+      [1, 'monday'],
+      [2, 'tuesday'],
+      [3, 'wednesday'],
+      [4, 'thursday'],
+      [5, 'friday'],
+      [6, 'saturday'],
+    ]);
+    const dayName = dayNameMap.get(dayOfWeek);
+
+    if (!dayName) {
+      return false;
+    }
 
     // Check if employee has availability for this day
-    const availability = employee.availability as Availability;
-    const dayAvailability = availability[dayName];
+    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
+      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
+    );
+    const dayAvailability = availabilityMap.get(dayName);
     
     if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
       return false;

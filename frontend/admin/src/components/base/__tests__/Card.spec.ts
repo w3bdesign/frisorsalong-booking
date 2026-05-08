@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 import Card from '../Card.vue';
+
+const TestIconComponent = defineComponent({
+  name: 'TestIcon',
+  render() {
+    return h('svg', { 'data-testid': 'test-icon' }, 'Test Icon');
+  },
+});
 
 describe('Card', () => {
   it('renders properly with default props', () => {
@@ -38,7 +46,7 @@ describe('Card', () => {
         value: '42'
       },
       slots: {
-        icon: '<svg data-testid="test-icon">Test Icon</svg>'
+        icon: () => h(TestIconComponent)
       }
     });
     expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
@@ -62,7 +70,7 @@ describe('Card', () => {
         color: 'green'
       },
       slots: {
-        icon: '<svg data-testid="test-icon">Test Icon</svg>'
+        icon: () => h(TestIconComponent)
       }
     });
     expect(wrapper.text()).toContain('Complex Test');

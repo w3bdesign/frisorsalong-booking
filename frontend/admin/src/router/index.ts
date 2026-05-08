@@ -44,7 +44,7 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.meta.requiresAuth !== false;
   const requiresAdmin = to.meta.requiresAdmin === true;

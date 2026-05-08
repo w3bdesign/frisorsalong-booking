@@ -1,4 +1,4 @@
-import { DataSource, Repository, EntityTarget } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { User, UserRole } from "../../users/entities/user.entity";
 import { Employee } from "../../employees/entities/employee.entity";
 import { Service } from "../../services/entities/service.entity";
@@ -7,19 +7,21 @@ import * as bcrypt from "bcrypt";
 
 jest.mock("bcrypt");
 
-interface RepositoryMapping {
-  User: Repository<User>;
-  Employee: Repository<Employee>;
-  Service: Repository<Service>;
+type SupportedEntity = User | Employee | Service;
+type SupportedEntityName = "User" | "Employee" | "Service";
+
+const VALID_ENTITY_NAMES = new Set<SupportedEntityName>(["User", "Employee", "Service"]);
+
+function isSupportedEntityName(name: string): name is SupportedEntityName {
+  return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
 }
 
-type SupportedEntity = User | Employee | Service;
-
-function getEntityName(entity: EntityTarget<SupportedEntity>): keyof RepositoryMapping {
-  if (typeof entity === "function") {
-    return entity.name as keyof RepositoryMapping;
+function getEntityName(entity: { name: string }): SupportedEntityName {
+  const name: string = entity.name;
+  if (isSupportedEntityName(name)) {
+    return name;
   }
-  throw new Error("Unsupported entity type");
+  throw new Error(`Unsupported entity type: ${name}`);
 }
 
 describe("createInitialData", () => {
@@ -75,21 +77,21 @@ describe("createInitialData", () => {
     };
 
     // Mock DataSource with proper typing
-    const mockGetRepository = <T extends SupportedEntity>(entity: EntityTarget<T>) => {
-      const repositories: RepositoryMapping = {
-        User: mockUserRepository as Repository<User>,
-        Employee: mockEmployeeRepository as Repository<Employee>,
-        Service: mockServiceRepository as Repository<Service>,
-      };
+    const mockGetRepository = (entity: { name: string }): Partial<Repository<SupportedEntity>> => {
+      const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
+        ["User", mockUserRepository],
+        ["Employee", mockEmployeeRepository],
+        ["Service", mockServiceRepository],
+      ]);
 
       const entityName = getEntityName(entity);
-      const repository = repositories[entityName];
+      const repository = repositories.get(entityName);
 
       if (!repository) {
         throw new Error(`Repository not mocked for entity: ${entityName}`);
       }
 
-      return repository as unknown as Repository<T>;
+      return repository;
     };
 
     mockDataSource = {

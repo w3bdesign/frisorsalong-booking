@@ -75,7 +75,9 @@ describe('CreateServicesSeed', () => {
     const savedServices = mockServiceRepository.save.mock.calls[0][0];
 
     expectedServices.forEach((expectedService, index) => {
-      expect(savedServices[index]).toEqual(
+      const service = savedServices.at(index);
+      expect(service).toBeDefined();
+      expect(service).toEqual(
         expect.objectContaining(expectedService)
       );
     });

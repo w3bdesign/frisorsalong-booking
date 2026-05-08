@@ -4,6 +4,14 @@ import { createTestingPinia } from '@pinia/testing'
 import { useServicesStore } from '@/stores/services'
 import ServiceList from '../ServiceList.vue'
 import { createRouter, createWebHistory } from 'vue-router'
+import { defineComponent, h } from 'vue'
+
+const BookingStub = defineComponent({
+  name: 'BookingStub',
+  render() {
+    return h('div', 'Booking')
+  },
+})
 
 // Create router instance for testing
 const router = createRouter({
@@ -12,7 +20,7 @@ const router = createRouter({
     {
       path: '/booking',
       name: 'booking',
-      component: { template: '<div>Booking</div>' },
+      component: BookingStub,
     },
   ],
 })
