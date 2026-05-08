@@ -91,10 +91,10 @@ describe("createSampleBookings", () => {
     };
 
     const repositories: RepositoryMapping = {
-      User: mockUserRepository,
-      Employee: mockEmployeeRepository,
-      Service: mockServiceRepository,
-      Booking: mockBookingRepository,
+      User: mockUserRepository as Repository<User>,
+      Employee: mockEmployeeRepository as Repository<Employee>,
+      Service: mockServiceRepository as Repository<Service>,
+      Booking: mockBookingRepository as Repository<Booking>,
     };
 
     const mockGetRepository = <T extends SupportedEntity>(
@@ -160,7 +160,7 @@ describe("createSampleBookings", () => {
       (callback: () => string) => callback()
     );
 
-    await createSampleBookings(mockDataSource);
+    await createSampleBookings(mockDataSource as DataSource);
 
     const saveBookingMock = mockBookingRepository.save as jest.Mock;
     const mockCalls = saveBookingMock.mock as MockCall<Booking[]>;
@@ -194,7 +194,7 @@ describe("createSampleBookings", () => {
     (mockEmployeeRepository.findOne as jest.Mock).mockResolvedValue(null);
 
     await expect(
-      createSampleBookings(mockDataSource)
+      createSampleBookings(mockDataSource as DataSource)
     ).rejects.toThrow(
       "Employee not found. Please run initial data seed first."
     );
