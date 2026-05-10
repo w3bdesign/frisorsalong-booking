@@ -21768,60 +21768,6 @@ const sizeClasses = {
 </script>
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "packageManager": "pnpm@11.0.8",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.16.0",
-    "chart.js": "^4.5.1",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.34",
-    "vue-router": "^5.0.6"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.1",
-    "@types/node": "^24.12.2",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.10",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-vue": "^10.9.1",
-    "jsdom": "^28.1.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.8"
-  }
-}
-````
-
 ## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
 ````typescript
 import { DataSource, Repository } from "typeorm";
@@ -22109,6 +22055,60 @@ describe("createInitialData", () => {
 });
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.16.0",
+    "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.34",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.10",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-vue": "^10.9.1",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.8"
+  }
+}
+````
+
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -22229,6 +22229,35 @@ describe('TVDisplayView', () => {
 })
 ````
 
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+    clear: () => {
+      storage.clear();
+    },
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
+  } as Storage;
+}
+````
+
 ## File: frontend/customer/package.json
 ````json
 {
@@ -22276,7 +22305,7 @@ describe('TVDisplayView', () => {
     "eslint": "^10.3.0",
     "eslint-plugin-cypress": "^6.4.1",
     "eslint-plugin-vue": "^10.9.1",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.1",
     "npm-run-all2": "^8.0.4",
     "postcss": "^8.5.14",
     "prettier": "^3.8.3",
@@ -22288,34 +22317,5 @@ describe('TVDisplayView', () => {
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.8"
   }
-}
-````
-
-## File: frontend/admin/vitest.setup.ts
-````typescript
-// Ensure localStorage is available before @vue/devtools-kit initializes.
-// The devtools-kit accesses localStorage.getItem at module load time,
-// which can fire before jsdom has fully set up the Storage prototype.
-if (
-  globalThis.localStorage === undefined ||
-  typeof globalThis.localStorage.getItem !== 'function'
-) {
-  const storage = new Map<string, string>();
-  globalThis.localStorage = {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      storage.set(key, value);
-    },
-    removeItem: (key: string) => {
-      storage.delete(key);
-    },
-    clear: () => {
-      storage.clear();
-    },
-    get length() {
-      return storage.size;
-    },
-    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
-  } as Storage;
 }
 ````
