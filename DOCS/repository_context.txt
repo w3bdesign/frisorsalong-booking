@@ -2950,6 +2950,140 @@ describe("BookingsController", () => {
 });
 ````
 
+## File: backend/src/bookings/bookings.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  UseGuards,
+  BadRequestException,
+  Req,
+  ParseUUIDPipe,
+  ValidationPipe,
+  Type,
+} from "@nestjs/common";
+import { BookingsService } from "./bookings.service";
+import { OrdersService } from "../orders/orders.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { BookingResponseDto } from "./dto/booking-response.dto";
+import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { UserRole } from "../users/entities/user.entity";
+import { Request } from "express";
+import { ShopCode } from "../shops/entities/shop-code.entity";
+import { Order } from "../orders/entities/order.entity";
+// Extend Express Request to include shop property
+interface RequestWithShop extends Request {
+  shop?: ShopCode;
+}
+@Controller("bookings")
+export class BookingsController {
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly ordersService: OrdersService
+  ) {}
+  @Get("upcoming/count")
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
+    return this.bookingsService.getUpcomingCount();
+  }
+  @Post("walk-in")
+  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
+  async createWalkIn(
+    @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
+    @Req() request: RequestWithShop
+  ): Promise<BookingResponseDto> {
+    if (!request.shop) {
+      throw new BadRequestException('Shop information is required for walk-in bookings');
+    }
+    const booking = await this.bookingsService.createWalkIn(
+      createWalkInBookingDto,
+      request.shop
+    );
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Post()
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
+  async create(
+    @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.create(createBookingDto);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Get("upcoming")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findUpcoming(): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findUpcoming();
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get("customer/:customerId")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
+  async findByCustomer(
+    @Param("customerId", new ParseUUIDPipe()) customerId: string
+  ): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findByCustomer(customerId);
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get("employee/:employeeId")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findByEmployee(
+    @Param("employeeId", new ParseUUIDPipe()) employeeId: string
+  ): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingsService.findByEmployee(employeeId);
+    return BookingResponseDto.fromEntities(bookings);
+  }
+  @Get(":id")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async findOne(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.findOne(id);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async update(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ValidationPipe({ transform: true })) updateBookingDto: UpdateBookingDto
+  ): Promise<BookingResponseDto> {
+    const booking = await this.bookingsService.update(id, updateBookingDto);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id/cancel")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
+  async cancel(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<BookingResponseDto> {
+    const reason = "Cancelled by administrator";
+    const booking = await this.bookingsService.cancel(id, reason);
+    return BookingResponseDto.fromEntity(booking);
+  }
+  @Put(":id/complete")
+  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @Roles(UserRole.ADMIN)
+  async complete(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<Order> {
+    return this.ordersService.createFromBooking(id);
+  }
+}
+````
+
 ## File: backend/src/bookings/bookings.module.ts
 ````typescript
 import { Module, forwardRef } from '@nestjs/common';
@@ -16494,140 +16628,6 @@ describe('AuthModule', () => {
 });
 ````
 
-## File: backend/src/bookings/bookings.controller.ts
-````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Put,
-  UseGuards,
-  BadRequestException,
-  Req,
-  ParseUUIDPipe,
-  ValidationPipe,
-  Type,
-} from "@nestjs/common";
-import { BookingsService } from "./bookings.service";
-import { OrdersService } from "../orders/orders.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { BookingResponseDto } from "./dto/booking-response.dto";
-import { UpcomingCountResponseDto } from "./dto/upcoming-count-response.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { ShopCodeGuard } from "../shops/guards/shop-code.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { UserRole } from "../users/entities/user.entity";
-import { Request } from "express";
-import { ShopCode } from "../shops/entities/shop-code.entity";
-import { Order } from "../orders/entities/order.entity";
-// Extend Express Request to include shop property
-interface RequestWithShop extends Request {
-  shop?: ShopCode;
-}
-@Controller("bookings")
-export class BookingsController {
-  constructor(
-    private readonly bookingsService: BookingsService,
-    private readonly ordersService: OrdersService
-  ) {}
-  @Get("upcoming/count")
-  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    return this.bookingsService.getUpcomingCount();
-  }
-  @Post("walk-in")
-  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
-  async createWalkIn(
-    @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
-    @Req() request: RequestWithShop
-  ): Promise<BookingResponseDto> {
-    if (!request.shop) {
-      throw new BadRequestException('Shop information is required for walk-in bookings');
-    }
-    const booking = await this.bookingsService.createWalkIn(
-      createWalkInBookingDto,
-      request.shop
-    );
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Post()
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async create(
-    @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.create(createBookingDto);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Get("upcoming")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findUpcoming(): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findUpcoming();
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get("customer/:customerId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
-  async findByCustomer(
-    @Param("customerId", new ParseUUIDPipe()) customerId: string
-  ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findByCustomer(customerId);
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get("employee/:employeeId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findByEmployee(
-    @Param("employeeId", new ParseUUIDPipe()) employeeId: string
-  ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingsService.findByEmployee(employeeId);
-    return BookingResponseDto.fromEntities(bookings);
-  }
-  @Get(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async findOne(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.findOne(id);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async update(
-    @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ValidationPipe({ transform: true })) updateBookingDto: UpdateBookingDto
-  ): Promise<BookingResponseDto> {
-    const booking = await this.bookingsService.update(id, updateBookingDto);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id/cancel")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
-  async cancel(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<BookingResponseDto> {
-    const reason = "Cancelled by administrator";
-    const booking = await this.bookingsService.cancel(id, reason);
-    return BookingResponseDto.fromEntity(booking);
-  }
-  @Put(":id/complete")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
-  @Roles(UserRole.ADMIN)
-  async complete(
-    @Param("id", new ParseUUIDPipe()) id: string
-  ): Promise<Order> {
-    return this.ordersService.createFromBooking(id);
-  }
-}
-````
-
 ## File: backend/src/database/migrations/1731981975583-CreateOrders.spec.ts
 ````typescript
 import { QueryRunner, Table, TableForeignKey } from "typeorm";
@@ -17158,6 +17158,77 @@ describe("EmployeesController", () => {
     });
   });
 });
+````
+
+## File: backend/src/employees/employees.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (!employee || employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
+}
 ````
 
 ## File: backend/src/orders/orders.service.ts
@@ -19713,73 +19784,184 @@ describe("createSampleBookings", () => {
 });
 ````
 
-## File: backend/src/employees/employees.controller.ts
+## File: backend/src/employees/employees.service.ts
 ````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
+import { Employee } from './entities/employee.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
+import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (!employee || employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
+import { Booking } from '../bookings/entities/booking.entity';
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+type Availability = Record<DayName, TimeSlot[] | undefined>;
+@Injectable()
+export class EmployeesService {
+  constructor(
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+  ) {}
+  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createEmployeeDto.email }
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
     }
-    return this.employeesService.findOne(id);
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    // Create user
+    const user = this.userRepository.create({
+      email: createEmployeeDto.email,
+      firstName: createEmployeeDto.firstName,
+      lastName: createEmployeeDto.lastName,
+      password: hashedPassword,
+      role: UserRole.EMPLOYEE
+    });
+    const savedUser = await this.userRepository.save(user);
+    // Create employee
+    const employee = this.employeeRepository.create({
+      user: savedUser,
+      specializations: createEmployeeDto.specializations,
+      isActive: true,
+      availability: {}
+    });
+    const savedEmployee = await this.employeeRepository.save(employee);
+    return {
+      employee: savedEmployee,
+      temporaryPassword
+    };
   }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
+  async findAll(): Promise<Employee[]> {
+    const employees = await this.employeeRepository.find({
+      relations: ['user', 'services'],
+      where: { isActive: true },
+    });
+    return employees as Employee[];
   }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
+  async findOne(id: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { id },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee #${id} not found`);
+    }
+    return employee as Employee;
   }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
+  async findByUserId(userId: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with user ID ${userId} not found`);
+    }
+    return employee;
   }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
+  async isAvailable(
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingId?: string
+  ): Promise<boolean> {
+    const employee = await this.findOne(employeeId);
+    // Check if the employee is active
+    if (!employee.isActive) {
+      return false;
+    }
+    // Get day of week (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = startTime.getDay();
+    const dayNameMap = new Map<number, DayName>([
+      [0, 'sunday'],
+      [1, 'monday'],
+      [2, 'tuesday'],
+      [3, 'wednesday'],
+      [4, 'thursday'],
+      [5, 'friday'],
+      [6, 'saturday'],
+    ]);
+    const dayName = dayNameMap.get(dayOfWeek);
+    if (!dayName) {
+      return false;
+    }
+    // Check if employee has availability for this day
+    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
+      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
+    );
+    const dayAvailability = availabilityMap.get(dayName);
+    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
+      return false;
+    }
+    // Check if the booking time falls within any of the available time slots
+    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
+    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
+    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
+      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+        return false;
+      }
+      const [startHour, startMinute] = slot.start.split(':').map(Number);
+      const [endHour, endMinute] = slot.end.split(':').map(Number);
+      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+        return false;
+      }
+      const slotStart = startHour * 60 + startMinute;
+      const slotEnd = endHour * 60 + endMinute;
+      return bookingStart >= slotStart && bookingEnd <= slotEnd;
+    });
+    if (!isWithinAvailability) {
+      return false;
+    }
+    // Check for overlapping bookings
+    const whereCondition: FindOptionsWhere<Booking> = {
+      employee: { id: employeeId },
+      startTime: Not(MoreThan(endTime)),
+      endTime: Not(LessThan(startTime)),
+    };
+    // Exclude the current booking if an ID is provided
+    if (excludeBookingId) {
+      whereCondition.id = Not(excludeBookingId);
+    }
+    const overlappingBookings = await this.bookingRepository.count({
+      where: whereCondition,
+    });
+    return overlappingBookings === 0;
+  }
+  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
+    const employee = await this.findOne(id);
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    await this.userRepository.update(employee.user.id, {
+      password: hashedPassword
+    });
+    return { temporaryPassword };
+  }
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    const employee = await this.findOne(id);
+    const updated = Object.assign(employee, updateEmployeeDto);
+    return await this.employeeRepository.save(updated) as Employee;
+  }
+  async remove(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = false;
+    await this.employeeRepository.save(employee);
+  }
+  async restore(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = true;
+    await this.employeeRepository.save(employee);
   }
 }
 ````
@@ -20838,188 +21020,6 @@ describe("BookingsService", () => {
     });
   });
 });
-````
-
-## File: backend/src/employees/employees.service.ts
-````typescript
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
-import { Employee } from './entities/employee.entity';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-interface TimeSlot {
-  start: string;
-  end: string;
-}
-type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
-type Availability = Record<DayName, TimeSlot[] | undefined>;
-@Injectable()
-export class EmployeesService {
-  constructor(
-    @InjectRepository(Employee)
-    private readonly employeeRepository: Repository<Employee>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-  ) {}
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    // Check if email already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createEmployeeDto.email }
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    // Create user
-    const user = this.userRepository.create({
-      email: createEmployeeDto.email,
-      firstName: createEmployeeDto.firstName,
-      lastName: createEmployeeDto.lastName,
-      password: hashedPassword,
-      role: UserRole.EMPLOYEE
-    });
-    const savedUser = await this.userRepository.save(user);
-    // Create employee
-    const employee = this.employeeRepository.create({
-      user: savedUser,
-      specializations: createEmployeeDto.specializations,
-      isActive: true,
-      availability: {}
-    });
-    const savedEmployee = await this.employeeRepository.save(employee);
-    return {
-      employee: savedEmployee,
-      temporaryPassword
-    };
-  }
-  async findAll(): Promise<Employee[]> {
-    const employees = await this.employeeRepository.find({
-      relations: ['user', 'services'],
-      where: { isActive: true },
-    });
-    return employees as Employee[];
-  }
-  async findOne(id: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { id },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee #${id} not found`);
-    }
-    return employee as Employee;
-  }
-  async findByUserId(userId: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee with user ID ${userId} not found`);
-    }
-    return employee;
-  }
-  async isAvailable(
-    employeeId: string,
-    startTime: Date,
-    endTime: Date,
-    excludeBookingId?: string
-  ): Promise<boolean> {
-    const employee = await this.findOne(employeeId);
-    // Check if the employee is active
-    if (!employee.isActive) {
-      return false;
-    }
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = startTime.getDay();
-    const dayNameMap = new Map<number, DayName>([
-      [0, 'sunday'],
-      [1, 'monday'],
-      [2, 'tuesday'],
-      [3, 'wednesday'],
-      [4, 'thursday'],
-      [5, 'friday'],
-      [6, 'saturday'],
-    ]);
-    const dayName = dayNameMap.get(dayOfWeek);
-    if (!dayName) {
-      return false;
-    }
-    // Check if employee has availability for this day
-    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
-      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
-    );
-    const dayAvailability = availabilityMap.get(dayName);
-    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
-      return false;
-    }
-    // Check if the booking time falls within any of the available time slots
-    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
-    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
-    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
-      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
-        return false;
-      }
-      const [startHour, startMinute] = slot.start.split(':').map(Number);
-      const [endHour, endMinute] = slot.end.split(':').map(Number);
-      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
-        return false;
-      }
-      const slotStart = startHour * 60 + startMinute;
-      const slotEnd = endHour * 60 + endMinute;
-      return bookingStart >= slotStart && bookingEnd <= slotEnd;
-    });
-    if (!isWithinAvailability) {
-      return false;
-    }
-    // Check for overlapping bookings
-    const whereCondition: FindOptionsWhere<Booking> = {
-      employee: { id: employeeId },
-      startTime: Not(MoreThan(endTime)),
-      endTime: Not(LessThan(startTime)),
-    };
-    // Exclude the current booking if an ID is provided
-    if (excludeBookingId) {
-      whereCondition.id = Not(excludeBookingId);
-    }
-    const overlappingBookings = await this.bookingRepository.count({
-      where: whereCondition,
-    });
-    return overlappingBookings === 0;
-  }
-  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const employee = await this.findOne(id);
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    await this.userRepository.update(employee.user.id, {
-      password: hashedPassword
-    });
-    return { temporaryPassword };
-  }
-  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    const employee = await this.findOne(id);
-    const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated) as Employee;
-  }
-  async remove(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = false;
-    await this.employeeRepository.save(employee);
-  }
-  async restore(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = true;
-    await this.employeeRepository.save(employee);
-  }
-}
 ````
 
 ## File: backend/src/orders/orders.controller.spec.ts
@@ -22295,7 +22295,7 @@ if (
     "@types/node": "^24.12.3",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/coverage-v8": "4.1.5",
-    "@vitest/eslint-plugin": "1.6.16",
+    "@vitest/eslint-plugin": "1.6.17",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.10",
