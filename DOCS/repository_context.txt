@@ -6237,6 +6237,123 @@ describe('OrdersService', () => {
 });
 ````
 
+## File: backend/src/orders/orders.service.ts
+````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
+  ) {}
+  async createFromBooking(bookingId: string): Promise<Order> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking #${bookingId} not found`);
+    }
+    // Update booking status to completed
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
+    });
+    const savedOrder = await this.orderRepository.save(order) as Order;
+    return savedOrder;
+  }
+  async findAll(): Promise<Order[]> {
+    const orders = await this.orderRepository.find({
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders as Order[];
+  }
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const orders = await this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders as Order[];
+  }
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order as Order;
+  }
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+}
+````
+
 ## File: backend/src/services/entities/service.entity.spec.ts
 ````typescript
 import { Service } from './service.entity';
@@ -16628,6 +16745,257 @@ describe('AuthModule', () => {
 });
 ````
 
+## File: backend/src/bookings/bookings.service.ts
+````typescript
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, MoreThan, In, Between } from "typeorm";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import {
+  UpcomingCountResponseDto,
+  UpcomingCustomerDto,
+} from "./dto/upcoming-count-response.dto";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { ShopCode } from "../shops/entities/shop-code.entity";
+import { UserRole } from "../users/entities/user.entity";
+@Injectable()
+export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+  constructor(
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly usersService: UsersService,
+    private readonly employeesService: EmployeesService,
+    private readonly servicesService: ServicesService,
+  ) {}
+  async createWalkIn(
+    createWalkInBookingDto: CreateWalkInBookingDto,
+    shop: ShopCode,
+  ): Promise<Booking> {
+    const { serviceId, firstName, phoneNumber, isPaid } =
+      createWalkInBookingDto;
+    // Create temporary customer for walk-in
+    const customer = await this.usersService.create({
+      firstName,
+      lastName: "Walk-in",
+      email: `walkin_${Date.now()}@temp.com`,
+      password: Math.random().toString(36),
+      phoneNumber,
+      role: UserRole.CUSTOMER,
+    });
+    // Verify service exists (findOne throws NotFoundException if not found)
+    const service = await this.servicesService.findOne(serviceId);
+    // Get all employees and filter active ones
+    const allEmployees = await this.employeesService.findAll();
+    const activeEmployees = allEmployees.filter((emp) => emp.isActive);
+    if (activeEmployees.length === 0) {
+      throw new BadRequestException("No employees available");
+    }
+    // Find the employee with the least pending bookings
+    const employeeBookings = await Promise.all(
+      activeEmployees.map(async (emp) => ({
+        employee: emp,
+        bookingCount: (await this.findByEmployee(emp.id)).length,
+      })),
+    );
+    const sortedEmployeeBookings = [...employeeBookings].sort(
+      (a, b) => a.bookingCount - b.bookingCount,
+    );
+    const selectedEmployee = sortedEmployeeBookings[0].employee;
+    // Calculate start and end times
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
+    // Create and save the booking
+    const booking = this.bookingRepository.create({
+      customer,
+      employee: selectedEmployee,
+      service,
+      startTime: startDate,
+      endTime: endDate,
+      notes: `Walk-in booking from ${shop.shopName}`,
+      totalPrice: service.price,
+      status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
+    });
+    return (await this.bookingRepository.save(booking)) as Booking;
+  }
+  async create(createBookingDto: CreateBookingDto): Promise<Booking> {
+    const { customerId, employeeId, serviceId, startTime, notes } =
+      createBookingDto;
+    // Verify customer exists (findOne throws NotFoundException if not found)
+    const customer = await this.usersService.findOne(customerId);
+    // Verify employee exists (findOne throws NotFoundException if not found)
+    const employee = await this.employeesService.findOne(employeeId);
+    // Verify service exists (findOne throws NotFoundException if not found)
+    const service = await this.servicesService.findOne(serviceId);
+    // Calculate end time based on service duration
+    const startDate = new Date(startTime);
+    const endDate = new Date(startDate.getTime() + service.duration * 60000);
+    // Check if employee is available
+    const isAvailable = await this.employeesService.isAvailable(
+      employeeId,
+      startDate,
+      endDate,
+    );
+    if (!isAvailable) {
+      throw new BadRequestException("Employee is not available at this time");
+    }
+    // Create and save the booking
+    const booking = this.bookingRepository.create({
+      customer,
+      employee,
+      service,
+      startTime: startDate,
+      endTime: endDate,
+      notes,
+      totalPrice: service.price,
+      status: BookingStatus.PENDING,
+    });
+    return (await this.bookingRepository.save(booking)) as Booking;
+  }
+  async findOne(id: string): Promise<Booking> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: ["customer", "employee", "employee.user", "service"],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+    return booking as Booking;
+  }
+  async update(
+    id: string,
+    updateBookingDto: UpdateBookingDto,
+  ): Promise<Booking> {
+    const booking = await this.findOne(id);
+    // If updating start time, recalculate end time
+    if (updateBookingDto.startTime) {
+      const startDate = new Date(updateBookingDto.startTime);
+      const service = await this.servicesService.findOne(booking.service.id);
+      const endDate = new Date(startDate.getTime() + service.duration * 60000);
+      // Check employee availability for new time
+      const isAvailable = await this.employeesService.isAvailable(
+        booking.employee.id,
+        startDate,
+        endDate,
+        id, // Exclude current booking from availability check
+      );
+      if (!isAvailable) {
+        throw new BadRequestException("Employee is not available at this time");
+      }
+      booking.startTime = startDate;
+      booking.endTime = endDate;
+    }
+    // Update other fields
+    Object.assign(booking, updateBookingDto);
+    return (await this.bookingRepository.save(booking)) as Booking;
+  }
+  async cancel(id: string, reason: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancelledAt = new Date();
+    booking.cancellationReason = reason;
+    return this.bookingRepository.save(booking);
+  }
+  async findByCustomer(customerId: string): Promise<Booking[]> {
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: { customer: { id: customerId } },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
+    });
+    return bookings;
+  }
+  async findByEmployee(employeeId: string): Promise<Booking[]> {
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: { employee: { id: employeeId } },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "DESC" },
+    });
+    return bookings;
+  }
+  async findUpcoming(): Promise<Booking[]> {
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: {
+        startTime: MoreThan(startOfDay),
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+      },
+      relations: ["customer", "employee", "employee.user", "service"],
+      order: { startTime: "ASC" },
+    });
+    this.logger.debug(`Found ${bookings.length} bookings`);
+    if (bookings.length === 0) {
+      this.logger.debug(
+        "No bookings found. Checking all bookings for debugging...",
+      );
+      const allBookings: Booking[] = await this.bookingRepository.find({
+        relations: ["customer", "employee", "employee.user", "service"],
+      });
+      this.logger.debug(`Total bookings in database: ${allBookings.length}`);
+      this.logger.debug("Sample booking dates:");
+      allBookings.slice(0, 3).forEach((booking: Booking) => {
+        this.logger.debug(
+          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`,
+        );
+      });
+    }
+    return bookings;
+  }
+  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    const bookings: Booking[] = await this.bookingRepository.find({
+      where: {
+        startTime: Between(startOfDay, endOfDay),
+        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+      },
+      relations: ["customer", "service"],
+      order: { startTime: "ASC" },
+    });
+    const customers: UpcomingCustomerDto[] = bookings.map(
+      (booking: Booking, index: number) => {
+        // Calculate waiting time based on previous bookings' service durations
+        const waitingTime: number = bookings
+          .slice(0, index)
+          .reduce(
+            (total: number, prev: Booking) => total + prev.service.duration,
+            0,
+          );
+        return {
+          firstName: booking.customer.firstName,
+          estimatedWaitingTime: waitingTime,
+        };
+      },
+    );
+    return {
+      count: bookings.length,
+      customers,
+    };
+  }
+}
+````
+
 ## File: backend/src/database/migrations/1731981975583-CreateOrders.spec.ts
 ````typescript
 import { QueryRunner, Table, TableForeignKey } from "typeorm";
@@ -17227,123 +17595,6 @@ export class EmployeesController {
   @Roles(UserRole.ADMIN)
   async restore(@Param('id') id: string): Promise<void> {
     return this.employeesService.restore(id);
-  }
-}
-````
-
-## File: backend/src/orders/orders.service.ts
-````typescript
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly employeesService: EmployeesService,
-  ) {}
-  async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'employee', 'service'],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking #${bookingId} not found`);
-    }
-    // Update booking status to completed
-    booking.status = BookingStatus.COMPLETED;
-    await this.bookingRepository.save(booking);
-    // Create order
-    const order = this.orderRepository.create({
-      booking,
-      completedAt: new Date(),
-      totalAmount: booking.totalPrice,
-    });
-    const savedOrder = await this.orderRepository.save(order) as Order;
-    return savedOrder;
-  }
-  async findAll(): Promise<Order[]> {
-    const orders = await this.orderRepository.find({
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-    return orders as Order[];
-  }
-  async findAllByEmployee(userId: string): Promise<Order[]> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const orders = await this.orderRepository.find({
-      where: {
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-    return orders as Order[];
-  }
-  async findOne(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order as Order;
-  }
-  async findOneByEmployee(id: string, userId: string): Promise<Order> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const order = await this.orderRepository.findOne({
-      where: {
-        id,
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
   }
 }
 ````
@@ -19107,257 +19358,6 @@ describe("BookingsModule", () => {
     expect(hasTypeOrmExport).toBe(true);
   });
 });
-````
-
-## File: backend/src/bookings/bookings.service.ts
-````typescript
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In, Between } from "typeorm";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import {
-  UpcomingCountResponseDto,
-  UpcomingCustomerDto,
-} from "./dto/upcoming-count-response.dto";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { ShopCode } from "../shops/entities/shop-code.entity";
-import { UserRole } from "../users/entities/user.entity";
-@Injectable()
-export class BookingsService {
-  private readonly logger = new Logger(BookingsService.name);
-  constructor(
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly usersService: UsersService,
-    private readonly employeesService: EmployeesService,
-    private readonly servicesService: ServicesService,
-  ) {}
-  async createWalkIn(
-    createWalkInBookingDto: CreateWalkInBookingDto,
-    shop: ShopCode,
-  ): Promise<Booking> {
-    const { serviceId, firstName, phoneNumber, isPaid } =
-      createWalkInBookingDto;
-    // Create temporary customer for walk-in
-    const customer = await this.usersService.create({
-      firstName,
-      lastName: "Walk-in",
-      email: `walkin_${Date.now()}@temp.com`,
-      password: Math.random().toString(36),
-      phoneNumber,
-      role: UserRole.CUSTOMER,
-    });
-    // Verify service exists (findOne throws NotFoundException if not found)
-    const service = await this.servicesService.findOne(serviceId);
-    // Get all employees and filter active ones
-    const allEmployees = await this.employeesService.findAll();
-    const activeEmployees = allEmployees.filter((emp) => emp.isActive);
-    if (activeEmployees.length === 0) {
-      throw new BadRequestException("No employees available");
-    }
-    // Find the employee with the least pending bookings
-    const employeeBookings = await Promise.all(
-      activeEmployees.map(async (emp) => ({
-        employee: emp,
-        bookingCount: (await this.findByEmployee(emp.id)).length,
-      })),
-    );
-    const sortedEmployeeBookings = [...employeeBookings].sort(
-      (a, b) => a.bookingCount - b.bookingCount,
-    );
-    const selectedEmployee = sortedEmployeeBookings[0].employee;
-    // Calculate start and end times
-    const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + service.duration * 60000);
-    // Create and save the booking
-    const booking = this.bookingRepository.create({
-      customer,
-      employee: selectedEmployee,
-      service,
-      startTime: startDate,
-      endTime: endDate,
-      notes: `Walk-in booking from ${shop.shopName}`,
-      totalPrice: service.price,
-      status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
-    });
-    return (await this.bookingRepository.save(booking)) as Booking;
-  }
-  async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    const { customerId, employeeId, serviceId, startTime, notes } =
-      createBookingDto;
-    // Verify customer exists (findOne throws NotFoundException if not found)
-    const customer = await this.usersService.findOne(customerId);
-    // Verify employee exists (findOne throws NotFoundException if not found)
-    const employee = await this.employeesService.findOne(employeeId);
-    // Verify service exists (findOne throws NotFoundException if not found)
-    const service = await this.servicesService.findOne(serviceId);
-    // Calculate end time based on service duration
-    const startDate = new Date(startTime);
-    const endDate = new Date(startDate.getTime() + service.duration * 60000);
-    // Check if employee is available
-    const isAvailable = await this.employeesService.isAvailable(
-      employeeId,
-      startDate,
-      endDate,
-    );
-    if (!isAvailable) {
-      throw new BadRequestException("Employee is not available at this time");
-    }
-    // Create and save the booking
-    const booking = this.bookingRepository.create({
-      customer,
-      employee,
-      service,
-      startTime: startDate,
-      endTime: endDate,
-      notes,
-      totalPrice: service.price,
-      status: BookingStatus.PENDING,
-    });
-    return (await this.bookingRepository.save(booking)) as Booking;
-  }
-  async findOne(id: string): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id },
-      relations: ["customer", "employee", "employee.user", "service"],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
-    }
-    return booking as Booking;
-  }
-  async update(
-    id: string,
-    updateBookingDto: UpdateBookingDto,
-  ): Promise<Booking> {
-    const booking = await this.findOne(id);
-    // If updating start time, recalculate end time
-    if (updateBookingDto.startTime) {
-      const startDate = new Date(updateBookingDto.startTime);
-      const service = await this.servicesService.findOne(booking.service.id);
-      const endDate = new Date(startDate.getTime() + service.duration * 60000);
-      // Check employee availability for new time
-      const isAvailable = await this.employeesService.isAvailable(
-        booking.employee.id,
-        startDate,
-        endDate,
-        id, // Exclude current booking from availability check
-      );
-      if (!isAvailable) {
-        throw new BadRequestException("Employee is not available at this time");
-      }
-      booking.startTime = startDate;
-      booking.endTime = endDate;
-    }
-    // Update other fields
-    Object.assign(booking, updateBookingDto);
-    return (await this.bookingRepository.save(booking)) as Booking;
-  }
-  async cancel(id: string, reason: string): Promise<Booking> {
-    const booking = await this.findOne(id);
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancelledAt = new Date();
-    booking.cancellationReason = reason;
-    return this.bookingRepository.save(booking);
-  }
-  async findByCustomer(customerId: string): Promise<Booking[]> {
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: { customer: { id: customerId } },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "DESC" },
-    });
-    return bookings;
-  }
-  async findByEmployee(employeeId: string): Promise<Booking[]> {
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: { employee: { id: employeeId } },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "DESC" },
-    });
-    return bookings;
-  }
-  async findUpcoming(): Promise<Booking[]> {
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    this.logger.debug(`Finding bookings from ${startOfDay.toISOString()}`);
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: {
-        startTime: MoreThan(startOfDay),
-        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-      },
-      relations: ["customer", "employee", "employee.user", "service"],
-      order: { startTime: "ASC" },
-    });
-    this.logger.debug(`Found ${bookings.length} bookings`);
-    if (bookings.length === 0) {
-      this.logger.debug(
-        "No bookings found. Checking all bookings for debugging...",
-      );
-      const allBookings: Booking[] = await this.bookingRepository.find({
-        relations: ["customer", "employee", "employee.user", "service"],
-      });
-      this.logger.debug(`Total bookings in database: ${allBookings.length}`);
-      this.logger.debug("Sample booking dates:");
-      allBookings.slice(0, 3).forEach((booking: Booking) => {
-        this.logger.debug(
-          `Booking ${booking.id}: startTime=${booking.startTime.toISOString()}, status=${booking.status}`,
-        );
-      });
-    }
-    return bookings;
-  }
-  async getUpcomingCount(): Promise<UpcomingCountResponseDto> {
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
-    const bookings: Booking[] = await this.bookingRepository.find({
-      where: {
-        startTime: Between(startOfDay, endOfDay),
-        status: In([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-      },
-      relations: ["customer", "service"],
-      order: { startTime: "ASC" },
-    });
-    const customers: UpcomingCustomerDto[] = bookings.map(
-      (booking: Booking, index: number) => {
-        // Calculate waiting time based on previous bookings' service durations
-        const waitingTime: number = bookings
-          .slice(0, index)
-          .reduce(
-            (total: number, prev: Booking) => total + prev.service.duration,
-            0,
-          );
-        return {
-          firstName: booking.customer.firstName,
-          estimatedWaitingTime: waitingTime,
-        };
-      },
-    );
-    return {
-      count: bookings.length,
-      customers,
-    };
-  }
-}
 ````
 
 ## File: backend/src/database/migrations/1731981975582-CreateBookingSystem.spec.ts
@@ -22077,6 +22077,35 @@ describe('TVDisplayView', () => {
 })
 ````
 
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+    clear: () => {
+      storage.clear();
+    },
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
+  } as Storage;
+}
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -22136,7 +22165,7 @@ describe('TVDisplayView', () => {
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.29"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
@@ -22172,35 +22201,6 @@ describe('TVDisplayView', () => {
       "unrs-resolver"
     ]
   }
-}
-````
-
-## File: frontend/admin/vitest.setup.ts
-````typescript
-// Ensure localStorage is available before @vue/devtools-kit initializes.
-// The devtools-kit accesses localStorage.getItem at module load time,
-// which can fire before jsdom has fully set up the Storage prototype.
-if (
-  globalThis.localStorage === undefined ||
-  typeof globalThis.localStorage.getItem !== 'function'
-) {
-  const storage = new Map<string, string>();
-  globalThis.localStorage = {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      storage.set(key, value);
-    },
-    removeItem: (key: string) => {
-      storage.delete(key);
-    },
-    clear: () => {
-      storage.clear();
-    },
-    get length() {
-      return storage.size;
-    },
-    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
-  } as Storage;
 }
 ````
 
