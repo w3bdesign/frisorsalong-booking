@@ -1927,6 +1927,50 @@ describe('RolesGuard', () => {
 });
 ````
 
+## File: backend/src/auth/guards/roles.guard.ts
+````typescript
+import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Request } from "express";
+interface RequestWithUser extends Request {
+  user: User;
+}
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      "roles",
+      [context.getHandler(), context.getClass()],
+    );
+    // Add debug logging
+    console.log('Roles Guard - Required Roles:', requiredRoles);
+    if (!requiredRoles) {
+      console.log('Roles Guard - No roles required');
+      return true;
+    }
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const user = request.user;
+    console.log('Roles Guard - User:', user);
+    console.log('Roles Guard - User Role:', user?.role);
+    if (!user || !user.role) {
+      console.log('Roles Guard - No user or role found in request');
+      return false;
+    }
+    // Ensure user.role is a valid UserRole
+    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
+      console.log('Roles Guard - Invalid user role');
+      return false;
+    }
+    const hasRole: boolean = requiredRoles.includes(user.role);
+    console.log('Roles Guard - Has Required Role:', hasRole);
+    const canActivate: boolean = hasRole;
+    return canActivate;
+  }
+}
+````
+
 ## File: backend/src/auth/interfaces/auth.interface.ts
 ````typescript
 import { User } from "../../users/entities/user.entity";
@@ -5459,6 +5503,298 @@ export class Employee {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+````
+
+## File: backend/src/employees/employees.controller.spec.ts
+````typescript
+/* eslint-disable @typescript-eslint/unbound-method */
+import { Test, TestingModule } from "@nestjs/testing";
+import { EmployeesController } from "./employees.controller";
+import { EmployeesService } from "./employees.service";
+import {
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from "@nestjs/common";
+import { Employee } from "./entities/employee.entity";
+import { User, UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
+  hashPassword: () => Promise<void>;
+  validatePassword: (_password: string) => Promise<boolean>;
+}
+describe("EmployeesController", () => {
+  let controller: EmployeesController;
+  let service: EmployeesService;
+  const createMockUser = (data: Partial<User>): MockUser => {
+    const user: MockUser = {
+      id: "default-id",
+      firstName: "Default",
+      lastName: "User",
+      email: "default@example.com",
+      password: "password",
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async function () {
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        user.password = hashedPassword;
+      },
+      validatePassword: async function (password: string): Promise<boolean> {
+        return bcrypt.compare(password, user.password) as Promise<boolean>;
+      },
+      ...data,
+    };
+    return user;
+  };
+  const mockAdminUser = createMockUser({
+    id: "admin-id",
+    email: "admin@example.com",
+    firstName: "Admin",
+    lastName: "User",
+    role: UserRole.ADMIN,
+  });
+  const mockEmployeeUser = createMockUser({
+    id: "employee-id",
+    email: "employee@example.com",
+    firstName: "John",
+    lastName: "Doe",
+    role: UserRole.EMPLOYEE,
+  });
+  const mockEmployee = {
+    id: "employee-1",
+    user: mockEmployeeUser,
+    specializations: ["haircut"],
+    isActive: true,
+    availability: {},
+  } as Employee;
+  const mockEmployeesService = {
+    create: jest.fn(),
+    resetPassword: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    findByUserId: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    restore: jest.fn(),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [EmployeesController],
+      providers: [
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+      ],
+    }).compile();
+    controller = module.get<EmployeesController>(EmployeesController);
+    service = module.get<EmployeesService>(EmployeesService);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("create", () => {
+    const createEmployeeDto = {
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      specializations: ["haircut"],
+    };
+    const createResponse = {
+      employee: mockEmployee,
+      temporaryPassword: "temp123",
+    };
+    it("should create an employee successfully", async () => {
+      mockEmployeesService.create.mockResolvedValue(createResponse);
+      const result = await controller.create(createEmployeeDto);
+      expect(result).toEqual(createResponse);
+      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.create.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+  });
+  describe("resetPassword", () => {
+    it("should reset password successfully", async () => {
+      const resetResponse = { temporaryPassword: "newTemp123" };
+      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
+      const result = await controller.resetPassword("employee-1");
+      expect(result).toEqual(resetResponse);
+      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.resetPassword.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("findAll", () => {
+    it("should return all employees", async () => {
+      const employees = [mockEmployee];
+      mockEmployeesService.findAll.mockResolvedValue(employees);
+      const result = await controller.findAll();
+      expect(result).toEqual(employees);
+      expect(service.findAll).toHaveBeenCalled();
+    });
+  });
+  describe("findOne", () => {
+    it("should return an employee by id for admin user", async () => {
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      const result = await controller.findOne("employee-1", mockAdminUser);
+      expect(result).toEqual(mockEmployee);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+      expect(service.findByUserId).not.toHaveBeenCalled();
+    });
+    it("should allow employee to access their own record", async () => {
+      const employeeUser = mockEmployeeUser;
+      const employeeRecord = { ...mockEmployee, id: "employee-1" };
+      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
+      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
+      const result = await controller.findOne("employee-1", employeeUser);
+      expect(result).toEqual(employeeRecord);
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).toHaveBeenCalledWith("employee-1");
+    });
+    it("should not allow employee to access other employee records", async () => {
+      const employeeUser = createMockUser({
+        id: "different-employee-id",
+        email: "other@example.com",
+        firstName: "Other",
+        lastName: "Employee",
+        role: UserRole.EMPLOYEE,
+      });
+      const ownEmployeeRecord = {
+        ...mockEmployee,
+        id: "own-employee-id",
+        user: employeeUser,
+      };
+      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
+      await expect(
+        controller.findOne("other-employee-id", employeeUser)
+      ).rejects.toThrow(
+        "Du har ikke tilgang til å se denne ansattes informasjon"
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found for findByUserId", async () => {
+      const employeeUser = createMockUser({
+        id: "employee-id",
+        role: UserRole.EMPLOYEE,
+      });
+      mockEmployeesService.findByUserId.mockResolvedValue(null);
+      await expect(
+        controller.findOne("employee-1", employeeUser)
+      ).rejects.toThrow(
+        new UnauthorizedException(
+          "Du har ikke tilgang til å se denne ansattes informasjon"
+        )
+      );
+      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
+      expect(service.findOne).not.toHaveBeenCalled();
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.findOne.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.findOne("non-existent", mockAdminUser)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("update", () => {
+    const updateEmployeeDto = {
+      firstName: "John Updated",
+      email: "john.updated@example.com",
+    };
+    it("should update an employee successfully", async () => {
+      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
+      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
+      const result = await controller.update("employee-1", updateEmployeeDto);
+      expect(result).toEqual(updatedEmployee);
+      expect(service.update).toHaveBeenCalledWith(
+        "employee-1",
+        updateEmployeeDto
+      );
+    });
+    it("should handle duplicate email error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new ConflictException(
+          "En bruker med denne e-postadressen eksisterer allerede"
+        )
+      );
+      await expect(
+        controller.update("employee-1", updateEmployeeDto)
+      ).rejects.toThrow(
+        "En bruker med denne e-postadressen eksisterer allerede"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.update.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(
+        controller.update("non-existent", updateEmployeeDto)
+      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
+    });
+  });
+  describe("remove", () => {
+    it("should remove an employee successfully", async () => {
+      mockEmployeesService.remove.mockResolvedValue(undefined);
+      await controller.remove("employee-1");
+      expect(service.remove).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee with future bookings error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new BadRequestException(
+          "Kan ikke slette ansatt med fremtidige bestillinger"
+        )
+      );
+      await expect(controller.remove("employee-1")).rejects.toThrow(
+        "Kan ikke slette ansatt med fremtidige bestillinger"
+      );
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.remove.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.remove("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+  describe("restore", () => {
+    it("should restore an employee successfully", async () => {
+      mockEmployeesService.restore.mockResolvedValue(undefined);
+      await controller.restore("employee-1");
+      expect(service.restore).toHaveBeenCalledWith("employee-1");
+    });
+    it("should handle employee not found error", async () => {
+      mockEmployeesService.restore.mockRejectedValue(
+        new NotFoundException("Fant ikke ansatt med ID non-existent")
+      );
+      await expect(controller.restore("non-existent")).rejects.toThrow(
+        "Fant ikke ansatt med ID non-existent"
+      );
+    });
+  });
+});
 ````
 
 ## File: backend/src/employees/employees.module.ts
@@ -16465,50 +16801,6 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/auth/guards/roles.guard.ts
-````typescript
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Request } from "express";
-interface RequestWithUser extends Request {
-  user: User;
-}
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      "roles",
-      [context.getHandler(), context.getClass()],
-    );
-    // Add debug logging
-    console.log('Roles Guard - Required Roles:', requiredRoles);
-    if (!requiredRoles) {
-      console.log('Roles Guard - No roles required');
-      return true;
-    }
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const user = request.user;
-    console.log('Roles Guard - User:', user);
-    console.log('Roles Guard - User Role:', user?.role);
-    if (!user || !user.role) {
-      console.log('Roles Guard - No user or role found in request');
-      return false;
-    }
-    // Ensure user.role is a valid UserRole
-    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
-      console.log('Roles Guard - Invalid user role');
-      return false;
-    }
-    const hasRole: boolean = requiredRoles.includes(user.role);
-    console.log('Roles Guard - Has Required Role:', hasRole);
-    const canActivate: boolean = hasRole;
-    return canActivate;
-  }
-}
-````
-
 ## File: backend/src/auth/strategies/jwt.strategy.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -17234,298 +17526,6 @@ export const updateAdminPassword = async (dataSource: DataSource): Promise<void>
     throw error;
   }
 };
-````
-
-## File: backend/src/employees/employees.controller.spec.ts
-````typescript
-/* eslint-disable @typescript-eslint/unbound-method */
-import { Test, TestingModule } from "@nestjs/testing";
-import { EmployeesController } from "./employees.controller";
-import { EmployeesService } from "./employees.service";
-import {
-  NotFoundException,
-  ConflictException,
-  UnauthorizedException,
-  BadRequestException,
-} from "@nestjs/common";
-import { Employee } from "./entities/employee.entity";
-import { User, UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-interface MockUser extends Omit<User, "hashPassword" | "validatePassword"> {
-  hashPassword: () => Promise<void>;
-  validatePassword: (_password: string) => Promise<boolean>;
-}
-describe("EmployeesController", () => {
-  let controller: EmployeesController;
-  let service: EmployeesService;
-  const createMockUser = (data: Partial<User>): MockUser => {
-    const user: MockUser = {
-      id: "default-id",
-      firstName: "Default",
-      lastName: "User",
-      email: "default@example.com",
-      password: "password",
-      role: UserRole.CUSTOMER,
-      phoneNumber: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hashPassword: async function () {
-        const salt = await bcrypt.genSalt();
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        user.password = hashedPassword;
-      },
-      validatePassword: async function (password: string): Promise<boolean> {
-        return bcrypt.compare(password, user.password) as Promise<boolean>;
-      },
-      ...data,
-    };
-    return user;
-  };
-  const mockAdminUser = createMockUser({
-    id: "admin-id",
-    email: "admin@example.com",
-    firstName: "Admin",
-    lastName: "User",
-    role: UserRole.ADMIN,
-  });
-  const mockEmployeeUser = createMockUser({
-    id: "employee-id",
-    email: "employee@example.com",
-    firstName: "John",
-    lastName: "Doe",
-    role: UserRole.EMPLOYEE,
-  });
-  const mockEmployee = {
-    id: "employee-1",
-    user: mockEmployeeUser,
-    specializations: ["haircut"],
-    isActive: true,
-    availability: {},
-  } as Employee;
-  const mockEmployeesService = {
-    create: jest.fn(),
-    resetPassword: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    findByUserId: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    restore: jest.fn(),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [EmployeesController],
-      providers: [
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-      ],
-    }).compile();
-    controller = module.get<EmployeesController>(EmployeesController);
-    service = module.get<EmployeesService>(EmployeesService);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("create", () => {
-    const createEmployeeDto = {
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
-      specializations: ["haircut"],
-    };
-    const createResponse = {
-      employee: mockEmployee,
-      temporaryPassword: "temp123",
-    };
-    it("should create an employee successfully", async () => {
-      mockEmployeesService.create.mockResolvedValue(createResponse);
-      const result = await controller.create(createEmployeeDto);
-      expect(result).toEqual(createResponse);
-      expect(service.create).toHaveBeenCalledWith(createEmployeeDto);
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.create.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(controller.create(createEmployeeDto)).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-  });
-  describe("resetPassword", () => {
-    it("should reset password successfully", async () => {
-      const resetResponse = { temporaryPassword: "newTemp123" };
-      mockEmployeesService.resetPassword.mockResolvedValue(resetResponse);
-      const result = await controller.resetPassword("employee-1");
-      expect(result).toEqual(resetResponse);
-      expect(service.resetPassword).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.resetPassword.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.resetPassword("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("findAll", () => {
-    it("should return all employees", async () => {
-      const employees = [mockEmployee];
-      mockEmployeesService.findAll.mockResolvedValue(employees);
-      const result = await controller.findAll();
-      expect(result).toEqual(employees);
-      expect(service.findAll).toHaveBeenCalled();
-    });
-  });
-  describe("findOne", () => {
-    it("should return an employee by id for admin user", async () => {
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      const result = await controller.findOne("employee-1", mockAdminUser);
-      expect(result).toEqual(mockEmployee);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-      expect(service.findByUserId).not.toHaveBeenCalled();
-    });
-    it("should allow employee to access their own record", async () => {
-      const employeeUser = mockEmployeeUser;
-      const employeeRecord = { ...mockEmployee, id: "employee-1" };
-      mockEmployeesService.findByUserId.mockResolvedValue(employeeRecord);
-      mockEmployeesService.findOne.mockResolvedValue(employeeRecord);
-      const result = await controller.findOne("employee-1", employeeUser);
-      expect(result).toEqual(employeeRecord);
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).toHaveBeenCalledWith("employee-1");
-    });
-    it("should not allow employee to access other employee records", async () => {
-      const employeeUser = createMockUser({
-        id: "different-employee-id",
-        email: "other@example.com",
-        firstName: "Other",
-        lastName: "Employee",
-        role: UserRole.EMPLOYEE,
-      });
-      const ownEmployeeRecord = {
-        ...mockEmployee,
-        id: "own-employee-id",
-        user: employeeUser,
-      };
-      mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
-      await expect(
-        controller.findOne("other-employee-id", employeeUser)
-      ).rejects.toThrow(
-        "Du har ikke tilgang til å se denne ansattes informasjon"
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found for findByUserId", async () => {
-      const employeeUser = createMockUser({
-        id: "employee-id",
-        role: UserRole.EMPLOYEE,
-      });
-      mockEmployeesService.findByUserId.mockResolvedValue(null);
-      await expect(
-        controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
-      expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
-      expect(service.findOne).not.toHaveBeenCalled();
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.findOne.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.findOne("non-existent", mockAdminUser)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("update", () => {
-    const updateEmployeeDto = {
-      firstName: "John Updated",
-      email: "john.updated@example.com",
-    };
-    it("should update an employee successfully", async () => {
-      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
-      mockEmployeesService.update.mockResolvedValue(updatedEmployee);
-      const result = await controller.update("employee-1", updateEmployeeDto);
-      expect(result).toEqual(updatedEmployee);
-      expect(service.update).toHaveBeenCalledWith(
-        "employee-1",
-        updateEmployeeDto
-      );
-    });
-    it("should handle duplicate email error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
-      );
-      await expect(
-        controller.update("employee-1", updateEmployeeDto)
-      ).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.update.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(
-        controller.update("non-existent", updateEmployeeDto)
-      ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
-    });
-  });
-  describe("remove", () => {
-    it("should remove an employee successfully", async () => {
-      mockEmployeesService.remove.mockResolvedValue(undefined);
-      await controller.remove("employee-1");
-      expect(service.remove).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee with future bookings error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new BadRequestException(
-          "Kan ikke slette ansatt med fremtidige bestillinger"
-        )
-      );
-      await expect(controller.remove("employee-1")).rejects.toThrow(
-        "Kan ikke slette ansatt med fremtidige bestillinger"
-      );
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.remove.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.remove("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-  describe("restore", () => {
-    it("should restore an employee successfully", async () => {
-      mockEmployeesService.restore.mockResolvedValue(undefined);
-      await controller.restore("employee-1");
-      expect(service.restore).toHaveBeenCalledWith("employee-1");
-    });
-    it("should handle employee not found error", async () => {
-      mockEmployeesService.restore.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
-      );
-      await expect(controller.restore("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
-      );
-    });
-  });
-});
 ````
 
 ## File: backend/src/employees/employees.controller.ts
@@ -19966,6 +19966,198 @@ export class EmployeesService {
 }
 ````
 
+## File: backend/src/orders/orders.controller.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { OrdersController } from "./orders.controller";
+import { OrdersService } from "./orders.service";
+import { Order } from "./entities/order.entity";
+import { User, UserRole } from "../users/entities/user.entity";
+import * as bcrypt from "bcrypt";
+describe("OrdersController", () => {
+  let controller: OrdersController;
+  const createMockUser = (data: Partial<User>): User => {
+    const defaultUser: User = {
+      id: "default-id",
+      firstName: "Default",
+      lastName: "User",
+      email: "default@example.com",
+      password: "password",
+      role: UserRole.CUSTOMER,
+      phoneNumber: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hashPassword: async (): Promise<void> => {
+        const salt = await bcrypt.genSalt();
+        defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
+      },
+      validatePassword: async (password: string): Promise<boolean> => {
+        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
+      },
+      ...data,
+    };
+    return defaultUser;
+  };
+  const mockAdminUser = createMockUser({
+    id: "admin-id",
+    email: "admin@example.com",
+    firstName: "Admin",
+    lastName: "User",
+    role: UserRole.ADMIN,
+  });
+  const mockEmployeeUser = createMockUser({
+    id: "employee-id",
+    email: "employee@example.com",
+    firstName: "Employee",
+    lastName: "User",
+    role: UserRole.EMPLOYEE,
+  });
+  const mockOrdersService = {
+    createFromBooking: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order> =>
+          Promise.resolve({ id: "order-id", totalAmount: 100 } as Order)
+      ),
+    findAll: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order[]> =>
+          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
+      ),
+    findAllByEmployee: jest
+      .fn()
+      .mockImplementation(
+        (): Promise<Order[]> =>
+          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
+      ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (id: string): Promise<Order> =>
+          Promise.resolve({ id, totalAmount: 100 } as Order)
+      ),
+    findOneByEmployee: jest
+      .fn()
+      .mockImplementation(
+        (orderId: string): Promise<Order> =>
+          Promise.resolve({ id: orderId, totalAmount: 100 } as Order)
+      ),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [OrdersController],
+      providers: [
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
+        },
+      ],
+    }).compile();
+    controller = module.get<OrdersController>(OrdersController);
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+  });
+  it("should be defined", () => {
+    expect(controller).toBeDefined();
+  });
+  describe("create", () => {
+    it("should create an order from a booking", async () => {
+      const bookingId = "booking-id";
+      const mockOrder: Partial<Order> = {
+        id: "order-id",
+        totalAmount: 100,
+      };
+      mockOrdersService.createFromBooking.mockResolvedValue(mockOrder);
+      const result = await controller.create(bookingId);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.createFromBooking).toHaveBeenCalledWith(
+        bookingId
+      );
+    });
+  });
+  describe("findAll", () => {
+    const mockOrders: Partial<Order>[] = [
+      { id: "1", totalAmount: 100 },
+      { id: "2", totalAmount: 200 },
+    ];
+    it("should return all orders for admin user", async () => {
+      mockOrdersService.findAll.mockResolvedValue(mockOrders);
+      const result = await controller.findAll(mockAdminUser);
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAll).toHaveBeenCalled();
+      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
+    });
+    it("should return employee-specific orders for employee user", async () => {
+      mockOrdersService.findAllByEmployee.mockResolvedValue([mockOrders[0]]);
+      const result = await controller.findAll(mockEmployeeUser);
+      expect(result).toEqual([mockOrders[0]]);
+      expect(mockOrdersService.findAll).not.toHaveBeenCalled();
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        mockEmployeeUser.id
+      );
+    });
+  });
+  describe("findAllByEmployee", () => {
+    const mockOrders: Partial<Order>[] = [{ id: "1", totalAmount: 100 }];
+    it("should allow admin to access any employee orders", async () => {
+      const employeeId = "other-employee-id";
+      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
+      const result = await controller.findAllByEmployee(
+        employeeId,
+        mockAdminUser
+      );
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        employeeId
+      );
+    });
+    it("should allow employee to access their own orders", async () => {
+      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
+      const result = await controller.findAllByEmployee(
+        mockEmployeeUser.id,
+        mockEmployeeUser
+      );
+      expect(result).toEqual(mockOrders);
+      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
+        mockEmployeeUser.id
+      );
+    });
+    it("should not allow employee to access other employee orders", async () => {
+      const otherEmployeeId = "other-employee-id";
+      await expect(
+        controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
+      ).rejects.toThrow('Du har ikke tilgang til å se disse ordrene');
+      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
+    });
+  });
+  describe("findOne", () => {
+    const orderId = "order-id";
+    const mockOrder: Partial<Order> = {
+      id: orderId,
+      totalAmount: 100,
+    };
+    it("should return any order for admin user", async () => {
+      mockOrdersService.findOne.mockResolvedValue(mockOrder);
+      const result = await controller.findOne(orderId, mockAdminUser);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.findOne).toHaveBeenCalledWith(orderId);
+      expect(mockOrdersService.findOneByEmployee).not.toHaveBeenCalled();
+    });
+    it("should return employee-specific order for employee user", async () => {
+      mockOrdersService.findOneByEmployee.mockResolvedValue(mockOrder);
+      const result = await controller.findOne(orderId, mockEmployeeUser);
+      expect(result).toEqual(mockOrder);
+      expect(mockOrdersService.findOne).not.toHaveBeenCalled();
+      expect(mockOrdersService.findOneByEmployee).toHaveBeenCalledWith(
+        orderId,
+        mockEmployeeUser.id
+      );
+    });
+  });
+});
+````
+
 ## File: backend/src/orders/orders.module.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -21022,198 +21214,6 @@ describe("BookingsService", () => {
 });
 ````
 
-## File: backend/src/orders/orders.controller.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { OrdersController } from "./orders.controller";
-import { OrdersService } from "./orders.service";
-import { Order } from "./entities/order.entity";
-import { User, UserRole } from "../users/entities/user.entity";
-import * as bcrypt from "bcrypt";
-describe("OrdersController", () => {
-  let controller: OrdersController;
-  const createMockUser = (data: Partial<User>): User => {
-    const defaultUser: User = {
-      id: "default-id",
-      firstName: "Default",
-      lastName: "User",
-      email: "default@example.com",
-      password: "password",
-      role: UserRole.CUSTOMER,
-      phoneNumber: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hashPassword: async (): Promise<void> => {
-        const salt = await bcrypt.genSalt();
-        defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
-      },
-      validatePassword: async (password: string): Promise<boolean> => {
-        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
-      },
-      ...data,
-    };
-    return defaultUser;
-  };
-  const mockAdminUser = createMockUser({
-    id: "admin-id",
-    email: "admin@example.com",
-    firstName: "Admin",
-    lastName: "User",
-    role: UserRole.ADMIN,
-  });
-  const mockEmployeeUser = createMockUser({
-    id: "employee-id",
-    email: "employee@example.com",
-    firstName: "Employee",
-    lastName: "User",
-    role: UserRole.EMPLOYEE,
-  });
-  const mockOrdersService = {
-    createFromBooking: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order> =>
-          Promise.resolve({ id: "order-id", totalAmount: 100 } as Order)
-      ),
-    findAll: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order[]> =>
-          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
-      ),
-    findAllByEmployee: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<Order[]> =>
-          Promise.resolve([{ id: "1", totalAmount: 100 } as Order])
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (id: string): Promise<Order> =>
-          Promise.resolve({ id, totalAmount: 100 } as Order)
-      ),
-    findOneByEmployee: jest
-      .fn()
-      .mockImplementation(
-        (orderId: string): Promise<Order> =>
-          Promise.resolve({ id: orderId, totalAmount: 100 } as Order)
-      ),
-  };
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [OrdersController],
-      providers: [
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-    controller = module.get<OrdersController>(OrdersController);
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
-  });
-  describe("create", () => {
-    it("should create an order from a booking", async () => {
-      const bookingId = "booking-id";
-      const mockOrder: Partial<Order> = {
-        id: "order-id",
-        totalAmount: 100,
-      };
-      mockOrdersService.createFromBooking.mockResolvedValue(mockOrder);
-      const result = await controller.create(bookingId);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.createFromBooking).toHaveBeenCalledWith(
-        bookingId
-      );
-    });
-  });
-  describe("findAll", () => {
-    const mockOrders: Partial<Order>[] = [
-      { id: "1", totalAmount: 100 },
-      { id: "2", totalAmount: 200 },
-    ];
-    it("should return all orders for admin user", async () => {
-      mockOrdersService.findAll.mockResolvedValue(mockOrders);
-      const result = await controller.findAll(mockAdminUser);
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAll).toHaveBeenCalled();
-      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
-    });
-    it("should return employee-specific orders for employee user", async () => {
-      mockOrdersService.findAllByEmployee.mockResolvedValue([mockOrders[0]]);
-      const result = await controller.findAll(mockEmployeeUser);
-      expect(result).toEqual([mockOrders[0]]);
-      expect(mockOrdersService.findAll).not.toHaveBeenCalled();
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        mockEmployeeUser.id
-      );
-    });
-  });
-  describe("findAllByEmployee", () => {
-    const mockOrders: Partial<Order>[] = [{ id: "1", totalAmount: 100 }];
-    it("should allow admin to access any employee orders", async () => {
-      const employeeId = "other-employee-id";
-      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
-      const result = await controller.findAllByEmployee(
-        employeeId,
-        mockAdminUser
-      );
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        employeeId
-      );
-    });
-    it("should allow employee to access their own orders", async () => {
-      mockOrdersService.findAllByEmployee.mockResolvedValue(mockOrders);
-      const result = await controller.findAllByEmployee(
-        mockEmployeeUser.id,
-        mockEmployeeUser
-      );
-      expect(result).toEqual(mockOrders);
-      expect(mockOrdersService.findAllByEmployee).toHaveBeenCalledWith(
-        mockEmployeeUser.id
-      );
-    });
-    it("should not allow employee to access other employee orders", async () => {
-      const otherEmployeeId = "other-employee-id";
-      await expect(
-        controller.findAllByEmployee(otherEmployeeId, mockEmployeeUser)
-      ).rejects.toThrow('Du har ikke tilgang til å se disse ordrene');
-      expect(mockOrdersService.findAllByEmployee).not.toHaveBeenCalled();
-    });
-  });
-  describe("findOne", () => {
-    const orderId = "order-id";
-    const mockOrder: Partial<Order> = {
-      id: orderId,
-      totalAmount: 100,
-    };
-    it("should return any order for admin user", async () => {
-      mockOrdersService.findOne.mockResolvedValue(mockOrder);
-      const result = await controller.findOne(orderId, mockAdminUser);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.findOne).toHaveBeenCalledWith(orderId);
-      expect(mockOrdersService.findOneByEmployee).not.toHaveBeenCalled();
-    });
-    it("should return employee-specific order for employee user", async () => {
-      mockOrdersService.findOneByEmployee.mockResolvedValue(mockOrder);
-      const result = await controller.findOne(orderId, mockEmployeeUser);
-      expect(result).toEqual(mockOrder);
-      expect(mockOrdersService.findOne).not.toHaveBeenCalled();
-      expect(mockOrdersService.findOneByEmployee).toHaveBeenCalledWith(
-        orderId,
-        mockEmployeeUser.id
-      );
-    });
-  });
-});
-````
-
 ## File: backend/src/main.spec.ts
 ````typescript
 import { ValidationPipe, INestApplication } from "@nestjs/common";
@@ -22115,7 +22115,7 @@ if (
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.0.8",
+  "packageManager": "pnpm@11.0.9",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22183,7 +22183,7 @@ if (
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.4.0",
+    "jest": "^30.4.2",
     "prettier": "^3.8.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
@@ -22210,7 +22210,7 @@ if (
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
-  "packageManager": "pnpm@11.0.8",
+  "packageManager": "pnpm@11.0.9",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22265,7 +22265,7 @@ if (
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.0.8",
+  "packageManager": "pnpm@11.0.9",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
