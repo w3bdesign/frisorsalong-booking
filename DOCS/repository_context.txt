@@ -20237,6 +20237,12 @@ describe('OrdersModule', () => {
 });
 ````
 
+## File: backend/.npmrc
+````
+# Supply chain security: prevent lifecycle scripts from running during install
+ignore-scripts=true
+````
+
 ## File: frontend/admin/src/stores/auth.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -21615,12 +21621,6 @@ describe('CreateServicesSeed', () => {
 });
 ````
 
-## File: backend/.npmrc
-````
-# Supply chain security: prevent lifecycle scripts from running during install
-ignore-scripts=true
-````
-
 ## File: frontend/admin/src/components/base/Button.vue
 ````vue
 <template>
@@ -22313,7 +22313,7 @@ if (
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
     "vite": "^8.0.11",
-    "vite-plugin-vue-devtools": "^8.1.1",
+    "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.8"
   }
