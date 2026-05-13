@@ -15946,6 +15946,55 @@ volumes:
   postgres_data:
 ````
 
+## File: Dockerfile
+````dockerfile
+# Multi-stage Dockerfile for building and running both backend and frontend
+
+# Stage 1: Build backend
+FROM node:24 AS backend-builder
+WORKDIR /app/backend
+COPY backend/package.json backend/pnpm-lock.yaml ./
+RUN npm install -g pnpm@11 && pnpm install
+COPY backend .
+RUN pnpm build
+
+# Stage 2: Build frontend
+FROM node:24 AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
+RUN npm install -g pnpm@11 && pnpm install
+COPY frontend/admin .
+RUN pnpm build
+
+# Stage 3: Run backend and frontend
+FROM node:24
+WORKDIR /app
+
+# Copy backend build
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/package.json
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Install serve to serve the frontend
+RUN npm install -g serve
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 5173
+
+# Start both backend and frontend
+CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
+````
+
 ## File: ISSUES.md
 ````markdown
 CRITICAL
@@ -19062,55 +19111,6 @@ allowBuilds:
     "types": ["node", "jsdom"]
   }
 }
-````
-
-## File: Dockerfile
-````dockerfile
-# Multi-stage Dockerfile for building and running both backend and frontend
-
-# Stage 1: Build backend
-FROM node:24 AS backend-builder
-WORKDIR /app/backend
-COPY backend/package.json backend/pnpm-lock.yaml ./
-RUN npm install -g pnpm@11 && pnpm install
-COPY backend .
-RUN pnpm build
-
-# Stage 2: Build frontend
-FROM node:24 AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/admin/package.json frontend/admin/pnpm-lock.yaml ./
-RUN npm install -g pnpm@11 && pnpm install
-COPY frontend/admin .
-RUN pnpm build
-
-# Stage 3: Run backend and frontend
-FROM node:24
-WORKDIR /app
-
-# Copy backend build
-COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder /app/backend/package.json ./backend/package.json
-
-# Copy frontend build
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
-
-# Install serve to serve the frontend
-RUN npm install -g serve
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose ports
-EXPOSE 3000
-EXPOSE 5173
-
-# Start both backend and frontend
-CMD ["sh", "-c", "node backend/dist/main.js & serve -s frontend/dist -l 5173"]
 ````
 
 ## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
@@ -22309,7 +22309,7 @@ if (
     "npm-run-all2": "^8.0.4",
     "postcss": "^8.5.14",
     "prettier": "^3.8.3",
-    "start-server-and-test": "^3.0.2",
+    "start-server-and-test": "^3.0.4",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
     "vite": "^8.0.11",
