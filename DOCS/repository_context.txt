@@ -8061,6 +8061,15 @@ module.exports = {
 }
 ````
 
+## File: backend/pnpm-workspace.yaml
+````yaml
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': true
+  bcrypt: true
+  unrs-resolver: true
+````
+
 ## File: backend/README.md
 ````markdown
 # Hair Salon Booking System Backend
@@ -17928,15 +17937,6 @@ describe('UsersService', () => {
 });
 ````
 
-## File: backend/pnpm-workspace.yaml
-````yaml
-allowBuilds:
-  '@nestjs/core': true
-  '@scarf/scarf': true
-  bcrypt: true
-  unrs-resolver: true
-````
-
 ## File: backend/tsconfig.json
 ````json
 {
@@ -22077,35 +22077,6 @@ describe('TVDisplayView', () => {
 })
 ````
 
-## File: frontend/admin/vitest.setup.ts
-````typescript
-// Ensure localStorage is available before @vue/devtools-kit initializes.
-// The devtools-kit accesses localStorage.getItem at module load time,
-// which can fire before jsdom has fully set up the Storage prototype.
-if (
-  globalThis.localStorage === undefined ||
-  typeof globalThis.localStorage.getItem !== 'function'
-) {
-  const storage = new Map<string, string>();
-  globalThis.localStorage = {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      storage.set(key, value);
-    },
-    removeItem: (key: string) => {
-      storage.delete(key);
-    },
-    clear: () => {
-      storage.clear();
-    },
-    get length() {
-      return storage.size;
-    },
-    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
-  } as Storage;
-}
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -22204,6 +22175,35 @@ if (
 }
 ````
 
+## File: frontend/admin/vitest.setup.ts
+````typescript
+// Ensure localStorage is available before @vue/devtools-kit initializes.
+// The devtools-kit accesses localStorage.getItem at module load time,
+// which can fire before jsdom has fully set up the Storage prototype.
+if (
+  globalThis.localStorage === undefined ||
+  typeof globalThis.localStorage.getItem !== 'function'
+) {
+  const storage = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+    clear: () => {
+      storage.clear();
+    },
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => Array.from(storage.keys()).at(index) ?? null,
+  } as Storage;
+}
+````
+
 ## File: frontend/admin/package.json
 ````json
 {
@@ -22251,7 +22251,7 @@ if (
     "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
     "typescript": "~5.9.3",
-    "vite": "^8.0.11",
+    "vite": "^8.0.12",
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.8"
   }
@@ -22312,7 +22312,7 @@ if (
     "start-server-and-test": "^3.0.4",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
-    "vite": "^8.0.11",
+    "vite": "^8.0.12",
     "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.5",
     "vue-tsc": "^3.2.8"
