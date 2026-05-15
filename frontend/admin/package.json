@@ -32,7 +32,7 @@
     "@rushstack/eslint-patch": "^1.16.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.2",
-    "@types/node": "^24.12.3",
+    "@types/node": "^24.12.4",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
