@@ -5912,6 +5912,61 @@ describe('updateAdminPassword', () => {
 });
 ````
 
+## File: backend/src/database/seeds/update-admin-password.seed.ts
+````typescript
+import { DataSource } from "typeorm";
+import { User } from "../../users/entities/user.entity";
+import * as fs from 'fs';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+export const updateAdminPassword = async (dataSource: DataSource): Promise<void> => {
+  const userRepository = dataSource.getRepository(User);
+  try {
+    // Read .env file directly and parse it properly
+    const envPath = path.resolve(process.cwd(), '.env');
+    const envConfig = dotenv.parse(fs.readFileSync(envPath));
+    const adminEmail = envConfig.ADMIN_EMAIL;
+    const adminPassword = envConfig.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      throw new Error(
+        "Admin email and password must be set in environment variables",
+      );
+    }
+    console.log("\nPassword analysis before update:");
+    console.log("Raw password:", adminPassword);
+    console.log("Length:", adminPassword.length);
+    console.log("Character codes:");
+    for (let i = 0; i < adminPassword.length; i++) {
+      console.log(`${i}: '${adminPassword.charAt(i)}' (${adminPassword.charCodeAt(i)})`);
+    }
+    // Find admin user
+    const adminUser = await userRepository.findOne({
+      where: { email: adminEmail },
+    });
+    if (!adminUser) {
+      throw new Error("Admin user not found");
+    }
+    // Update with raw password - let the entity handle hashing
+    adminUser.password = adminPassword;
+    await userRepository.save(adminUser);
+    console.log("Admin password updated in database");
+    // Verify the update
+    const updatedUser = await userRepository.findOne({
+      where: { email: adminEmail },
+    });
+    if (!updatedUser) {
+      throw new Error("Could not verify password update");
+    }
+    // Use the entity's validatePassword method
+    const isPasswordValid = await updatedUser.validatePassword(adminPassword);
+    console.log("Password verification after update:", isPasswordValid);
+  } catch (error) {
+    console.error("Error updating admin password:", error);
+    throw error;
+  }
+};
+````
+
 ## File: backend/src/employees/dto/create-employee.dto.spec.ts
 ````typescript
 import { validate } from "class-validator";
@@ -6989,6 +7044,188 @@ describe('EmployeesService', () => {
     });
   });
 });
+````
+
+## File: backend/src/employees/employees.service.ts
+````typescript
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
+import { Employee } from './entities/employee.entity';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import * as bcrypt from 'bcrypt';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+type Availability = Record<DayName, TimeSlot[] | undefined>;
+@Injectable()
+export class EmployeesService {
+  constructor(
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+  ) {}
+  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    // Check if email already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: createEmployeeDto.email }
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    // Create user
+    const user = this.userRepository.create({
+      email: createEmployeeDto.email,
+      firstName: createEmployeeDto.firstName,
+      lastName: createEmployeeDto.lastName,
+      password: hashedPassword,
+      role: UserRole.EMPLOYEE
+    });
+    const savedUser = await this.userRepository.save(user);
+    // Create employee
+    const employee = this.employeeRepository.create({
+      user: savedUser,
+      specializations: createEmployeeDto.specializations,
+      isActive: true,
+      availability: {}
+    });
+    const savedEmployee = await this.employeeRepository.save(employee);
+    return {
+      employee: savedEmployee,
+      temporaryPassword
+    };
+  }
+  async findAll(): Promise<Employee[]> {
+    const employees = await this.employeeRepository.find({
+      relations: ['user', 'services'],
+      where: { isActive: true },
+    });
+    return employees as Employee[];
+  }
+  async findOne(id: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { id },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee #${id} not found`);
+    }
+    return employee as Employee;
+  }
+  async findByUserId(userId: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'services'],
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with user ID ${userId} not found`);
+    }
+    return employee;
+  }
+  async isAvailable(
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    excludeBookingId?: string
+  ): Promise<boolean> {
+    const employee = await this.findOne(employeeId);
+    // Check if the employee is active
+    if (!employee.isActive) {
+      return false;
+    }
+    // Get day of week (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = startTime.getDay();
+    const dayNameMap = new Map<number, DayName>([
+      [0, 'sunday'],
+      [1, 'monday'],
+      [2, 'tuesday'],
+      [3, 'wednesday'],
+      [4, 'thursday'],
+      [5, 'friday'],
+      [6, 'saturday'],
+    ]);
+    const dayName = dayNameMap.get(dayOfWeek);
+    if (!dayName) {
+      return false;
+    }
+    // Check if employee has availability for this day
+    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
+      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
+    );
+    const dayAvailability = availabilityMap.get(dayName);
+    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
+      return false;
+    }
+    // Check if the booking time falls within any of the available time slots
+    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
+    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
+    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
+      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+        return false;
+      }
+      const [startHour, startMinute] = slot.start.split(':').map(Number);
+      const [endHour, endMinute] = slot.end.split(':').map(Number);
+      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+        return false;
+      }
+      const slotStart = startHour * 60 + startMinute;
+      const slotEnd = endHour * 60 + endMinute;
+      return bookingStart >= slotStart && bookingEnd <= slotEnd;
+    });
+    if (!isWithinAvailability) {
+      return false;
+    }
+    // Check for overlapping bookings
+    const whereCondition: FindOptionsWhere<Booking> = {
+      employee: { id: employeeId },
+      startTime: Not(MoreThan(endTime)),
+      endTime: Not(LessThan(startTime)),
+    };
+    // Exclude the current booking if an ID is provided
+    if (excludeBookingId) {
+      whereCondition.id = Not(excludeBookingId);
+    }
+    const overlappingBookings = await this.bookingRepository.count({
+      where: whereCondition,
+    });
+    return overlappingBookings === 0;
+  }
+  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
+    const employee = await this.findOne(id);
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    await this.userRepository.update(employee.user.id, {
+      password: hashedPassword
+    });
+    return { temporaryPassword };
+  }
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    const employee = await this.findOne(id);
+    const updated = Object.assign(employee, updateEmployeeDto);
+    return await this.employeeRepository.save(updated) as Employee;
+  }
+  async remove(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = false;
+    await this.employeeRepository.save(employee);
+  }
+  async restore(id: string): Promise<void> {
+    const employee = await this.findOne(id);
+    employee.isActive = true;
+    await this.employeeRepository.save(employee);
+  }
+}
 ````
 
 ## File: backend/src/orders/entities/order.entity.spec.ts
@@ -10953,6 +11190,86 @@ describe('Button', () => {
 });
 ````
 
+## File: frontend/admin/src/components/base/__tests__/Card.spec.ts
+````typescript
+import { describe, it, expect } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
+import Card from '../Card.vue';
+const TestIconComponent = defineComponent({
+  name: 'TestIcon',
+  render() {
+    return h('svg', { 'data-testid': 'test-icon' }, 'Test Icon');
+  },
+});
+describe('Card', () => {
+  it('renders properly with default props', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test Title',
+        value: '42'
+      }
+    });
+    expect(wrapper.text()).toContain('Test Title');
+    expect(wrapper.text()).toContain('42');
+    expect(wrapper.find('.bg-indigo-100').exists()).toBe(true);
+    expect(wrapper.find('.text-indigo-600').exists()).toBe(true);
+  });
+  it('applies different colors correctly', () => {
+    const colors = ['green', 'blue', 'red', 'yellow'] as const;
+    colors.forEach(color => {
+      const wrapper = mount(Card, {
+        props: {
+          title: 'Test',
+          value: '42',
+          color
+        }
+      });
+      expect(wrapper.find(`.bg-${color}-100`).exists()).toBe(true);
+      expect(wrapper.find(`.text-${color}-600`).exists()).toBe(true);
+    });
+  });
+  it('renders slot content', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test',
+        value: '42'
+      },
+      slots: {
+        icon: () => h(TestIconComponent)
+      }
+    });
+    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
+  });
+  it('formats number values correctly', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Test',
+        value: 42
+      }
+    });
+    expect(wrapper.text()).toContain('42');
+  });
+  it('renders with all props', () => {
+    const wrapper = mount(Card, {
+      props: {
+        title: 'Complex Test',
+        value: 1000,
+        color: 'green'
+      },
+      slots: {
+        icon: () => h(TestIconComponent)
+      }
+    });
+    expect(wrapper.text()).toContain('Complex Test');
+    expect(wrapper.text()).toContain('1000');
+    expect(wrapper.find('.bg-green-100').exists()).toBe(true);
+    expect(wrapper.find('.text-green-600').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
+  });
+});
+````
+
 ## File: frontend/admin/src/components/base/Card.vue
 ````vue
 <template>
@@ -14796,6 +15113,244 @@ describe('BookingForm', () => {
 })
 ````
 
+## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+import { useServicesStore } from '@/stores/services'
+import ServiceList from '../ServiceList.vue'
+import { createRouter, createWebHistory } from 'vue-router'
+import { defineComponent, h } from 'vue'
+const BookingStub = defineComponent({
+  name: 'BookingStub',
+  render() {
+    return h('div', 'Booking')
+  },
+})
+// Create router instance for testing
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/booking',
+      name: 'booking',
+      component: BookingStub,
+    },
+  ],
+})
+// Mock service data
+const mockServices = [
+  {
+    id: '1',
+    name: 'Haircut',
+    description: 'Basic haircut',
+    duration: 30,
+    price: '300',
+    isActive: true,
+    createdAt: '2023-01-01',
+    updatedAt: '2023-01-01',
+  },
+]
+describe('ServiceList', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+  describe('Loading State', () => {
+    it('should show loading skeleton', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: true,
+                  services: [],
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+      expect(wrapper.findAll('.animate-pulse')).toHaveLength(4)
+    })
+  })
+  describe('Error State', () => {
+    it('should show error message', () => {
+      const errorMessage = 'Failed to fetch services'
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: [],
+                  error: errorMessage,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain(errorMessage)
+      expect(wrapper.find('.bg-red-50').exists()).toBe(true)
+    })
+  })
+  describe('Empty State', () => {
+    it('should show empty message when no services', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: [],
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain('Ingen tjenester tilgjengelig for øyeblikket')
+    })
+  })
+  describe('Services Display', () => {
+    it('should display services correctly', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.text()).toContain(mockServices[0].name)
+      expect(wrapper.text()).toContain(mockServices[0].description)
+      expect(wrapper.text()).toContain(`${mockServices[0].duration} min`)
+      // Check for price in Norwegian format (kr 300,00)
+      const formattedPrice = new Intl.NumberFormat('nb-NO', {
+        style: 'currency',
+        currency: 'NOK',
+      }).format(parseFloat(mockServices[0].price))
+      expect(wrapper.text()).toContain(formattedPrice)
+    })
+    it('should select service on click', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const store = useServicesStore()
+      await wrapper.find('.group').trigger('click')
+      expect(store.selectService).toHaveBeenCalledWith(mockServices[0])
+    })
+  })
+  describe('Selected Service Actions', () => {
+    it('should show bottom sheet when service is selected', () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      expect(wrapper.find('.fixed.bottom-0').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Bestill nå')
+      expect(wrapper.text()).toContain('Avbryt')
+    })
+    it('should clear selection when cancel is clicked', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const store = useServicesStore()
+      await wrapper.find('.btn-secondary').trigger('click')
+      expect(store.clearSelection).toHaveBeenCalled()
+    })
+    it('should navigate to booking when book button is clicked', async () => {
+      const wrapper = mount(ServiceList, {
+        global: {
+          plugins: [
+            createTestingPinia({
+              createSpy: vi.fn,
+              initialState: {
+                services: {
+                  isLoading: false,
+                  services: mockServices,
+                  error: null,
+                  selectedService: mockServices[0],
+                },
+              },
+            }),
+            router,
+          ],
+        },
+      })
+      const push = vi.spyOn(router, 'push')
+      await wrapper.find('.btn-primary').trigger('click')
+      expect(push).toHaveBeenCalledWith('/booking')
+    })
+  })
+})
+````
+
 ## File: frontend/customer/src/components/__tests__/WaitingTimeDisplay.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -18415,61 +18970,6 @@ describe('AddShopCodes1731981975584', () => {
 });
 ````
 
-## File: backend/src/database/seeds/update-admin-password.seed.ts
-````typescript
-import { DataSource } from "typeorm";
-import { User } from "../../users/entities/user.entity";
-import * as fs from 'fs';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-export const updateAdminPassword = async (dataSource: DataSource): Promise<void> => {
-  const userRepository = dataSource.getRepository(User);
-  try {
-    // Read .env file directly and parse it properly
-    const envPath = path.resolve(process.cwd(), '.env');
-    const envConfig = dotenv.parse(fs.readFileSync(envPath));
-    const adminEmail = envConfig.ADMIN_EMAIL;
-    const adminPassword = envConfig.ADMIN_PASSWORD;
-    if (!adminEmail || !adminPassword) {
-      throw new Error(
-        "Admin email and password must be set in environment variables",
-      );
-    }
-    console.log("\nPassword analysis before update:");
-    console.log("Raw password:", adminPassword);
-    console.log("Length:", adminPassword.length);
-    console.log("Character codes:");
-    for (let i = 0; i < adminPassword.length; i++) {
-      console.log(`${i}: '${adminPassword.charAt(i)}' (${adminPassword.charCodeAt(i)})`);
-    }
-    // Find admin user
-    const adminUser = await userRepository.findOne({
-      where: { email: adminEmail },
-    });
-    if (!adminUser) {
-      throw new Error("Admin user not found");
-    }
-    // Update with raw password - let the entity handle hashing
-    adminUser.password = adminPassword;
-    await userRepository.save(adminUser);
-    console.log("Admin password updated in database");
-    // Verify the update
-    const updatedUser = await userRepository.findOne({
-      where: { email: adminEmail },
-    });
-    if (!updatedUser) {
-      throw new Error("Could not verify password update");
-    }
-    // Use the entity's validatePassword method
-    const isPasswordValid = await updatedUser.validatePassword(adminPassword);
-    console.log("Password verification after update:", isPasswordValid);
-  } catch (error) {
-    console.error("Error updating admin password:", error);
-    throw error;
-  }
-};
-````
-
 ## File: backend/src/services/services.module.spec.ts
 ````typescript
 import { Test } from '@nestjs/testing';
@@ -18746,86 +19246,6 @@ describe('UsersService', () => {
         NotFoundException,
       );
     });
-  });
-});
-````
-
-## File: frontend/admin/src/components/base/__tests__/Card.spec.ts
-````typescript
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
-import Card from '../Card.vue';
-const TestIconComponent = defineComponent({
-  name: 'TestIcon',
-  render() {
-    return h('svg', { 'data-testid': 'test-icon' }, 'Test Icon');
-  },
-});
-describe('Card', () => {
-  it('renders properly with default props', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test Title',
-        value: '42'
-      }
-    });
-    expect(wrapper.text()).toContain('Test Title');
-    expect(wrapper.text()).toContain('42');
-    expect(wrapper.find('.bg-indigo-100').exists()).toBe(true);
-    expect(wrapper.find('.text-indigo-600').exists()).toBe(true);
-  });
-  it('applies different colors correctly', () => {
-    const colors = ['green', 'blue', 'red', 'yellow'] as const;
-    colors.forEach(color => {
-      const wrapper = mount(Card, {
-        props: {
-          title: 'Test',
-          value: '42',
-          color
-        }
-      });
-      expect(wrapper.find(`.bg-${color}-100`).exists()).toBe(true);
-      expect(wrapper.find(`.text-${color}-600`).exists()).toBe(true);
-    });
-  });
-  it('renders slot content', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test',
-        value: '42'
-      },
-      slots: {
-        icon: () => h(TestIconComponent)
-      }
-    });
-    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
-  });
-  it('formats number values correctly', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Test',
-        value: 42
-      }
-    });
-    expect(wrapper.text()).toContain('42');
-  });
-  it('renders with all props', () => {
-    const wrapper = mount(Card, {
-      props: {
-        title: 'Complex Test',
-        value: 1000,
-        color: 'green'
-      },
-      slots: {
-        icon: () => h(TestIconComponent)
-      }
-    });
-    expect(wrapper.text()).toContain('Complex Test');
-    expect(wrapper.text()).toContain('1000');
-    expect(wrapper.find('.bg-green-100').exists()).toBe(true);
-    expect(wrapper.find('.text-green-600').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="test-icon"]').exists()).toBe(true);
   });
 });
 ````
@@ -19112,6 +19532,110 @@ describe("Auth Store", () => {
     });
   });
 });
+````
+
+## File: frontend/admin/src/stores/employees.ts
+````typescript
+import { defineStore } from 'pinia'
+import api, { extractErrorMessage } from '../lib/api'
+import type { Employee } from '../types'
+interface EmployeeState {
+  employees: Employee[]
+  loading: boolean
+  error: string | null
+}
+interface CreateEmployeeResponse {
+  employee: Employee;
+  temporaryPassword: string;
+}
+interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+export const useEmployeesStore = defineStore('employees', {
+  state: (): EmployeeState => ({
+    employees: [],
+    loading: false,
+    error: null
+  }),
+  getters: {
+    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
+    getEmployeeById: (state) => (id: string) => 
+      state.employees.find(emp => emp.id === id)
+  },
+  actions: {
+    async fetchEmployees() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get<Employee[]>('/employees')
+        this.employees = response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
+      } finally {
+        this.loading = false
+      }
+    },
+    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
+        this.employees.push(response.data.employee)
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resetPassword(id: string): Promise<ResetPasswordResponse> {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post<ResetPasswordResponse>(
+          `/employees/${id}/reset-password`
+        )
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateEmployee(id: string, employeeData: Partial<Employee>) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.patch<Employee>(`/employees/${id}`, employeeData)
+        const index = this.employees.findIndex(emp => emp.id === id)
+        if (index !== -1) {
+          this.employees.splice(index, 1, response.data)
+        }
+        return response.data
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async deleteEmployee(id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/employees/${id}`)
+        this.employees = this.employees.filter(emp => emp.id !== id)
+      } catch (error) {
+        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
 ````
 
 ## File: frontend/admin/src/types/index.ts
@@ -19431,244 +19955,6 @@ describe('PaymentForm', () => {
   it('shows payment instructions', () => {
     const wrapper = mountComponent()
     expect(wrapper.text()).toContain('Trykk på knappen for å simulere kortbetaling')
-  })
-})
-````
-
-## File: frontend/customer/src/components/__tests__/ServiceList.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createTestingPinia } from '@pinia/testing'
-import { useServicesStore } from '@/stores/services'
-import ServiceList from '../ServiceList.vue'
-import { createRouter, createWebHistory } from 'vue-router'
-import { defineComponent, h } from 'vue'
-const BookingStub = defineComponent({
-  name: 'BookingStub',
-  render() {
-    return h('div', 'Booking')
-  },
-})
-// Create router instance for testing
-const router = createRouter({
-  history: createWebHistory(),
-  routes: [
-    {
-      path: '/booking',
-      name: 'booking',
-      component: BookingStub,
-    },
-  ],
-})
-// Mock service data
-const mockServices = [
-  {
-    id: '1',
-    name: 'Haircut',
-    description: 'Basic haircut',
-    duration: 30,
-    price: '300',
-    isActive: true,
-    createdAt: '2023-01-01',
-    updatedAt: '2023-01-01',
-  },
-]
-describe('ServiceList', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-  describe('Loading State', () => {
-    it('should show loading skeleton', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: true,
-                  services: [],
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.find('.animate-pulse').exists()).toBe(true)
-      expect(wrapper.findAll('.animate-pulse')).toHaveLength(4)
-    })
-  })
-  describe('Error State', () => {
-    it('should show error message', () => {
-      const errorMessage = 'Failed to fetch services'
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: [],
-                  error: errorMessage,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain(errorMessage)
-      expect(wrapper.find('.bg-red-50').exists()).toBe(true)
-    })
-  })
-  describe('Empty State', () => {
-    it('should show empty message when no services', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: [],
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain('Ingen tjenester tilgjengelig for øyeblikket')
-    })
-  })
-  describe('Services Display', () => {
-    it('should display services correctly', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.text()).toContain(mockServices[0].name)
-      expect(wrapper.text()).toContain(mockServices[0].description)
-      expect(wrapper.text()).toContain(`${mockServices[0].duration} min`)
-      // Check for price in Norwegian format (kr 300,00)
-      const formattedPrice = new Intl.NumberFormat('nb-NO', {
-        style: 'currency',
-        currency: 'NOK',
-      }).format(parseFloat(mockServices[0].price))
-      expect(wrapper.text()).toContain(formattedPrice)
-    })
-    it('should select service on click', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const store = useServicesStore()
-      await wrapper.find('.group').trigger('click')
-      expect(store.selectService).toHaveBeenCalledWith(mockServices[0])
-    })
-  })
-  describe('Selected Service Actions', () => {
-    it('should show bottom sheet when service is selected', () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      expect(wrapper.find('.fixed.bottom-0').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Bestill nå')
-      expect(wrapper.text()).toContain('Avbryt')
-    })
-    it('should clear selection when cancel is clicked', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const store = useServicesStore()
-      await wrapper.find('.btn-secondary').trigger('click')
-      expect(store.clearSelection).toHaveBeenCalled()
-    })
-    it('should navigate to booking when book button is clicked', async () => {
-      const wrapper = mount(ServiceList, {
-        global: {
-          plugins: [
-            createTestingPinia({
-              createSpy: vi.fn,
-              initialState: {
-                services: {
-                  isLoading: false,
-                  services: mockServices,
-                  error: null,
-                  selectedService: mockServices[0],
-                },
-              },
-            }),
-            router,
-          ],
-        },
-      })
-      const push = vi.spyOn(router, 'push')
-      await wrapper.find('.btn-primary').trigger('click')
-      expect(push).toHaveBeenCalledWith('/booking')
-    })
   })
 })
 ````
@@ -20695,188 +20981,6 @@ describe("createSampleBookings", () => {
 });
 ````
 
-## File: backend/src/employees/employees.service.ts
-````typescript
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, MoreThan, LessThan, FindOptionsWhere } from 'typeorm';
-import { Employee } from './entities/employee.entity';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-interface TimeSlot {
-  start: string;
-  end: string;
-}
-type DayName = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
-type Availability = Record<DayName, TimeSlot[] | undefined>;
-@Injectable()
-export class EmployeesService {
-  constructor(
-    @InjectRepository(Employee)
-    private readonly employeeRepository: Repository<Employee>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-  ) {}
-  async create(createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    // Check if email already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createEmployeeDto.email }
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    // Create user
-    const user = this.userRepository.create({
-      email: createEmployeeDto.email,
-      firstName: createEmployeeDto.firstName,
-      lastName: createEmployeeDto.lastName,
-      password: hashedPassword,
-      role: UserRole.EMPLOYEE
-    });
-    const savedUser = await this.userRepository.save(user);
-    // Create employee
-    const employee = this.employeeRepository.create({
-      user: savedUser,
-      specializations: createEmployeeDto.specializations,
-      isActive: true,
-      availability: {}
-    });
-    const savedEmployee = await this.employeeRepository.save(employee);
-    return {
-      employee: savedEmployee,
-      temporaryPassword
-    };
-  }
-  async findAll(): Promise<Employee[]> {
-    const employees = await this.employeeRepository.find({
-      relations: ['user', 'services'],
-      where: { isActive: true },
-    });
-    return employees as Employee[];
-  }
-  async findOne(id: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { id },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee #${id} not found`);
-    }
-    return employee as Employee;
-  }
-  async findByUserId(userId: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'services'],
-    });
-    if (!employee) {
-      throw new NotFoundException(`Employee with user ID ${userId} not found`);
-    }
-    return employee;
-  }
-  async isAvailable(
-    employeeId: string,
-    startTime: Date,
-    endTime: Date,
-    excludeBookingId?: string
-  ): Promise<boolean> {
-    const employee = await this.findOne(employeeId);
-    // Check if the employee is active
-    if (!employee.isActive) {
-      return false;
-    }
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = startTime.getDay();
-    const dayNameMap = new Map<number, DayName>([
-      [0, 'sunday'],
-      [1, 'monday'],
-      [2, 'tuesday'],
-      [3, 'wednesday'],
-      [4, 'thursday'],
-      [5, 'friday'],
-      [6, 'saturday'],
-    ]);
-    const dayName = dayNameMap.get(dayOfWeek);
-    if (!dayName) {
-      return false;
-    }
-    // Check if employee has availability for this day
-    const availabilityMap = new Map<DayName, TimeSlot[] | undefined>(
-      Object.entries(employee.availability as Availability) as [DayName, TimeSlot[] | undefined][]
-    );
-    const dayAvailability = availabilityMap.get(dayName);
-    if (!dayAvailability || !Array.isArray(dayAvailability) || dayAvailability.length === 0) {
-      return false;
-    }
-    // Check if the booking time falls within any of the available time slots
-    const bookingStart = startTime.getHours() * 60 + startTime.getMinutes();
-    const bookingEnd = endTime.getHours() * 60 + endTime.getMinutes();
-    const isWithinAvailability = dayAvailability.some((slot: TimeSlot) => {
-      if (typeof slot.start !== 'string' || typeof slot.end !== 'string') {
-        return false;
-      }
-      const [startHour, startMinute] = slot.start.split(':').map(Number);
-      const [endHour, endMinute] = slot.end.split(':').map(Number);
-      if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
-        return false;
-      }
-      const slotStart = startHour * 60 + startMinute;
-      const slotEnd = endHour * 60 + endMinute;
-      return bookingStart >= slotStart && bookingEnd <= slotEnd;
-    });
-    if (!isWithinAvailability) {
-      return false;
-    }
-    // Check for overlapping bookings
-    const whereCondition: FindOptionsWhere<Booking> = {
-      employee: { id: employeeId },
-      startTime: Not(MoreThan(endTime)),
-      endTime: Not(LessThan(startTime)),
-    };
-    // Exclude the current booking if an ID is provided
-    if (excludeBookingId) {
-      whereCondition.id = Not(excludeBookingId);
-    }
-    const overlappingBookings = await this.bookingRepository.count({
-      where: whereCondition,
-    });
-    return overlappingBookings === 0;
-  }
-  async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const employee = await this.findOne(id);
-    const temporaryPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-    await this.userRepository.update(employee.user.id, {
-      password: hashedPassword
-    });
-    return { temporaryPassword };
-  }
-  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    const employee = await this.findOne(id);
-    const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated) as Employee;
-  }
-  async remove(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = false;
-    await this.employeeRepository.save(employee);
-  }
-  async restore(id: string): Promise<void> {
-    const employee = await this.findOne(id);
-    employee.isActive = true;
-    await this.employeeRepository.save(employee);
-  }
-}
-````
-
 ## File: backend/src/orders/orders.module.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -21116,108 +21220,87 @@ export const useAuthStore = defineStore("auth", {
 });
 ````
 
-## File: frontend/admin/src/stores/employees.ts
+## File: backend/src/database/seeds/create-services.seed.spec.ts
 ````typescript
-import { defineStore } from 'pinia'
-import api, { extractErrorMessage } from '../lib/api'
-import type { Employee } from '../types'
-interface EmployeeState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
+import { DataSource } from 'typeorm';
+import { CreateServicesSeed } from './create-services.seed';
+import { Service } from '../../services/entities/service.entity';
+interface MockServiceRepository {
+  clear: jest.Mock<Promise<void>, []>;
+  save: jest.Mock<Promise<Service[]>, [Service[]]>;
 }
-interface CreateEmployeeResponse {
-  employee: Employee;
-  temporaryPassword: string;
-}
-interface ResetPasswordResponse {
-  temporaryPassword: string;
-}
-export const useEmployeesStore = defineStore('employees', {
-  state: (): EmployeeState => ({
-    employees: [],
-    loading: false,
-    error: null
-  }),
-  getters: {
-    getActiveEmployees: (state) => state.employees.filter(emp => emp.isActive),
-    getEmployeeById: (state) => (id: string) => 
-      state.employees.find(emp => emp.id === id)
+type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
+const expectedServices: ServiceData[] = [
+  {
+    name: 'Standard Klipp',
+    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
+    duration: 20,
+    price: 299,
+    isActive: true,
   },
-  actions: {
-    async fetchEmployees() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.get<Employee[]>('/employees')
-        this.employees = response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke hente ansatte")
-      } finally {
-        this.loading = false
-      }
-    },
-    async createEmployee(employeeData: Partial<Employee>): Promise<CreateEmployeeResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<CreateEmployeeResponse>('/employees', employeeData)
-        this.employees.push(response.data.employee)
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke opprette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async resetPassword(id: string): Promise<ResetPasswordResponse> {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.post<ResetPasswordResponse>(
-          `/employees/${id}/reset-password`
-        )
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke tilbakestille passord")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async updateEmployee(id: string, employeeData: Partial<Employee>) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await api.patch<Employee>(`/employees/${id}`, employeeData)
-        const index = this.employees.findIndex(emp => emp.id === id)
-        if (index !== -1) {
-          this.employees.splice(index, 1, response.data)
-        }
-        return response.data
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke oppdatere ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-    async deleteEmployee(id: string) {
-      this.loading = true
-      this.error = null
-      try {
-        await api.delete(`/employees/${id}`)
-        this.employees = this.employees.filter(emp => emp.id !== id)
-      } catch (error) {
-        this.error = extractErrorMessage(error, "Kunne ikke slette ansatt")
-        throw error
-      } finally {
-        this.loading = false
-      }
-    }
+  {
+    name: 'Styling Klipp',
+    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
+    duration: 30,
+    price: 399,
+    isActive: true,
+  },
+  {
+    name: 'Skjegg Trim',
+    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
+    duration: 15,
+    price: 199,
+    isActive: true,
+  },
+  {
+    name: 'Full Service',
+    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
+    duration: 45,
+    price: 549,
+    isActive: true,
   }
-})
+];
+describe('CreateServicesSeed', () => {
+  let seed: CreateServicesSeed;
+  let mockDataSource: DataSource;
+  let mockServiceRepository: MockServiceRepository;
+  beforeEach(() => {
+    mockServiceRepository = {
+      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
+        return Promise.resolve(
+          services.map(service => ({
+            ...service,
+            id: 'test-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        );
+      }),
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
+    } as unknown as DataSource;
+    seed = new CreateServicesSeed();
+  });
+  it('should clear existing services and create new ones', async () => {
+    await seed.run(mockDataSource);
+    expect(mockServiceRepository.clear).toHaveBeenCalled();
+    const savedServices = mockServiceRepository.save.mock.calls[0][0];
+    expectedServices.forEach((expectedService, index) => {
+      const service = savedServices.at(index);
+      expect(service).toBeDefined();
+      expect(service).toEqual(
+        expect.objectContaining(expectedService)
+      );
+    });
+  });
+  it('should handle database errors gracefully', async () => {
+    const dbError = new Error('Database connection error');
+    mockServiceRepository.clear.mockRejectedValue(dbError);
+    await expect(seed.run(mockDataSource)).rejects.toThrow('Database connection error');
+  });
+});
 ````
 
 ## File: backend/src/main.spec.ts
@@ -21538,138 +21621,6 @@ app.use(router)
 app.mount('#app')
 ````
 
-## File: backend/src/database/seeds/create-services.seed.spec.ts
-````typescript
-import { DataSource } from 'typeorm';
-import { CreateServicesSeed } from './create-services.seed';
-import { Service } from '../../services/entities/service.entity';
-interface MockServiceRepository {
-  clear: jest.Mock<Promise<void>, []>;
-  save: jest.Mock<Promise<Service[]>, [Service[]]>;
-}
-type ServiceData = Pick<Service, 'name' | 'description' | 'duration' | 'price' | 'isActive'>;
-const expectedServices: ServiceData[] = [
-  {
-    name: 'Standard Klipp',
-    description: 'En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.',
-    duration: 20,
-    price: 299,
-    isActive: true,
-  },
-  {
-    name: 'Styling Klipp',
-    description: 'Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.',
-    duration: 30,
-    price: 399,
-    isActive: true,
-  },
-  {
-    name: 'Skjegg Trim',
-    description: 'Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.',
-    duration: 15,
-    price: 199,
-    isActive: true,
-  },
-  {
-    name: 'Full Service',
-    description: 'Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.',
-    duration: 45,
-    price: 549,
-    isActive: true,
-  }
-];
-describe('CreateServicesSeed', () => {
-  let seed: CreateServicesSeed;
-  let mockDataSource: DataSource;
-  let mockServiceRepository: MockServiceRepository;
-  beforeEach(() => {
-    mockServiceRepository = {
-      clear: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
-      save: jest.fn<Promise<Service[]>, [Service[]]>().mockImplementation((services: Service[]): Promise<Service[]> => {
-        return Promise.resolve(
-          services.map(service => ({
-            ...service,
-            id: 'test-id',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))
-        );
-      }),
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockReturnValue(mockServiceRepository),
-    } as unknown as DataSource;
-    seed = new CreateServicesSeed();
-  });
-  it('should clear existing services and create new ones', async () => {
-    await seed.run(mockDataSource);
-    expect(mockServiceRepository.clear).toHaveBeenCalled();
-    const savedServices = mockServiceRepository.save.mock.calls[0][0];
-    expectedServices.forEach((expectedService, index) => {
-      const service = savedServices.at(index);
-      expect(service).toBeDefined();
-      expect(service).toEqual(
-        expect.objectContaining(expectedService)
-      );
-    });
-  });
-  it('should handle database errors gracefully', async () => {
-    const dbError = new Error('Database connection error');
-    mockServiceRepository.clear.mockRejectedValue(dbError);
-    await expect(seed.run(mockDataSource)).rejects.toThrow('Database connection error');
-  });
-});
-````
-
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components/button';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
-});
-defineEmits<{
-  click: [event: MouseEvent];
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
-````
-
 ## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
 ````typescript
 import { DataSource, Repository } from "typeorm";
@@ -21957,6 +21908,55 @@ describe("createInitialData", () => {
 });
 ````
 
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components/button';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  click: [event: MouseEvent];
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
+````
+
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -22234,7 +22234,7 @@ if (
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.34",
-    "vue-router": "^5.0.6"
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
@@ -22286,7 +22286,7 @@ if (
     "axios": "^1.16.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
-    "vue-router": "^5.0.6"
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
     "@pinia/testing": "^1.0.3",
