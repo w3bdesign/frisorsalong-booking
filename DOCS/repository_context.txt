@@ -16929,6 +16929,21 @@ export default {
 }
 ````
 
+## File: frontend/customer/tsconfig.vitest.json
+````json
+{
+  "extends": "./tsconfig.app.json",
+  "exclude": [],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+
+    "lib": ["ES2022"],
+    "types": ["node", "jsdom"]
+  }
+}
+````
+
 ## File: frontend/customer/vite.config.ts
 ````typescript
 import { fileURLToPath, URL } from 'node:url'
@@ -20426,21 +20441,6 @@ export const useWaitingStore = defineStore('waiting', () => {
 })
 ````
 
-## File: frontend/customer/tsconfig.vitest.json
-````json
-{
-  "extends": "./tsconfig.app.json",
-  "exclude": [],
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
-
-    "lib": ["ES2022"],
-    "types": ["node", "jsdom"]
-  }
-}
-````
-
 ## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
@@ -20684,6 +20684,293 @@ describe("BookingsModule", () => {
           exp.module === TypeOrmModule)
     );
     expect(hasTypeOrmExport).toBe(true);
+  });
+});
+````
+
+## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
+````typescript
+import { DataSource, Repository } from "typeorm";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import { createInitialData } from "./create-initial-data.seed";
+import * as bcrypt from "bcrypt";
+jest.mock("bcrypt");
+type SupportedEntity = User | Employee | Service;
+type SupportedEntityName = "User" | "Employee" | "Service";
+const VALID_ENTITY_NAMES = new Set<SupportedEntityName>(["User", "Employee", "Service"]);
+function isSupportedEntityName(name: string): name is SupportedEntityName {
+  return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
+}
+function getEntityName(entity: { name: string }): SupportedEntityName {
+  const name: string = entity.name;
+  if (isSupportedEntityName(name)) {
+    return name;
+  }
+  throw new Error(`Unsupported entity type: ${name}`);
+}
+describe("createInitialData", () => {
+  let mockDataSource: Partial<DataSource>;
+  let mockUserRepository: Partial<Repository<User>>;
+  let mockEmployeeRepository: Partial<Repository<Employee>>;
+  let mockServiceRepository: Partial<Repository<Service>>;
+  let mockQueryBuilder: {
+    insert: jest.Mock;
+    into: jest.Mock;
+    values: jest.Mock;
+    execute: jest.Mock;
+  };
+  const originalEnv = process.env;
+  beforeEach(() => {
+    // Mock repositories with proper typing
+    mockUserRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<User>): Promise<User> =>
+          Promise.resolve({ id: "user-1", ...data } as User)
+        ),
+    };
+    mockEmployeeRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
+          Promise.resolve({ id: "employee-1", ...data } as Employee)
+        ),
+    };
+    mockServiceRepository = {
+      save: jest
+        .fn()
+        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
+          Promise.resolve(
+            Array.isArray(services)
+              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
+              : { ...services, id: 'service-1' } as Service
+          )
+        ),
+    };
+    // Mock query builder for service associations
+    mockQueryBuilder = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
+    // Mock DataSource with proper typing
+    const mockGetRepository = (entity: { name: string }): Partial<Repository<SupportedEntity>> => {
+      const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
+        ["User", mockUserRepository],
+        ["Employee", mockEmployeeRepository],
+        ["Service", mockServiceRepository],
+      ]);
+      const entityName = getEntityName(entity);
+      const repository = repositories.get(entityName);
+      if (!repository) {
+        throw new Error(`Repository not mocked for entity: ${entityName}`);
+      }
+      return repository;
+    };
+    mockDataSource = {
+      getRepository: jest.fn().mockImplementation(mockGetRepository),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    };
+    // Mock bcrypt
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
+    // Setup test environment variables
+    process.env = {
+      ...originalEnv,
+      EMPLOYEE_EMAIL: "employee@example.com",
+      EMPLOYEE_PASSWORD: "employee123",
+      EMPLOYEE_PHONE: "+1234567890",
+    };
+    // Mock console methods
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.clearAllMocks();
+  });
+  test("creates services, employee user, and employee when they do not exist", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [
+      { id: "service-1", name: "Standard Klipp" },
+      { id: "service-2", name: "Styling Klipp" },
+      { id: "service-3", name: "Skjegg Trim" },
+      { id: "service-4", name: "Full Service" },
+    ];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were created
+    expect(mockServiceRepository.save).toHaveBeenCalledWith([
+      expect.objectContaining({ name: "Standard Klipp" }),
+      expect.objectContaining({ name: "Styling Klipp" }),
+      expect.objectContaining({ name: "Skjegg Trim" }),
+      expect.objectContaining({ name: "Full Service" }),
+    ]);
+    // Verify employee user was created
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "employee@example.com",
+        role: UserRole.EMPLOYEE,
+      })
+    );
+    // Verify employee was created
+    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: mockEmployeeUser,
+        specializations: ["klipp", "styling", "skjegg"],
+      })
+    );
+    // Verify services were associated with employee
+    expect(mockQueryBuilder.insert).toHaveBeenCalled();
+    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
+    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
+      mockServices.map((service) => ({
+        employee_id: mockEmployee.id,
+        service_id: service.id,
+      }))
+    );
+    // Verify success message was logged
+    expect(console.log).toHaveBeenCalledWith(
+      "Initial data seeded successfully"
+    );
+  });
+  test("does not create employee when it already exists", async () => {
+    // Mock that employee already exists
+    const existingEmployee = {
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
+      existingEmployee
+    );
+    await createInitialData(mockDataSource as DataSource);
+    // Verify services were still created
+    expect(mockServiceRepository.save).toHaveBeenCalled();
+    // Verify no employee creation attempts were made
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
+    // Verify appropriate message was logged
+    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
+  });
+  test("throws error when employee email is missing", async () => {
+    delete process.env.EMPLOYEE_EMAIL;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("throws error when employee password is missing", async () => {
+    delete process.env.EMPLOYEE_PASSWORD;
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(
+      "Employee email and password must be set in environment variables"
+    );
+    // Verify no database operations were attempted
+    expect(mockServiceRepository.save).not.toHaveBeenCalled();
+    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    expect(mockUserRepository.save).not.toHaveBeenCalled();
+    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
+  });
+  test("handles database errors during service creation", async () => {
+    const dbError = new Error("Database error during service creation");
+    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles database errors during employee creation", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock employee creation error
+    const dbError = new Error("Database error during employee creation");
+    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(dbError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      dbError.message
+    );
+  });
+  test("handles password hashing errors", async () => {
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock services creation success
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
+    // Mock bcrypt error
+    const hashError = new Error("Hashing failed");
+    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
+    await expect(
+      createInitialData(mockDataSource as DataSource)
+    ).rejects.toThrow(hashError);
+    // Verify error was logged
+    expect(console.error).toHaveBeenCalledWith(
+      "Error creating initial data:",
+      hashError.message
+    );
+  });
+  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
+    // Remove EMPLOYEE_PHONE from environment
+    delete process.env.EMPLOYEE_PHONE;
+    // Mock that employee doesn't exist
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+    // Mock created services
+    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
+    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
+    // Mock created employee user
+    const mockEmployeeUser = {
+      id: "user-1",
+      email: "employee@example.com",
+      role: UserRole.EMPLOYEE,
+    };
+    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
+    // Mock created employee
+    const mockEmployee = {
+      id: "employee-1",
+      user: mockEmployeeUser,
+    };
+    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
+    await createInitialData(mockDataSource as DataSource);
+    // Verify employee user was created with default phone number
+    expect(mockUserRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phoneNumber: "+1234567890", // This is the default value
+      })
+    );
   });
 });
 ````
@@ -21603,360 +21890,6 @@ export const useOrdersStore = defineStore("orders", {
 });
 ````
 
-## File: frontend/customer/src/main.ts
-````typescript
-import './assets/main.css'
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-// Create the app instance
-const app = createApp(App)
-// Use plugins
-const pinia = createPinia()
-// Pinia's install() method is fully compatible with Vue's plugin system
-app.use(pinia as unknown as Parameters<typeof app.use>[0])
-app.use(router)
-// Mount the app
-app.mount('#app')
-````
-
-## File: backend/src/database/seeds/create-initial-data.seed.spec.ts
-````typescript
-import { DataSource, Repository } from "typeorm";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Employee } from "../../employees/entities/employee.entity";
-import { Service } from "../../services/entities/service.entity";
-import { createInitialData } from "./create-initial-data.seed";
-import * as bcrypt from "bcrypt";
-jest.mock("bcrypt");
-type SupportedEntity = User | Employee | Service;
-type SupportedEntityName = "User" | "Employee" | "Service";
-const VALID_ENTITY_NAMES = new Set<SupportedEntityName>(["User", "Employee", "Service"]);
-function isSupportedEntityName(name: string): name is SupportedEntityName {
-  return VALID_ENTITY_NAMES.has(name as SupportedEntityName);
-}
-function getEntityName(entity: { name: string }): SupportedEntityName {
-  const name: string = entity.name;
-  if (isSupportedEntityName(name)) {
-    return name;
-  }
-  throw new Error(`Unsupported entity type: ${name}`);
-}
-describe("createInitialData", () => {
-  let mockDataSource: Partial<DataSource>;
-  let mockUserRepository: Partial<Repository<User>>;
-  let mockEmployeeRepository: Partial<Repository<Employee>>;
-  let mockServiceRepository: Partial<Repository<Service>>;
-  let mockQueryBuilder: {
-    insert: jest.Mock;
-    into: jest.Mock;
-    values: jest.Mock;
-    execute: jest.Mock;
-  };
-  const originalEnv = process.env;
-  beforeEach(() => {
-    // Mock repositories with proper typing
-    mockUserRepository = {
-      findOne: jest.fn().mockResolvedValue(null),
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<User>): Promise<User> =>
-          Promise.resolve({ id: "user-1", ...data } as User)
-        ),
-    };
-    mockEmployeeRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((data: Partial<Employee>): Promise<Employee> =>
-          Promise.resolve({ id: "employee-1", ...data } as Employee)
-        ),
-    };
-    mockServiceRepository = {
-      save: jest
-        .fn()
-        .mockImplementation((services: Partial<Service> | Partial<Service>[]): Promise<Service | Service[]> =>
-          Promise.resolve(
-            Array.isArray(services)
-              ? services.map((s, i) => ({ ...s, id: `service-${i + 1}` } as Service))
-              : { ...services, id: 'service-1' } as Service
-          )
-        ),
-    };
-    // Mock query builder for service associations
-    mockQueryBuilder = {
-      insert: jest.fn().mockReturnThis(),
-      into: jest.fn().mockReturnThis(),
-      values: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue(undefined),
-    };
-    // Mock DataSource with proper typing
-    const mockGetRepository = (entity: { name: string }): Partial<Repository<SupportedEntity>> => {
-      const repositories = new Map<SupportedEntityName, Partial<Repository<SupportedEntity>>>([
-        ["User", mockUserRepository],
-        ["Employee", mockEmployeeRepository],
-        ["Service", mockServiceRepository],
-      ]);
-      const entityName = getEntityName(entity);
-      const repository = repositories.get(entityName);
-      if (!repository) {
-        throw new Error(`Repository not mocked for entity: ${entityName}`);
-      }
-      return repository;
-    };
-    mockDataSource = {
-      getRepository: jest.fn().mockImplementation(mockGetRepository),
-      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
-    };
-    // Mock bcrypt
-    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
-    // Setup test environment variables
-    process.env = {
-      ...originalEnv,
-      EMPLOYEE_EMAIL: "employee@example.com",
-      EMPLOYEE_PASSWORD: "employee123",
-      EMPLOYEE_PHONE: "+1234567890",
-    };
-    // Mock console methods
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    process.env = originalEnv;
-    jest.clearAllMocks();
-  });
-  test("creates services, employee user, and employee when they do not exist", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [
-      { id: "service-1", name: "Standard Klipp" },
-      { id: "service-2", name: "Styling Klipp" },
-      { id: "service-3", name: "Skjegg Trim" },
-      { id: "service-4", name: "Full Service" },
-    ];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were created
-    expect(mockServiceRepository.save).toHaveBeenCalledWith([
-      expect.objectContaining({ name: "Standard Klipp" }),
-      expect.objectContaining({ name: "Styling Klipp" }),
-      expect.objectContaining({ name: "Skjegg Trim" }),
-      expect.objectContaining({ name: "Full Service" }),
-    ]);
-    // Verify employee user was created
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: "employee@example.com",
-        role: UserRole.EMPLOYEE,
-      })
-    );
-    // Verify employee was created
-    expect(mockEmployeeRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user: mockEmployeeUser,
-        specializations: ["klipp", "styling", "skjegg"],
-      })
-    );
-    // Verify services were associated with employee
-    expect(mockQueryBuilder.insert).toHaveBeenCalled();
-    expect(mockQueryBuilder.into).toHaveBeenCalledWith("employee_services");
-    expect(mockQueryBuilder.values).toHaveBeenCalledWith(
-      mockServices.map((service) => ({
-        employee_id: mockEmployee.id,
-        service_id: service.id,
-      }))
-    );
-    // Verify success message was logged
-    expect(console.log).toHaveBeenCalledWith(
-      "Initial data seeded successfully"
-    );
-  });
-  test("does not create employee when it already exists", async () => {
-    // Mock that employee already exists
-    const existingEmployee = {
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(
-      existingEmployee
-    );
-    await createInitialData(mockDataSource as DataSource);
-    // Verify services were still created
-    expect(mockServiceRepository.save).toHaveBeenCalled();
-    // Verify no employee creation attempts were made
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-    expect(mockQueryBuilder.insert).not.toHaveBeenCalled();
-    // Verify appropriate message was logged
-    expect(console.log).toHaveBeenCalledWith("Employee user already exists");
-  });
-  test("throws error when employee email is missing", async () => {
-    delete process.env.EMPLOYEE_EMAIL;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("throws error when employee password is missing", async () => {
-    delete process.env.EMPLOYEE_PASSWORD;
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(
-      "Employee email and password must be set in environment variables"
-    );
-    // Verify no database operations were attempted
-    expect(mockServiceRepository.save).not.toHaveBeenCalled();
-    expect(mockUserRepository.findOne).not.toHaveBeenCalled();
-    expect(mockUserRepository.save).not.toHaveBeenCalled();
-    expect(mockEmployeeRepository.save).not.toHaveBeenCalled();
-  });
-  test("handles database errors during service creation", async () => {
-    const dbError = new Error("Database error during service creation");
-    (mockServiceRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles database errors during employee creation", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock employee creation error
-    const dbError = new Error("Database error during employee creation");
-    (mockUserRepository.save as jest.Mock).mockRejectedValue(dbError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(dbError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      dbError.message
-    );
-  });
-  test("handles password hashing errors", async () => {
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock services creation success
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue([]);
-    // Mock bcrypt error
-    const hashError = new Error("Hashing failed");
-    (bcrypt.hash as jest.Mock).mockRejectedValue(hashError);
-    await expect(
-      createInitialData(mockDataSource as DataSource)
-    ).rejects.toThrow(hashError);
-    // Verify error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      "Error creating initial data:",
-      hashError.message
-    );
-  });
-  test("uses default phone number when EMPLOYEE_PHONE is not set", async () => {
-    // Remove EMPLOYEE_PHONE from environment
-    delete process.env.EMPLOYEE_PHONE;
-    // Mock that employee doesn't exist
-    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-    // Mock created services
-    const mockServices = [{ id: "service-1", name: "Standard Klipp" }];
-    (mockServiceRepository.save as jest.Mock).mockResolvedValue(mockServices);
-    // Mock created employee user
-    const mockEmployeeUser = {
-      id: "user-1",
-      email: "employee@example.com",
-      role: UserRole.EMPLOYEE,
-    };
-    (mockUserRepository.save as jest.Mock).mockResolvedValue(mockEmployeeUser);
-    // Mock created employee
-    const mockEmployee = {
-      id: "employee-1",
-      user: mockEmployeeUser,
-    };
-    (mockEmployeeRepository.save as jest.Mock).mockResolvedValue(mockEmployee);
-    await createInitialData(mockDataSource as DataSource);
-    // Verify employee user was created with default phone number
-    expect(mockUserRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phoneNumber: "+1234567890", // This is the default value
-      })
-    );
-  });
-});
-````
-
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components/button';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
-});
-defineEmits<{
-  click: [event: MouseEvent];
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
-````
-
 ## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
 ````typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -22075,6 +22008,73 @@ describe('TVDisplayView', () => {
     expect(mockCleanup).toHaveBeenCalled()
   })
 })
+````
+
+## File: frontend/customer/src/main.ts
+````typescript
+import './assets/main.css'
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
+// Create the app instance
+const app = createApp(App)
+// Use plugins
+const pinia = createPinia()
+// Pinia's install() method is fully compatible with Vue's plugin system
+app.use(pinia as unknown as Parameters<typeof app.use>[0])
+app.use(router)
+// Mount the app
+app.mount('#app')
+````
+
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components/button';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  click: [event: MouseEvent];
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
 ````
 
 ## File: frontend/admin/vitest.setup.ts
@@ -22253,7 +22253,7 @@ if (
     "typescript": "~5.9.3",
     "vite": "^8.0.12",
     "vitest": "^4.1.6",
-    "vue-tsc": "^3.2.8"
+    "vue-tsc": "^3.2.9"
   }
 }
 ````
@@ -22315,7 +22315,7 @@ if (
     "vite": "^8.0.12",
     "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.6",
-    "vue-tsc": "^3.2.8"
+    "vue-tsc": "^3.2.9"
   }
 }
 ````
