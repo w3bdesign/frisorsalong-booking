@@ -20728,6 +20728,126 @@ export const useWaitingStore = defineStore('waiting', () => {
 })
 ````
 
+## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
+````typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import TVDisplayView from '../TVDisplayView.vue'
+import { useDisplayStore } from '../../stores/display'
+vi.mock('axios')
+vi.mock('../../stores/display', () => ({
+  useDisplayStore: vi.fn(),
+}))
+describe('TVDisplayView', () => {
+  const mockEmployees = [
+    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
+    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
+  ]
+  const mockWaitingSlots = [
+    {
+      id: 'slot-1',
+      customerName: 'Vada',
+      estimatedTime: 0,
+      assignedTo: '1',
+    },
+    {
+      id: 'slot-2',
+      customerName: 'Lavinia',
+      estimatedTime: 45,
+      assignedTo: '2',
+    },
+  ]
+  const createMockStore = (overrides: Record<string, unknown> = {}): ReturnType<typeof useDisplayStore> => ({
+    hasAvailableSlot: false,
+    activeEmployees: mockEmployees,
+    waitingSlots: mockWaitingSlots,
+    lastUpdate: new Date('2024-01-01T12:00:00'),
+    updateLastUpdate: vi.fn(),
+    employees: mockEmployees,
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    cleanup: vi.fn(),
+    isLoading: false,
+    error: null,
+    waitingCount: 2,
+    fetchWaitingSlots: vi.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof useDisplayStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
+    // Mock store with default values
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+  it('displays correct status when slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: true,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Ledig')
+    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
+  })
+  it('displays correct status when no slots are available', () => {
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      hasAvailableSlot: false,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.find('h1').text()).toBe('Opptatt')
+    expect(wrapper.find('h1').classes()).toContain('text-red-500')
+  })
+  it('renders waiting list correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const waitingSlots = wrapper.findAll('.space-y-16 > div')
+    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
+    // Check first slot (Vada)
+    const firstSlot = waitingSlots[0]
+    expect(firstSlot.text()).toContain('Vada')
+    expect(firstSlot.text()).toContain('0 min')
+    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
+    // Check second slot (Lavinia)
+    const secondSlot = waitingSlots[1]
+    expect(secondSlot.text()).toContain('Lavinia')
+    expect(secondSlot.text()).toContain('45 min')
+    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
+  })
+  it('displays active employees correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    const employeeElements = wrapper.findAll('[data-testid="employee"]')
+    expect(employeeElements).toHaveLength(mockEmployees.length)
+    expect(wrapper.text()).toContain('2 frisører på jobb')
+    mockEmployees.forEach((employee, index) => {
+      expect(index).toBeLessThan(employeeElements.length)
+      const element = employeeElements.find((_, i) => i === index)
+      expect(element).toBeDefined()
+      expect(element?.text()).toContain(employee.name)
+      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
+    })
+  })
+  it('formats last update time correctly', () => {
+    const wrapper = mount(TVDisplayView)
+    expect(wrapper.text()).toContain('12:00:00')
+  })
+  it('starts polling on mount and cleans up on unmount', () => {
+    const mockStartPolling = vi.fn()
+    const mockCleanup = vi.fn()
+    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
+      startPolling: mockStartPolling,
+      cleanup: mockCleanup,
+    }))
+    const wrapper = mount(TVDisplayView)
+    expect(mockStartPolling).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(mockCleanup).toHaveBeenCalled()
+  })
+})
+````
+
 ## File: backend/src/auth/guards/jwt-auth.guard.spec.ts
 ````typescript
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
@@ -21347,6 +21467,55 @@ describe('OrdersModule', () => {
 });
 ````
 
+## File: frontend/admin/src/components/base/Button.vue
+````vue
+<template>
+  <button
+    :type="props.type"
+    :class="[
+      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      props.className
+    ]"
+    :disabled="props.disabled || props.loading"
+    @click="$emit('click', $event)"
+  >
+    <span v-if="props.loading" class="mr-2">
+      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </span>
+    <slot></slot>
+  </button>
+</template>
+<script setup lang="ts">
+import type { ButtonProps } from '@/types/components/button';
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  className: ''
+});
+defineEmits<{
+  click: [event: MouseEvent];
+}>();
+const variantClasses = {
+  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+} as const;
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+} as const;
+</script>
+````
+
 ## File: frontend/admin/src/stores/auth.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -21505,126 +21674,6 @@ export const useAuthStore = defineStore("auth", {
     },
   },
 });
-````
-
-## File: frontend/customer/src/views/__tests__/TVDisplayView.spec.ts
-````typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import TVDisplayView from '../TVDisplayView.vue'
-import { useDisplayStore } from '../../stores/display'
-vi.mock('axios')
-vi.mock('../../stores/display', () => ({
-  useDisplayStore: vi.fn(),
-}))
-describe('TVDisplayView', () => {
-  const mockEmployees = [
-    { id: '1', name: 'Gladys', color: 'bg-sky-400', isActive: true },
-    { id: '2', name: 'Veronika', color: 'bg-fuchsia-400', isActive: true },
-  ]
-  const mockWaitingSlots = [
-    {
-      id: 'slot-1',
-      customerName: 'Vada',
-      estimatedTime: 0,
-      assignedTo: '1',
-    },
-    {
-      id: 'slot-2',
-      customerName: 'Lavinia',
-      estimatedTime: 45,
-      assignedTo: '2',
-    },
-  ]
-  const createMockStore = (overrides: Record<string, unknown> = {}): ReturnType<typeof useDisplayStore> => ({
-    hasAvailableSlot: false,
-    activeEmployees: mockEmployees,
-    waitingSlots: mockWaitingSlots,
-    lastUpdate: new Date('2024-01-01T12:00:00'),
-    updateLastUpdate: vi.fn(),
-    employees: mockEmployees,
-    startPolling: vi.fn(),
-    stopPolling: vi.fn(),
-    cleanup: vi.fn(),
-    isLoading: false,
-    error: null,
-    waitingCount: 2,
-    fetchWaitingSlots: vi.fn(),
-    ...overrides,
-  }) as unknown as ReturnType<typeof useDisplayStore>
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2024-01-01T12:00:00'))
-    // Mock store with default values
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore())
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllMocks()
-  })
-  it('displays correct status when slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: true,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Ledig')
-    expect(wrapper.find('h1').classes()).toContain('text-[#c2ff00]')
-  })
-  it('displays correct status when no slots are available', () => {
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      hasAvailableSlot: false,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.find('h1').text()).toBe('Opptatt')
-    expect(wrapper.find('h1').classes()).toContain('text-red-500')
-  })
-  it('renders waiting list correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const waitingSlots = wrapper.findAll('.space-y-16 > div')
-    expect(waitingSlots).toHaveLength(mockWaitingSlots.length)
-    // Check first slot (Vada)
-    const firstSlot = waitingSlots[0]
-    expect(firstSlot.text()).toContain('Vada')
-    expect(firstSlot.text()).toContain('0 min')
-    expect(firstSlot.find('.w-8.h-8').classes()).toContain('bg-sky-400')
-    // Check second slot (Lavinia)
-    const secondSlot = waitingSlots[1]
-    expect(secondSlot.text()).toContain('Lavinia')
-    expect(secondSlot.text()).toContain('45 min')
-    expect(secondSlot.find('.w-8.h-8').classes()).toContain('bg-fuchsia-400')
-  })
-  it('displays active employees correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    const employeeElements = wrapper.findAll('[data-testid="employee"]')
-    expect(employeeElements).toHaveLength(mockEmployees.length)
-    expect(wrapper.text()).toContain('2 frisører på jobb')
-    mockEmployees.forEach((employee, index) => {
-      expect(index).toBeLessThan(employeeElements.length)
-      const element = employeeElements.find((_, i) => i === index)
-      expect(element).toBeDefined()
-      expect(element?.text()).toContain(employee.name)
-      expect(element?.find(`.${employee.color}`).exists()).toBe(true)
-    })
-  })
-  it('formats last update time correctly', () => {
-    const wrapper = mount(TVDisplayView)
-    expect(wrapper.text()).toContain('12:00:00')
-  })
-  it('starts polling on mount and cleans up on unmount', () => {
-    const mockStartPolling = vi.fn()
-    const mockCleanup = vi.fn()
-    vi.mocked(useDisplayStore).mockReturnValue(createMockStore({
-      startPolling: mockStartPolling,
-      cleanup: mockCleanup,
-    }))
-    const wrapper = mount(TVDisplayView)
-    expect(mockStartPolling).toHaveBeenCalled()
-    wrapper.unmount()
-    expect(mockCleanup).toHaveBeenCalled()
-  })
-})
 ````
 
 ## File: backend/src/database/seeds/create-services.seed.spec.ts
@@ -21930,55 +21979,6 @@ describe("Bootstrap", () => {
 });
 ````
 
-## File: frontend/admin/src/components/base/Button.vue
-````vue
-<template>
-  <button
-    :type="props.type"
-    :class="[
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      props.className
-    ]"
-    :disabled="props.disabled || props.loading"
-    @click="$emit('click', $event)"
-  >
-    <span v-if="props.loading" class="mr-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    </span>
-    <slot></slot>
-  </button>
-</template>
-<script setup lang="ts">
-import type { ButtonProps } from '@/types/components/button';
-const props = withDefaults(defineProps<ButtonProps>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  className: ''
-});
-defineEmits<{
-  click: [event: MouseEvent];
-}>();
-const variantClasses = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-indigo-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-} as const;
-const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base'
-} as const;
-</script>
-````
-
 ## File: frontend/admin/src/stores/orders.ts
 ````typescript
 import { defineStore } from "pinia";
@@ -22241,7 +22241,7 @@ if (
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.12.4",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.10",
@@ -22293,7 +22293,7 @@ if (
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.12.4",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "4.1.6",
     "@vitest/eslint-plugin": "1.6.17",
     "@vue/eslint-config-prettier": "^10.2.0",
