@@ -52,7 +52,7 @@ describe('Display Store', () => {
   })
 
   it('handles API errors', async () => {
-    vi.mocked(axios.get).mockRejectedValue(new Error('API Error'))
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
     const store = useDisplayStore()
 
     await store.fetchWaitingSlots()
