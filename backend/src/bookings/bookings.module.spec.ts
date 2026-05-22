@@ -1,6 +1,6 @@
 import { BookingsModule } from "./bookings.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingsService } from "./bookings.service";
+import { SharedModule } from "../shared/shared.module";
 import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
 
 type ModuleImport =
@@ -17,15 +17,8 @@ describe("BookingsModule", () => {
       BookingsModule
     ) as ModuleImport[];
 
-    // Check TypeOrmModule.forFeature
-    const typeOrmFeature = moduleDecorator.find(
-      (item): item is DynamicModule =>
-        item !== null &&
-        typeof item === "object" &&
-        "module" in item &&
-        item.module === TypeOrmModule
-    );
-    expect(typeOrmFeature).toBeDefined();
+    // Check SharedModule is imported
+    expect(moduleDecorator).toContain(SharedModule);
 
     // Get all module names
     const moduleNames = moduleDecorator
@@ -44,8 +37,11 @@ describe("BookingsModule", () => {
 
     // Check for expected modules
     const expectedModules = [
+      "SharedModule",
       "UsersModule",
+      "EmployeesModule",
       "ServicesModule",
+      "OrdersModule",
       "ShopsModule",
       "AuthModule",
     ];
@@ -54,19 +50,9 @@ describe("BookingsModule", () => {
     });
   });
 
-  it("should export BookingsService and TypeOrmModule", () => {
+  it("should export BookingsService", () => {
     const rawExports: unknown = Reflect.getMetadata("exports", BookingsModule);
     const exports = rawExports as (Type<unknown> | DynamicModule)[];
     expect(exports).toContain(BookingsService);
-
-    const hasTypeOrmExport = exports.some(
-      (exp): boolean =>
-        exp === TypeOrmModule ||
-        (exp !== null &&
-          typeof exp === "object" &&
-          "module" in exp &&
-          exp.module === TypeOrmModule)
-    );
-    expect(hasTypeOrmExport).toBe(true);
   });
 });

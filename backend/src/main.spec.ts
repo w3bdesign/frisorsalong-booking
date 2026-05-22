@@ -15,13 +15,6 @@ jest.mock("@nestjs/typeorm", () => ({
   InjectRepository: () => jest.fn(),
 }));
 
-jest.mock("@nestjs/cache-manager", () => ({
-  CacheModule: {
-    register: jest.fn().mockReturnValue({}),
-    registerAsync: jest.fn().mockReturnValue({}),
-  },
-}));
-
 jest.mock("@nestjs/config", () => ({
   ConfigModule: {
     forRoot: jest.fn().mockReturnValue({}),
