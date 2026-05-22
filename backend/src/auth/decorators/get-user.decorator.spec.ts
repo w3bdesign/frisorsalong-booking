@@ -2,11 +2,6 @@ import { ExecutionContext, Type } from "@nestjs/common";
 import { GetUser } from "./get-user.decorator";
 import { User, UserRole } from "../../users/entities/user.entity";
 import { Request } from "express";
-import {
-  HttpArgumentsHost,
-  RpcArgumentsHost,
-  WsArgumentsHost,
-} from "@nestjs/common/interfaces";
 
 interface RequestWithUser extends Request {
   user?: User;

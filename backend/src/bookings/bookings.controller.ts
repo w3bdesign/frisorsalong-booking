@@ -10,7 +10,6 @@ import {
   Req,
   ParseUUIDPipe,
   ValidationPipe,
-  Type,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
