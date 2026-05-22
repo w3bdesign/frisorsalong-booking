@@ -12,80 +12,118 @@ jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed_password'),
 }));
 
-describe('EmployeesService', () => {
-  let service: EmployeesService;
-  let employeeRepository: Repository<Employee>;
-  let bookingRepository: Repository<Booking>;
-  let userRepository: Repository<User>;
+// --- Test Data Factories ---
 
-  const mockUser = {
+function createMockUser(overrides: Partial<User> = {}): User {
+  return {
     id: 'user-1',
     firstName: 'John',
     lastName: 'Doe',
     email: 'john@example.com',
     role: UserRole.EMPLOYEE,
     password: 'password123',
+    ...overrides,
   } as User;
+}
 
-  const mockEmployee = {
+function createMockEmployee(overrides: Partial<Employee> = {}): Employee {
+  return {
     id: 'employee-1',
-    user: mockUser,
+    user: createMockUser(),
     specializations: ['haircut'],
     isActive: true,
     availability: {
       monday: [{ start: '09:00', end: '17:00' }],
     },
+    ...overrides,
   } as Employee;
+}
 
-  const mockEmployeeRepository = {
+// --- Mock Repository Factories ---
+
+function createMockEmployeeRepository() {
+  return {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
     update: jest.fn(),
   };
+}
 
-  const mockBookingRepository = {
+function createMockBookingRepository() {
+  return {
     count: jest.fn(),
   };
+}
 
-  const mockUserRepository = {
+function createMockUserRepository() {
+  return {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
   };
+}
+
+// --- Test Module Setup ---
+
+interface TestContext {
+  service: EmployeesService;
+  employeeRepository: Repository<Employee>;
+  bookingRepository: Repository<Booking>;
+  userRepository: Repository<User>;
+  mockEmployeeRepo: ReturnType<typeof createMockEmployeeRepository>;
+  mockBookingRepo: ReturnType<typeof createMockBookingRepository>;
+  mockUserRepo: ReturnType<typeof createMockUserRepository>;
+}
+
+async function setupTestModule(): Promise<TestContext> {
+  const mockEmployeeRepo = createMockEmployeeRepository();
+  const mockBookingRepo = createMockBookingRepository();
+  const mockUserRepo = createMockUserRepository();
+
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      EmployeesService,
+      {
+        provide: getRepositoryToken(Employee),
+        useValue: mockEmployeeRepo,
+      },
+      {
+        provide: getRepositoryToken(Booking),
+        useValue: mockBookingRepo,
+      },
+      {
+        provide: getRepositoryToken(User),
+        useValue: mockUserRepo,
+      },
+    ],
+  }).compile();
+
+  return {
+    service: module.get<EmployeesService>(EmployeesService),
+    employeeRepository: module.get<Repository<Employee>>(getRepositoryToken(Employee)),
+    bookingRepository: module.get<Repository<Booking>>(getRepositoryToken(Booking)),
+    userRepository: module.get<Repository<User>>(getRepositoryToken(User)),
+    mockEmployeeRepo,
+    mockBookingRepo,
+    mockUserRepo,
+  };
+}
+
+// --- Test Suites ---
+
+describe('EmployeesService', () => {
+  let ctx: TestContext;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EmployeesService,
-        {
-          provide: getRepositoryToken(Employee),
-          useValue: mockEmployeeRepository,
-        },
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
-        },
-      ],
-    }).compile();
-
-    service = module.get<EmployeesService>(EmployeesService);
-    employeeRepository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
-    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-
-    // Reset all mocks before each test
+    ctx = await setupTestModule();
     jest.clearAllMocks();
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(ctx.service).toBeDefined();
   });
 
   describe('create', () => {
@@ -97,80 +135,79 @@ describe('EmployeesService', () => {
     };
 
     it('should create an employee successfully', async () => {
-      // Mock email check
-      mockUserRepository.findOne.mockResolvedValue(null);
+      const mockCreatedUser = createMockUser({ password: 'hashed_password' });
 
-      // Mock user creation
-      const mockCreatedUser = {
-        ...mockUser,
-        password: 'hashed_password',
-      };
-      mockUserRepository.create.mockReturnValue(mockCreatedUser);
-      mockUserRepository.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
+      ctx.mockUserRepo.findOne.mockResolvedValue(null);
+      ctx.mockUserRepo.create.mockReturnValue(mockCreatedUser);
+      ctx.mockUserRepo.save.mockResolvedValue({ ...mockCreatedUser, id: 'user-1' });
 
-      // Mock employee creation
       const mockCreatedEmployee = {
         user: mockCreatedUser,
         specializations: createEmployeeDto.specializations,
         isActive: true,
         availability: {},
       };
-      mockEmployeeRepository.create.mockReturnValue(mockCreatedEmployee);
-      mockEmployeeRepository.save.mockResolvedValue({ ...mockCreatedEmployee, id: 'employee-1' });
+      ctx.mockEmployeeRepo.create.mockReturnValue(mockCreatedEmployee);
+      ctx.mockEmployeeRepo.save.mockResolvedValue({ ...mockCreatedEmployee, id: 'employee-1' });
 
-      const result = await service.create(createEmployeeDto);
+      const result = await ctx.service.create(createEmployeeDto);
 
       expect(result.employee).toBeDefined();
       expect(result.temporaryPassword).toBeDefined();
       expect(result.temporaryPassword.length).toBe(8);
       expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
-      expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: createEmployeeDto.email }
+      expect(ctx.userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: createEmployeeDto.email },
       });
-      expect(userRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-        email: createEmployeeDto.email,
-        firstName: createEmployeeDto.firstName,
-        lastName: createEmployeeDto.lastName,
-        role: UserRole.EMPLOYEE,
-        password: 'hashed_password',
-      }));
-      expect(userRepository.save).toHaveBeenCalled();
-      expect(employeeRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-        specializations: createEmployeeDto.specializations,
-        isActive: true,
-        availability: {},
-      }));
-      expect(employeeRepository.save).toHaveBeenCalled();
+      expect(ctx.userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: createEmployeeDto.email,
+          firstName: createEmployeeDto.firstName,
+          lastName: createEmployeeDto.lastName,
+          role: UserRole.EMPLOYEE,
+          password: 'hashed_password',
+        }),
+      );
+      expect(ctx.userRepository.save).toHaveBeenCalled();
+      expect(ctx.employeeRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          specializations: createEmployeeDto.specializations,
+          isActive: true,
+          availability: {},
+        }),
+      );
+      expect(ctx.employeeRepository.save).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if email exists', async () => {
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      ctx.mockUserRepo.findOne.mockResolvedValue(createMockUser());
 
-      await expect(service.create(createEmployeeDto)).rejects.toBeInstanceOf(
+      await expect(ctx.service.create(createEmployeeDto)).rejects.toBeInstanceOf(
         ConflictException,
       );
-      expect(userRepository.save).not.toHaveBeenCalled();
-      expect(employeeRepository.save).not.toHaveBeenCalled();
+      expect(ctx.userRepository.save).not.toHaveBeenCalled();
+      expect(ctx.employeeRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('findByUserId', () => {
     it('should return employee when found by user ID', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const mockEmployee = createMockEmployee();
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(mockEmployee);
 
-      const result = await service.findByUserId('user-1');
+      const result = await ctx.service.findByUserId('user-1');
 
       expect(result).toEqual(mockEmployee);
-      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+      expect(ctx.employeeRepository.findOne).toHaveBeenCalledWith({
         where: { user: { id: 'user-1' } },
         relations: ['user', 'services'],
       });
     });
 
     it('should throw NotFoundException when employee not found by user ID', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findByUserId('non-existent')).rejects.toBeInstanceOf(
+      await expect(ctx.service.findByUserId('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -178,27 +215,28 @@ describe('EmployeesService', () => {
 
   describe('resetPassword', () => {
     it('should reset password successfully', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+      const mockEmployee = createMockEmployee();
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(mockEmployee);
+      ctx.mockUserRepo.update.mockResolvedValue({ affected: 1 });
 
-      const result = await service.resetPassword('employee-1');
+      const result = await ctx.service.resetPassword('employee-1');
 
       expect(result).toBeDefined();
       expect(result.temporaryPassword).toBeDefined();
       expect(result.temporaryPassword.length).toBe(8);
       expect(bcrypt.hash).toHaveBeenCalledWith(expect.any(String), 10);
-      expect(userRepository.update).toHaveBeenCalledWith(
+      expect(ctx.userRepository.update).toHaveBeenCalledWith(
         mockEmployee.user.id,
         expect.objectContaining({
           password: 'hashed_password',
-        })
+        }),
       );
     });
 
     it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.resetPassword('non-existent')).rejects.toBeInstanceOf(
+      await expect(ctx.service.resetPassword('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -206,21 +244,22 @@ describe('EmployeesService', () => {
 
   describe('findOne', () => {
     it('should return an employee when found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
+      const mockEmployee = createMockEmployee();
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(mockEmployee);
 
-      const result = await service.findOne('employee-1');
+      const result = await ctx.service.findOne('employee-1');
 
       expect(result).toEqual(mockEmployee);
-      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+      expect(ctx.employeeRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'employee-1' },
         relations: ['user', 'services'],
       });
     });
 
     it('should throw NotFoundException when employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toBeInstanceOf(
+      await expect(ctx.service.findOne('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -231,13 +270,13 @@ describe('EmployeesService', () => {
     const endTime = new Date('2024-01-01T11:00:00Z');
 
     it('should return true when employee is available', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(0);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee());
+      ctx.mockBookingRepo.count.mockResolvedValue(0);
 
-      const result = await service.isAvailable('employee-1', startTime, endTime);
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(true);
-      expect(bookingRepository.count).toHaveBeenCalledWith({
+      expect(ctx.bookingRepository.count).toHaveBeenCalledWith({
         where: {
           employee: { id: 'employee-1' },
           startTime: Not(MoreThan(endTime)),
@@ -247,22 +286,22 @@ describe('EmployeesService', () => {
     });
 
     it('should return false when employee has conflicting bookings', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(1);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee());
+      ctx.mockBookingRepo.count.mockResolvedValue(1);
 
-      const result = await service.isAvailable('employee-1', startTime, endTime);
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(false);
     });
 
     it('should exclude specified booking when checking availability', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockBookingRepository.count.mockResolvedValue(0);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee());
+      ctx.mockBookingRepo.count.mockResolvedValue(0);
 
-      const result = await service.isAvailable('employee-1', startTime, endTime, 'booking-1');
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime, 'booking-1');
 
       expect(result).toBe(true);
-      expect(bookingRepository.count).toHaveBeenCalledWith({
+      expect(ctx.bookingRepository.count).toHaveBeenCalledWith({
         where: {
           employee: { id: 'employee-1' },
           startTime: Not(MoreThan(endTime)),
@@ -273,44 +312,37 @@ describe('EmployeesService', () => {
     });
 
     it('should return false when employee is inactive', async () => {
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee({ isActive: false }));
 
-      const result = await service.isAvailable('employee-1', startTime, endTime);
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(false);
     });
 
     it('should return false when time is outside availability', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const startTimeOutside = new Date('2024-01-01T07:00:00Z'); // 7 AM UTC (outside 9-17)
-      const endTimeOutside = new Date('2024-01-01T08:00:00Z'); // 8 AM UTC (outside 9-17)
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee());
+      const startTimeOutside = new Date('2024-01-01T07:00:00Z');
+      const endTimeOutside = new Date('2024-01-01T08:00:00Z');
 
-      const result = await service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
+      const result = await ctx.service.isAvailable('employee-1', startTimeOutside, endTimeOutside);
 
       expect(result).toBe(false);
     });
 
     it('should return false when no availability for the day', async () => {
-      const employeeNoAvailability = {
-        ...mockEmployee,
-        availability: {},
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(employeeNoAvailability);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(createMockEmployee({ availability: {} }));
 
-      const result = await service.isAvailable('employee-1', startTime, endTime);
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(false);
     });
 
     it('should return false when empty availability slots for the day', async () => {
-      const employeeEmptySlots = {
-        ...mockEmployee,
-        availability: { monday: [] },
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(employeeEmptySlots);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(
+        createMockEmployee({ availability: { monday: [] } }),
+      );
 
-      const result = await service.isAvailable('employee-1', startTime, endTime);
+      const result = await ctx.service.isAvailable('employee-1', startTime, endTime);
 
       expect(result).toBe(false);
     });
@@ -318,13 +350,13 @@ describe('EmployeesService', () => {
 
   describe('findAll', () => {
     it('should return all active employees', async () => {
-      const mockEmployees = [mockEmployee];
-      mockEmployeeRepository.find.mockResolvedValue(mockEmployees);
+      const mockEmployees = [createMockEmployee()];
+      ctx.mockEmployeeRepo.find.mockResolvedValue(mockEmployees);
 
-      const result = await service.findAll();
+      const result = await ctx.service.findAll();
 
       expect(result).toEqual(mockEmployees);
-      expect(employeeRepository.find).toHaveBeenCalledWith({
+      expect(ctx.employeeRepository.find).toHaveBeenCalledWith({
         relations: ['user', 'services'],
         where: { isActive: true },
       });
@@ -338,45 +370,43 @@ describe('EmployeesService', () => {
     };
 
     it('should update employee successfully', async () => {
-      const updatedEmployee = {
-        ...mockEmployee,
-        ...updateEmployeeDto,
-      };
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      mockEmployeeRepository.save.mockResolvedValue(updatedEmployee);
+      const mockEmployee = createMockEmployee();
+      const updatedEmployee = { ...mockEmployee, ...updateEmployeeDto };
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(mockEmployee);
+      ctx.mockEmployeeRepo.save.mockResolvedValue(updatedEmployee);
 
-      const result = await service.update('employee-1', updateEmployeeDto);
+      const result = await ctx.service.update('employee-1', updateEmployeeDto);
 
       expect(result).toEqual(updatedEmployee);
-      expect(employeeRepository.save).toHaveBeenCalled();
+      expect(ctx.employeeRepository.save).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.update('non-existent', updateEmployeeDto),
+        ctx.service.update('non-existent', updateEmployeeDto),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should mark employee as inactive', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(mockEmployee);
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.save.mockResolvedValue(inactiveEmployee);
+      const mockEmployee = createMockEmployee();
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(mockEmployee);
+      ctx.mockEmployeeRepo.save.mockResolvedValue({ ...mockEmployee, isActive: false });
 
-      await service.remove('employee-1');
+      await ctx.service.remove('employee-1');
 
-      expect(employeeRepository.save).toHaveBeenCalledWith(
+      expect(ctx.employeeRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: false }),
       );
     });
 
     it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.remove('non-existent')).rejects.toBeInstanceOf(
+      await expect(ctx.service.remove('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -384,21 +414,21 @@ describe('EmployeesService', () => {
 
   describe('restore', () => {
     it('should mark employee as active', async () => {
-      const inactiveEmployee = { ...mockEmployee, isActive: false };
-      mockEmployeeRepository.findOne.mockResolvedValue(inactiveEmployee);
-      mockEmployeeRepository.save.mockResolvedValue(mockEmployee);
+      const inactiveEmployee = createMockEmployee({ isActive: false });
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(inactiveEmployee);
+      ctx.mockEmployeeRepo.save.mockResolvedValue({ ...inactiveEmployee, isActive: true });
 
-      await service.restore('employee-1');
+      await ctx.service.restore('employee-1');
 
-      expect(employeeRepository.save).toHaveBeenCalledWith(
+      expect(ctx.employeeRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: true }),
       );
     });
 
     it('should throw NotFoundException if employee not found', async () => {
-      mockEmployeeRepository.findOne.mockResolvedValue(null);
+      ctx.mockEmployeeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.restore('non-existent')).rejects.toBeInstanceOf(
+      await expect(ctx.service.restore('non-existent')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
