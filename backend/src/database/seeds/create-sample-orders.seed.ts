@@ -28,10 +28,9 @@ async function fetchConfirmedBookings(
   return confirmedBookings;
 }
 
-async function createOrderFromBooking(
+async function saveOrder(
   booking: Booking,
   orderRepository: Repository<Order>,
-  bookingRepository: Repository<Booking>,
 ): Promise<Order> {
   const order = orderRepository.create({
     booking: booking,
@@ -49,14 +48,15 @@ async function createOrderFromBooking(
     throw new Error(`Failed to save order for booking ${booking.id}`);
   }
 
-  booking.status = BookingStatus.COMPLETED;
-  const updatedBooking = await bookingRepository.save(booking);
-
-  if (!updatedBooking) {
-    throw new Error(`Failed to update status for booking ${booking.id}`);
-  }
-
   return savedOrder;
+}
+
+async function markBookingCompleted(
+  booking: Booking,
+  bookingRepository: Repository<Booking>,
+): Promise<void> {
+  booking.status = BookingStatus.COMPLETED;
+  await bookingRepository.save(booking);
 }
 
 export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
@@ -81,8 +81,16 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
       }
 
       try {
-        const savedOrder = await createOrderFromBooking(booking, orderRepository, bookingRepository);
+        const savedOrder = await saveOrder(booking, orderRepository);
         createdOrders.push(savedOrder);
+
+        // Update booking status — failure here doesn't invalidate the order
+        try {
+          await markBookingCompleted(booking, bookingRepository);
+        } catch (statusError: unknown) {
+          console.error(`Failed to update status for booking ${booking.id}:`, getErrorMessage(statusError));
+        }
+
         console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
       } catch (error: unknown) {
         console.error(`Error processing booking ${booking.id}:`, getErrorMessage(error));
