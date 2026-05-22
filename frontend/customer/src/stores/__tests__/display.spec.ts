@@ -64,7 +64,7 @@ describe('Display Store', () => {
   })
 
   it('calculates slot availability', async () => {
-    vi.mocked(axios.get).mockResolvedValue({
+    vi.spyOn(axios, 'get').mockResolvedValue({
       data: {
         count: 3, // More customers than employees
         customers: [
