@@ -57,7 +57,7 @@ async function createCustomers(
         role: UserRole.CUSTOMER,
         phoneNumber: '+47' + faker.string.numeric(8),
       });
-      customers.push(customer as User);
+      customers.push(customer);
     } catch (error) {
       const err = new Error(`Failed to create customer ${i + 1}`);
       console.error(`Error creating customer ${i + 1}:`, error);
@@ -143,13 +143,13 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
       throw new Error("Employee not found. Please run initial data seed first.");
     }
 
-    const services = await serviceRepository.find();
+    const services: Service[] = await serviceRepository.find();
     if (!services || services.length === 0) {
       throw new Error("No services found. Please run initial data seed first.");
     }
 
     console.log('Creating sample customers...');
-    const customers = await createCustomers(userRepository, 10);
+    const customers: User[] = await createCustomers(userRepository, 10);
     console.log(`Created ${customers.length} sample customers`);
 
     const now = new Date();
@@ -157,8 +157,8 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
     const bookings: Partial<Booking>[] = [];
 
     for (let i = 0; i < 20; i++) {
-      const service = faker.helpers.arrayElement(services);
-      const customer = faker.helpers.arrayElement(customers);
+      const service: Service = faker.helpers.arrayElement(services);
+      const customer: User = faker.helpers.arrayElement(customers);
 
       if (!service || !customer) {
         throw new Error(`Failed to select service or customer for booking ${i + 1}`);
@@ -168,7 +168,7 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
     }
 
     console.log('Saving bookings to database...');
-    const savedBookings = await bookingRepository.save(bookings);
+    const savedBookings: Booking[] = await bookingRepository.save(bookings);
 
     if (!savedBookings || !Array.isArray(savedBookings)) {
       throw new Error('Failed to save bookings - no bookings returned from save operation');

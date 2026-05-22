@@ -16,7 +16,7 @@ function getErrorMessage(error: unknown): string {
 async function fetchConfirmedBookings(
   bookingRepository: Repository<Booking>,
 ): Promise<Booking[]> {
-  const confirmedBookings = await bookingRepository.find({
+  const confirmedBookings: Booking[] = await bookingRepository.find({
     where: { status: BookingStatus.CONFIRMED },
     relations: ["customer", "employee", "service"],
   });

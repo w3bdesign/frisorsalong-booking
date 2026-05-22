@@ -28,27 +28,28 @@ const mockRepository: Partial<Repository<Order>> = {
 
 // Mock EmployeesModule
 jest.mock('../employees/employees.module', () => ({
-  EmployeesModule: class MockEmployeesModule {},
+  EmployeesModule: class MockEmployeesModule {
+    static readonly moduleName = 'EmployeesModule';
+  },
 }));
 
 // Mock SharedModule
 jest.mock('../shared/shared.module', () => ({
-  SharedModule: class MockSharedModule {},
+  SharedModule: class MockSharedModule {
+    static readonly moduleName = 'SharedModule';
+  },
 }));
 
 describe('OrdersModule', () => {
   let moduleRef: TestingModule;
 
   beforeEach(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { EmployeesModule } = require('../employees/employees.module') as { EmployeesModule: Type<unknown> };
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { SharedModule } = require('../shared/shared.module') as { SharedModule: Type<unknown> };
-
     moduleRef = await Test.createTestingModule({
       imports: [
         {
-          module: class MockTypeOrmFeatureModule {},
+          module: class MockTypeOrmModule {
+            static readonly moduleName = 'TypeOrmModule';
+          },
           providers: [
             {
               provide: 'OrderRepository',
@@ -56,8 +57,6 @@ describe('OrdersModule', () => {
             },
           ],
         },
-        EmployeesModule,
-        SharedModule,
       ],
       providers: [
         {
@@ -78,7 +77,7 @@ describe('OrdersModule', () => {
     // Should have 3 imports: SharedModule, EmployeesModule, AuthModule
     expect(imports.length).toBe(3);
 
-    // Get all module names (mocked names will differ)
+    // Get all module names
     const moduleNames = imports
       .map((item): string | null => {
         if (typeof item === "function") {
