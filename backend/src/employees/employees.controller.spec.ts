@@ -236,7 +236,7 @@ describe("EmployeesController", () => {
 
       await expect(
         controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow("Employee with user ID employee-id not found");
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
       expect(service.findOne).not.toHaveBeenCalled();
