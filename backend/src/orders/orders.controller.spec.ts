@@ -24,7 +24,7 @@ describe("OrdersController", () => {
         defaultUser.password = await bcrypt.hash(defaultUser.password, salt);
       },
       validatePassword: async (password: string): Promise<boolean> => {
-        return bcrypt.compare(password, defaultUser.password) as Promise<boolean>;
+        return bcrypt.compare(password, defaultUser.password);
       },
       ...data,
     };

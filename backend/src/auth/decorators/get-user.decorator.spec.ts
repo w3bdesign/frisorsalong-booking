@@ -49,18 +49,18 @@ describe("GetUser", () => {
       getRequest: <T>() => request as T,
       getResponse: <T>() => ({}) as T,
       getNext: <T>() => (() => {}) as T,
-    } as HttpArgumentsHost;
+    };
 
     const mockRpcContext = {
       getData: <T>() => ({}) as T,
       getContext: <T>() => ({}) as T,
-    } as RpcArgumentsHost;
+    };
 
     const mockWsContext = {
       getData: <T>() => ({}) as T,
       getClient: <T>() => ({}) as T,
       getPattern: () => "",
-    } as WsArgumentsHost;
+    };
 
     const mockExecutionContext = {
       switchToHttp: () => mockHttpContext,

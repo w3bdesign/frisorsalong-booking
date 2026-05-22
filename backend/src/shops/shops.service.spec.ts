@@ -119,7 +119,7 @@ describe("ShopsService", () => {
       };
 
       mockRepository.create.mockReturnValue(mockShopCode);
-      mockRepository.save.mockResolvedValue(mockShopCode as ShopCode);
+      mockRepository.save.mockResolvedValue(mockShopCode);
 
       const result = await service.createShopCode("Test Shop", "TEST123");
 

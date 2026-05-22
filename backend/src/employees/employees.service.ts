@@ -74,7 +74,7 @@ export class EmployeesService {
       relations: ['user', 'services'],
       where: { isActive: true },
     });
-    return employees as Employee[];
+    return employees;
   }
 
   async findOne(id: string): Promise<Employee> {
@@ -87,7 +87,7 @@ export class EmployeesService {
       throw new NotFoundException(`Employee #${id} not found`);
     }
 
-    return employee as Employee;
+    return employee;
   }
 
   async findByUserId(userId: string): Promise<Employee> {
@@ -203,7 +203,7 @@ export class EmployeesService {
   async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findOne(id);
     const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated) as Employee;
+    return await this.employeeRepository.save(updated);
   }
 
   async remove(id: string): Promise<void> {

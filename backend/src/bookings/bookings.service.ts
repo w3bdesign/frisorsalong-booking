@@ -89,7 +89,7 @@ export class BookingsService {
       status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
     });
 
-    return (await this.bookingRepository.save(booking)) as Booking;
+    return (await this.bookingRepository.save(booking));
   }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -132,7 +132,7 @@ export class BookingsService {
       status: BookingStatus.PENDING,
     });
 
-    return (await this.bookingRepository.save(booking)) as Booking;
+    return (await this.bookingRepository.save(booking));
   }
 
   async findOne(id: string): Promise<Booking> {
@@ -145,7 +145,7 @@ export class BookingsService {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }
 
-    return booking as Booking;
+    return booking;
   }
 
   async update(
@@ -179,7 +179,7 @@ export class BookingsService {
     // Update other fields
     Object.assign(booking, updateBookingDto);
 
-    return (await this.bookingRepository.save(booking)) as Booking;
+    return (await this.bookingRepository.save(booking));
   }
 
   async cancel(id: string, reason: string): Promise<Booking> {
