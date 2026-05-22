@@ -16,12 +16,12 @@ function getErrorMessage(error: unknown): string {
 async function fetchConfirmedBookings(
   bookingRepository: Repository<Booking>,
 ): Promise<Booking[]> {
-  const confirmedBookings: Booking[] = await bookingRepository.find({
+  const confirmedBookings = await bookingRepository.find({
     where: { status: BookingStatus.CONFIRMED },
     relations: ["customer", "employee", "service"],
-  });
+  }) as Booking[] | null;
 
-  if (confirmedBookings.length === 0) {
+  if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
     throw new Error('Failed to fetch confirmed bookings');
   }
 

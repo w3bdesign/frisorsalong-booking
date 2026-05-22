@@ -157,8 +157,12 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
     const bookings: Partial<Booking>[] = [];
 
     for (let i = 0; i < 20; i++) {
-      const service: Service = faker.helpers.arrayElement(services);
-      const customer: User = faker.helpers.arrayElement(customers);
+      const service = faker.helpers.arrayElement(services) as Service | null;
+      const customer = faker.helpers.arrayElement(customers) as User | null;
+
+      if (!service || !customer) {
+        throw new Error(`Failed to select service or customer for booking ${i + 1}`);
+      }
 
       bookings.push(buildBooking(customer, employee as Employee, service, now, i));
     }
