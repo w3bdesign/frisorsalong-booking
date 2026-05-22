@@ -57,17 +57,3 @@ export class CreateEmployeeDto {
   @IsBoolean()
   isActive?: boolean;
 }
-
-export interface CreateEmployeeResponse {
-  employee: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneNumber?: string;
-    specializations: string[];
-    availability?: Availability;
-    isActive: boolean;
-  };
-  temporaryPassword?: string;
-}
