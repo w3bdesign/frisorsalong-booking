@@ -9,111 +9,116 @@ import { CreateBookingDto } from "./dto/create-booking.dto";
 import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { User, UserRole } from "../users/entities/user.entity";
+import { UserRole } from "../users/entities/user.entity";
+
+interface MockUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  phoneNumber: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface FindOneOptions {
+  where: { id: string };
+  relations: string[];
+}
+
+interface FindOptions {
+  where: unknown;
+  relations: string[];
+  order: { startTime: "ASC" | "DESC" };
+}
+
+interface MockBooking {
+  id: string;
+  customer?: Partial<MockUser>;
+  service?: { id: string; duration: number };
+  employee?: { id: string };
+  status?: BookingStatus;
+  startTime?: Date;
+  endTime?: Date;
+  notes?: string;
+  totalPrice?: number;
+  cancelledAt?: Date;
+  cancellationReason?: string;
+}
+
+const mockBookingRepository = {
+  create: jest.fn().mockImplementation(
+    (dto: Partial<Booking>): MockBooking => ({
+      id: "booking1",
+      ...dto,
+    })
+  ),
+  save: jest
+    .fn()
+    .mockImplementation(
+      (booking: MockBooking): Promise<MockBooking> =>
+        Promise.resolve({ id: "booking1", ...booking })
+    ),
+  findOne: jest
+    .fn()
+    .mockImplementation(
+      (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
+    ),
+  find: jest
+    .fn()
+    .mockImplementation(
+      (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
+    ),
+};
+
+const mockUsersService = {
+  create: jest.fn(),
+  findOne: jest.fn(),
+};
+
+const mockEmployeesService = {
+  findOne: jest.fn(),
+  findAll: jest.fn(),
+  isAvailable: jest.fn(),
+};
+
+const mockServicesService = {
+  findOne: jest.fn(),
+};
+
+async function createTestModule(): Promise<TestingModule> {
+  const module = await Test.createTestingModule({
+    providers: [
+      BookingsService,
+      {
+        provide: getRepositoryToken(Booking),
+        useValue: mockBookingRepository,
+      },
+      {
+        provide: UsersService,
+        useValue: mockUsersService,
+      },
+      {
+        provide: EmployeesService,
+        useValue: mockEmployeesService,
+      },
+      {
+        provide: ServicesService,
+        useValue: mockServicesService,
+      },
+    ],
+  }).compile();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return module as unknown as TestingModule;
+}
 
 describe("BookingsService", () => {
   let service: BookingsService;
 
-  interface MockUser {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    phoneNumber: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-
-  interface FindOneOptions {
-    where: { id: string };
-    relations: string[];
-  }
-
-  interface FindOptions {
-    where: unknown;
-    relations: string[];
-    order: { startTime: "ASC" | "DESC" };
-  }
-
-  interface MockBooking {
-    id: string;
-    customer?: Partial<MockUser>;
-    service?: { id: string; duration: number };
-    employee?: { id: string };
-    status?: BookingStatus;
-    startTime?: Date;
-    endTime?: Date;
-    notes?: string;
-    totalPrice?: number;
-    cancelledAt?: Date;
-    cancellationReason?: string;
-  }
-
-  const mockBookingRepository = {
-    create: jest.fn().mockImplementation(
-      (dto: Partial<Booking>): MockBooking => ({
-        id: "booking1",
-        ...dto,
-      })
-    ),
-    save: jest
-      .fn()
-      .mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> =>
-          Promise.resolve({ id: "booking1", ...booking })
-      ),
-    findOne: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
-      ),
-    find: jest
-      .fn()
-      .mockImplementation(
-        (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
-      ),
-  };
-
-  const mockUsersService = {
-    create: jest.fn(),
-    findOne: jest.fn(),
-  };
-
-  const mockEmployeesService = {
-    findOne: jest.fn(),
-    findAll: jest.fn(),
-    isAvailable: jest.fn(),
-  };
-
-  const mockServicesService = {
-    findOne: jest.fn(),
-  };
-
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BookingsService,
-        {
-          provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
-        },
-        {
-          provide: UsersService,
-          useValue: mockUsersService,
-        },
-        {
-          provide: EmployeesService,
-          useValue: mockEmployeesService,
-        },
-        {
-          provide: ServicesService,
-          useValue: mockServicesService,
-        },
-      ],
-    }).compile();
-
+    const module = await createTestModule();
     service = module.get<BookingsService>(BookingsService);
   });
 
@@ -370,7 +375,7 @@ describe("BookingsService", () => {
             updatedAt: new Date(),
             hashPassword: jest.fn(),
             validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
+          },
           service: {
             id: "service1",
             name: "Haircut",
@@ -397,7 +402,7 @@ describe("BookingsService", () => {
             updatedAt: new Date(),
             hashPassword: jest.fn(),
             validatePassword: jest.fn().mockResolvedValue(true),
-          } as User,
+          },
           service: {
             id: "service2",
             name: "Styling",

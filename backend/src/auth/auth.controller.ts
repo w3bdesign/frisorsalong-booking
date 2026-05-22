@@ -98,6 +98,6 @@ export class AuthController {
   getProfile(@GetUser() user: User): UserResponse {
     // The JwtStrategy already validates the token and fetches user data.
     // The user object attached to the request does not contain the password.
-    return user as UserResponse;
+    return user;
   }
 }

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+ 
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmployeesController } from "./employees.controller";
 import { EmployeesService } from "./employees.service";
@@ -38,7 +38,8 @@ describe("EmployeesController", () => {
         user.password = hashedPassword;
       },
       validatePassword: async function (password: string): Promise<boolean> {
-        return bcrypt.compare(password, user.password) as Promise<boolean>;
+        const isMatch: boolean = await bcrypt.compare(password, user.password);
+        return isMatch;
       },
       ...data,
     };

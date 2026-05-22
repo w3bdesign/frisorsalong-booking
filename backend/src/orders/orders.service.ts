@@ -37,12 +37,12 @@ export class OrdersService {
       totalAmount: booking.totalPrice,
     });
 
-    const savedOrder = await this.orderRepository.save(order) as Order;
+    const savedOrder = await this.orderRepository.save(order);
     return savedOrder;
   }
 
   async findAll(): Promise<Order[]> {
-    const orders = await this.orderRepository.find({
+    const orders: Order[] = await this.orderRepository.find({
       relations: [
         'booking',
         'booking.customer',
@@ -52,14 +52,14 @@ export class OrdersService {
       ],
       order: { completedAt: 'DESC' },
     });
-    return orders as Order[];
+    return orders;
   }
 
   async findAllByEmployee(userId: string): Promise<Order[]> {
     // First get the employee record using the user ID
     const employee = await this.employeesService.findByUserId(userId);
 
-    const orders = await this.orderRepository.find({
+    const orders: Order[] = await this.orderRepository.find({
       where: {
         booking: {
           employee: {
@@ -76,7 +76,7 @@ export class OrdersService {
       ],
       order: { completedAt: 'DESC' },
     });
-    return orders as Order[];
+    return orders;
   }
 
   async findOne(id: string): Promise<Order> {
@@ -95,7 +95,7 @@ export class OrdersService {
       throw new NotFoundException(`Order #${id} not found`);
     }
 
-    return order as Order;
+    return order;
   }
 
   async findOneByEmployee(id: string, userId: string): Promise<Order> {

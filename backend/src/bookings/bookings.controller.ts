@@ -10,7 +10,6 @@ import {
   Req,
   ParseUUIDPipe,
   ValidationPipe,
-  Type,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { OrdersService } from "../orders/orders.service";
@@ -46,7 +45,7 @@ export class BookingsController {
   }
 
   @Post("walk-in")
-  @UseGuards(ShopCodeGuard as Type<ShopCodeGuard>)
+  @UseGuards(ShopCodeGuard)
   async createWalkIn(
     @Body(new ValidationPipe({ transform: true })) createWalkInBookingDto: CreateWalkInBookingDto,
     @Req() request: RequestWithShop
@@ -63,7 +62,7 @@ export class BookingsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async create(
     @Body(new ValidationPipe({ transform: true })) createBookingDto: CreateBookingDto
@@ -73,7 +72,7 @@ export class BookingsController {
   }
 
   @Get("upcoming")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findUpcoming(): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingsService.findUpcoming();
@@ -81,7 +80,7 @@ export class BookingsController {
   }
 
   @Get("customer/:customerId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
   async findByCustomer(
     @Param("customerId", new ParseUUIDPipe()) customerId: string
@@ -91,7 +90,7 @@ export class BookingsController {
   }
 
   @Get("employee/:employeeId")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.EMPLOYEE, UserRole.ADMIN)
   async findByEmployee(
     @Param("employeeId", new ParseUUIDPipe()) employeeId: string
@@ -101,7 +100,7 @@ export class BookingsController {
   }
 
   @Get(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async findOne(
     @Param("id", new ParseUUIDPipe()) id: string
@@ -111,7 +110,7 @@ export class BookingsController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async update(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -122,7 +121,7 @@ export class BookingsController {
   }
 
   @Put(":id/cancel")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.ADMIN)
   async cancel(
     @Param("id", new ParseUUIDPipe()) id: string
@@ -133,7 +132,7 @@ export class BookingsController {
   }
 
   @Put(":id/complete")
-  @UseGuards(JwtAuthGuard as Type<JwtAuthGuard>, RolesGuard as Type<RolesGuard>)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async complete(
     @Param("id", new ParseUUIDPipe()) id: string

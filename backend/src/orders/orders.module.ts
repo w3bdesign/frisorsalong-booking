@@ -1,18 +1,14 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingsModule } from '../bookings/bookings.module';
 import { EmployeesModule } from '../employees/employees.module';
 import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, Booking]),
-    forwardRef(() => BookingsModule),
-    forwardRef(() => EmployeesModule),
+    SharedModule,
+    EmployeesModule,
     AuthModule,
   ],
   controllers: [OrdersController],

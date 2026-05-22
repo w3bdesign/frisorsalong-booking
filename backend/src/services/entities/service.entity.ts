@@ -6,7 +6,6 @@ import {
   UpdateDateColumn,
   ManyToMany,
 } from "typeorm";
-import { Employee } from "../../employees/entities/employee.entity";
 
 @Entity("services")
 export class Service {
@@ -28,8 +27,8 @@ export class Service {
   @Column({ default: true })
   isActive: boolean;
 
-  @ManyToMany(() => Employee, (employee: Employee) => employee.services)
-  employees: Employee[];
+  @ManyToMany("Employee", "services")
+  employees: import("../../employees/entities/employee.entity").Employee[];
 
   @CreateDateColumn()
   createdAt: Date;

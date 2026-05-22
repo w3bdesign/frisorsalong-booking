@@ -13,72 +13,86 @@ function getErrorMessage(error: unknown): string {
   return 'Unknown error';
 }
 
+async function fetchConfirmedBookings(
+  bookingRepository: Repository<Booking>,
+): Promise<Booking[]> {
+  const confirmedBookings = await bookingRepository.find({
+    where: { status: BookingStatus.CONFIRMED },
+    relations: ["customer", "employee", "service"],
+  }) as Booking[] | null;
+
+  if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
+    throw new Error('Failed to fetch confirmed bookings');
+  }
+
+  return confirmedBookings;
+}
+
+async function saveOrder(
+  booking: Booking,
+  orderRepository: Repository<Order>,
+): Promise<Order> {
+  const order = orderRepository.create({
+    booking: booking,
+    completedAt: new Date(),
+    totalAmount: booking.totalPrice,
+    notes: `Order created for booking ${booking.id}`,
+  });
+
+  if (!order) {
+    throw new Error(`Failed to create order for booking ${booking.id}`);
+  }
+
+  const savedOrder: Order = await orderRepository.save(order);
+  if (!savedOrder) {
+    throw new Error(`Failed to save order for booking ${booking.id}`);
+  }
+
+  return savedOrder;
+}
+
+async function markBookingCompleted(
+  booking: Booking,
+  bookingRepository: Repository<Booking>,
+): Promise<void> {
+  booking.status = BookingStatus.COMPLETED;
+  await bookingRepository.save(booking);
+}
+
 export const createSampleOrders = async (dataSource: DataSource): Promise<void> => {
-  // Initialize repositories with proper typing
   const bookingRepository: Repository<Booking> = dataSource.getRepository(Booking);
   const orderRepository: Repository<Order> = dataSource.getRepository(Order);
 
   try {
     console.log('Starting to create sample orders...');
 
-    // Get all confirmed bookings that don't have orders yet
-    const confirmedBookings = await bookingRepository.find({
-      where: { status: BookingStatus.CONFIRMED },
-      relations: ["customer", "employee", "service"],
-    });
-
-    if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
-      throw new Error('Failed to fetch confirmed bookings');
-    }
-
+    const confirmedBookings = await fetchConfirmedBookings(bookingRepository);
     console.log(`Found ${confirmedBookings.length} confirmed bookings`);
 
-    // Take first 20 confirmed bookings (or less if fewer exist)
     const numberOfOrders = Math.min(20, confirmedBookings.length);
     const selectedBookings = confirmedBookings.slice(0, numberOfOrders);
-
     console.log(`Creating ${numberOfOrders} orders...`);
 
     const createdOrders: Order[] = [];
     for (const booking of selectedBookings) {
-      // Verify booking has required properties
       if (!booking.id || !booking.totalPrice) {
         console.error(`Invalid booking data: ${JSON.stringify(booking)}`);
         continue;
       }
 
       try {
-        // Create order with proper type
-        const order = orderRepository.create({
-          booking: booking,
-          completedAt: new Date(),
-          totalAmount: booking.totalPrice,
-          notes: `Order created for booking ${booking.id}`,
-        });
-
-        if (!order) {
-          throw new Error(`Failed to create order for booking ${booking.id}`);
-        }
-
-        // Save order with proper error handling
-        const savedOrder: Order = await orderRepository.save(order);
-        if (!savedOrder) {
-          throw new Error(`Failed to save order for booking ${booking.id}`);
-        }
-
+        const savedOrder = await saveOrder(booking, orderRepository);
         createdOrders.push(savedOrder);
 
-        // Update booking status to completed
-        booking.status = BookingStatus.COMPLETED;
-        const updatedBooking = await bookingRepository.save(booking);
-        
-        if (!updatedBooking) {
-          throw new Error(`Failed to update status for booking ${booking.id}`);
+        // Update booking status — failure here doesn't invalidate the order
+        try {
+          await markBookingCompleted(booking, bookingRepository);
+        } catch (statusError: unknown) {
+          console.error(`Failed to update status for booking ${booking.id}:`, getErrorMessage(statusError));
         }
 
         console.log(`Created order ${savedOrder.id} for booking ${booking.id}`);
       } catch (error: unknown) {
-        // Log error but continue processing other bookings
         console.error(`Error processing booking ${booking.id}:`, getErrorMessage(error));
         continue;
       }
@@ -89,7 +103,6 @@ export const createSampleOrders = async (dataSource: DataSource): Promise<void> 
     }
 
     console.log(`Successfully created ${createdOrders.length} sample orders`);
-
   } catch (error: unknown) {
     console.error("Error creating sample orders:", getErrorMessage(error));
     throw error;
