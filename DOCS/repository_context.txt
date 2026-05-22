@@ -22147,60 +22147,6 @@ describe('OrdersModule', () => {
 });
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "packageManager": "pnpm@11.1.3",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.16.1",
-    "chart.js": "^4.5.1",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.34",
-    "vue-router": "^5.0.7"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.3",
-    "@types/node": "^24.12.4",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.10",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.4.0",
-    "eslint-plugin-vue": "^10.9.1",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.13",
-    "vitest": "^4.1.6",
-    "vue-tsc": "^3.3.0"
-  }
-}
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -22293,6 +22239,60 @@ describe('OrdersModule', () => {
 }
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.16.1",
+    "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.34",
+    "vue-router": "^5.0.7"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.12.4",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.10",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-vue": "^10.9.1",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6",
+    "vue-tsc": "^3.3.0"
+  }
+}
+````
+
 ## File: frontend/customer/package.json
 ````json
 {
@@ -22342,7 +22342,7 @@ describe('OrdersModule', () => {
     "eslint-plugin-vue": "^10.9.1",
     "jsdom": "^29.1.1",
     "npm-run-all2": "^9.0.0",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.15",
     "prettier": "^3.8.3",
     "start-server-and-test": "^3.0.5",
     "tailwindcss": "^3.4.19",
