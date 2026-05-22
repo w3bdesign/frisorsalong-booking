@@ -25,7 +25,7 @@ describe('Display Store', () => {
 
   it('manages waiting slots', async () => {
     // Setup mock API response
-    vi.mocked(axios.get).mockResolvedValue({
+    vi.spyOn(axios, 'get').mockResolvedValue({
       data: {
         count: 1,
         customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],

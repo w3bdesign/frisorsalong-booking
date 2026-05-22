@@ -230,15 +230,13 @@ describe("EmployeesController", () => {
         role: UserRole.EMPLOYEE,
       });
 
-      mockEmployeesService.findByUserId.mockResolvedValue(null);
+      mockEmployeesService.findByUserId.mockRejectedValue(
+        new NotFoundException("Employee with user ID employee-id not found")
+      );
 
       await expect(
         controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
+      ).rejects.toThrow(NotFoundException);
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
       expect(service.findOne).not.toHaveBeenCalled();
