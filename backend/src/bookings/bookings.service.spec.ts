@@ -88,8 +88,8 @@ const mockServicesService = {
   findOne: jest.fn(),
 };
 
-function createTestModule(): Promise<TestingModule> {
-  return Test.createTestingModule({
+async function createTestModule(): Promise<TestingModule> {
+  const module: TestingModule = await Test.createTestingModule({
     providers: [
       BookingsService,
       {
@@ -110,6 +110,7 @@ function createTestModule(): Promise<TestingModule> {
       },
     ],
   }).compile();
+  return module;
 }
 
 describe("BookingsService", () => {

@@ -38,7 +38,8 @@ describe("EmployeesController", () => {
         user.password = hashedPassword;
       },
       validatePassword: async function (password: string): Promise<boolean> {
-        return bcrypt.compare(password, user.password);
+        const isMatch: boolean = await bcrypt.compare(password, user.password);
+        return isMatch;
       },
       ...data,
     };

@@ -42,7 +42,7 @@ export class OrdersService {
   }
 
   async findAll(): Promise<Order[]> {
-    const orders = await this.orderRepository.find({
+    const orders: Order[] = await this.orderRepository.find({
       relations: [
         'booking',
         'booking.customer',

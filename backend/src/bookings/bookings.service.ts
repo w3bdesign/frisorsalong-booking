@@ -89,7 +89,8 @@ export class BookingsService {
       status: isPaid ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
     });
 
-    return (await this.bookingRepository.save(booking));
+    const saved: Booking = await this.bookingRepository.save(booking);
+    return saved;
   }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -132,11 +133,12 @@ export class BookingsService {
       status: BookingStatus.PENDING,
     });
 
-    return (await this.bookingRepository.save(booking));
+    const saved: Booking = await this.bookingRepository.save(booking);
+    return saved;
   }
 
   async findOne(id: string): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
+    const booking: Booking | null = await this.bookingRepository.findOne({
       where: { id },
       relations: ["customer", "employee", "employee.user", "service"],
     });
@@ -179,7 +181,8 @@ export class BookingsService {
     // Update other fields
     Object.assign(booking, updateBookingDto);
 
-    return (await this.bookingRepository.save(booking));
+    const saved: Booking = await this.bookingRepository.save(booking);
+    return saved;
   }
 
   async cancel(id: string, reason: string): Promise<Booking> {

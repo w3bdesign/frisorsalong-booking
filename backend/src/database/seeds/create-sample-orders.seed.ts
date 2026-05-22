@@ -21,7 +21,7 @@ async function fetchConfirmedBookings(
     relations: ["customer", "employee", "service"],
   });
 
-  if (!confirmedBookings || !Array.isArray(confirmedBookings)) {
+  if (confirmedBookings.length === 0) {
     throw new Error('Failed to fetch confirmed bookings');
   }
 

@@ -49,14 +49,14 @@ async function createCustomers(
 
     try {
       const hashedPassword = await bcrypt.hash('password123', 10);
-      const customer = await userRepository.save({
+      const customer: User = await userRepository.save({
         firstName,
         lastName,
         email: faker.internet.email({ firstName, lastName }),
         password: hashedPassword,
         role: UserRole.CUSTOMER,
         phoneNumber: '+47' + faker.string.numeric(8),
-      });
+      }) as User;
       customers.push(customer);
     } catch (error) {
       const err = new Error(`Failed to create customer ${i + 1}`);
@@ -97,7 +97,7 @@ function buildBooking(
   };
 
   if (status === BookingStatus.CANCELLED) {
-    addCancellationDetails(booking, startTime, now);
+    addCancellationDetails(booking, startTime as Date, now);
   }
 
   return booking;
@@ -160,11 +160,7 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
       const service: Service = faker.helpers.arrayElement(services);
       const customer: User = faker.helpers.arrayElement(customers);
 
-      if (!service || !customer) {
-        throw new Error(`Failed to select service or customer for booking ${i + 1}`);
-      }
-
-      bookings.push(buildBooking(customer, employee, service, now, i));
+      bookings.push(buildBooking(customer, employee as Employee, service, now, i));
     }
 
     console.log('Saving bookings to database...');

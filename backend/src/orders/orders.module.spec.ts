@@ -30,6 +30,7 @@ const mockRepository: Partial<Repository<Order>> = {
 jest.mock('../employees/employees.module', () => ({
   EmployeesModule: class MockEmployeesModule {
     static readonly moduleName = 'EmployeesModule';
+    readonly _brand = 'EmployeesModule';
   },
 }));
 
@@ -37,6 +38,7 @@ jest.mock('../employees/employees.module', () => ({
 jest.mock('../shared/shared.module', () => ({
   SharedModule: class MockSharedModule {
     static readonly moduleName = 'SharedModule';
+    readonly _brand = 'SharedModule';
   },
 }));
 
@@ -49,6 +51,7 @@ describe('OrdersModule', () => {
         {
           module: class MockTypeOrmModule {
             static readonly moduleName = 'TypeOrmModule';
+            readonly _brand = 'TypeOrmModule';
           },
           providers: [
             {
@@ -72,16 +75,17 @@ describe('OrdersModule', () => {
   });
 
   it('should have correct module metadata', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule) as (Type<unknown> | DynamicModule)[];
+    const imports = Reflect.getMetadata('imports', OrdersModule) as (Type<unknown> | DynamicModule)[] | undefined;
 
     // Should have 3 imports: SharedModule, EmployeesModule, AuthModule
-    expect(imports.length).toBe(3);
+    expect(imports).toBeDefined();
+    expect(imports!.length).toBe(3);
 
     // Get all module names
-    const moduleNames = imports
+    const moduleNames = imports!
       .map((item): string | null => {
         if (typeof item === "function") {
-          return item.name;
+          return (item as { name: string }).name;
         }
         return null;
       })

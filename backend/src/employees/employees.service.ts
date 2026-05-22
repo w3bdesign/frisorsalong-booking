@@ -70,7 +70,7 @@ export class EmployeesService {
   }
 
   async findAll(): Promise<Employee[]> {
-    const employees = await this.employeeRepository.find({
+    const employees: Employee[] = await this.employeeRepository.find({
       relations: ['user', 'services'],
       where: { isActive: true },
     });
@@ -202,8 +202,9 @@ export class EmployeesService {
 
   async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findOne(id);
-    const updated = Object.assign(employee, updateEmployeeDto);
-    return await this.employeeRepository.save(updated);
+    const updated: Employee = Object.assign(employee, updateEmployeeDto);
+    const saved: Employee = await this.employeeRepository.save(updated);
+    return saved;
   }
 
   async remove(id: string): Promise<void> {

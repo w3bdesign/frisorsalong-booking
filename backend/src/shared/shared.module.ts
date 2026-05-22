@@ -12,4 +12,5 @@ import { Service } from "../services/entities/service.entity";
   ],
   exports: [TypeOrmModule],
 })
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class SharedModule {}
