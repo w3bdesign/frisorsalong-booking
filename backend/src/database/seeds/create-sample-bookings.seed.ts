@@ -24,7 +24,7 @@ const STATUS_WEIGHTS: StatusWeight[] = [
   { status: BookingStatus.CANCELLED, weight: 0.1 },
 ];
 
-function pickWeightedStatus(weights: StatusWeight[]): BookingStatus {
+function pickWeightedStatus(weights: StatusWeight[], bookingIndex: number): BookingStatus {
   const randomWeight = Math.random();
   let cumulativeWeight = 0;
   const selected = weights.find(sw => {
@@ -33,7 +33,7 @@ function pickWeightedStatus(weights: StatusWeight[]): BookingStatus {
   });
 
   if (!selected) {
-    return BookingStatus.CONFIRMED;
+    throw new Error(`Failed to determine status for booking ${bookingIndex + 1}`);
   }
   return selected.status;
 }
@@ -47,16 +47,22 @@ async function createCustomers(
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
 
-    const hashedPassword = await bcrypt.hash('password123', 10);
-    const customer = await userRepository.save({
-      firstName,
-      lastName,
-      email: faker.internet.email({ firstName, lastName }),
-      password: hashedPassword,
-      role: UserRole.CUSTOMER,
-      phoneNumber: '+47' + faker.string.numeric(8),
-    });
-    customers.push(customer as User);
+    try {
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      const customer = await userRepository.save({
+        firstName,
+        lastName,
+        email: faker.internet.email({ firstName, lastName }),
+        password: hashedPassword,
+        role: UserRole.CUSTOMER,
+        phoneNumber: '+47' + faker.string.numeric(8),
+      });
+      customers.push(customer as User);
+    } catch (error) {
+      const err = new Error(`Failed to create customer ${i + 1}`);
+      console.error(`Error creating customer ${i + 1}:`, error);
+      throw err;
+    }
   }
   return customers;
 }
@@ -66,8 +72,9 @@ function buildBooking(
   employee: Employee,
   service: Service,
   now: Date,
+  bookingIndex: number,
 ): Partial<Booking> {
-  const status = pickWeightedStatus(STATUS_WEIGHTS);
+  const status = pickWeightedStatus(STATUS_WEIGHTS, bookingIndex);
 
   const startTime = faker.date.between({
     from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
@@ -152,7 +159,12 @@ export const createSampleBookings = async (dataSource: DataSource): Promise<Stat
     for (let i = 0; i < 20; i++) {
       const service = faker.helpers.arrayElement(services);
       const customer = faker.helpers.arrayElement(customers);
-      bookings.push(buildBooking(customer, employee, service, now));
+
+      if (!service || !customer) {
+        throw new Error(`Failed to select service or customer for booking ${i + 1}`);
+      }
+
+      bookings.push(buildBooking(customer, employee, service, now, i));
     }
 
     console.log('Saving bookings to database...');
