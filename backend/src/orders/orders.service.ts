@@ -59,7 +59,7 @@ export class OrdersService {
     // First get the employee record using the user ID
     const employee = await this.employeesService.findByUserId(userId);
 
-    const orders = await this.orderRepository.find({
+    const orders: Order[] = await this.orderRepository.find({
       where: {
         booking: {
           employee: {

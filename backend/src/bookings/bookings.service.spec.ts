@@ -89,7 +89,7 @@ const mockServicesService = {
 };
 
 async function createTestModule(): Promise<TestingModule> {
-  const module: TestingModule = await Test.createTestingModule({
+  return await Test.createTestingModule({
     providers: [
       BookingsService,
       {
@@ -109,8 +109,7 @@ async function createTestModule(): Promise<TestingModule> {
         useValue: mockServicesService,
       },
     ],
-  }).compile();
-  return module;
+  }).compile() as TestingModule;
 }
 
 describe("BookingsService", () => {

@@ -75,14 +75,13 @@ describe('OrdersModule', () => {
   });
 
   it('should have correct module metadata', () => {
-    const imports = Reflect.getMetadata('imports', OrdersModule) as (Type<unknown> | DynamicModule)[] | undefined;
+    const imports = (Reflect.getMetadata('imports', OrdersModule) ?? []) as (Type<unknown> | DynamicModule)[];
 
     // Should have 3 imports: SharedModule, EmployeesModule, AuthModule
-    expect(imports).toBeDefined();
-    expect(imports!.length).toBe(3);
+    expect(imports.length).toBe(3);
 
     // Get all module names
-    const moduleNames = imports!
+    const moduleNames = imports
       .map((item): string | null => {
         if (typeof item === "function") {
           return (item as { name: string }).name;
