@@ -142,7 +142,7 @@ import { onMounted, onUnmounted } from 'vue'
 console.log('TVDisplayView script setup start')
 const store = useDisplayStore()
 
-const formatLastUpdate = () => {
+const formatLastUpdate = (): string => {
   return store.lastUpdate.toLocaleTimeString('nb-NO', {
     hour: '2-digit',
     minute: '2-digit',

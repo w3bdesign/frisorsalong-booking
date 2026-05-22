@@ -131,12 +131,12 @@ export const useDisplayStore = defineStore('display', () => {
     }
 
     // Initial fetch
-    fetchWaitingSlots()
+    void fetchWaitingSlots()
 
     // Then poll every 30 seconds
     pollInterval = window.setInterval(() => {
       console.log('Polling interval triggered')
-      fetchWaitingSlots()
+      void fetchWaitingSlots()
     }, CACHE_DURATION)
   }
 

@@ -25,7 +25,7 @@ describe('Display Store', () => {
 
   it('manages waiting slots', async () => {
     // Setup mock API response
-    vi.mocked(axios.get).mockResolvedValue({
+    vi.spyOn(axios, 'get').mockResolvedValue({
       data: {
         count: 1,
         customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
@@ -52,7 +52,7 @@ describe('Display Store', () => {
   })
 
   it('handles API errors', async () => {
-    vi.mocked(axios.get).mockRejectedValue(new Error('API Error'))
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
     const store = useDisplayStore()
 
     await store.fetchWaitingSlots()
@@ -64,7 +64,7 @@ describe('Display Store', () => {
   })
 
   it('calculates slot availability', async () => {
-    vi.mocked(axios.get).mockResolvedValue({
+    vi.spyOn(axios, 'get').mockResolvedValue({
       data: {
         count: 3, // More customers than employees
         customers: [

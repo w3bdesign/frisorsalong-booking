@@ -1,11 +1,9 @@
- 
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmployeesController } from "./employees.controller";
 import { EmployeesService } from "./employees.service";
 import {
   NotFoundException,
   ConflictException,
-  UnauthorizedException,
   BadRequestException,
 } from "@nestjs/common";
 import { Employee } from "./entities/employee.entity";
@@ -128,12 +126,12 @@ describe("EmployeesController", () => {
     it("should handle duplicate email error", async () => {
       mockEmployeesService.create.mockRejectedValue(
         new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
+          "En bruker med denne e-postadressen eksisterer allerede",
+        ),
       );
 
       await expect(controller.create(createEmployeeDto)).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
+        "En bruker med denne e-postadressen eksisterer allerede",
       );
     });
   });
@@ -151,11 +149,11 @@ describe("EmployeesController", () => {
 
     it("should handle employee not found error", async () => {
       mockEmployeesService.resetPassword.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
+        new NotFoundException("Fant ikke ansatt med ID non-existent"),
       );
 
       await expect(controller.resetPassword("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
+        "Fant ikke ansatt med ID non-existent",
       );
     });
   });
@@ -215,9 +213,9 @@ describe("EmployeesController", () => {
       mockEmployeesService.findByUserId.mockResolvedValue(ownEmployeeRecord);
 
       await expect(
-        controller.findOne("other-employee-id", employeeUser)
+        controller.findOne("other-employee-id", employeeUser),
       ).rejects.toThrow(
-        "Du har ikke tilgang til å se denne ansattes informasjon"
+        "Du har ikke tilgang til å se denne ansattes informasjon",
       );
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
@@ -230,15 +228,13 @@ describe("EmployeesController", () => {
         role: UserRole.EMPLOYEE,
       });
 
-      mockEmployeesService.findByUserId.mockResolvedValue(null);
+      mockEmployeesService.findByUserId.mockRejectedValue(
+        new NotFoundException("Employee with user ID employee-id not found"),
+      );
 
       await expect(
-        controller.findOne("employee-1", employeeUser)
-      ).rejects.toThrow(
-        new UnauthorizedException(
-          "Du har ikke tilgang til å se denne ansattes informasjon"
-        )
-      );
+        controller.findOne("employee-1", employeeUser),
+      ).rejects.toThrow("Employee with user ID employee-id not found");
 
       expect(service.findByUserId).toHaveBeenCalledWith(employeeUser.id);
       expect(service.findOne).not.toHaveBeenCalled();
@@ -246,11 +242,11 @@ describe("EmployeesController", () => {
 
     it("should handle employee not found error", async () => {
       mockEmployeesService.findOne.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
+        new NotFoundException("Fant ikke ansatt med ID non-existent"),
       );
 
       await expect(
-        controller.findOne("non-existent", mockAdminUser)
+        controller.findOne("non-existent", mockAdminUser),
       ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
     });
   });
@@ -270,31 +266,31 @@ describe("EmployeesController", () => {
       expect(result).toEqual(updatedEmployee);
       expect(service.update).toHaveBeenCalledWith(
         "employee-1",
-        updateEmployeeDto
+        updateEmployeeDto,
       );
     });
 
     it("should handle duplicate email error", async () => {
       mockEmployeesService.update.mockRejectedValue(
         new ConflictException(
-          "En bruker med denne e-postadressen eksisterer allerede"
-        )
+          "En bruker med denne e-postadressen eksisterer allerede",
+        ),
       );
 
       await expect(
-        controller.update("employee-1", updateEmployeeDto)
+        controller.update("employee-1", updateEmployeeDto),
       ).rejects.toThrow(
-        "En bruker med denne e-postadressen eksisterer allerede"
+        "En bruker med denne e-postadressen eksisterer allerede",
       );
     });
 
     it("should handle employee not found error", async () => {
       mockEmployeesService.update.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
+        new NotFoundException("Fant ikke ansatt med ID non-existent"),
       );
 
       await expect(
-        controller.update("non-existent", updateEmployeeDto)
+        controller.update("non-existent", updateEmployeeDto),
       ).rejects.toThrow("Fant ikke ansatt med ID non-existent");
     });
   });
@@ -311,22 +307,22 @@ describe("EmployeesController", () => {
     it("should handle employee with future bookings error", async () => {
       mockEmployeesService.remove.mockRejectedValue(
         new BadRequestException(
-          "Kan ikke slette ansatt med fremtidige bestillinger"
-        )
+          "Kan ikke slette ansatt med fremtidige bestillinger",
+        ),
       );
 
       await expect(controller.remove("employee-1")).rejects.toThrow(
-        "Kan ikke slette ansatt med fremtidige bestillinger"
+        "Kan ikke slette ansatt med fremtidige bestillinger",
       );
     });
 
     it("should handle employee not found error", async () => {
       mockEmployeesService.remove.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
+        new NotFoundException("Fant ikke ansatt med ID non-existent"),
       );
 
       await expect(controller.remove("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
+        "Fant ikke ansatt med ID non-existent",
       );
     });
   });
@@ -342,11 +338,11 @@ describe("EmployeesController", () => {
 
     it("should handle employee not found error", async () => {
       mockEmployeesService.restore.mockRejectedValue(
-        new NotFoundException("Fant ikke ansatt med ID non-existent")
+        new NotFoundException("Fant ikke ansatt med ID non-existent"),
       );
 
       await expect(controller.restore("non-existent")).rejects.toThrow(
-        "Fant ikke ansatt med ID non-existent"
+        "Fant ikke ansatt med ID non-existent",
       );
     });
   });
