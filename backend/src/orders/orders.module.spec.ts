@@ -75,9 +75,8 @@ describe('OrdersModule', () => {
   });
 
   it('should have correct module metadata', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const rawImports: unknown = Reflect.getMetadata('imports', OrdersModule) ?? [];
-    const imports = rawImports as (Type<unknown> | DynamicModule)[];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const imports: (Type<unknown> | DynamicModule)[] = Reflect.getMetadata('imports', OrdersModule) ?? [];
 
     // Should have 3 imports: SharedModule, EmployeesModule, AuthModule
     expect(imports.length).toBe(3);
