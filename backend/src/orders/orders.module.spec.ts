@@ -75,6 +75,7 @@ describe('OrdersModule', () => {
   });
 
   it('should have correct module metadata', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const rawImports: unknown = Reflect.getMetadata('imports', OrdersModule) ?? [];
     const imports = rawImports as (Type<unknown> | DynamicModule)[];
 
