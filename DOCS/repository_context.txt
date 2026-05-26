@@ -22195,7 +22195,7 @@ describe('OrdersModule', () => {
     "prettier": "^3.8.3",
     "typescript": "~5.9.3",
     "vite": "^8.0.14",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.7",
     "vue-tsc": "^3.3.1"
   }
 }
@@ -22237,7 +22237,7 @@ describe('OrdersModule', () => {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.12.4",
     "@vitejs/plugin-vue": "^6.0.7",
-    "@vitest/coverage-v8": "4.1.6",
+    "@vitest/coverage-v8": "4.1.7",
     "@vitest/eslint-plugin": "1.6.17",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
@@ -22257,7 +22257,7 @@ describe('OrdersModule', () => {
     "typescript": "~5.9.3",
     "vite": "^8.0.14",
     "vite-plugin-vue-devtools": "^8.1.2",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.7",
     "vue-tsc": "^3.3.1"
   }
 }
