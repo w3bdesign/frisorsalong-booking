@@ -6022,6 +6022,60 @@ describe("CreateEmployeeDto", () => {
 });
 ````
 
+## File: backend/src/employees/dto/create-employee.dto.ts
+````typescript
+import { IsString, IsOptional, IsObject, IsBoolean, IsEmail, IsArray, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+interface Availability {
+  monday?: TimeSlot[];
+  tuesday?: TimeSlot[];
+  wednesday?: TimeSlot[];
+  thursday?: TimeSlot[];
+  friday?: TimeSlot[];
+  saturday?: TimeSlot[];
+  sunday?: TimeSlot[];
+}
+export class CreateEmployeeDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+  @ApiProperty()
+  @IsArray()
+  @IsString({ each: true })
+  specializations: string[];
+  @ApiPropertyOptional({
+    description: 'Employee availability schedule',
+    example: {
+      monday: [{ start: '09:00', end: '17:00' }],
+      tuesday: [{ start: '09:00', end: '17:00' }],
+    }
+  })
+  @IsOptional()
+  @IsObject()
+  availability?: Availability;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+````
+
 ## File: backend/src/employees/dto/index.spec.ts
 ````typescript
 import * as DTOs from './index';
@@ -6687,6 +6741,39 @@ describe('Service Entity', () => {
     expect(service.duration).toBe(45);
   });
 });
+````
+
+## File: backend/src/services/entities/service.entity.ts
+````typescript
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+} from "typeorm";
+@Entity("services")
+export class Service {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+  @Column()
+  name: string;
+  @Column("text")
+  description: string;
+  @Column("int")
+  duration: number; // Duration in minutes
+  @Column("decimal", { precision: 10, scale: 2 })
+  price: number;
+  @Column({ default: true })
+  isActive: boolean;
+  @ManyToMany("Employee", "services")
+  employees: import("../../employees/entities/employee.entity").Employee[];
+  @CreateDateColumn()
+  createdAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
 ````
 
 ## File: backend/src/services/services.controller.spec.ts
@@ -18695,60 +18782,6 @@ describe("BookingsModule", () => {
 });
 ````
 
-## File: backend/src/employees/dto/create-employee.dto.ts
-````typescript
-import { IsString, IsOptional, IsObject, IsBoolean, IsEmail, IsArray, IsNotEmpty } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-interface TimeSlot {
-  start: string;
-  end: string;
-}
-interface Availability {
-  monday?: TimeSlot[];
-  tuesday?: TimeSlot[];
-  wednesday?: TimeSlot[];
-  thursday?: TimeSlot[];
-  friday?: TimeSlot[];
-  saturday?: TimeSlot[];
-  sunday?: TimeSlot[];
-}
-export class CreateEmployeeDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  firstName: string;
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  lastName: string;
-  @ApiProperty()
-  @IsEmail()
-  email: string;
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  phoneNumber?: string;
-  @ApiProperty()
-  @IsArray()
-  @IsString({ each: true })
-  specializations: string[];
-  @ApiPropertyOptional({
-    description: 'Employee availability schedule',
-    example: {
-      monday: [{ start: '09:00', end: '17:00' }],
-      tuesday: [{ start: '09:00', end: '17:00' }],
-    }
-  })
-  @IsOptional()
-  @IsObject()
-  availability?: Availability;
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
-````
-
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -19198,39 +19231,6 @@ import { SharedModule } from '../shared/shared.module';
   exports: [OrdersService],
 })
 export class OrdersModule {}
-````
-
-## File: backend/src/services/entities/service.entity.ts
-````typescript
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToMany,
-} from "typeorm";
-@Entity("services")
-export class Service {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
-  @Column()
-  name: string;
-  @Column("text")
-  description: string;
-  @Column("int")
-  duration: number; // Duration in minutes
-  @Column("decimal", { precision: 10, scale: 2 })
-  price: number;
-  @Column({ default: true })
-  isActive: boolean;
-  @ManyToMany("Employee", "services")
-  employees: import("../../employees/entities/employee.entity").Employee[];
-  @CreateDateColumn()
-  createdAt: Date;
-  @UpdateDateColumn()
-  updatedAt: Date;
-}
 ````
 
 ## File: backend/src/shops/shops.service.spec.ts
@@ -22194,7 +22194,7 @@ describe('OrdersModule', () => {
     "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
     "typescript": "~5.9.3",
-    "vite": "^8.0.14",
+    "vite": "^8.0.16",
     "vitest": "^4.1.7",
     "vue-tsc": "^3.3.3"
   }
@@ -22255,7 +22255,7 @@ describe('OrdersModule', () => {
     "start-server-and-test": "^3.0.5",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
-    "vite": "^8.0.14",
+    "vite": "^8.0.16",
     "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.7",
     "vue-tsc": "^3.3.3"
