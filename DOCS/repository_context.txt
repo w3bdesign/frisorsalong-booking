@@ -3170,6 +3170,41 @@ describe("BookingsController", () => {
 });
 ````
 
+## File: backend/src/bookings/bookings.module.ts
+````typescript
+import { Module } from '@nestjs/common';
+import { BookingsService } from './bookings.service';
+import { BookingsController } from './bookings.controller';
+import { UsersModule } from '../users/users.module';
+import { EmployeesModule } from '../employees/employees.module';
+import { ServicesModule } from '../services/services.module';
+import { OrdersModule } from '../orders/orders.module';
+import { ShopsModule } from '../shops/shops.module';
+import { AuthModule } from '../auth/auth.module';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SharedModule } from '../shared/shared.module';
+@Module({
+  imports: [
+    SharedModule,
+    UsersModule,
+    EmployeesModule,
+    ServicesModule,
+    OrdersModule,
+    ShopsModule,
+    AuthModule,
+  ],
+  controllers: [BookingsController],
+  providers: [
+    BookingsService,
+    RolesGuard,
+    JwtAuthGuard,
+  ],
+  exports: [BookingsService],
+})
+export class BookingsModule {}
+````
+
 ## File: backend/src/config/cache.config.spec.ts
 ````typescript
 import cacheConfig from './cache.config';
@@ -6301,6 +6336,27 @@ export class Employee {
 }
 ````
 
+## File: backend/src/employees/employees.module.ts
+````typescript
+import { Module } from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { EmployeesController } from './employees.controller';
+import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
+@Module({
+  imports: [
+    SharedModule,
+    UsersModule,
+    AuthModule,
+  ],
+  controllers: [EmployeesController],
+  providers: [EmployeesService],
+  exports: [EmployeesService],
+})
+export class EmployeesModule {}
+````
+
 ## File: backend/src/orders/entities/order.entity.spec.ts
 ````typescript
 import { Order } from './order.entity';
@@ -6453,6 +6509,27 @@ export class OrdersController {
     return this.ordersService.findOneByEmployee(id, user.id);
   }
 }
+````
+
+## File: backend/src/orders/orders.module.ts
+````typescript
+import { Module } from '@nestjs/common';
+import { OrdersService } from './orders.service';
+import { OrdersController } from './orders.controller';
+import { EmployeesModule } from '../employees/employees.module';
+import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
+@Module({
+  imports: [
+    SharedModule,
+    EmployeesModule,
+    AuthModule,
+  ],
+  controllers: [OrdersController],
+  providers: [OrdersService],
+  exports: [OrdersService],
+})
+export class OrdersModule {}
 ````
 
 ## File: backend/src/orders/orders.service.spec.ts
@@ -18782,41 +18859,6 @@ describe("BookingsModule", () => {
 });
 ````
 
-## File: backend/src/bookings/bookings.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
-import { BookingsController } from './bookings.controller';
-import { UsersModule } from '../users/users.module';
-import { EmployeesModule } from '../employees/employees.module';
-import { ServicesModule } from '../services/services.module';
-import { OrdersModule } from '../orders/orders.module';
-import { ShopsModule } from '../shops/shops.module';
-import { AuthModule } from '../auth/auth.module';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { SharedModule } from '../shared/shared.module';
-@Module({
-  imports: [
-    SharedModule,
-    UsersModule,
-    EmployeesModule,
-    ServicesModule,
-    OrdersModule,
-    ShopsModule,
-    AuthModule,
-  ],
-  controllers: [BookingsController],
-  providers: [
-    BookingsService,
-    RolesGuard,
-    JwtAuthGuard,
-  ],
-  exports: [BookingsService],
-})
-export class BookingsModule {}
-````
-
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -18886,27 +18928,6 @@ export class EmployeesController {
     return this.employeesService.restore(id);
   }
 }
-````
-
-## File: backend/src/employees/employees.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { EmployeesController } from './employees.controller';
-import { UsersModule } from '../users/users.module';
-import { AuthModule } from '../auth/auth.module';
-import { SharedModule } from '../shared/shared.module';
-@Module({
-  imports: [
-    SharedModule,
-    UsersModule,
-    AuthModule,
-  ],
-  controllers: [EmployeesController],
-  providers: [EmployeesService],
-  exports: [EmployeesService],
-})
-export class EmployeesModule {}
 ````
 
 ## File: backend/src/employees/employees.service.spec.ts
@@ -19266,27 +19287,6 @@ describe('EmployeesService', () => {
     });
   });
 });
-````
-
-## File: backend/src/orders/orders.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { OrdersController } from './orders.controller';
-import { EmployeesModule } from '../employees/employees.module';
-import { AuthModule } from '../auth/auth.module';
-import { SharedModule } from '../shared/shared.module';
-@Module({
-  imports: [
-    SharedModule,
-    EmployeesModule,
-    AuthModule,
-  ],
-  controllers: [OrdersController],
-  providers: [OrdersService],
-  exports: [OrdersService],
-})
-export class OrdersModule {}
 ````
 
 ## File: backend/src/shared/shared.module.ts
@@ -22153,7 +22153,7 @@ describe('OrdersModule', () => {
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.5.1",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22208,7 +22208,7 @@ describe('OrdersModule', () => {
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.5.1",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22272,7 +22272,7 @@ describe('OrdersModule', () => {
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.5.1",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
