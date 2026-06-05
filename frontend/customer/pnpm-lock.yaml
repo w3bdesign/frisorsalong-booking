@@ -10,7 +10,7 @@ importers:
     dependencies:
       axios:
         specifier: ^1.16.1
-        version: 1.16.1
+        version: 1.16.1(debug@4.4.3)
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.35(typescript@5.9.3))
@@ -82,8 +82,8 @@ importers:
         specifier: ^3.8.3
         version: 3.8.3
       start-server-and-test:
-        specifier: ^3.0.5
-        version: 3.0.5
+        specifier: ^3.0.6
+        version: 3.0.7
       tailwindcss:
         specifier: ^3.4.19
         version: 3.4.19(yaml@2.9.0)
@@ -1019,9 +1019,6 @@ packages:
   aws4@1.13.2:
     resolution: {integrity: sha512-lHe62zvbTB5eEABUVi/AwVh0ZKY9rMMDhmm+eeyuuUQbQ3+J+fONVQOZyj+DdrvD4BY33uYniyRJ4UJIaSKAfw==}
 
-  axios@1.16.0:
-    resolution: {integrity: sha512-6hp5CwvTPlN2A31g5dxnwAX0orzM7pmCRDLnZSX772mv8WDqICwFjowHuPs04Mc8deIld1+ejhtaMn5vp6b+1w==}
-
   axios@1.16.1:
     resolution: {integrity: sha512-caYkukvroVPO8KrzuJEb50Hm07KwfBZPEC3VeFHTsqWHvKTsy54hjJz9BS/cdaypROE2rH6xvm9mHX4fgWkr3A==}
 
@@ -1850,8 +1847,8 @@ packages:
   kolorist@1.8.0:
     resolution: {integrity: sha512-Y+60/zizpJ3HRH8DCss+q95yr6145JXZo46OTpFvDZWLfRCE4qChOyk1b26nMaNpfHHgxagk9dXT5OP0Tfe+dQ==}
 
-  lazy-ass@1.6.0:
-    resolution: {integrity: sha512-cc8oEVoctTvsFZ/Oje/kGnHbpWHYBe8IAJe4C0QNc3t8uM/0Y8+erSz/7Y1ALuXTEZTMvxXwO6YbX1ey3ujiZw==}
+  lazy-ass@2.0.3:
+    resolution: {integrity: sha512-/O3/DoQmI1XAhklDvF1dAjFf/epE8u3lzOZegQfLZ8G7Ud5bTRSZiFOpukHCu6jODrCA4gtIdwUCC7htxcDACA==}
     engines: {node: '> 0.8'}
 
   levn@0.4.1:
@@ -2472,8 +2469,8 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
-  start-server-and-test@3.0.5:
-    resolution: {integrity: sha512-2SvI2UR+rVM4FQ3GqEnjjfVATln6JgJGsZjRRyAqgl1EI6fJFH5zVCawqJLcmU9vBxwI0ZX9i3M+GFpY+sxWcw==}
+  start-server-and-test@3.0.7:
+    resolution: {integrity: sha512-bREV2smSYwybdmnkNUjzoL7WTolg+6MN7sXaZC2/JB7zZSUKmkcqQ3eaRX2yoL+ZnrUMk2FRHMwmmD9LPwKGzg==}
     engines: {node: ^22 || >=24}
     hasBin: true
 
@@ -3997,15 +3994,7 @@ snapshots:
 
   aws4@1.13.2: {}
 
-  axios@1.16.0(debug@4.4.3):
-    dependencies:
-      follow-redirects: 1.16.0(debug@4.4.3)
-      form-data: 4.0.5
-      proxy-from-env: 2.1.0
-    transitivePeerDependencies:
-      - debug
-
-  axios@1.16.1:
+  axios@1.16.1(debug@4.4.3):
     dependencies:
       follow-redirects: 1.16.0(debug@4.4.3)
       form-data: 4.0.5
@@ -4836,7 +4825,7 @@ snapshots:
 
   kolorist@1.8.0: {}
 
-  lazy-ass@1.6.0: {}
+  lazy-ass@2.0.3: {}
 
   levn@0.4.1:
     dependencies:
@@ -5398,14 +5387,13 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  start-server-and-test@3.0.5:
+  start-server-and-test@3.0.7:
     dependencies:
       arg: 5.0.2
-      bluebird: 3.7.2
       check-more-types: 2.24.0
       debug: 4.4.3(supports-color@8.1.1)
       execa: 5.1.1
-      lazy-ass: 1.6.0
+      lazy-ass: 2.0.3
       tree-kill: 1.2.2
       wait-on: 9.0.10(debug@4.4.3)
     transitivePeerDependencies:
@@ -5810,13 +5798,14 @@ snapshots:
 
   wait-on@9.0.10(debug@4.4.3):
     dependencies:
-      axios: 1.16.0(debug@4.4.3)
+      axios: 1.16.1(debug@4.4.3)
       joi: 18.2.1
       lodash: 4.18.1
       minimist: 1.2.8
       rxjs: 7.8.2
     transitivePeerDependencies:
       - debug
+      - supports-color
 
   webidl-conversions@8.0.1: {}
 
