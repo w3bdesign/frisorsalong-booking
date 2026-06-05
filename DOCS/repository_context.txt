@@ -18782,6 +18782,41 @@ describe("BookingsModule", () => {
 });
 ````
 
+## File: backend/src/bookings/bookings.module.ts
+````typescript
+import { Module } from '@nestjs/common';
+import { BookingsService } from './bookings.service';
+import { BookingsController } from './bookings.controller';
+import { UsersModule } from '../users/users.module';
+import { EmployeesModule } from '../employees/employees.module';
+import { ServicesModule } from '../services/services.module';
+import { OrdersModule } from '../orders/orders.module';
+import { ShopsModule } from '../shops/shops.module';
+import { AuthModule } from '../auth/auth.module';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SharedModule } from '../shared/shared.module';
+@Module({
+  imports: [
+    SharedModule,
+    UsersModule,
+    EmployeesModule,
+    ServicesModule,
+    OrdersModule,
+    ShopsModule,
+    AuthModule,
+  ],
+  controllers: [BookingsController],
+  providers: [
+    BookingsService,
+    RolesGuard,
+    JwtAuthGuard,
+  ],
+  exports: [BookingsService],
+})
+export class BookingsModule {}
+````
+
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -19231,6 +19266,25 @@ import { SharedModule } from '../shared/shared.module';
   exports: [OrdersService],
 })
 export class OrdersModule {}
+````
+
+## File: backend/src/shared/shared.module.ts
+````typescript
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Booking } from "../bookings/entities/booking.entity";
+import { Employee } from "../employees/entities/employee.entity";
+import { Order } from "../orders/entities/order.entity";
+import { User } from "../users/entities/user.entity";
+import { Service } from "../services/entities/service.entity";
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Booking, Employee, Order, User, Service]),
+  ],
+  exports: [TypeOrmModule],
+})
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
+export class SharedModule {}
 ````
 
 ## File: backend/src/shops/shops.service.spec.ts
@@ -20184,41 +20238,6 @@ export class BookingsController {
 }
 ````
 
-## File: backend/src/bookings/bookings.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { BookingsService } from './bookings.service';
-import { BookingsController } from './bookings.controller';
-import { UsersModule } from '../users/users.module';
-import { EmployeesModule } from '../employees/employees.module';
-import { ServicesModule } from '../services/services.module';
-import { OrdersModule } from '../orders/orders.module';
-import { ShopsModule } from '../shops/shops.module';
-import { AuthModule } from '../auth/auth.module';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { SharedModule } from '../shared/shared.module';
-@Module({
-  imports: [
-    SharedModule,
-    UsersModule,
-    EmployeesModule,
-    ServicesModule,
-    OrdersModule,
-    ShopsModule,
-    AuthModule,
-  ],
-  controllers: [BookingsController],
-  providers: [
-    BookingsService,
-    RolesGuard,
-    JwtAuthGuard,
-  ],
-  exports: [BookingsService],
-})
-export class BookingsModule {}
-````
-
 ## File: backend/src/bookings/bookings.service.ts
 ````typescript
 import {
@@ -20868,25 +20887,6 @@ describe("OrdersController", () => {
     });
   });
 });
-````
-
-## File: backend/src/shared/shared.module.ts
-````typescript
-import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { Booking } from "../bookings/entities/booking.entity";
-import { Employee } from "../employees/entities/employee.entity";
-import { Order } from "../orders/entities/order.entity";
-import { User } from "../users/entities/user.entity";
-import { Service } from "../services/entities/service.entity";
-@Module({
-  imports: [
-    TypeOrmModule.forFeature([Booking, Employee, Order, User, Service]),
-  ],
-  exports: [TypeOrmModule],
-})
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
-export class SharedModule {}
 ````
 
 ## File: backend/src/users/users.service.ts
@@ -22332,8 +22332,8 @@ describe('OrdersModule', () => {
     "@types/node": "^24.12.4",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
     "eslint": "^10.4.1",
     "jest": "^30.4.2",
     "prettier": "^3.8.3",
