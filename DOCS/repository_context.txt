@@ -3170,6 +3170,62 @@ describe("BookingsController", () => {
 });
 ````
 
+## File: backend/src/bookings/bookings.module.spec.ts
+````typescript
+import { BookingsModule } from "./bookings.module";
+import { BookingsService } from "./bookings.service";
+import { SharedModule } from "../shared/shared.module";
+import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
+type ModuleImport =
+  | Type<unknown>
+  | DynamicModule
+  | Promise<DynamicModule>
+  | ForwardReference;
+describe("BookingsModule", () => {
+  it("should have correct module metadata", () => {
+    // Get module metadata directly from the decorator
+    const moduleDecorator = Reflect.getMetadata(
+      "imports",
+      BookingsModule
+    ) as ModuleImport[];
+    // Check SharedModule is imported
+    expect(moduleDecorator).toContain(SharedModule);
+    // Get all module names
+    const moduleNames = moduleDecorator
+      .map((item): string | null => {
+        if (typeof item === "function") {
+          const name: string = item.name;
+          return name;
+        }
+        if (item && typeof item === "object" && "name" in item) {
+          const nameValue: unknown = (item as Record<string, unknown>).name;
+          return typeof nameValue === 'string' ? nameValue : null;
+        }
+        return null;
+      })
+      .filter((name): name is string => Boolean(name));
+    // Check for expected modules
+    const expectedModules = [
+      "SharedModule",
+      "UsersModule",
+      "EmployeesModule",
+      "ServicesModule",
+      "OrdersModule",
+      "ShopsModule",
+      "AuthModule",
+    ];
+    expectedModules.forEach((moduleName) => {
+      expect(moduleNames).toContain(moduleName);
+    });
+  });
+  it("should export BookingsService", () => {
+    const rawExports: unknown = Reflect.getMetadata("exports", BookingsModule);
+    const exports = rawExports as (Type<unknown> | DynamicModule)[];
+    expect(exports).toContain(BookingsService);
+  });
+});
+````
+
 ## File: backend/src/bookings/bookings.module.ts
 ````typescript
 import { Module } from '@nestjs/common';
@@ -7975,6 +8031,220 @@ export class AppService {
     return `Welcome to the Hair Salon Booking API! Please visit /api-docs for the API documentation.`;
   }
 }
+````
+
+## File: backend/src/main.spec.ts
+````typescript
+import { ValidationPipe, INestApplication } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
+import { bootstrap } from "./main";
+// Mock all external modules
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+    forRootAsync: jest.fn().mockReturnValue({}),
+    forFeature: jest.fn().mockReturnValue({}),
+  },
+  getRepositoryToken: jest.fn(),
+  InjectRepository: () => jest.fn(),
+}));
+jest.mock("@nestjs/config", () => ({
+  ConfigModule: {
+    forRoot: jest.fn().mockReturnValue({}),
+  },
+  ConfigService: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === "cache") {
+        return {
+          host: "localhost",
+          port: 6379,
+          ttl: 300,
+        };
+      }
+      return null;
+    }),
+  })),
+}));
+// Mock feature modules
+jest.mock("./auth/auth.module", () => ({
+  AuthModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./users/users.module", () => ({
+  UsersModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./employees/employees.module", () => ({
+  EmployeesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./services/services.module", () => ({
+  ServicesModule: jest.fn().mockReturnValue({}),
+}));
+jest.mock("./bookings/bookings.module", () => ({
+  BookingsModule: jest.fn().mockReturnValue({}),
+}));
+// Mock app module
+jest.mock("./app.module", () => ({
+  AppModule: jest.fn().mockReturnValue({}),
+}));
+type MockNestApp = {
+  [_K in keyof INestApplication]: jest.Mock;
+};
+interface SwaggerSetupOptions {
+  swaggerOptions: {
+    persistAuthorization: boolean;
+    docExpansion: string;
+    filter: boolean;
+    showRequestDuration: boolean;
+  };
+}
+describe("Bootstrap", () => {
+  let app: MockNestApp;
+  const mockSwaggerDoc: OpenAPIObject = {
+    openapi: "3.0.0",
+    paths: {},
+    components: {},
+    info: {
+      title: "Test API",
+      version: "1.0",
+    },
+  };
+  beforeEach(() => {
+    // Reset modules before each test
+    jest.resetModules();
+    // Create a more complete mock implementation of INestApplication
+    app = {
+      enableCors: jest.fn().mockReturnThis(),
+      useGlobalPipes: jest.fn().mockReturnThis(),
+      listen: jest.fn().mockResolvedValue(undefined),
+      init: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      useGlobalFilters: jest.fn().mockReturnThis(),
+      useGlobalInterceptors: jest.fn().mockReturnThis(),
+      useGlobalGuards: jest.fn().mockReturnThis(),
+      use: jest.fn().mockReturnThis(),
+      setGlobalPrefix: jest.fn().mockReturnThis(),
+      enableVersioning: jest.fn().mockReturnThis(),
+      getUrl: jest.fn().mockReturnThis(),
+      useWebSocketAdapter: jest.fn().mockReturnThis(),
+      connectMicroservice: jest.fn().mockReturnThis(),
+      getMicroservices: jest.fn().mockReturnThis(),
+      getHttpServer: jest.fn().mockReturnThis(),
+      startAllMicroservices: jest.fn().mockReturnThis(),
+      stopAllMicroservices: jest.fn().mockReturnThis(),
+      createNestApplication: jest.fn().mockReturnThis(),
+      registerRequestByName: jest.fn().mockReturnThis(),
+      registerRequestById: jest.fn().mockReturnThis(),
+      flushLogs: jest.fn().mockReturnThis(),
+      getHttpAdapter: jest.fn().mockReturnThis(),
+      resolve: jest.fn().mockReturnThis(),
+      registerRequestByContextId: jest.fn().mockReturnThis(),
+      useLogger: jest.fn().mockReturnThis(),
+      enableShutdownHooks: jest.fn().mockReturnThis(),
+    } as unknown as MockNestApp;
+    jest
+      .spyOn(NestFactory, "create")
+      .mockResolvedValue(app);
+    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
+    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
+    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
+    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  it("should create NestJS application", async () => {
+    await bootstrap();
+    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
+  });
+  it("should enable CORS with correct configuration", async () => {
+    await bootstrap();
+    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
+    expect(app.enableCors).toHaveBeenCalledWith({
+      origin: true,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+      credentials: true,
+    });
+  });
+  it("should set up global validation pipe", async () => {
+    await bootstrap();
+    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
+    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
+    if (!validationPipeCalls.length) {
+      throw new Error("Expected at least one validation pipe call");
+    }
+    const validationPipe = validationPipeCalls[0][0];
+    expect(validationPipe).toBeInstanceOf(ValidationPipe);
+  });
+  it("should set up Swagger documentation", async () => {
+    await bootstrap();
+    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
+      "Hair Salon Booking API"
+    );
+    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
+      "API documentation for the Hair Salon Booking System"
+    );
+    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
+    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "JWT",
+        description: "Enter JWT token",
+        in: "header",
+      },
+      "JWT-auth"
+    );
+    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
+    expect(SwaggerModule.createDocument).toHaveBeenCalled();
+    const setupMock = SwaggerModule.setup as jest.Mock;
+    const setupCalls = setupMock.mock.calls as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions][];
+    if (!setupCalls.length) {
+      throw new Error("Expected at least one Swagger setup call");
+    }
+    const [path, setupApp, document, options] = setupCalls[0];
+    expect(path).toBe("api-docs");
+    expect(setupApp).toBe(app);
+    expect(document).toEqual<OpenAPIObject>({
+      openapi: "3.0.0",
+      paths: {},
+      components: {},
+      info: {
+        title: expect.any(String) as string,
+        version: expect.any(String) as string,
+      },
+    });
+    expect(options).toEqual<SwaggerSetupOptions>({
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+  });
+  it("should listen on the configured port", async () => {
+    const originalEnv = process.env.PORT;
+    process.env.PORT = "4000";
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith("4000");
+    process.env.PORT = originalEnv;
+  });
+  it("should use default port 3000 when PORT env is not set", async () => {
+    const originalEnv = process.env.PORT;
+    delete process.env.PORT;
+    await bootstrap();
+    expect(app.listen).toHaveBeenCalledWith(3000);
+    process.env.PORT = originalEnv;
+  });
+});
 ````
 
 ## File: backend/src/main.ts
@@ -18803,62 +19073,6 @@ export class AuthController {
 }
 ````
 
-## File: backend/src/bookings/bookings.module.spec.ts
-````typescript
-import { BookingsModule } from "./bookings.module";
-import { BookingsService } from "./bookings.service";
-import { SharedModule } from "../shared/shared.module";
-import { DynamicModule, ForwardReference, Type } from "@nestjs/common";
-type ModuleImport =
-  | Type<unknown>
-  | DynamicModule
-  | Promise<DynamicModule>
-  | ForwardReference;
-describe("BookingsModule", () => {
-  it("should have correct module metadata", () => {
-    // Get module metadata directly from the decorator
-    const moduleDecorator = Reflect.getMetadata(
-      "imports",
-      BookingsModule
-    ) as ModuleImport[];
-    // Check SharedModule is imported
-    expect(moduleDecorator).toContain(SharedModule);
-    // Get all module names
-    const moduleNames = moduleDecorator
-      .map((item): string | null => {
-        if (typeof item === "function") {
-          const name: string = item.name;
-          return name;
-        }
-        if (item && typeof item === "object" && "name" in item) {
-          const nameValue: unknown = (item as Record<string, unknown>).name;
-          return typeof nameValue === 'string' ? nameValue : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name));
-    // Check for expected modules
-    const expectedModules = [
-      "SharedModule",
-      "UsersModule",
-      "EmployeesModule",
-      "ServicesModule",
-      "OrdersModule",
-      "ShopsModule",
-      "AuthModule",
-    ];
-    expectedModules.forEach((moduleName) => {
-      expect(moduleNames).toContain(moduleName);
-    });
-  });
-  it("should export BookingsService", () => {
-    const rawExports: unknown = Reflect.getMetadata("exports", BookingsModule);
-    const exports = rawExports as (Type<unknown> | DynamicModule)[];
-    expect(exports).toContain(BookingsService);
-  });
-});
-````
-
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -19459,220 +19673,6 @@ describe("ShopsService", () => {
         { dailyBookingLimit: 200 }
       );
     });
-  });
-});
-````
-
-## File: backend/src/main.spec.ts
-````typescript
-import { ValidationPipe, INestApplication } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder, OpenAPIObject } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { NestFactory } from "@nestjs/core";
-import { bootstrap } from "./main";
-// Mock all external modules
-jest.mock("@nestjs/typeorm", () => ({
-  TypeOrmModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-    forRootAsync: jest.fn().mockReturnValue({}),
-    forFeature: jest.fn().mockReturnValue({}),
-  },
-  getRepositoryToken: jest.fn(),
-  InjectRepository: () => jest.fn(),
-}));
-jest.mock("@nestjs/config", () => ({
-  ConfigModule: {
-    forRoot: jest.fn().mockReturnValue({}),
-  },
-  ConfigService: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key: string) => {
-      if (key === "cache") {
-        return {
-          host: "localhost",
-          port: 6379,
-          ttl: 300,
-        };
-      }
-      return null;
-    }),
-  })),
-}));
-// Mock feature modules
-jest.mock("./auth/auth.module", () => ({
-  AuthModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./users/users.module", () => ({
-  UsersModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./employees/employees.module", () => ({
-  EmployeesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./services/services.module", () => ({
-  ServicesModule: jest.fn().mockReturnValue({}),
-}));
-jest.mock("./bookings/bookings.module", () => ({
-  BookingsModule: jest.fn().mockReturnValue({}),
-}));
-// Mock app module
-jest.mock("./app.module", () => ({
-  AppModule: jest.fn().mockReturnValue({}),
-}));
-type MockNestApp = {
-  [_K in keyof INestApplication]: jest.Mock;
-};
-interface SwaggerSetupOptions {
-  swaggerOptions: {
-    persistAuthorization: boolean;
-    docExpansion: string;
-    filter: boolean;
-    showRequestDuration: boolean;
-  };
-}
-describe("Bootstrap", () => {
-  let app: MockNestApp;
-  const mockSwaggerDoc: OpenAPIObject = {
-    openapi: "3.0.0",
-    paths: {},
-    components: {},
-    info: {
-      title: "Test API",
-      version: "1.0",
-    },
-  };
-  beforeEach(() => {
-    // Reset modules before each test
-    jest.resetModules();
-    // Create a more complete mock implementation of INestApplication
-    app = {
-      enableCors: jest.fn().mockReturnThis(),
-      useGlobalPipes: jest.fn().mockReturnThis(),
-      listen: jest.fn().mockResolvedValue(undefined),
-      init: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      useGlobalFilters: jest.fn().mockReturnThis(),
-      useGlobalInterceptors: jest.fn().mockReturnThis(),
-      useGlobalGuards: jest.fn().mockReturnThis(),
-      use: jest.fn().mockReturnThis(),
-      setGlobalPrefix: jest.fn().mockReturnThis(),
-      enableVersioning: jest.fn().mockReturnThis(),
-      getUrl: jest.fn().mockReturnThis(),
-      useWebSocketAdapter: jest.fn().mockReturnThis(),
-      connectMicroservice: jest.fn().mockReturnThis(),
-      getMicroservices: jest.fn().mockReturnThis(),
-      getHttpServer: jest.fn().mockReturnThis(),
-      startAllMicroservices: jest.fn().mockReturnThis(),
-      stopAllMicroservices: jest.fn().mockReturnThis(),
-      createNestApplication: jest.fn().mockReturnThis(),
-      registerRequestByName: jest.fn().mockReturnThis(),
-      registerRequestById: jest.fn().mockReturnThis(),
-      flushLogs: jest.fn().mockReturnThis(),
-      getHttpAdapter: jest.fn().mockReturnThis(),
-      resolve: jest.fn().mockReturnThis(),
-      registerRequestByContextId: jest.fn().mockReturnThis(),
-      useLogger: jest.fn().mockReturnThis(),
-      enableShutdownHooks: jest.fn().mockReturnThis(),
-    } as unknown as MockNestApp;
-    jest
-      .spyOn(NestFactory, "create")
-      .mockResolvedValue(app);
-    jest.spyOn(SwaggerModule, "createDocument").mockReturnValue(mockSwaggerDoc);
-    jest.spyOn(SwaggerModule, "setup").mockReturnValue(undefined);
-    jest.spyOn(DocumentBuilder.prototype, "setTitle").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setDescription").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "setVersion").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "addBearerAuth").mockReturnThis();
-    jest.spyOn(DocumentBuilder.prototype, "build").mockReturnThis();
-    jest.spyOn(console, "log").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  it("should create NestJS application", async () => {
-    await bootstrap();
-    expect(NestFactory.create).toHaveBeenCalledWith(AppModule);
-  });
-  it("should enable CORS with correct configuration", async () => {
-    await bootstrap();
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith("api");
-    expect(app.enableCors).toHaveBeenCalledWith({
-      origin: true,
-      methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-      credentials: true,
-    });
-  });
-  it("should set up global validation pipe", async () => {
-    await bootstrap();
-    expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
-    const validationPipeCalls = app.useGlobalPipes.mock.calls as [ValidationPipe][];
-    if (!validationPipeCalls.length) {
-      throw new Error("Expected at least one validation pipe call");
-    }
-    const validationPipe = validationPipeCalls[0][0];
-    expect(validationPipe).toBeInstanceOf(ValidationPipe);
-  });
-  it("should set up Swagger documentation", async () => {
-    await bootstrap();
-    expect(DocumentBuilder.prototype.setTitle).toHaveBeenCalledWith(
-      "Hair Salon Booking API"
-    );
-    expect(DocumentBuilder.prototype.setDescription).toHaveBeenCalledWith(
-      "API documentation for the Hair Salon Booking System"
-    );
-    expect(DocumentBuilder.prototype.setVersion).toHaveBeenCalledWith("1.0");
-    expect(DocumentBuilder.prototype.addBearerAuth).toHaveBeenCalledWith(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth"
-    );
-    expect(DocumentBuilder.prototype.build).toHaveBeenCalled();
-    expect(SwaggerModule.createDocument).toHaveBeenCalled();
-    const setupMock = SwaggerModule.setup as jest.Mock;
-    const setupCalls = setupMock.mock.calls as [string, INestApplication, OpenAPIObject, SwaggerSetupOptions][];
-    if (!setupCalls.length) {
-      throw new Error("Expected at least one Swagger setup call");
-    }
-    const [path, setupApp, document, options] = setupCalls[0];
-    expect(path).toBe("api-docs");
-    expect(setupApp).toBe(app);
-    expect(document).toEqual<OpenAPIObject>({
-      openapi: "3.0.0",
-      paths: {},
-      components: {},
-      info: {
-        title: expect.any(String) as string,
-        version: expect.any(String) as string,
-      },
-    });
-    expect(options).toEqual<SwaggerSetupOptions>({
-      swaggerOptions: {
-        persistAuthorization: true,
-        docExpansion: "none",
-        filter: true,
-        showRequestDuration: true,
-      },
-    });
-  });
-  it("should listen on the configured port", async () => {
-    const originalEnv = process.env.PORT;
-    process.env.PORT = "4000";
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith("4000");
-    process.env.PORT = originalEnv;
-  });
-  it("should use default port 3000 when PORT env is not set", async () => {
-    const originalEnv = process.env.PORT;
-    delete process.env.PORT;
-    await bootstrap();
-    expect(app.listen).toHaveBeenCalledWith(3000);
-    process.env.PORT = originalEnv;
   });
 });
 ````
@@ -22252,7 +22252,7 @@ describe('OrdersModule', () => {
     "npm-run-all2": "^9.0.1",
     "postcss": "^8.5.15",
     "prettier": "^3.8.3",
-    "start-server-and-test": "^3.0.5",
+    "start-server-and-test": "^3.0.6",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
