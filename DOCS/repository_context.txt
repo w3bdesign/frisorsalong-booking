@@ -18888,6 +18888,27 @@ export class EmployeesController {
 }
 ````
 
+## File: backend/src/employees/employees.module.ts
+````typescript
+import { Module } from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { EmployeesController } from './employees.controller';
+import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
+@Module({
+  imports: [
+    SharedModule,
+    UsersModule,
+    AuthModule,
+  ],
+  controllers: [EmployeesController],
+  providers: [EmployeesService],
+  exports: [EmployeesService],
+})
+export class EmployeesModule {}
+````
+
 ## File: backend/src/employees/employees.service.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -20490,27 +20511,6 @@ export class BookingsService {
     };
   }
 }
-````
-
-## File: backend/src/employees/employees.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { EmployeesController } from './employees.controller';
-import { UsersModule } from '../users/users.module';
-import { AuthModule } from '../auth/auth.module';
-import { SharedModule } from '../shared/shared.module';
-@Module({
-  imports: [
-    SharedModule,
-    UsersModule,
-    AuthModule,
-  ],
-  controllers: [EmployeesController],
-  providers: [EmployeesService],
-  exports: [EmployeesService],
-})
-export class EmployeesModule {}
 ````
 
 ## File: backend/src/employees/employees.service.ts
@@ -22195,7 +22195,7 @@ describe('OrdersModule', () => {
     "prettier": "^3.8.3",
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.7",
+    "vitest": "^4.1.8",
     "vue-tsc": "^3.3.3"
   }
 }
@@ -22237,7 +22237,7 @@ describe('OrdersModule', () => {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.12.4",
     "@vitejs/plugin-vue": "^6.0.7",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.8",
     "@vitest/eslint-plugin": "1.6.19",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.7.0",
@@ -22257,7 +22257,7 @@ describe('OrdersModule', () => {
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
     "vite-plugin-vue-devtools": "^8.1.2",
-    "vitest": "^4.1.7",
+    "vitest": "^4.1.8",
     "vue-tsc": "^3.3.3"
   }
 }
