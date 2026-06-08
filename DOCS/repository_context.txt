@@ -8074,6 +8074,123 @@ describe('OrdersService', () => {
 });
 ````
 
+## File: backend/src/orders/orders.service.ts
+````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/entities/booking.entity';
+import { EmployeesService } from '../employees/employees.service';
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    private readonly employeesService: EmployeesService,
+  ) {}
+  async createFromBooking(bookingId: string): Promise<Order> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+      relations: ['customer', 'employee', 'service'],
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking #${bookingId} not found`);
+    }
+    // Update booking status to completed
+    booking.status = BookingStatus.COMPLETED;
+    await this.bookingRepository.save(booking);
+    // Create order
+    const order = this.orderRepository.create({
+      booking,
+      completedAt: new Date(),
+      totalAmount: booking.totalPrice,
+    });
+    const savedOrder = await this.orderRepository.save(order);
+    return savedOrder;
+  }
+  async findAll(): Promise<Order[]> {
+    const orders: Order[] = await this.orderRepository.find({
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders;
+  }
+  async findAllByEmployee(userId: string): Promise<Order[]> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const orders: Order[] = await this.orderRepository.find({
+      where: {
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+      order: { completedAt: 'DESC' },
+    });
+    return orders;
+  }
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+  async findOneByEmployee(id: string, userId: string): Promise<Order> {
+    // First get the employee record using the user ID
+    const employee = await this.employeesService.findByUserId(userId);
+    const order = await this.orderRepository.findOne({
+      where: {
+        id,
+        booking: {
+          employee: {
+            id: employee.id,
+          },
+        },
+      },
+      relations: [
+        'booking',
+        'booking.customer',
+        'booking.employee',
+        'booking.employee.user',
+        'booking.service',
+      ],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order #${id} not found`);
+    }
+    return order;
+  }
+}
+````
+
 ## File: backend/src/services/entities/service.entity.spec.ts
 ````typescript
 import { Service } from './service.entity';
@@ -20431,6 +20548,389 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: backend/src/bookings/bookings.service.spec.ts
+````typescript
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { BookingsService } from "./bookings.service";
+import { Booking, BookingStatus } from "./entities/booking.entity";
+import { UsersService } from "../users/users.service";
+import { EmployeesService } from "../employees/employees.service";
+import { ServicesService } from "../services/services.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { UserRole } from "../users/entities/user.entity";
+interface MockUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  phoneNumber: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+interface FindOneOptions {
+  where: { id: string };
+  relations: string[];
+}
+interface FindOptions {
+  where: unknown;
+  relations: string[];
+  order: { startTime: "ASC" | "DESC" };
+}
+interface MockBooking {
+  id: string;
+  customer?: Partial<MockUser>;
+  service?: { id: string; duration: number };
+  employee?: { id: string };
+  status?: BookingStatus;
+  startTime?: Date;
+  endTime?: Date;
+  notes?: string;
+  totalPrice?: number;
+  cancelledAt?: Date;
+  cancellationReason?: string;
+}
+const mockBookingRepository = {
+  create: jest.fn().mockImplementation(
+    (dto: Partial<Booking>): MockBooking => ({
+      id: "booking1",
+      ...dto,
+    })
+  ),
+  save: jest
+    .fn()
+    .mockImplementation(
+      (booking: MockBooking): Promise<MockBooking> =>
+        Promise.resolve({ id: "booking1", ...booking })
+    ),
+  findOne: jest
+    .fn()
+    .mockImplementation(
+      (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
+    ),
+  find: jest
+    .fn()
+    .mockImplementation(
+      (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
+    ),
+};
+const mockUsersService = {
+  create: jest.fn(),
+  findOne: jest.fn(),
+};
+const mockEmployeesService = {
+  findOne: jest.fn(),
+  findAll: jest.fn(),
+  isAvailable: jest.fn(),
+};
+const mockServicesService = {
+  findOne: jest.fn(),
+};
+async function createTestModule(): Promise<TestingModule> {
+  const module = await Test.createTestingModule({
+    providers: [
+      BookingsService,
+      {
+        provide: getRepositoryToken(Booking),
+        useValue: mockBookingRepository,
+      },
+      {
+        provide: UsersService,
+        useValue: mockUsersService,
+      },
+      {
+        provide: EmployeesService,
+        useValue: mockEmployeesService,
+      },
+      {
+        provide: ServicesService,
+        useValue: mockServicesService,
+      },
+    ],
+  }).compile();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return module as unknown as TestingModule;
+}
+describe("BookingsService", () => {
+  let service: BookingsService;
+  beforeEach(async () => {
+    const module = await createTestModule();
+    service = module.get<BookingsService>(BookingsService);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+  describe("createWalkIn", () => {
+    const mockShop = {
+      id: "shop1",
+      code: "SHOP1",
+      shopName: "Test Shop",
+      isActive: true,
+      dailyBookingLimit: 100,
+      lastBookingTime: new Date(),
+      todayBookingCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const mockEmployee = { id: "emp1", isActive: true };
+    const mockCustomer = { id: "cust1" };
+    const createWalkInDto: CreateWalkInBookingDto = {
+      serviceId: "service1",
+      firstName: "John",
+      phoneNumber: "1234567890",
+      isPaid: true,
+    };
+    it("should create a walk-in booking successfully", async () => {
+      mockUsersService.create.mockResolvedValue(mockCustomer);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
+      mockBookingRepository.find.mockResolvedValue([]);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.createWalkIn(createWalkInDto, mockShop);
+      expect(result).toBeDefined();
+      expect(mockUsersService.create).toHaveBeenCalled();
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createWalkInDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when service not found", async () => {
+      mockServicesService.findOne.mockRejectedValue(
+        new NotFoundException("Service not found")
+      );
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+    it("should throw BadRequestException when no active employees", async () => {
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.findAll.mockResolvedValue([]);
+      await expect(
+        service.createWalkIn(createWalkInDto, mockShop)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+  describe("create", () => {
+    const mockCustomer = { id: "cust1" };
+    const mockEmployee = { id: "emp1" };
+    const mockService = { id: "service1", duration: 30, price: 50 };
+    const createBookingDto: CreateBookingDto = {
+      customerId: "cust1",
+      employeeId: "emp1",
+      serviceId: "service1",
+      startTime: new Date().toISOString(),
+      notes: "Test booking",
+    };
+    it("should create a booking successfully", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const newBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.create.mockReturnValue(newBooking);
+      mockBookingRepository.save.mockResolvedValue(newBooking);
+      const result = await service.create(createBookingDto);
+      expect(result).toBeDefined();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith(
+        createBookingDto.customerId
+      );
+      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.employeeId
+      );
+      expect(mockServicesService.findOne).toHaveBeenCalledWith(
+        createBookingDto.serviceId
+      );
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw NotFoundException when customer not found", async () => {
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException("Customer not found")
+      );
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+    it("should throw BadRequestException when employee not available", async () => {
+      mockUsersService.findOne.mockResolvedValue(mockCustomer);
+      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
+      mockServicesService.findOne.mockResolvedValue(mockService);
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("findOne", () => {
+    it("should return a booking when found", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      const result = await service.findOne("booking1");
+      expect(result).toBe(mockBooking);
+      const expectedOptions: FindOneOptions = {
+        where: { id: "booking1" },
+        relations: ["customer", "employee", "employee.user", "service"],
+      };
+      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
+        expectedOptions
+      );
+    });
+    it("should throw NotFoundException when booking not found", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+  });
+  describe("update", () => {
+    const mockBooking = {
+      id: "booking1",
+      service: { id: "service1" },
+      employee: { id: "emp1" },
+    };
+    const updateDto: UpdateBookingDto = {
+      startTime: new Date().toISOString(),
+    };
+    it("should update booking successfully", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(true);
+      const updatedBooking: MockBooking = {
+        id: mockBooking.id,
+        startTime: new Date(updateDto.startTime),
+        service: { id: mockBooking.service.id, duration: 30 },
+        employee: { id: mockBooking.employee.id },
+      };
+      mockBookingRepository.save.mockResolvedValue(updatedBooking);
+      const result = await service.update("booking1", updateDto);
+      expect(result).toBeDefined();
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+    });
+    it("should throw BadRequestException when employee not available for new time", async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
+      mockEmployeesService.isAvailable.mockResolvedValue(false);
+      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+  });
+  describe("cancel", () => {
+    it("should cancel booking successfully", async () => {
+      const mockBooking: MockBooking = { id: "booking1" };
+      const reason = "Test reason";
+      const expectedSavedBooking = {
+        id: mockBooking.id,
+        status: BookingStatus.CANCELLED,
+        cancelledAt: expect.any(Date) as Date,
+        cancellationReason: reason,
+      };
+      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
+      mockBookingRepository.save.mockImplementation(
+        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
+      );
+      const result = await service.cancel("booking1", reason);
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.cancellationReason).toBe(reason);
+      expect(mockBookingRepository.save).toHaveBeenCalledWith(
+        expectedSavedBooking
+      );
+    });
+  });
+  describe("findUpcoming", () => {
+    it("should return upcoming bookings", async () => {
+      const mockBookings: MockBooking[] = [
+        { id: "booking1" },
+        { id: "booking2" },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.findUpcoming();
+      expect(result).toEqual(mockBookings);
+      const expectedFindOptions: FindOptions = {
+        where: expect.any(Object),
+        relations: ["customer", "employee", "employee.user", "service"],
+        order: { startTime: "ASC" },
+      };
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(
+        expectedFindOptions
+      );
+    });
+  });
+  describe("getUpcomingCount", () => {
+    it("should return upcoming count and customers", async () => {
+      const mockBookings: Partial<Booking>[] = [
+        {
+          id: "booking1",
+          customer: {
+            id: "user1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "1234567890",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          },
+          service: {
+            id: "service1",
+            name: "Haircut",
+            description: "Basic haircut",
+            duration: 30,
+            price: 50,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        {
+          id: "booking2",
+          customer: {
+            id: "user2",
+            firstName: "Jane",
+            lastName: "Doe",
+            email: "jane@example.com",
+            password: "password",
+            role: UserRole.CUSTOMER,
+            phoneNumber: "0987654321",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            hashPassword: jest.fn(),
+            validatePassword: jest.fn().mockResolvedValue(true),
+          },
+          service: {
+            id: "service2",
+            name: "Styling",
+            description: "Hair styling",
+            duration: 45,
+            price: 75,
+            isActive: true,
+            employees: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      ];
+      mockBookingRepository.find.mockResolvedValue(mockBookings);
+      const result = await service.getUpcomingCount();
+      expect(result.count).toBe(2);
+      expect(result.customers).toHaveLength(2);
+      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
+    });
+  });
+});
+````
+
 ## File: backend/src/employees/employees.controller.ts
 ````typescript
 import {
@@ -20861,123 +21361,6 @@ describe('EmployeesService', () => {
 });
 ````
 
-## File: backend/src/orders/orders.service.ts
-````typescript
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { BookingStatus } from '../bookings/entities/booking.entity';
-import { EmployeesService } from '../employees/employees.service';
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    private readonly employeesService: EmployeesService,
-  ) {}
-  async createFromBooking(bookingId: string): Promise<Order> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: ['customer', 'employee', 'service'],
-    });
-    if (!booking) {
-      throw new NotFoundException(`Booking #${bookingId} not found`);
-    }
-    // Update booking status to completed
-    booking.status = BookingStatus.COMPLETED;
-    await this.bookingRepository.save(booking);
-    // Create order
-    const order = this.orderRepository.create({
-      booking,
-      completedAt: new Date(),
-      totalAmount: booking.totalPrice,
-    });
-    const savedOrder = await this.orderRepository.save(order);
-    return savedOrder;
-  }
-  async findAll(): Promise<Order[]> {
-    const orders: Order[] = await this.orderRepository.find({
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-    return orders;
-  }
-  async findAllByEmployee(userId: string): Promise<Order[]> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const orders: Order[] = await this.orderRepository.find({
-      where: {
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-      order: { completedAt: 'DESC' },
-    });
-    return orders;
-  }
-  async findOne(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-  async findOneByEmployee(id: string, userId: string): Promise<Order> {
-    // First get the employee record using the user ID
-    const employee = await this.employeesService.findByUserId(userId);
-    const order = await this.orderRepository.findOne({
-      where: {
-        id,
-        booking: {
-          employee: {
-            id: employee.id,
-          },
-        },
-      },
-      relations: [
-        'booking',
-        'booking.customer',
-        'booking.employee',
-        'booking.employee.user',
-        'booking.service',
-      ],
-    });
-    if (!order) {
-      throw new NotFoundException(`Order #${id} not found`);
-    }
-    return order;
-  }
-}
-````
-
 ## File: frontend/customer/src/stores/display.ts
 ````typescript
 import { defineStore } from 'pinia'
@@ -21296,389 +21679,6 @@ onUnmounted(() => {
 </style>
 ````
 
-## File: backend/src/bookings/bookings.service.spec.ts
-````typescript
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { BookingsService } from "./bookings.service";
-import { Booking, BookingStatus } from "./entities/booking.entity";
-import { UsersService } from "../users/users.service";
-import { EmployeesService } from "../employees/employees.service";
-import { ServicesService } from "../services/services.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { CreateWalkInBookingDto } from "./dto/create-walk-in-booking.dto";
-import { UpdateBookingDto } from "./dto/update-booking.dto";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { UserRole } from "../users/entities/user.entity";
-interface MockUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  role: UserRole;
-  phoneNumber: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-interface FindOneOptions {
-  where: { id: string };
-  relations: string[];
-}
-interface FindOptions {
-  where: unknown;
-  relations: string[];
-  order: { startTime: "ASC" | "DESC" };
-}
-interface MockBooking {
-  id: string;
-  customer?: Partial<MockUser>;
-  service?: { id: string; duration: number };
-  employee?: { id: string };
-  status?: BookingStatus;
-  startTime?: Date;
-  endTime?: Date;
-  notes?: string;
-  totalPrice?: number;
-  cancelledAt?: Date;
-  cancellationReason?: string;
-}
-const mockBookingRepository = {
-  create: jest.fn().mockImplementation(
-    (dto: Partial<Booking>): MockBooking => ({
-      id: "booking1",
-      ...dto,
-    })
-  ),
-  save: jest
-    .fn()
-    .mockImplementation(
-      (booking: MockBooking): Promise<MockBooking> =>
-        Promise.resolve({ id: "booking1", ...booking })
-    ),
-  findOne: jest
-    .fn()
-    .mockImplementation(
-      (): Promise<MockBooking | null> => Promise.resolve({ id: "booking1" })
-    ),
-  find: jest
-    .fn()
-    .mockImplementation(
-      (): Promise<MockBooking[]> => Promise.resolve([{ id: "booking1" }])
-    ),
-};
-const mockUsersService = {
-  create: jest.fn(),
-  findOne: jest.fn(),
-};
-const mockEmployeesService = {
-  findOne: jest.fn(),
-  findAll: jest.fn(),
-  isAvailable: jest.fn(),
-};
-const mockServicesService = {
-  findOne: jest.fn(),
-};
-async function createTestModule(): Promise<TestingModule> {
-  const module = await Test.createTestingModule({
-    providers: [
-      BookingsService,
-      {
-        provide: getRepositoryToken(Booking),
-        useValue: mockBookingRepository,
-      },
-      {
-        provide: UsersService,
-        useValue: mockUsersService,
-      },
-      {
-        provide: EmployeesService,
-        useValue: mockEmployeesService,
-      },
-      {
-        provide: ServicesService,
-        useValue: mockServicesService,
-      },
-    ],
-  }).compile();
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return module as unknown as TestingModule;
-}
-describe("BookingsService", () => {
-  let service: BookingsService;
-  beforeEach(async () => {
-    const module = await createTestModule();
-    service = module.get<BookingsService>(BookingsService);
-  });
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  describe("createWalkIn", () => {
-    const mockShop = {
-      id: "shop1",
-      code: "SHOP1",
-      shopName: "Test Shop",
-      isActive: true,
-      dailyBookingLimit: 100,
-      lastBookingTime: new Date(),
-      todayBookingCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const mockEmployee = { id: "emp1", isActive: true };
-    const mockCustomer = { id: "cust1" };
-    const createWalkInDto: CreateWalkInBookingDto = {
-      serviceId: "service1",
-      firstName: "John",
-      phoneNumber: "1234567890",
-      isPaid: true,
-    };
-    it("should create a walk-in booking successfully", async () => {
-      mockUsersService.create.mockResolvedValue(mockCustomer);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([mockEmployee]);
-      mockBookingRepository.find.mockResolvedValue([]);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.createWalkIn(createWalkInDto, mockShop);
-      expect(result).toBeDefined();
-      expect(mockUsersService.create).toHaveBeenCalled();
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createWalkInDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when service not found", async () => {
-      mockServicesService.findOne.mockRejectedValue(
-        new NotFoundException("Service not found")
-      );
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
-    it("should throw BadRequestException when no active employees", async () => {
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.findAll.mockResolvedValue([]);
-      await expect(
-        service.createWalkIn(createWalkInDto, mockShop)
-      ).rejects.toBeInstanceOf(BadRequestException);
-    });
-  });
-  describe("create", () => {
-    const mockCustomer = { id: "cust1" };
-    const mockEmployee = { id: "emp1" };
-    const mockService = { id: "service1", duration: 30, price: 50 };
-    const createBookingDto: CreateBookingDto = {
-      customerId: "cust1",
-      employeeId: "emp1",
-      serviceId: "service1",
-      startTime: new Date().toISOString(),
-      notes: "Test booking",
-    };
-    it("should create a booking successfully", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const newBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.create.mockReturnValue(newBooking);
-      mockBookingRepository.save.mockResolvedValue(newBooking);
-      const result = await service.create(createBookingDto);
-      expect(result).toBeDefined();
-      expect(mockUsersService.findOne).toHaveBeenCalledWith(
-        createBookingDto.customerId
-      );
-      expect(mockEmployeesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.employeeId
-      );
-      expect(mockServicesService.findOne).toHaveBeenCalledWith(
-        createBookingDto.serviceId
-      );
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw NotFoundException when customer not found", async () => {
-      mockUsersService.findOne.mockRejectedValue(
-        new NotFoundException("Customer not found")
-      );
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-    it("should throw BadRequestException when employee not available", async () => {
-      mockUsersService.findOne.mockResolvedValue(mockCustomer);
-      mockEmployeesService.findOne.mockResolvedValue(mockEmployee);
-      mockServicesService.findOne.mockResolvedValue(mockService);
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.create(createBookingDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("findOne", () => {
-    it("should return a booking when found", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      const result = await service.findOne("booking1");
-      expect(result).toBe(mockBooking);
-      const expectedOptions: FindOneOptions = {
-        where: { id: "booking1" },
-        relations: ["customer", "employee", "employee.user", "service"],
-      };
-      expect(mockBookingRepository.findOne).toHaveBeenCalledWith(
-        expectedOptions
-      );
-    });
-    it("should throw NotFoundException when booking not found", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne("booking1")).rejects.toBeInstanceOf(
-        NotFoundException
-      );
-    });
-  });
-  describe("update", () => {
-    const mockBooking = {
-      id: "booking1",
-      service: { id: "service1" },
-      employee: { id: "emp1" },
-    };
-    const updateDto: UpdateBookingDto = {
-      startTime: new Date().toISOString(),
-    };
-    it("should update booking successfully", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(true);
-      const updatedBooking: MockBooking = {
-        id: mockBooking.id,
-        startTime: new Date(updateDto.startTime),
-        service: { id: mockBooking.service.id, duration: 30 },
-        employee: { id: mockBooking.employee.id },
-      };
-      mockBookingRepository.save.mockResolvedValue(updatedBooking);
-      const result = await service.update("booking1", updateDto);
-      expect(result).toBeDefined();
-      expect(mockBookingRepository.save).toHaveBeenCalled();
-    });
-    it("should throw BadRequestException when employee not available for new time", async () => {
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockServicesService.findOne.mockResolvedValue({ duration: 30 });
-      mockEmployeesService.isAvailable.mockResolvedValue(false);
-      await expect(service.update("booking1", updateDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
-    });
-  });
-  describe("cancel", () => {
-    it("should cancel booking successfully", async () => {
-      const mockBooking: MockBooking = { id: "booking1" };
-      const reason = "Test reason";
-      const expectedSavedBooking = {
-        id: mockBooking.id,
-        status: BookingStatus.CANCELLED,
-        cancelledAt: expect.any(Date) as Date,
-        cancellationReason: reason,
-      };
-      mockBookingRepository.findOne.mockResolvedValue(mockBooking);
-      mockBookingRepository.save.mockImplementation(
-        (booking: MockBooking): Promise<MockBooking> => Promise.resolve(booking)
-      );
-      const result = await service.cancel("booking1", reason);
-      expect(result.status).toBe(BookingStatus.CANCELLED);
-      expect(result.cancellationReason).toBe(reason);
-      expect(mockBookingRepository.save).toHaveBeenCalledWith(
-        expectedSavedBooking
-      );
-    });
-  });
-  describe("findUpcoming", () => {
-    it("should return upcoming bookings", async () => {
-      const mockBookings: MockBooking[] = [
-        { id: "booking1" },
-        { id: "booking2" },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.findUpcoming();
-      expect(result).toEqual(mockBookings);
-      const expectedFindOptions: FindOptions = {
-        where: expect.any(Object),
-        relations: ["customer", "employee", "employee.user", "service"],
-        order: { startTime: "ASC" },
-      };
-      expect(mockBookingRepository.find).toHaveBeenCalledWith(
-        expectedFindOptions
-      );
-    });
-  });
-  describe("getUpcomingCount", () => {
-    it("should return upcoming count and customers", async () => {
-      const mockBookings: Partial<Booking>[] = [
-        {
-          id: "booking1",
-          customer: {
-            id: "user1",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "1234567890",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          },
-          service: {
-            id: "service1",
-            name: "Haircut",
-            description: "Basic haircut",
-            duration: 30,
-            price: 50,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-        {
-          id: "booking2",
-          customer: {
-            id: "user2",
-            firstName: "Jane",
-            lastName: "Doe",
-            email: "jane@example.com",
-            password: "password",
-            role: UserRole.CUSTOMER,
-            phoneNumber: "0987654321",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            hashPassword: jest.fn(),
-            validatePassword: jest.fn().mockResolvedValue(true),
-          },
-          service: {
-            id: "service2",
-            name: "Styling",
-            description: "Hair styling",
-            duration: 45,
-            price: 75,
-            isActive: true,
-            employees: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      ];
-      mockBookingRepository.find.mockResolvedValue(mockBookings);
-      const result = await service.getUpcomingCount();
-      expect(result.count).toBe(2);
-      expect(result.customers).toHaveLength(2);
-      expect(result.customers[1].estimatedWaitingTime).toBe(30); // First booking's duration
-    });
-  });
-});
-````
-
 ## File: backend/src/employees/employees.controller.spec.ts
 ````typescript
 import { Test, TestingModule } from "@nestjs/testing";
@@ -21968,90 +21968,6 @@ describe("EmployeesController", () => {
 });
 ````
 
-## File: frontend/customer/src/stores/__tests__/display.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useDisplayStore } from '../display'
-import axios from 'axios'
-vi.mock('axios')
-describe('Display Store', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-  })
-  it('manages employees', () => {
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.employees).toHaveLength(2)
-    expect(store.activeEmployees).toHaveLength(2)
-    // Test employee deactivation
-    store.employees[0].isActive = false
-    expect(store.activeEmployees).toHaveLength(1)
-  })
-  it('manages waiting slots', async () => {
-    // Setup mock API response
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
-      },
-    })
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull() // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
-    // Fetch data
-    await store.fetchWaitingSlots()
-    // Check updated state
-    expect(store.waitingSlots).toHaveLength(1)
-    expect(store.waitingCount).toBe(1)
-    expect(store.waitingSlots[0]).toMatchObject({
-      customerName: 'Test',
-      estimatedTime: 15,
-    })
-  })
-  it('handles API errors', async () => {
-    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
-    const store = useDisplayStore()
-    await store.fetchWaitingSlots()
-    expect(store.error).toBe('Kunne ikke hente venteliste')
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull()
-    expect(store.hasAvailableSlot).toBeNull()
-  })
-  it('calculates slot availability', async () => {
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 3, // More customers than employees
-        customers: [
-          { firstName: 'Test1', estimatedWaitingTime: 10 },
-          { firstName: 'Test2', estimatedWaitingTime: 20 },
-          { firstName: 'Test3', estimatedWaitingTime: 30 },
-        ],
-      },
-    })
-    const store = useDisplayStore()
-    // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull()
-    // After fetching (more customers than employees)
-    await store.fetchWaitingSlots()
-    expect(store.hasAvailableSlot).toBe(false)
-    // Mock fewer customers
-    vi.mocked(axios.get).mockResolvedValueOnce({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
-      },
-    })
-    // After fetching (fewer customers than employees)
-    await store.fetchWaitingSlots(true)
-    expect(store.hasAvailableSlot).toBe(true)
-  })
-})
-````
-
 ## File: backend/src/orders/orders.module.spec.ts
 ````typescript
 import { Test, TestingModule } from '@nestjs/testing';
@@ -22147,6 +22063,90 @@ describe('OrdersModule', () => {
 });
 ````
 
+## File: frontend/customer/src/stores/__tests__/display.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useDisplayStore } from '../display'
+import axios from 'axios'
+vi.mock('axios')
+describe('Display Store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+  it('manages employees', () => {
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.employees).toHaveLength(2)
+    expect(store.activeEmployees).toHaveLength(2)
+    // Test employee deactivation
+    store.employees[0].isActive = false
+    expect(store.activeEmployees).toHaveLength(1)
+  })
+  it('manages waiting slots', async () => {
+    // Setup mock API response
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
+      },
+    })
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull() // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
+    // Fetch data
+    await store.fetchWaitingSlots()
+    // Check updated state
+    expect(store.waitingSlots).toHaveLength(1)
+    expect(store.waitingCount).toBe(1)
+    expect(store.waitingSlots[0]).toMatchObject({
+      customerName: 'Test',
+      estimatedTime: 15,
+    })
+  })
+  it('handles API errors', async () => {
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
+    const store = useDisplayStore()
+    await store.fetchWaitingSlots()
+    expect(store.error).toBe('Kunne ikke hente venteliste')
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull()
+    expect(store.hasAvailableSlot).toBeNull()
+  })
+  it('calculates slot availability', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 3, // More customers than employees
+        customers: [
+          { firstName: 'Test1', estimatedWaitingTime: 10 },
+          { firstName: 'Test2', estimatedWaitingTime: 20 },
+          { firstName: 'Test3', estimatedWaitingTime: 30 },
+        ],
+      },
+    })
+    const store = useDisplayStore()
+    // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull()
+    // After fetching (more customers than employees)
+    await store.fetchWaitingSlots()
+    expect(store.hasAvailableSlot).toBe(false)
+    // Mock fewer customers
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
+      },
+    })
+    // After fetching (fewer customers than employees)
+    await store.fetchWaitingSlots(true)
+    expect(store.hasAvailableSlot).toBe(true)
+  })
+})
+````
+
 ## File: frontend/admin/package.json
 ````json
 {
@@ -22187,7 +22187,7 @@ describe('OrdersModule', () => {
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.8.0",
-    "@vue/test-utils": "^2.4.10",
+    "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.4.1",
     "eslint-plugin-vue": "^10.9.1",
@@ -22333,7 +22333,7 @@ describe('OrdersModule', () => {
     "@vitest/eslint-plugin": "1.6.19",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.8.0",
-    "@vue/test-utils": "^2.4.10",
+    "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.5.0",
     "cypress": "^15.16.0",
