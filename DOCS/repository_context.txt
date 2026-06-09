@@ -7651,6 +7651,77 @@ export class Employee {
 }
 ````
 
+## File: backend/src/employees/employees.controller.ts
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmployeesService } from './employees.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Employee } from './entities/employee.entity';
+@Controller('employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class EmployeesController {
+  constructor(private readonly employeesService: EmployeesService) {}
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
+    return this.employeesService.create(createEmployeeDto);
+  }
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAll(): Promise<Employee[]> {
+    return this.employeesService.findAll();
+  }
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
+    // Allow employees to only access their own record
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.employeesService.findByUserId(user.id);
+      if (employee.id !== id) {
+        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
+      }
+    }
+    return this.employeesService.findOne(id);
+  }
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
+    return this.employeesService.resetPassword(id);
+  }
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    return this.employeesService.update(id, updateEmployeeDto);
+  }
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.employeesService.remove(id);
+  }
+  @Post(':id/restore')
+  @Roles(UserRole.ADMIN)
+  async restore(@Param('id') id: string): Promise<void> {
+    return this.employeesService.restore(id);
+  }
+}
+````
+
 ## File: backend/src/employees/employees.module.ts
 ````typescript
 import { Module } from '@nestjs/common';
@@ -19087,6 +19158,158 @@ export const useCounterStore = defineStore('counter', () => {
 })
 ````
 
+## File: frontend/customer/src/stores/display.ts
+````typescript
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import axios from 'axios'
+export interface Employee {
+  id: string
+  name: string
+  color: string
+  isActive: boolean
+}
+export interface WaitingSlot {
+  id: string
+  customerName?: string
+  estimatedTime?: number
+  assignedTo?: string
+}
+interface QueueResponse {
+  count: number
+  customers: Array<{
+    firstName: string
+    estimatedWaitingTime: number
+  }>
+}
+export const useDisplayStore = defineStore('display', () => {
+  // Keep employees hardcoded as per requirements
+  const employees = ref<Employee[]>([
+    {
+      id: '1',
+      name: 'Gladys',
+      color: 'bg-sky-400',
+      isActive: true,
+    },
+    {
+      id: '2',
+      name: 'Veronika',
+      color: 'bg-fuchsia-400',
+      isActive: true,
+    },
+  ])
+  const waitingSlots = ref<WaitingSlot[]>([])
+  const lastUpdate = ref(new Date())
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const lastFetched = ref<number | null>(null)
+  const waitingCount = ref<number | null>(null)
+  const CACHE_DURATION = 30000 // 30 seconds
+  const shouldRefetch = computed(() => {
+    if (!lastFetched.value) return true
+    return Date.now() - lastFetched.value > CACHE_DURATION
+  })
+  const activeEmployees = computed(() => {
+    return employees.value.filter((emp) => emp.isActive)
+  })
+  // Check if any slots are available based on waiting count
+  const hasAvailableSlot = computed(() => {
+    // If we're loading or don't have a count yet, return null
+    if (isLoading.value || waitingCount.value === null) return null
+    return waitingCount.value < activeEmployees.value.length
+  })
+  const updateLastUpdate = () => {
+    lastUpdate.value = new Date()
+  }
+  const generateWaitingSlots = (
+    count: number,
+    customers: Array<{ firstName: string; estimatedWaitingTime: number }>,
+  ) => {
+    return customers.map((customer, index) => ({
+      id: `slot-${index + 1}`,
+      customerName: customer.firstName,
+      estimatedTime: customer.estimatedWaitingTime,
+      assignedTo: employees.value[index % employees.value.length].id,
+    }))
+  }
+  const fetchWaitingSlots = async (forceRefresh = false) => {
+    console.log('Fetching waiting slots...')
+    // Return cached data if it's still fresh
+    if (!forceRefresh && !shouldRefetch.value && waitingSlots.value.length > 0) {
+      console.log('Using cached data')
+      return
+    }
+    try {
+      isLoading.value = true
+      error.value = null
+      console.log('Fetching from API...')
+      const response = await axios.get<QueueResponse>(
+        'http://localhost:3000/bookings/upcoming/count',
+      )
+      console.log('API response:', response.data)
+      // Update the waiting count
+      waitingCount.value = response.data.count
+      // Generate slots based on actual customers
+      waitingSlots.value = generateWaitingSlots(response.data.count, response.data.customers)
+      lastFetched.value = Date.now()
+      updateLastUpdate()
+      console.log('Updated waiting slots:', waitingSlots.value)
+    } catch (err) {
+      console.error('Error fetching waiting slots:', err)
+      error.value = 'Kunne ikke hente venteliste'
+      // Ensure waitingSlots is always an array even on error
+      waitingSlots.value = []
+      waitingCount.value = null
+    } finally {
+      isLoading.value = false
+    }
+  }
+  // Start polling for updates
+  let pollInterval: number | null = null
+  const startPolling = () => {
+    console.log('Starting polling...')
+    if (pollInterval) {
+      console.log('Polling already active')
+      return
+    }
+    // Initial fetch
+    void fetchWaitingSlots()
+    // Then poll every 30 seconds
+    pollInterval = window.setInterval(() => {
+      console.log('Polling interval triggered')
+      void fetchWaitingSlots()
+    }, CACHE_DURATION)
+  }
+  const stopPolling = () => {
+    console.log('Stopping polling...')
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      pollInterval = null
+    }
+  }
+  // Cleanup function to be called when component unmounts
+  const cleanup = () => {
+    stopPolling()
+  }
+  return {
+    employees,
+    waitingSlots,
+    lastUpdate,
+    activeEmployees,
+    hasAvailableSlot,
+    isLoading,
+    error,
+    waitingCount,
+    shouldRefetch,
+    fetchWaitingSlots,
+    updateLastUpdate,
+    startPolling,
+    stopPolling,
+    cleanup,
+  }
+})
+````
+
 ## File: frontend/customer/src/stores/services.ts
 ````typescript
 import { defineStore } from 'pinia'
@@ -19370,6 +19593,172 @@ describe('TVDisplayView', () => {
     expect(mockCleanup).toHaveBeenCalled()
   })
 })
+````
+
+## File: frontend/customer/src/views/TVDisplayView.vue
+````vue
+<template>
+  <div class="fixed inset-0 bg-[#0a0a0f] text-white overflow-hidden">
+    <div class="h-full flex flex-col items-center">
+      <!-- Status Text -->
+      <div class="text-center mt-12 mb-4">
+        <div
+          v-if="store.isLoading && store.hasAvailableSlot === null"
+          class="text-8xl font-bold text-gray-400"
+        >
+          <svg
+            class="animate-spin h-24 w-24 mx-auto mb-8"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Laster...
+        </div>
+        <h1
+          v-else
+          class="text-8xl font-bold"
+          :class="store.hasAvailableSlot ? 'text-[#c2ff00]' : 'text-red-500'"
+        >
+          {{ store.hasAvailableSlot ? 'Ledig' : 'Opptatt' }}
+        </h1>
+        <h2 class="text-3xl text-white mt-10">Venteliste</h2>
+      </div>
+      <!-- Waiting List -->
+      <div class="w-full max-w-6xl px-16 mt-12 py-8">
+        <div v-if="store.isLoading && !store.waitingSlots.length" class="text-center text-gray-400">
+          <svg
+            class="animate-spin h-12 w-12 mx-auto mb-4"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Laster...
+        </div>
+        <div v-else-if="store.error" class="text-center text-red-500">
+          {{ store.error }}
+        </div>
+        <div v-else class="space-y-16">
+          <div v-for="slot in store.waitingSlots" :key="slot.id" class="flex items-center">
+            <div
+              class="w-8 h-8 rounded-full mr-8 flex-shrink-0 border-2"
+              :class="[
+                slot.assignedTo
+                  ? `${store.employees.find((e) => e.id === slot.assignedTo)?.color} border-white/20`
+                  : 'bg-[#c2ff00] border-[#c2ff00]',
+              ]"
+            ></div>
+            <div
+              class="h-[1px] w-full relative"
+              :class="slot.assignedTo ? 'bg-white/20' : 'bg-[#c2ff00]'"
+            >
+              <div v-if="slot.customerName" class="absolute -top-4 left-0 bg-[#0a0a0f] pr-6">
+                <span class="text-xl font-medium">{{ slot.customerName }}</span>
+                <span v-if="slot.estimatedTime !== undefined" class="text-gray-400 ml-4 text-lg">
+                  {{ slot.estimatedTime }} min
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Active Employees -->
+      <div class="w-full bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f] to-transparent pt-8 pb-8">
+        <div class="max-w-6xl mx-auto px-16">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-8">
+              <div class="flex items-center gap-3">
+                <div
+                  v-if="store.hasAvailableSlot !== null"
+                  class="w-2.5 h-2.5 rounded-full"
+                  :class="store.hasAvailableSlot ? 'bg-[#c2ff00]' : 'bg-red-500'"
+                ></div>
+                <span class="text-lg">{{ store.activeEmployees.length }} frisører på jobb</span>
+              </div>
+              <div class="flex gap-3">
+                <div
+                  v-for="employee in store.activeEmployees"
+                  :key="employee.id"
+                  class="flex items-center bg-[#1a1a1f] rounded-full px-4 py-2"
+                  data-testid="employee"
+                >
+                  <div class="relative">
+                    <div :class="employee.color" class="w-6 h-6 rounded-full"></div>
+                    <div
+                      class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#c2ff00] rounded-full border-2 border-[#0a0a0f]"
+                    ></div>
+                  </div>
+                  <span class="text-sm ml-3 font-medium">{{ employee.name }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Metadata -->
+          <div class="text-xs text-gray-500 space-y-0.5">
+            <div>Side 1/1</div>
+            <div>Sist oppdatert: {{ formatLastUpdate() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { useDisplayStore } from '../stores/display'
+import { onMounted, onUnmounted } from 'vue'
+console.log('TVDisplayView script setup start')
+const store = useDisplayStore()
+const formatLastUpdate = (): string => {
+  return store.lastUpdate.toLocaleTimeString('nb-NO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+// Start polling when component mounts
+onMounted(() => {
+  console.log('TVDisplayView mounted, starting polling')
+  store.startPolling()
+})
+// Clean up when component unmounts
+onUnmounted(() => {
+  console.log('TVDisplayView unmounted, cleaning up')
+  store.cleanup()
+})
+</script>
+<style scoped>
+/* Scoped styles only for TV display */
+:deep(body) {
+  background: transparent;
+}
+</style>
 ````
 
 ## File: frontend/customer/src/App.vue
@@ -21385,393 +21774,88 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: backend/src/employees/employees.controller.ts
+## File: frontend/customer/src/stores/__tests__/display.spec.ts
 ````typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetUser } from '../auth/decorators/get-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Employee } from './entities/employee.entity';
-@Controller('employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
-  @Post()
-  @Roles(UserRole.ADMIN)
-  async create(@Body() createEmployeeDto: CreateEmployeeDto): Promise<{ employee: Employee; temporaryPassword: string }> {
-    return this.employeesService.create(createEmployeeDto);
-  }
-  @Get()
-  @Roles(UserRole.ADMIN)
-  async findAll(): Promise<Employee[]> {
-    return this.employeesService.findAll();
-  }
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
-  async findOne(@Param('id') id: string, @GetUser() user: User): Promise<Employee> {
-    // Allow employees to only access their own record
-    if (user.role === UserRole.EMPLOYEE) {
-      const employee = await this.employeesService.findByUserId(user.id);
-      if (employee.id !== id) {
-        throw new UnauthorizedException('Du har ikke tilgang til å se denne ansattes informasjon');
-      }
-    }
-    return this.employeesService.findOne(id);
-  }
-  @Post(':id/reset-password')
-  @Roles(UserRole.ADMIN)
-  async resetPassword(@Param('id') id: string): Promise<{ temporaryPassword: string }> {
-    return this.employeesService.resetPassword(id);
-  }
-  @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
-    return this.employeesService.update(id, updateEmployeeDto);
-  }
-  @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.employeesService.remove(id);
-  }
-  @Post(':id/restore')
-  @Roles(UserRole.ADMIN)
-  async restore(@Param('id') id: string): Promise<void> {
-    return this.employeesService.restore(id);
-  }
-}
-````
-
-## File: frontend/customer/src/stores/display.ts
-````typescript
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useDisplayStore } from '../display'
 import axios from 'axios'
-export interface Employee {
-  id: string
-  name: string
-  color: string
-  isActive: boolean
-}
-export interface WaitingSlot {
-  id: string
-  customerName?: string
-  estimatedTime?: number
-  assignedTo?: string
-}
-interface QueueResponse {
-  count: number
-  customers: Array<{
-    firstName: string
-    estimatedWaitingTime: number
-  }>
-}
-export const useDisplayStore = defineStore('display', () => {
-  // Keep employees hardcoded as per requirements
-  const employees = ref<Employee[]>([
-    {
-      id: '1',
-      name: 'Gladys',
-      color: 'bg-sky-400',
-      isActive: true,
-    },
-    {
-      id: '2',
-      name: 'Veronika',
-      color: 'bg-fuchsia-400',
-      isActive: true,
-    },
-  ])
-  const waitingSlots = ref<WaitingSlot[]>([])
-  const lastUpdate = ref(new Date())
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const lastFetched = ref<number | null>(null)
-  const waitingCount = ref<number | null>(null)
-  const CACHE_DURATION = 30000 // 30 seconds
-  const shouldRefetch = computed(() => {
-    if (!lastFetched.value) return true
-    return Date.now() - lastFetched.value > CACHE_DURATION
+vi.mock('axios')
+describe('Display Store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
   })
-  const activeEmployees = computed(() => {
-    return employees.value.filter((emp) => emp.isActive)
+  it('manages employees', () => {
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.employees).toHaveLength(2)
+    expect(store.activeEmployees).toHaveLength(2)
+    // Test employee deactivation
+    store.employees[0].isActive = false
+    expect(store.activeEmployees).toHaveLength(1)
   })
-  // Check if any slots are available based on waiting count
-  const hasAvailableSlot = computed(() => {
-    // If we're loading or don't have a count yet, return null
-    if (isLoading.value || waitingCount.value === null) return null
-    return waitingCount.value < activeEmployees.value.length
+  it('manages waiting slots', async () => {
+    // Setup mock API response
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
+      },
+    })
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull() // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
+    // Fetch data
+    await store.fetchWaitingSlots()
+    // Check updated state
+    expect(store.waitingSlots).toHaveLength(1)
+    expect(store.waitingCount).toBe(1)
+    expect(store.waitingSlots[0]).toMatchObject({
+      customerName: 'Test',
+      estimatedTime: 15,
+    })
   })
-  const updateLastUpdate = () => {
-    lastUpdate.value = new Date()
-  }
-  const generateWaitingSlots = (
-    count: number,
-    customers: Array<{ firstName: string; estimatedWaitingTime: number }>,
-  ) => {
-    return customers.map((customer, index) => ({
-      id: `slot-${index + 1}`,
-      customerName: customer.firstName,
-      estimatedTime: customer.estimatedWaitingTime,
-      assignedTo: employees.value[index % employees.value.length].id,
-    }))
-  }
-  const fetchWaitingSlots = async (forceRefresh = false) => {
-    console.log('Fetching waiting slots...')
-    // Return cached data if it's still fresh
-    if (!forceRefresh && !shouldRefetch.value && waitingSlots.value.length > 0) {
-      console.log('Using cached data')
-      return
-    }
-    try {
-      isLoading.value = true
-      error.value = null
-      console.log('Fetching from API...')
-      const response = await axios.get<QueueResponse>(
-        'http://localhost:3000/bookings/upcoming/count',
-      )
-      console.log('API response:', response.data)
-      // Update the waiting count
-      waitingCount.value = response.data.count
-      // Generate slots based on actual customers
-      waitingSlots.value = generateWaitingSlots(response.data.count, response.data.customers)
-      lastFetched.value = Date.now()
-      updateLastUpdate()
-      console.log('Updated waiting slots:', waitingSlots.value)
-    } catch (err) {
-      console.error('Error fetching waiting slots:', err)
-      error.value = 'Kunne ikke hente venteliste'
-      // Ensure waitingSlots is always an array even on error
-      waitingSlots.value = []
-      waitingCount.value = null
-    } finally {
-      isLoading.value = false
-    }
-  }
-  // Start polling for updates
-  let pollInterval: number | null = null
-  const startPolling = () => {
-    console.log('Starting polling...')
-    if (pollInterval) {
-      console.log('Polling already active')
-      return
-    }
-    // Initial fetch
-    void fetchWaitingSlots()
-    // Then poll every 30 seconds
-    pollInterval = window.setInterval(() => {
-      console.log('Polling interval triggered')
-      void fetchWaitingSlots()
-    }, CACHE_DURATION)
-  }
-  const stopPolling = () => {
-    console.log('Stopping polling...')
-    if (pollInterval) {
-      clearInterval(pollInterval)
-      pollInterval = null
-    }
-  }
-  // Cleanup function to be called when component unmounts
-  const cleanup = () => {
-    stopPolling()
-  }
-  return {
-    employees,
-    waitingSlots,
-    lastUpdate,
-    activeEmployees,
-    hasAvailableSlot,
-    isLoading,
-    error,
-    waitingCount,
-    shouldRefetch,
-    fetchWaitingSlots,
-    updateLastUpdate,
-    startPolling,
-    stopPolling,
-    cleanup,
-  }
+  it('handles API errors', async () => {
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
+    const store = useDisplayStore()
+    await store.fetchWaitingSlots()
+    expect(store.error).toBe('Kunne ikke hente venteliste')
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull()
+    expect(store.hasAvailableSlot).toBeNull()
+  })
+  it('calculates slot availability', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 3, // More customers than employees
+        customers: [
+          { firstName: 'Test1', estimatedWaitingTime: 10 },
+          { firstName: 'Test2', estimatedWaitingTime: 20 },
+          { firstName: 'Test3', estimatedWaitingTime: 30 },
+        ],
+      },
+    })
+    const store = useDisplayStore()
+    // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull()
+    // After fetching (more customers than employees)
+    await store.fetchWaitingSlots()
+    expect(store.hasAvailableSlot).toBe(false)
+    // Mock fewer customers
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
+      },
+    })
+    // After fetching (fewer customers than employees)
+    await store.fetchWaitingSlots(true)
+    expect(store.hasAvailableSlot).toBe(true)
+  })
 })
-````
-
-## File: frontend/customer/src/views/TVDisplayView.vue
-````vue
-<template>
-  <div class="fixed inset-0 bg-[#0a0a0f] text-white overflow-hidden">
-    <div class="h-full flex flex-col items-center">
-      <!-- Status Text -->
-      <div class="text-center mt-12 mb-4">
-        <div
-          v-if="store.isLoading && store.hasAvailableSlot === null"
-          class="text-8xl font-bold text-gray-400"
-        >
-          <svg
-            class="animate-spin h-24 w-24 mx-auto mb-8"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          Laster...
-        </div>
-        <h1
-          v-else
-          class="text-8xl font-bold"
-          :class="store.hasAvailableSlot ? 'text-[#c2ff00]' : 'text-red-500'"
-        >
-          {{ store.hasAvailableSlot ? 'Ledig' : 'Opptatt' }}
-        </h1>
-        <h2 class="text-3xl text-white mt-10">Venteliste</h2>
-      </div>
-      <!-- Waiting List -->
-      <div class="w-full max-w-6xl px-16 mt-12 py-8">
-        <div v-if="store.isLoading && !store.waitingSlots.length" class="text-center text-gray-400">
-          <svg
-            class="animate-spin h-12 w-12 mx-auto mb-4"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          Laster...
-        </div>
-        <div v-else-if="store.error" class="text-center text-red-500">
-          {{ store.error }}
-        </div>
-        <div v-else class="space-y-16">
-          <div v-for="slot in store.waitingSlots" :key="slot.id" class="flex items-center">
-            <div
-              class="w-8 h-8 rounded-full mr-8 flex-shrink-0 border-2"
-              :class="[
-                slot.assignedTo
-                  ? `${store.employees.find((e) => e.id === slot.assignedTo)?.color} border-white/20`
-                  : 'bg-[#c2ff00] border-[#c2ff00]',
-              ]"
-            ></div>
-            <div
-              class="h-[1px] w-full relative"
-              :class="slot.assignedTo ? 'bg-white/20' : 'bg-[#c2ff00]'"
-            >
-              <div v-if="slot.customerName" class="absolute -top-4 left-0 bg-[#0a0a0f] pr-6">
-                <span class="text-xl font-medium">{{ slot.customerName }}</span>
-                <span v-if="slot.estimatedTime !== undefined" class="text-gray-400 ml-4 text-lg">
-                  {{ slot.estimatedTime }} min
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Active Employees -->
-      <div class="w-full bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f] to-transparent pt-8 pb-8">
-        <div class="max-w-6xl mx-auto px-16">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-8">
-              <div class="flex items-center gap-3">
-                <div
-                  v-if="store.hasAvailableSlot !== null"
-                  class="w-2.5 h-2.5 rounded-full"
-                  :class="store.hasAvailableSlot ? 'bg-[#c2ff00]' : 'bg-red-500'"
-                ></div>
-                <span class="text-lg">{{ store.activeEmployees.length }} frisører på jobb</span>
-              </div>
-              <div class="flex gap-3">
-                <div
-                  v-for="employee in store.activeEmployees"
-                  :key="employee.id"
-                  class="flex items-center bg-[#1a1a1f] rounded-full px-4 py-2"
-                  data-testid="employee"
-                >
-                  <div class="relative">
-                    <div :class="employee.color" class="w-6 h-6 rounded-full"></div>
-                    <div
-                      class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#c2ff00] rounded-full border-2 border-[#0a0a0f]"
-                    ></div>
-                  </div>
-                  <span class="text-sm ml-3 font-medium">{{ employee.name }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Metadata -->
-          <div class="text-xs text-gray-500 space-y-0.5">
-            <div>Side 1/1</div>
-            <div>Sist oppdatert: {{ formatLastUpdate() }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-<script setup lang="ts">
-import { useDisplayStore } from '../stores/display'
-import { onMounted, onUnmounted } from 'vue'
-console.log('TVDisplayView script setup start')
-const store = useDisplayStore()
-const formatLastUpdate = (): string => {
-  return store.lastUpdate.toLocaleTimeString('nb-NO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
-// Start polling when component mounts
-onMounted(() => {
-  console.log('TVDisplayView mounted, starting polling')
-  store.startPolling()
-})
-// Clean up when component unmounts
-onUnmounted(() => {
-  console.log('TVDisplayView unmounted, cleaning up')
-  store.cleanup()
-})
-</script>
-<style scoped>
-/* Scoped styles only for TV display */
-:deep(body) {
-  background: transparent;
-}
-</style>
 ````
 
 ## File: backend/src/employees/employees.controller.spec.ts
@@ -22063,97 +22147,13 @@ describe("EmployeesController", () => {
 });
 ````
 
-## File: frontend/customer/src/stores/__tests__/display.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useDisplayStore } from '../display'
-import axios from 'axios'
-vi.mock('axios')
-describe('Display Store', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-  })
-  it('manages employees', () => {
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.employees).toHaveLength(2)
-    expect(store.activeEmployees).toHaveLength(2)
-    // Test employee deactivation
-    store.employees[0].isActive = false
-    expect(store.activeEmployees).toHaveLength(1)
-  })
-  it('manages waiting slots', async () => {
-    // Setup mock API response
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
-      },
-    })
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull() // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
-    // Fetch data
-    await store.fetchWaitingSlots()
-    // Check updated state
-    expect(store.waitingSlots).toHaveLength(1)
-    expect(store.waitingCount).toBe(1)
-    expect(store.waitingSlots[0]).toMatchObject({
-      customerName: 'Test',
-      estimatedTime: 15,
-    })
-  })
-  it('handles API errors', async () => {
-    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
-    const store = useDisplayStore()
-    await store.fetchWaitingSlots()
-    expect(store.error).toBe('Kunne ikke hente venteliste')
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull()
-    expect(store.hasAvailableSlot).toBeNull()
-  })
-  it('calculates slot availability', async () => {
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 3, // More customers than employees
-        customers: [
-          { firstName: 'Test1', estimatedWaitingTime: 10 },
-          { firstName: 'Test2', estimatedWaitingTime: 20 },
-          { firstName: 'Test3', estimatedWaitingTime: 30 },
-        ],
-      },
-    })
-    const store = useDisplayStore()
-    // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull()
-    // After fetching (more customers than employees)
-    await store.fetchWaitingSlots()
-    expect(store.hasAvailableSlot).toBe(false)
-    // Mock fewer customers
-    vi.mocked(axios.get).mockResolvedValueOnce({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
-      },
-    })
-    // After fetching (fewer customers than employees)
-    await store.fetchWaitingSlots(true)
-    expect(store.hasAvailableSlot).toBe(true)
-  })
-})
-````
-
 ## File: frontend/admin/package.json
 ````json
 {
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22210,7 +22210,7 @@ describe('Display Store', () => {
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22300,7 +22300,7 @@ describe('Display Store', () => {
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
