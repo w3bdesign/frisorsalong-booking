@@ -78,7 +78,7 @@ export const createInitialData = async (dataSource: DataSource): Promise<void> =
         email: employeeEmail,
         password: hashedPassword,
         role: UserRole.EMPLOYEE,
-        phoneNumber: process.env.EMPLOYEE_PHONE || "+1234567890",
+        phoneNumber: process.env.EMPLOYEE_PHONE ?? "+1234567890",
       });
 
       // Create employee
