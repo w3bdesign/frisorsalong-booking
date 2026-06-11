@@ -1,11 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const path = require("node:path");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsParser = require("@typescript-eslint/parser");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
+import path from "node:path";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 
-module.exports = [
+export default [
   {
     files: ["src/**/*.ts", "test/**/*.ts"],
     languageOptions: {

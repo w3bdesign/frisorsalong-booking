@@ -22,11 +22,11 @@ export class ServicesService {
     return service;
   }
 
-  async findAll(): Promise<Service[]> {
+  findAll(): Promise<Service[]> {
     return this.serviceRepository.find();
   }
 
-  async findByEmployee(employeeId: string): Promise<Service[]> {
+  findByEmployee(employeeId: string): Promise<Service[]> {
     return this.serviceRepository.find({
       where: {
         employees: {
