@@ -120,37 +120,37 @@ jest.mock("./shops/shops.module", () => ({
 // Mock entities
 jest.mock("./users/entities/user.entity", () => ({
   User: class MockUser {
-    constructor() {}
+    id = "";
   },
 }));
 
 jest.mock("./employees/entities/employee.entity", () => ({
   Employee: class MockEmployee {
-    constructor() {}
+    id = "";
   },
 }));
 
 jest.mock("./services/entities/service.entity", () => ({
   Service: class MockService {
-    constructor() {}
+    id = "";
   },
 }));
 
 jest.mock("./bookings/entities/booking.entity", () => ({
   Booking: class MockBooking {
-    constructor() {}
+    id = "";
   },
 }));
 
 jest.mock("./orders/entities/order.entity", () => ({
   Order: class MockOrder {
-    constructor() {}
+    id = "";
   },
 }));
 
 jest.mock("./shops/entities/shop-code.entity", () => ({
   ShopCode: class MockShopCode {
-    constructor() {}
+    id = "";
   },
 }));
 
