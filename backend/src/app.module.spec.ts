@@ -119,27 +119,39 @@ jest.mock("./shops/shops.module", () => ({
 
 // Mock entities
 jest.mock("./users/entities/user.entity", () => ({
-  User: class MockUser {},
+  User: class MockUser {
+    id = "";
+  },
 }));
 
 jest.mock("./employees/entities/employee.entity", () => ({
-  Employee: class MockEmployee {},
+  Employee: class MockEmployee {
+    id = "";
+  },
 }));
 
 jest.mock("./services/entities/service.entity", () => ({
-  Service: class MockService {},
+  Service: class MockService {
+    id = "";
+  },
 }));
 
 jest.mock("./bookings/entities/booking.entity", () => ({
-  Booking: class MockBooking {},
+  Booking: class MockBooking {
+    id = "";
+  },
 }));
 
 jest.mock("./orders/entities/order.entity", () => ({
-  Order: class MockOrder {},
+  Order: class MockOrder {
+    id = "";
+  },
 }));
 
 jest.mock("./shops/entities/shop-code.entity", () => ({
-  ShopCode: class MockShopCode {},
+  ShopCode: class MockShopCode {
+    id = "";
+  },
 }));
 
 interface TypeOrmModuleOptions {
