@@ -74,10 +74,6 @@ const mockShopCodeRepository = {
 
 // Create a proper mock of ConfigService
 class MockConfigService extends ConfigService {
-  constructor() {
-    super();
-  }
-
   get(key: string): string | undefined {
     switch (key) {
       case "DATABASE_URL":
