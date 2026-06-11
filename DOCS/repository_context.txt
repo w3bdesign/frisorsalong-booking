@@ -389,101 +389,6 @@ TODO.md
 
 # Files
 
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
-````
-
 ## File: .github/workflows/repomix.yml
 ````yaml
 name: Repository Documentation
@@ -18814,6 +18719,90 @@ describe('Counter Store', () => {
 })
 ````
 
+## File: frontend/customer/src/stores/__tests__/display.spec.ts
+````typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useDisplayStore } from '../display'
+import axios from 'axios'
+vi.mock('axios')
+describe('Display Store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+  it('manages employees', () => {
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.employees).toHaveLength(2)
+    expect(store.activeEmployees).toHaveLength(2)
+    // Test employee deactivation
+    store.employees[0].isActive = false
+    expect(store.activeEmployees).toHaveLength(1)
+  })
+  it('manages waiting slots', async () => {
+    // Setup mock API response
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
+      },
+    })
+    const store = useDisplayStore()
+    // Check initial state
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull() // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
+    // Fetch data
+    await store.fetchWaitingSlots()
+    // Check updated state
+    expect(store.waitingSlots).toHaveLength(1)
+    expect(store.waitingCount).toBe(1)
+    expect(store.waitingSlots[0]).toMatchObject({
+      customerName: 'Test',
+      estimatedTime: 15,
+    })
+  })
+  it('handles API errors', async () => {
+    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
+    const store = useDisplayStore()
+    await store.fetchWaitingSlots()
+    expect(store.error).toBe('Kunne ikke hente venteliste')
+    expect(store.waitingSlots).toHaveLength(0)
+    expect(store.waitingCount).toBeNull()
+    expect(store.hasAvailableSlot).toBeNull()
+  })
+  it('calculates slot availability', async () => {
+    vi.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        count: 3, // More customers than employees
+        customers: [
+          { firstName: 'Test1', estimatedWaitingTime: 10 },
+          { firstName: 'Test2', estimatedWaitingTime: 20 },
+          { firstName: 'Test3', estimatedWaitingTime: 30 },
+        ],
+      },
+    })
+    const store = useDisplayStore()
+    // Initially null while loading
+    expect(store.hasAvailableSlot).toBeNull()
+    // After fetching (more customers than employees)
+    await store.fetchWaitingSlots()
+    expect(store.hasAvailableSlot).toBe(false)
+    // Mock fewer customers
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: {
+        count: 1,
+        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
+      },
+    })
+    // After fetching (fewer customers than employees)
+    await store.fetchWaitingSlots(true)
+    expect(store.hasAvailableSlot).toBe(true)
+  })
+})
+````
+
 ## File: frontend/customer/src/stores/__tests__/services.spec.ts
 ````typescript
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -21774,88 +21763,99 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: frontend/customer/src/stores/__tests__/display.spec.ts
-````typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useDisplayStore } from '../display'
-import axios from 'axios'
-vi.mock('axios')
-describe('Display Store', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-  })
-  it('manages employees', () => {
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.employees).toHaveLength(2)
-    expect(store.activeEmployees).toHaveLength(2)
-    // Test employee deactivation
-    store.employees[0].isActive = false
-    expect(store.activeEmployees).toHaveLength(1)
-  })
-  it('manages waiting slots', async () => {
-    // Setup mock API response
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test', estimatedWaitingTime: 15 }],
-      },
-    })
-    const store = useDisplayStore()
-    // Check initial state
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull() // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull() // Initially null while loading
-    // Fetch data
-    await store.fetchWaitingSlots()
-    // Check updated state
-    expect(store.waitingSlots).toHaveLength(1)
-    expect(store.waitingCount).toBe(1)
-    expect(store.waitingSlots[0]).toMatchObject({
-      customerName: 'Test',
-      estimatedTime: 15,
-    })
-  })
-  it('handles API errors', async () => {
-    vi.spyOn(axios, 'get').mockRejectedValue(new Error('API Error'))
-    const store = useDisplayStore()
-    await store.fetchWaitingSlots()
-    expect(store.error).toBe('Kunne ikke hente venteliste')
-    expect(store.waitingSlots).toHaveLength(0)
-    expect(store.waitingCount).toBeNull()
-    expect(store.hasAvailableSlot).toBeNull()
-  })
-  it('calculates slot availability', async () => {
-    vi.spyOn(axios, 'get').mockResolvedValue({
-      data: {
-        count: 3, // More customers than employees
-        customers: [
-          { firstName: 'Test1', estimatedWaitingTime: 10 },
-          { firstName: 'Test2', estimatedWaitingTime: 20 },
-          { firstName: 'Test3', estimatedWaitingTime: 30 },
-        ],
-      },
-    })
-    const store = useDisplayStore()
-    // Initially null while loading
-    expect(store.hasAvailableSlot).toBeNull()
-    // After fetching (more customers than employees)
-    await store.fetchWaitingSlots()
-    expect(store.hasAvailableSlot).toBe(false)
-    // Mock fewer customers
-    vi.mocked(axios.get).mockResolvedValueOnce({
-      data: {
-        count: 1,
-        customers: [{ firstName: 'Test1', estimatedWaitingTime: 10 }],
-      },
-    })
-    // After fetching (fewer customers than employees)
-    await store.fetchWaitingSlots(true)
-    expect(store.hasAvailableSlot).toBe(true)
-  })
-})
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
 ````
 
 ## File: backend/src/employees/employees.controller.spec.ts
