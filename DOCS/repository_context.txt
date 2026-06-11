@@ -22285,7 +22285,7 @@ export default [
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
-    "vue-tsc": "^3.3.3"
+    "vue-tsc": "^3.3.4"
   }
 }
 ````
@@ -22347,7 +22347,7 @@ export default [
     "vite": "^8.0.16",
     "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.8",
-    "vue-tsc": "^3.3.3"
+    "vue-tsc": "^3.3.4"
   }
 }
 ````
