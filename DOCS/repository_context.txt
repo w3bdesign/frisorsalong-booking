@@ -22925,7 +22925,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
-    "vue-tsc": "^3.3.4"
+    "vue-tsc": "^3.3.5"
   }
 }
 ````
@@ -22987,7 +22987,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     "vite": "^8.0.16",
     "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.8",
-    "vue-tsc": "^3.3.4"
+    "vue-tsc": "^3.3.5"
   }
 }
 ````
