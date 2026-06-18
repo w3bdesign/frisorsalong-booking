@@ -15,8 +15,8 @@ importers:
         specifier: ^10.5.0
         version: 10.5.0(postcss@8.5.15)
       axios:
-        specifier: 1.17.0
-        version: 1.17.0
+        specifier: 1.18.0
+        version: 1.18.0
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -760,8 +760,8 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
-  axios@1.17.0:
-    resolution: {integrity: sha512-J8SwNxprqqpbfenehxWYXE7CW+wM1BB4w3+N+g+/Wx40xM4rsLrfPmHHxSWIxJLYDgSY/HqlFPIYb2/S3rxafw==}
+  axios@1.18.0:
+    resolution: {integrity: sha512-E32NzpYKp++W7XRe52rHiXV2ehxmh3wbdgO7MHeFM+vqxLBYHzt0ElkiImtOBxtOmyp0yoC8C6uESVV84Y2/hw==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -2765,7 +2765,7 @@ snapshots:
       postcss: 8.5.15
       postcss-value-parser: 4.2.0
 
-  axios@1.17.0:
+  axios@1.18.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.5
