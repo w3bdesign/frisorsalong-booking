@@ -22830,7 +22830,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.26",
     "@nestjs/swagger": "^11.4.4",
-    "@nestjs/typeorm": "^11.0.1",
+    "@nestjs/typeorm": "^11.0.2",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.0",
