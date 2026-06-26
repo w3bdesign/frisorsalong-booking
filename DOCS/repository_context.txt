@@ -22784,6 +22784,60 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
 ````
 
+## File: frontend/admin/package.json
+````json
+{
+  "name": "admin-dashboard",
+  "version": "0.0.3",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@types/chart.js": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "1.18.1",
+    "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "vue": "^3.5.38",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.16.1",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.13.2",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.9.0",
+    "@vue/test-utils": "^2.4.11",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.5.0",
+    "eslint-plugin-vue": "^10.9.2",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.8.4",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9",
+    "vue-tsc": "^3.3.5"
+  }
+}
+````
+
 ## File: backend/package.json
 ````json
 {
@@ -22793,7 +22847,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22876,60 +22930,6 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 }
 ````
 
-## File: frontend/admin/package.json
-````json
-{
-  "name": "admin-dashboard",
-  "version": "0.0.3",
-  "private": true,
-  "packageManager": "pnpm@11.7.0",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=11"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
-  },
-  "dependencies": {
-    "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.0",
-    "axios": "1.18.1",
-    "chart.js": "^4.5.1",
-    "pinia": "^3.0.4",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.19",
-    "vue": "^3.5.38",
-    "vue-router": "^5.1.0"
-  },
-  "devDependencies": {
-    "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^28.0.3",
-    "@types/node": "^24.13.2",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.9.0",
-    "@vue/test-utils": "^2.4.11",
-    "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.5.0",
-    "eslint-plugin-vue": "^10.9.2",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.8.4",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.9",
-    "vue-tsc": "^3.3.5"
-  }
-}
-````
-
 ## File: frontend/customer/package.json
 ````json
 {
@@ -22937,7 +22937,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
