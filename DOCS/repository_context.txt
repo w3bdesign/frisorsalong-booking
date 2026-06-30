@@ -1920,6 +1920,50 @@ describe('RolesGuard', () => {
 });
 ````
 
+## File: backend/src/auth/guards/roles.guard.ts
+````typescript
+import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Request } from "express";
+interface RequestWithUser extends Request {
+  user: User;
+}
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      "roles",
+      [context.getHandler(), context.getClass()],
+    );
+    // Add debug logging
+    console.log('Roles Guard - Required Roles:', requiredRoles);
+    if (!requiredRoles) {
+      console.log('Roles Guard - No roles required');
+      return true;
+    }
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const user = request.user;
+    console.log('Roles Guard - User:', user);
+    console.log('Roles Guard - User Role:', user?.role);
+    if (!user?.role) {
+      console.log('Roles Guard - No user or role found in request');
+      return false;
+    }
+    // Ensure user.role is a valid UserRole
+    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
+      console.log('Roles Guard - Invalid user role');
+      return false;
+    }
+    const hasRole: boolean = requiredRoles.includes(user.role);
+    console.log('Roles Guard - Has Required Role:', hasRole);
+    const canActivate: boolean = hasRole;
+    return canActivate;
+  }
+}
+````
+
 ## File: backend/src/auth/interfaces/auth.interface.ts
 ````typescript
 import { User } from "../../users/entities/user.entity";
@@ -5669,6 +5713,121 @@ describe("createInitialData", () => {
     );
   });
 });
+````
+
+## File: backend/src/database/seeds/create-initial-data.seed.ts
+````typescript
+import { DataSource } from "typeorm";
+import { User, UserRole } from "../../users/entities/user.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { Service } from "../../services/entities/service.entity";
+import * as bcrypt from "bcrypt";
+interface ServiceWithId extends Service {
+  id: string;
+}
+interface EmployeeWithId extends Employee {
+  id: string;
+}
+interface EmployeeServiceAssociation {
+  employee_id: string;
+  service_id: string;
+}
+export const createInitialData = async (dataSource: DataSource): Promise<void> => {
+  const userRepository = dataSource.getRepository(User);
+  const employeeRepository = dataSource.getRepository(Employee);
+  const serviceRepository = dataSource.getRepository(Service);
+  try {
+    const employeeEmail = process.env.EMPLOYEE_EMAIL;
+    const employeePassword = process.env.EMPLOYEE_PASSWORD;
+    if (!employeeEmail || !employeePassword) {
+      throw new Error(
+        "Employee email and password must be set in environment variables",
+      );
+    }
+    // Create services
+    const services = await serviceRepository.save([
+      {
+        name: "Standard Klipp",
+        description: "En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.",
+        price: 299.0,
+        duration: 20,
+        isActive: true,
+      },
+      {
+        name: "Styling Klipp",
+        description: "Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.",
+        price: 399.0,
+        duration: 30,
+        isActive: true,
+      },
+      {
+        name: "Skjegg Trim",
+        description: "Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.",
+        price: 199.0,
+        duration: 15,
+        isActive: true,
+      },
+      {
+        name: "Full Service",
+        description: "Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.",
+        price: 549.0,
+        duration: 45,
+        isActive: true,
+      }
+    ]) as ServiceWithId[];
+    // Check if employee user already exists
+    const existingEmployee = await userRepository.findOne({
+      where: { email: employeeEmail },
+    });
+    if (!existingEmployee) {
+      // Create employee user
+      const hashedPassword = await bcrypt.hash(employeePassword, 10);
+      const employeeUser = await userRepository.save({
+        firstName: "John",
+        lastName: "Doe",
+        email: employeeEmail,
+        password: hashedPassword,
+        role: UserRole.EMPLOYEE,
+        phoneNumber: process.env.EMPLOYEE_PHONE ?? "+1234567890",
+      });
+      // Create employee
+      const employee = await employeeRepository.save({
+        user: employeeUser,
+        specializations: ["klipp", "styling", "skjegg"],
+        availability: {
+          monday: [{ start: "09:00", end: "17:00" }],
+          tuesday: [{ start: "09:00", end: "17:00" }],
+          wednesday: [{ start: "09:00", end: "17:00" }],
+          thursday: [{ start: "09:00", end: "17:00" }],
+          friday: [{ start: "09:00", end: "17:00" }],
+        },
+        isActive: true,
+      }) as EmployeeWithId;
+      // Type guard for service and employee IDs
+      if (!employee.id || !services.every(service => service.id)) {
+        throw new Error("Failed to create employee or services with valid IDs");
+      }
+      // Create associations with type safety
+      const associations: EmployeeServiceAssociation[] = services.map((service) => ({
+        employee_id: employee.id,
+        service_id: service.id,
+      }));
+      // Associate services with employee
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into("employee_services")
+        .values(associations)
+        .execute();
+      console.log("Initial data seeded successfully");
+    } else {
+      console.log("Employee user already exists");
+    }
+  } catch (error) {
+    console.error("Error creating initial data:", error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+};
 ````
 
 ## File: backend/src/database/seeds/create-sample-bookings.seed.spec.ts
@@ -9433,6 +9592,43 @@ describe("ServicesService", () => {
 });
 ````
 
+## File: backend/src/services/services.service.ts
+````typescript
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Service } from "./entities/service.entity";
+@Injectable()
+export class ServicesService {
+  constructor(
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>
+  ) {}
+  async findOne(id: string): Promise<Service> {
+    const service = await this.serviceRepository.findOne({
+      where: { id },
+    });
+    if (!service) {
+      throw new NotFoundException(`Service with ID ${id} not found`);
+    }
+    return service;
+  }
+  findAll(): Promise<Service[]> {
+    return this.serviceRepository.find();
+  }
+  findByEmployee(employeeId: string): Promise<Service[]> {
+    return this.serviceRepository.find({
+      where: {
+        employees: {
+          id: employeeId,
+        },
+      },
+      relations: ["employees"],
+    });
+  }
+}
+````
+
 ## File: backend/src/shared/shared.module.ts
 ````typescript
 import { Module } from "@nestjs/common";
@@ -10765,6 +10961,88 @@ node_modules
 ````
 # Supply chain security: prevent lifecycle scripts from running during install
 ignore-scripts=true
+````
+
+## File: backend/eslint.config.js
+````javascript
+import path from "node:path";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+export default [
+  {
+    files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: path.join(__dirname, "tsconfig.json"),
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs["recommended"].rules,
+      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      // Temporary measure
+      "@typescript-eslint/unbound-method": "off",
+      // End temporary
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            arguments: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      // NestJS modules use empty decorated classes as a standard pattern
+      "@typescript-eslint/no-extraneous-class": [
+        "error",
+        {
+          allowWithDecorator: true,
+        },
+      ],
+      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
+      "@typescript-eslint/no-empty-function": [
+        "error",
+        {
+          allow: ["arrowFunctions"],
+        },
+      ],
+      // Disable redundant type constituent check to allow explicit union types
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
+    },
+  },
+  {
+    // Relaxed rules for test files
+    files: ["src/**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-useless-constructor": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+    },
+  },
+];
 ````
 
 ## File: backend/jest.config.js
@@ -21746,284 +22024,6 @@ jobs:
           fi
 ````
 
-## File: backend/src/auth/guards/roles.guard.ts
-````typescript
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Request } from "express";
-interface RequestWithUser extends Request {
-  user: User;
-}
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      "roles",
-      [context.getHandler(), context.getClass()],
-    );
-    // Add debug logging
-    console.log('Roles Guard - Required Roles:', requiredRoles);
-    if (!requiredRoles) {
-      console.log('Roles Guard - No roles required');
-      return true;
-    }
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const user = request.user;
-    console.log('Roles Guard - User:', user);
-    console.log('Roles Guard - User Role:', user?.role);
-    if (!user?.role) {
-      console.log('Roles Guard - No user or role found in request');
-      return false;
-    }
-    // Ensure user.role is a valid UserRole
-    if (!(Object.values(UserRole) as string[]).includes(user.role as string)) {
-      console.log('Roles Guard - Invalid user role');
-      return false;
-    }
-    const hasRole: boolean = requiredRoles.includes(user.role);
-    console.log('Roles Guard - Has Required Role:', hasRole);
-    const canActivate: boolean = hasRole;
-    return canActivate;
-  }
-}
-````
-
-## File: backend/src/database/seeds/create-initial-data.seed.ts
-````typescript
-import { DataSource } from "typeorm";
-import { User, UserRole } from "../../users/entities/user.entity";
-import { Employee } from "../../employees/entities/employee.entity";
-import { Service } from "../../services/entities/service.entity";
-import * as bcrypt from "bcrypt";
-interface ServiceWithId extends Service {
-  id: string;
-}
-interface EmployeeWithId extends Employee {
-  id: string;
-}
-interface EmployeeServiceAssociation {
-  employee_id: string;
-  service_id: string;
-}
-export const createInitialData = async (dataSource: DataSource): Promise<void> => {
-  const userRepository = dataSource.getRepository(User);
-  const employeeRepository = dataSource.getRepository(Employee);
-  const serviceRepository = dataSource.getRepository(Service);
-  try {
-    const employeeEmail = process.env.EMPLOYEE_EMAIL;
-    const employeePassword = process.env.EMPLOYEE_PASSWORD;
-    if (!employeeEmail || !employeePassword) {
-      throw new Error(
-        "Employee email and password must be set in environment variables",
-      );
-    }
-    // Create services
-    const services = await serviceRepository.save([
-      {
-        name: "Standard Klipp",
-        description: "En standard og effektiv hårklipp for deg som har det travelt. Perfekt for å vedlikeholde din nåværende stil.",
-        price: 299.0,
-        duration: 20,
-        isActive: true,
-      },
-      {
-        name: "Styling Klipp",
-        description: "Komplett hårklipp og styling-service. Inkluderer konsultasjon for å finne det perfekte utseendet.",
-        price: 399.0,
-        duration: 30,
-        isActive: true,
-      },
-      {
-        name: "Skjegg Trim",
-        description: "Profesjonell skjeggtrimming og forming for å holde skjegget ditt velstelt.",
-        price: 199.0,
-        duration: 15,
-        isActive: true,
-      },
-      {
-        name: "Full Service",
-        description: "Komplett pakke som inkluderer hårklipp, skjeggtrim og styling. Vår premium-tjeneste.",
-        price: 549.0,
-        duration: 45,
-        isActive: true,
-      }
-    ]) as ServiceWithId[];
-    // Check if employee user already exists
-    const existingEmployee = await userRepository.findOne({
-      where: { email: employeeEmail },
-    });
-    if (!existingEmployee) {
-      // Create employee user
-      const hashedPassword = await bcrypt.hash(employeePassword, 10);
-      const employeeUser = await userRepository.save({
-        firstName: "John",
-        lastName: "Doe",
-        email: employeeEmail,
-        password: hashedPassword,
-        role: UserRole.EMPLOYEE,
-        phoneNumber: process.env.EMPLOYEE_PHONE ?? "+1234567890",
-      });
-      // Create employee
-      const employee = await employeeRepository.save({
-        user: employeeUser,
-        specializations: ["klipp", "styling", "skjegg"],
-        availability: {
-          monday: [{ start: "09:00", end: "17:00" }],
-          tuesday: [{ start: "09:00", end: "17:00" }],
-          wednesday: [{ start: "09:00", end: "17:00" }],
-          thursday: [{ start: "09:00", end: "17:00" }],
-          friday: [{ start: "09:00", end: "17:00" }],
-        },
-        isActive: true,
-      }) as EmployeeWithId;
-      // Type guard for service and employee IDs
-      if (!employee.id || !services.every(service => service.id)) {
-        throw new Error("Failed to create employee or services with valid IDs");
-      }
-      // Create associations with type safety
-      const associations: EmployeeServiceAssociation[] = services.map((service) => ({
-        employee_id: employee.id,
-        service_id: service.id,
-      }));
-      // Associate services with employee
-      await dataSource
-        .createQueryBuilder()
-        .insert()
-        .into("employee_services")
-        .values(associations)
-        .execute();
-      console.log("Initial data seeded successfully");
-    } else {
-      console.log("Employee user already exists");
-    }
-  } catch (error) {
-    console.error("Error creating initial data:", error instanceof Error ? error.message : String(error));
-    throw error;
-  }
-};
-````
-
-## File: backend/src/services/services.service.ts
-````typescript
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Service } from "./entities/service.entity";
-@Injectable()
-export class ServicesService {
-  constructor(
-    @InjectRepository(Service)
-    private readonly serviceRepository: Repository<Service>
-  ) {}
-  async findOne(id: string): Promise<Service> {
-    const service = await this.serviceRepository.findOne({
-      where: { id },
-    });
-    if (!service) {
-      throw new NotFoundException(`Service with ID ${id} not found`);
-    }
-    return service;
-  }
-  findAll(): Promise<Service[]> {
-    return this.serviceRepository.find();
-  }
-  findByEmployee(employeeId: string): Promise<Service[]> {
-    return this.serviceRepository.find({
-      where: {
-        employees: {
-          id: employeeId,
-        },
-      },
-      relations: ["employees"],
-    });
-  }
-}
-````
-
-## File: backend/eslint.config.js
-````javascript
-import path from "node:path";
-import tsParser from "@typescript-eslint/parser";
-import tsPlugin from "@typescript-eslint/eslint-plugin";
-export default [
-  {
-    files: ["src/**/*.ts", "test/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: path.join(__dirname, "tsconfig.json"),
-        sourceType: "module",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs["recommended"].rules,
-      ...tsPlugin.configs["recommended-requiring-type-checking"].rules,
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      // Temporary measure
-      "@typescript-eslint/unbound-method": "off",
-      // End temporary
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        {
-          checksVoidReturn: {
-            arguments: false,
-          },
-        },
-      ],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          args: "after-used",
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          ignoreRestSiblings: true,
-        },
-      ],
-      // NestJS modules use empty decorated classes as a standard pattern
-      "@typescript-eslint/no-extraneous-class": [
-        "error",
-        {
-          allowWithDecorator: true,
-        },
-      ],
-      // Allow empty functions in test mocks (e.g., mockImplementation(() => {}))
-      "@typescript-eslint/no-empty-function": [
-        "error",
-        {
-          allow: ["arrowFunctions"],
-        },
-      ],
-      // Disable redundant type constituent check to allow explicit union types
-      "@typescript-eslint/no-redundant-type-constituents": "warn",
-    },
-  },
-  {
-    // Relaxed rules for test files
-    files: ["src/**/*.spec.ts", "test/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-extraneous-class": "off",
-      "@typescript-eslint/no-empty-function": "off",
-      "@typescript-eslint/no-useless-constructor": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/no-redundant-type-constituents": "off",
-    },
-  },
-];
-````
-
 ## File: LICENSE
 ````
 GNU AFFERO GENERAL PUBLIC LICENSE
@@ -22829,7 +22829,7 @@ jobs:
     "eslint": "^10.6.0",
     "eslint-plugin-vue": "^10.9.2",
     "jsdom": "^29.1.1",
-    "prettier": "^3.8.4",
+    "prettier": "^3.8.5",
     "typescript": "~5.9.3",
     "vite": "^8.1.0",
     "vitest": "^4.1.9",
@@ -22911,7 +22911,7 @@ jobs:
     "@typescript-eslint/parser": "^8.62.0",
     "eslint": "^10.6.0",
     "jest": "^30.4.2",
-    "prettier": "^3.8.4",
+    "prettier": "^3.8.5",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
     "ts-loader": "^9.6.2",
@@ -22980,7 +22980,7 @@ jobs:
     "jsdom": "^29.1.1",
     "npm-run-all2": "^9.0.2",
     "postcss": "^8.5.15",
-    "prettier": "^3.8.4",
+    "prettier": "^3.8.5",
     "start-server-and-test": "^3.0.11",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
