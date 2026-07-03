@@ -79,7 +79,7 @@ importers:
         specifier: ^8.5.15
         version: 8.5.15
       prettier:
-        specifier: ^3.9.3
+        specifier: ^3.9.4
         version: 3.9.4
       start-server-and-test:
         specifier: ^3.0.11
