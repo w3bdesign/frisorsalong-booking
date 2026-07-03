@@ -64,8 +64,8 @@ importers:
         specifier: ^10.6.0
         version: 10.6.0(jiti@1.21.7)(supports-color@8.1.1)
       eslint-plugin-cypress:
-        specifier: ^6.4.1
-        version: 6.4.1(@typescript-eslint/parser@8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3))(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))
+        specifier: ^6.4.2
+        version: 6.4.2(@typescript-eslint/parser@8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3))(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))
       eslint-plugin-vue:
         specifier: ^10.9.2
         version: 10.9.2(@typescript-eslint/parser@8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3))(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(vue-eslint-parser@10.4.0(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1)))
@@ -1354,8 +1354,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-cypress@6.4.1:
-    resolution: {integrity: sha512-8mnfR3q0Lr41Fu9SYZGeZ5nbSBgtS44+bbtSs7k0KvfoQ2pPmK43IvaTP6FGTfwBTN6S7w027CpqjrLAd65AYA==}
+  eslint-plugin-cypress@6.4.2:
+    resolution: {integrity: sha512-OIGJP5y6/cyMxBtMASP/iBM7Pv4ZHccE9uI8MhtAZDrdNDYDwHgKa/3Khrr+FGRr9hSIfNYstGRhSmbcLURWYA==}
     peerDependencies:
       '@typescript-eslint/parser': '>=8'
       eslint: '>=9'
@@ -1597,8 +1597,8 @@ packages:
     resolution: {integrity: sha512-NBcGGFbBA9s1VzD41QXDG+3++t9Mn5t1FpLdhESY6oKY4gYTFpX4wO3sqGUa0Srjtbfj3szX0RnemmrVRUdULA==}
     engines: {node: '>=10'}
 
-  globals@17.6.0:
-    resolution: {integrity: sha512-sepffkT8stwnIYbsMBpoCHJuJM5l98FUF2AnE07hfvE0m/qp3R586hw4jF4uadbhvg1ooIdzuu7CsfD2jzCaNA==}
+  globals@17.7.0:
+    resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
 
   gopd@1.2.0:
@@ -2990,7 +2990,7 @@ snapshots:
       '@babel/code-frame': 7.29.0
       '@babel/generator': 7.29.1
       '@babel/helper-compilation-targets': 7.28.6
-      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0)
+      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0(supports-color@8.1.1))
       '@babel/helpers': 7.28.6
       '@babel/parser': 7.29.7
       '@babel/template': 7.28.6
@@ -3063,7 +3063,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0)':
+  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.0(supports-color@8.1.1)
       '@babel/helper-module-imports': 7.28.6
@@ -4325,10 +4325,10 @@ snapshots:
     dependencies:
       eslint: 10.6.0(jiti@1.21.7)(supports-color@8.1.1)
 
-  eslint-plugin-cypress@6.4.1(@typescript-eslint/parser@8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3))(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1)):
+  eslint-plugin-cypress@6.4.2(@typescript-eslint/parser@8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3))(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1)):
     dependencies:
       eslint: 10.6.0(jiti@1.21.7)(supports-color@8.1.1)
-      globals: 17.6.0
+      globals: 17.7.0
     optionalDependencies:
       '@typescript-eslint/parser': 8.60.1(eslint@10.6.0(jiti@1.21.7)(supports-color@8.1.1))(typescript@5.9.3)
 
@@ -4596,7 +4596,7 @@ snapshots:
     dependencies:
       ini: 2.0.0
 
-  globals@17.6.0: {}
+  globals@17.7.0: {}
 
   gopd@1.2.0: {}
 
