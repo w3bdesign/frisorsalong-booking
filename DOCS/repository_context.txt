@@ -22925,7 +22925,7 @@ jobs:
     "typescript": "~5.9.3",
     "vite": "^8.1.0",
     "vitest": "^4.1.9",
-    "vue-tsc": "^3.3.5"
+    "vue-tsc": "^3.3.6"
   }
 }
 ````
@@ -22987,7 +22987,7 @@ jobs:
     "vite": "^8.1.0",
     "vite-plugin-vue-devtools": "^8.1.5",
     "vitest": "^4.1.9",
-    "vue-tsc": "^3.3.5"
+    "vue-tsc": "^3.3.6"
   }
 }
 ````
