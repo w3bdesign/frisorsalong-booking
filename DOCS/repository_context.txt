@@ -21375,655 +21375,6 @@ employees.controller.ts
 51  @Post(':id/reset-password')
 ````
 
-## File: README.md
-````markdown
-# Hair Salon Booking System
-
-[![Quality Gate Status][sonar-badge]][sonar-url]
-[![Codacy Badge][codacy-badge]][codacy-url]
-
-[sonar-badge]: https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status
-[sonar-url]: https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking
-[codacy-badge]: https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec
-[codacy-url]: https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
-
-A full-stack booking system for hair salons built with NestJS (backend)
-and Vue 3 (frontend). The system provides comprehensive functionality
-for managing appointments, employees, services, and user authentication.
-
-## Test Coverage
-
-| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
-
-## Frontend
-
-![Admin Panel](screenshot/admin.png)
-
-## Backend
-
-![API Documentation](screenshot/swagger.png)
-
----
-
-## Features
-
-- 🔐 Secure JWT-based Authentication & Authorization
-- 👥 Role-based User Management (Admin, Employee, Customer)
-- 📅 Advanced Booking System
-  - ⏰ Smart scheduling with service duration-based time slots
-  - 🕒 Automatic end time calculation based on service duration
-  - ✅ Real-time employee availability checking
-  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
-  - ❌ Booking cancellation with reason tracking
-  - 📈 Upcoming bookings dashboard
-- 💇‍♀️ Service Management
-  - ⏱️ Service duration and pricing
-  - 🔄 Employee-service relationship mapping
-  - 📋 Service availability per employee
-- 👨‍💼 Employee Management & Scheduling
-  - 📆 Advanced availability tracking
-  - 🎯 Service specialization assignment
-  - 📊 Workload management
-- 🗄️ PostgreSQL Database with TypeORM
-- 📚 Swagger API Documentation
-- 🎨 Modern Admin Dashboard with Vue 3
-- 📱 Responsive Design with Tailwind CSS
-- 🧪 Comprehensive Test Coverage
-  - ✅ Unit tests with Jest and Vitest
-  - 📊 Continuous coverage reporting
-
-## System Architecture
-
-The system follows a modular architecture separating frontend,
-backend, and database layers:
-
-### Backend (NestJS)
-
-- **Framework**: NestJS with TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: JWT with Passport
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: Jest
-
-### Frontend (Vue 3)
-
-- **Framework**: Vue 3 with TypeScript
-- **State Management**: Pinia
-- **Routing**: Vue Router
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
-
-## Project Structure
-
-```text
-├── backend/               # NestJS backend application
-│   ├── src/
-│   │   ├── auth/         # Authentication & authorization
-│   │   ├── bookings/     # Booking management
-│   │   ├── config/       # Configuration modules
-│   │   ├── database/     # Migrations & seeds
-│   │   ├── employees/    # Employee management
-│   │   ├── services/     # Service management
-│   │   └── users/        # User management
-│   └── test/             # E2E tests
-├── frontend/
-│   ├── admin/            # Admin dashboard (Vue 3)
-│   └── customer/         # Customer portal (Vue 3)
-└── docs/                 # Project documentation
-```
-
-## Prerequisites
-
-- Node.js (v20 or higher)
-- pnpm
-- PostgreSQL
-- Docker
-
-## Getting Started
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-1. Configure environment variables:
-
-```bash
-cp .env.example .env
-# Update the values in .env according to your setup
-```
-
-1. Run database migrations:
-
-```bash
-pnpm migration:run
-```
-
-1. Seed initial data:
-
-```bash
-pnpm seed
-```
-
-1. Start the development server:
-
-```bash
-pnpm start:dev
-```
-
-The API will be available at `http://localhost:3000`
-with Swagger documentation at `http://localhost:3000/api`
-
-### Frontend Setup
-
-1. Navigate to the admin frontend directory:
-
-```bash
-cd frontend/admin
-```
-
-1. Install dependencies:
-
-```bash
-pnpm install
-```
-
-1. Start the development server:
-
-```bash
-pnpm dev
-```
-
-The admin dashboard will be available at `http://localhost:5173`
-
-### Using Docker
-
-1. Build and run the Docker containers:
-
-```bash
-docker-compose up --build
-```
-
-1. Access the services:
-
-- Backend API: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3001`
-
-## Development Guidelines
-
-### Code Style
-
-- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
-- Use ESLint and Prettier for code formatting
-- Write tests for all new features
-- Follow TDD principles
-
-### Git Workflow
-
-1. Create a feature branch from `develop`:
-
-```bash
-git checkout -b feature/your-feature-name
-```
-
-1. Make your changes following the conventions
-
-1. Write tests for your changes
-
-1. Commit using conventional commits:
-
-```text
-feat: add new feature
-fix: resolve bug
-docs: update documentation
-style: formatting changes
-refactor: code restructuring
-test: add tests
-chore: maintenance
-```
-
-1. Create a pull request to `develop`
-
-## Testing
-
-### Backend Tests
-
-```bash
-# Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Test coverage
-pnpm test:cov
-```
-
-### Frontend Tests
-
-```bash
-# Unit tests
-pnpm test
-
-# Component tests
-pnpm test:unit
-```
-
-## API Documentation
-
-The API documentation is available through Swagger UI when running the backend:
-
-```text
-http://localhost:3000/api
-```
-
-## Environment Variables
-
-### Backend (.env)
-
-```env
-# Application
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=1h
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CACHE_TTL=300
-```
-
-## Security
-
-- 🔒 All endpoints are protected with JWT authentication
-- 👮 Role-based access control (RBAC) implementation
-- ✅ Input validation using class-validator
-- 🚦 Rate limiting for API endpoints
-- 🌐 CORS configuration
-- 🔑 Secure password hashing with bcrypt
-- 🔐 Environment variable protection
-- 🛡️ SQL injection prevention through TypeORM
-
-## AI Assistant Guidance
-
-This project includes AI assistant guidance files to help
-code assistants be immediately productive:
-
-- [`AGENTS.md`](AGENTS.md) - Main project guidance
-- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code rules
-- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug guidance
-- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context
-- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture
-
-These files contain project-specific, non-obvious information
-discovered by analyzing the codebase, including:
-
-- Critical command execution order (database seeding dependencies)
-- Authentication patterns and JWT token handling
-- Testing requirements and configuration specifics
-- Architecture constraints and multi-tenant design patterns
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License -
-see the [LICENSE](LICENSE) file for details.
-
-## Architecture Documentation
-
-For detailed information about the system architecture,
-please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-````
-
-## File: renovate.json
-````json
-{
-  "extends": [
-    "config:recommended"
-  ],
-  "ignorePresets": [
-    ":prHourlyLimit2",
-    ":prConcurrentLimit20"
-  ],
-  "packageRules": [
-    {
-      "rangeStrategy": "bump",
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    },
-    {
-      "matchUpdateTypes": [
-        "minor",
-        "pin",
-        "digest"
-      ],
-      "automerge": true,
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    },
-    {
-      "matchUpdateTypes": [
-        "patch",
-        "lockFileMaintenance"
-      ],
-      "automerge": true,
-      "automergeType": "branch",
-      "matchDepTypes": [
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies"
-      ]
-    }
-  ],
-  "minimumReleaseAge": "3 days"
-}
-````
-
-## File: TODO.md
-````markdown
-# TODO
-
-## General
-
--   Thorough security review
--   Scalability assessment
--   Comprehensive testing implementation
--   Automated deployment with CI/CD pipeline
--   Application monitoring and logging
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Security Enhancements
-
-- Authentication and Authorization
-    - Implement bcrypt for password hashing.
-    - Implement JWT refresh tokens for secure API access.
-    - Implement role-based access control (RBAC) to restrict resources based on user roles.
-- Input Validation
-    - Use class-validator to sanitize and validate all user inputs.
-    - Prevent SQL injection and XSS attacks.
-- Data Protection
-    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
-- Rate Limiting
-    - Implement rate limiting to protect against brute-force attacks.
-- Audit Logging
-    - Maintain logs of critical actions for auditing purposes.
-
-## Scalability Improvements
-
-- Stateless Backend
-    - Design the backend to be stateless to facilitate horizontal scaling.
-- Load Balancing
-    - Use a load balancer to distribute traffic across multiple server instances.
-- Caching
-    - Implement caching for frequent read operations using Redis.
-- Database Optimization
-    - Use indexing and query optimization techniques.
-    - Consider read replicas for PostgreSQL.
-- Asynchronous Processing
-    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
-
-## Testing Improvements
-
-- Unit Tests
-    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
-- Integration Tests
-    - Implement integration tests for API endpoints and database operations.
-- End-to-End Tests
-    - Create end-to-end tests for critical user flows using Cypress.
-
-## Deployment Automation
-
-- CI/CD Pipeline
-    - Set up a CI/CD pipeline using GitHub Actions or similar.
-    - Automate building, testing, and deployment processes.
-- Infrastructure as Code (IaC)
-    - Use Terraform or similar to manage infrastructure.
-
-## Monitoring and Logging
-
-- Application Monitoring
-    - Use tools like Prometheus and Grafana to monitor application performance.
-- Error Tracking
-    - Implement Sentry or similar for error logging.
-- Health Checks
-    - Set up endpoint and infrastructure health checks.
-
-## Existing Issues
-
-- Address the CRITICAL issues listed in ISSUES.md
-
-## Customer-Facing Features
-
-- Appointment Booking
-
-  - Develop the appointment booking interface.
-  - Implement logic to prevent double-booking conflicts.
-
-- Booking Management
-
-  - Allow customers to view, modify, or cancel their bookings.
-
-## Employee Features
-
-- Employee Login
-
-  - Develop login functionality for employees.
-
-- Schedule Management
-
-  - Create an interface for employees to view and manage their schedules.
-
-- Availability Settings
-  - Allow employees to set their availability and block out times.
-
-## Admin Features
-
-- User Management
-
-  - Implement functionality to add, modify, or remove employee accounts.
-
-- Reporting
-
-  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
-
-- Service Management
-  - Develop functionality to add or update services, including pricing and duration.
-
-## Non-Functional Requirements (can be implemented in the future, not important)
-
-- Scalability
-
-  - Ensure the system can handle increased load and scale appropriately.
-
-- Performance
-
-  - Optimize the system for fast load times and responsive interactions.
-
-- Security
-
-  - Implement robust authentication and authorization mechanisms.
-  - Protect user data and ensure compliance with data protection regulations.
-
-- Reliability
-
-  - Ensure high availability and fault tolerance.
-
-## Deployment Plan
-
-- Development Environment
-
-  - Set up local development environments with hot-reloading for rapid development.
-
-- Testing/Staging Environment
-
-  - Mirror production environment for testing features before release.
-
-- Production Environment
-
-  - Set up live environment with robust monitoring and backup strategies.
-
-- CI/CD Pipeline
-
-  - Automate code building, testing, and deployment using CI/CD tools.
-
-- Monitoring and Logging
-  - Implement application monitoring, error tracking, and health checks.
-````
-
-## File: .github/workflows/repomix.yml
-````yaml
-name: Repository Documentation
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # allows manual triggering
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # fetch all history for better context
-      - name: Wait for other checks
-        run: |
-          echo "Waiting for 5 minutes to allow other checks to complete..."
-          sleep 300
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install Repomix
-        run: npm install -g repomix
-      - name: Generate Repository Documentation
-        run: |
-          echo "Creating DOCS directory..."
-          mkdir -p DOCS
-          echo "Running Repomix..."
-          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
-            echo "Error: Repomix command failed"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          echo "Verifying output file..."
-          if [ ! -f "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt was not created"
-            # Print directory contents for debugging
-            echo "DOCS directory contents:"
-            ls -la DOCS/
-            exit 1
-          fi
-          if [ ! -s "DOCS/repository_context.txt" ]; then
-            echo "Error: repository_context.txt is empty"
-            exit 1
-          fi
-          echo "Repository context file generated successfully"
-          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
-          echo "First few lines of the file:"
-          head -n 5 "DOCS/repository_context.txt"
-      # Update Documentation
-      - name: Commit and Push Changes
-        run: |
-          echo "Configuring git..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          echo "Checking for changes..."
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Changes detected, committing..."
-            # Stage only repository_context.txt to avoid unintended changes
-            if ! git add DOCS/repository_context.txt; then
-              echo "Error: Failed to stage repository_context.txt"
-              exit 1
-            fi
-            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
-              echo "Error: Failed to create commit"
-              exit 1
-            fi
-            echo "Pushing to main branch..."
-            if ! git push; then
-              echo "Error: Failed to push changes"
-              exit 1
-            fi
-            echo "Successfully updated repository context"
-          else
-            echo "No changes detected in repository_context.txt"
-          fi
-````
-
 ## File: LICENSE
 ````
 GNU AFFERO GENERAL PUBLIC LICENSE
@@ -22689,6 +22040,655 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
 ````
 
+## File: README.md
+````markdown
+# Hair Salon Booking System
+
+[![Quality Gate Status][sonar-badge]][sonar-url]
+[![Codacy Badge][codacy-badge]][codacy-url]
+
+[sonar-badge]: https://sonarcloud.io/api/project_badges/measure?project=w3bdesign_frisorsalong-booking&metric=alert_status
+[sonar-url]: https://sonarcloud.io/summary/new_code?id=w3bdesign_frisorsalong-booking
+[codacy-badge]: https://app.codacy.com/project/badge/Grade/8a8b1bc2c732403caab609840e3bc6ec
+[codacy-url]: https://app.codacy.com/gh/w3bdesign/frisorsalong-booking/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
+
+A full-stack booking system for hair salons built with NestJS (backend)
+and Vue 3 (frontend). The system provides comprehensive functionality
+for managing appointments, employees, services, and user authentication.
+
+## Test Coverage
+
+| Backend                                                                                                                                                                         | Frontend                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [![Backend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=backend)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) | [![Frontend Coverage](https://codecov.io/gh/w3bdesign/frisorsalong-booking/graph/badge.svg?token=YDY1N2NMWA&flag=frontend-customer)](https://codecov.io/gh/w3bdesign/frisorsalong-booking) |
+
+## Frontend
+
+![Admin Panel](screenshot/admin.png)
+
+## Backend
+
+![API Documentation](screenshot/swagger.png)
+
+---
+
+## Features
+
+- 🔐 Secure JWT-based Authentication & Authorization
+- 👥 Role-based User Management (Admin, Employee, Customer)
+- 📅 Advanced Booking System
+  - ⏰ Smart scheduling with service duration-based time slots
+  - 🕒 Automatic end time calculation based on service duration
+  - ✅ Real-time employee availability checking
+  - 📊 Booking status tracking (Pending, Confirmed, Cancelled)
+  - ❌ Booking cancellation with reason tracking
+  - 📈 Upcoming bookings dashboard
+- 💇‍♀️ Service Management
+  - ⏱️ Service duration and pricing
+  - 🔄 Employee-service relationship mapping
+  - 📋 Service availability per employee
+- 👨‍💼 Employee Management & Scheduling
+  - 📆 Advanced availability tracking
+  - 🎯 Service specialization assignment
+  - 📊 Workload management
+- 🗄️ PostgreSQL Database with TypeORM
+- 📚 Swagger API Documentation
+- 🎨 Modern Admin Dashboard with Vue 3
+- 📱 Responsive Design with Tailwind CSS
+- 🧪 Comprehensive Test Coverage
+  - ✅ Unit tests with Jest and Vitest
+  - 📊 Continuous coverage reporting
+
+## System Architecture
+
+The system follows a modular architecture separating frontend,
+backend, and database layers:
+
+### Backend (NestJS)
+
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with Passport
+- **API Documentation**: Swagger/OpenAPI
+- **Testing**: Jest
+
+### Frontend (Vue 3)
+
+- **Framework**: Vue 3 with TypeScript
+- **State Management**: Pinia
+- **Routing**: Vue Router
+- **Styling**: Tailwind CSS
+- **Testing**: Vitest
+
+## Project Structure
+
+```text
+├── backend/               # NestJS backend application
+│   ├── src/
+│   │   ├── auth/         # Authentication & authorization
+│   │   ├── bookings/     # Booking management
+│   │   ├── config/       # Configuration modules
+│   │   ├── database/     # Migrations & seeds
+│   │   ├── employees/    # Employee management
+│   │   ├── services/     # Service management
+│   │   └── users/        # User management
+│   └── test/             # E2E tests
+├── frontend/
+│   ├── admin/            # Admin dashboard (Vue 3)
+│   └── customer/         # Customer portal (Vue 3)
+└── docs/                 # Project documentation
+```
+
+## Prerequisites
+
+- Node.js (v20 or higher)
+- pnpm
+- PostgreSQL
+- Docker
+
+## Getting Started
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Configure environment variables:
+
+```bash
+cp .env.example .env
+# Update the values in .env according to your setup
+```
+
+1. Run database migrations:
+
+```bash
+pnpm migration:run
+```
+
+1. Seed initial data:
+
+```bash
+pnpm seed
+```
+
+1. Start the development server:
+
+```bash
+pnpm start:dev
+```
+
+The API will be available at `http://localhost:3000`
+with Swagger documentation at `http://localhost:3000/api`
+
+### Frontend Setup
+
+1. Navigate to the admin frontend directory:
+
+```bash
+cd frontend/admin
+```
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+1. Start the development server:
+
+```bash
+pnpm dev
+```
+
+The admin dashboard will be available at `http://localhost:5173`
+
+### Using Docker
+
+1. Build and run the Docker containers:
+
+```bash
+docker-compose up --build
+```
+
+1. Access the services:
+
+- Backend API: `http://localhost:3000`
+- Admin Dashboard: `http://localhost:3001`
+
+## Development Guidelines
+
+### Code Style
+
+- Follow the conventions defined in [docs/CONVENTIONS.md](docs/CONVENTIONS.md)
+- Use ESLint and Prettier for code formatting
+- Write tests for all new features
+- Follow TDD principles
+
+### Git Workflow
+
+1. Create a feature branch from `develop`:
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+1. Make your changes following the conventions
+
+1. Write tests for your changes
+
+1. Commit using conventional commits:
+
+```text
+feat: add new feature
+fix: resolve bug
+docs: update documentation
+style: formatting changes
+refactor: code restructuring
+test: add tests
+chore: maintenance
+```
+
+1. Create a pull request to `develop`
+
+## Testing
+
+### Backend Tests
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests
+pnpm test:e2e
+
+# Test coverage
+pnpm test:cov
+```
+
+### Frontend Tests
+
+```bash
+# Unit tests
+pnpm test
+
+# Component tests
+pnpm test:unit
+```
+
+## API Documentation
+
+The API documentation is available through Swagger UI when running the backend:
+
+```text
+http://localhost:3000/api
+```
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+# Application
+NODE_ENV=development
+PORT=3000
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=1h
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CACHE_TTL=300
+```
+
+## Security
+
+- 🔒 All endpoints are protected with JWT authentication
+- 👮 Role-based access control (RBAC) implementation
+- ✅ Input validation using class-validator
+- 🚦 Rate limiting for API endpoints
+- 🌐 CORS configuration
+- 🔑 Secure password hashing with bcrypt
+- 🔐 Environment variable protection
+- 🛡️ SQL injection prevention through TypeORM
+
+## AI Assistant Guidance
+
+This project includes AI assistant guidance files to help
+code assistants be immediately productive:
+
+- [`AGENTS.md`](AGENTS.md) - Main project guidance
+- [`.roo/rules-code/AGENTS.md`](.roo/rules-code/AGENTS.md) - Code rules
+- [`.roo/rules-debug/AGENTS.md`](.roo/rules-debug/AGENTS.md) - Debug guidance
+- [`.roo/rules-ask/AGENTS.md`](.roo/rules-ask/AGENTS.md) - Documentation context
+- [`.roo/rules-architect/AGENTS.md`](.roo/rules-architect/AGENTS.md) - Architecture
+
+These files contain project-specific, non-obvious information
+discovered by analyzing the codebase, including:
+
+- Critical command execution order (database seeding dependencies)
+- Authentication patterns and JWT token handling
+- Testing requirements and configuration specifics
+- Architecture constraints and multi-tenant design patterns
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE) file for details.
+
+## Architecture Documentation
+
+For detailed information about the system architecture,
+please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+````
+
+## File: renovate.json
+````json
+{
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePresets": [
+    ":prHourlyLimit2",
+    ":prConcurrentLimit20"
+  ],
+  "packageRules": [
+    {
+      "rangeStrategy": "bump",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "pin",
+        "digest"
+      ],
+      "automerge": true,
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    },
+    {
+      "matchUpdateTypes": [
+        "patch",
+        "lockFileMaintenance"
+      ],
+      "automerge": true,
+      "automergeType": "branch",
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies"
+      ]
+    }
+  ],
+  "minimumReleaseAge": "3 days"
+}
+````
+
+## File: TODO.md
+````markdown
+# TODO
+
+## General
+
+-   Thorough security review
+-   Scalability assessment
+-   Comprehensive testing implementation
+-   Automated deployment with CI/CD pipeline
+-   Application monitoring and logging
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Security Enhancements
+
+- Authentication and Authorization
+    - Implement bcrypt for password hashing.
+    - Implement JWT refresh tokens for secure API access.
+    - Implement role-based access control (RBAC) to restrict resources based on user roles.
+- Input Validation
+    - Use class-validator to sanitize and validate all user inputs.
+    - Prevent SQL injection and XSS attacks.
+- Data Protection
+    - Encrypt sensitive data at rest and in transit using HTTPS with TLS.
+- Rate Limiting
+    - Implement rate limiting to protect against brute-force attacks.
+- Audit Logging
+    - Maintain logs of critical actions for auditing purposes.
+
+## Scalability Improvements
+
+- Stateless Backend
+    - Design the backend to be stateless to facilitate horizontal scaling.
+- Load Balancing
+    - Use a load balancer to distribute traffic across multiple server instances.
+- Caching
+    - Implement caching for frequent read operations using Redis.
+- Database Optimization
+    - Use indexing and query optimization techniques.
+    - Consider read replicas for PostgreSQL.
+- Asynchronous Processing
+    - Use message queues (e.g., RabbitMQ) for background tasks like sending notifications.
+
+## Testing Improvements
+
+- Unit Tests
+    - Write comprehensive unit tests for all services, controllers, guards, and pipes.
+- Integration Tests
+    - Implement integration tests for API endpoints and database operations.
+- End-to-End Tests
+    - Create end-to-end tests for critical user flows using Cypress.
+
+## Deployment Automation
+
+- CI/CD Pipeline
+    - Set up a CI/CD pipeline using GitHub Actions or similar.
+    - Automate building, testing, and deployment processes.
+- Infrastructure as Code (IaC)
+    - Use Terraform or similar to manage infrastructure.
+
+## Monitoring and Logging
+
+- Application Monitoring
+    - Use tools like Prometheus and Grafana to monitor application performance.
+- Error Tracking
+    - Implement Sentry or similar for error logging.
+- Health Checks
+    - Set up endpoint and infrastructure health checks.
+
+## Existing Issues
+
+- Address the CRITICAL issues listed in ISSUES.md
+
+## Customer-Facing Features
+
+- Appointment Booking
+
+  - Develop the appointment booking interface.
+  - Implement logic to prevent double-booking conflicts.
+
+- Booking Management
+
+  - Allow customers to view, modify, or cancel their bookings.
+
+## Employee Features
+
+- Employee Login
+
+  - Develop login functionality for employees.
+
+- Schedule Management
+
+  - Create an interface for employees to view and manage their schedules.
+
+- Availability Settings
+  - Allow employees to set their availability and block out times.
+
+## Admin Features
+
+- User Management
+
+  - Implement functionality to add, modify, or remove employee accounts.
+
+- Reporting
+
+  - Create reporting tools to generate and export reports on bookings, revenue, and employee performance.
+
+- Service Management
+  - Develop functionality to add or update services, including pricing and duration.
+
+## Non-Functional Requirements (can be implemented in the future, not important)
+
+- Scalability
+
+  - Ensure the system can handle increased load and scale appropriately.
+
+- Performance
+
+  - Optimize the system for fast load times and responsive interactions.
+
+- Security
+
+  - Implement robust authentication and authorization mechanisms.
+  - Protect user data and ensure compliance with data protection regulations.
+
+- Reliability
+
+  - Ensure high availability and fault tolerance.
+
+## Deployment Plan
+
+- Development Environment
+
+  - Set up local development environments with hot-reloading for rapid development.
+
+- Testing/Staging Environment
+
+  - Mirror production environment for testing features before release.
+
+- Production Environment
+
+  - Set up live environment with robust monitoring and backup strategies.
+
+- CI/CD Pipeline
+
+  - Automate code building, testing, and deployment using CI/CD tools.
+
+- Monitoring and Logging
+  - Implement application monitoring, error tracking, and health checks.
+````
+
+## File: .github/workflows/repomix.yml
+````yaml
+name: Repository Documentation
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allows manual triggering
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # fetch all history for better context
+      - name: Wait for other checks
+        run: |
+          echo "Waiting for 5 minutes to allow other checks to complete..."
+          sleep 300
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install Repomix
+        run: npm install -g repomix
+      - name: Generate Repository Documentation
+        run: |
+          echo "Creating DOCS directory..."
+          mkdir -p DOCS
+          echo "Running Repomix..."
+          if ! repomix --output DOCS/repository_context.txt --style markdown --remove-empty-lines --verbose; then
+            echo "Error: Repomix command failed"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          echo "Verifying output file..."
+          if [ ! -f "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt was not created"
+            # Print directory contents for debugging
+            echo "DOCS directory contents:"
+            ls -la DOCS/
+            exit 1
+          fi
+          if [ ! -s "DOCS/repository_context.txt" ]; then
+            echo "Error: repository_context.txt is empty"
+            exit 1
+          fi
+          echo "Repository context file generated successfully"
+          echo "File size: $(stat --format=%s "DOCS/repository_context.txt") bytes"
+          echo "First few lines of the file:"
+          head -n 5 "DOCS/repository_context.txt"
+      # Update Documentation
+      - name: Commit and Push Changes
+        run: |
+          echo "Configuring git..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          echo "Checking for changes..."
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected, committing..."
+            # Stage only repository_context.txt to avoid unintended changes
+            if ! git add DOCS/repository_context.txt; then
+              echo "Error: Failed to stage repository_context.txt"
+              exit 1
+            fi
+            if ! git commit -m "docs: update repository context via Repomix [skip ci]"; then
+              echo "Error: Failed to create commit"
+              exit 1
+            fi
+            echo "Pushing to main branch..."
+            if ! git push; then
+              echo "Error: Failed to push changes"
+              exit 1
+            fi
+            echo "Successfully updated repository context"
+          else
+            echo "No changes detected in repository_context.txt"
+          fi
+````
+
 ## File: .github/workflows/codecov.yml
 ````yaml
 name: Run Codecov tests and upload coverage
@@ -22967,7 +22967,7 @@ jobs:
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "4.1.9",
-    "@vitest/eslint-plugin": "1.6.20",
+    "@vitest/eslint-plugin": "1.6.21",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.4.11",
