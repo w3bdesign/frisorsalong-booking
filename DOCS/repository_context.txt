@@ -22793,7 +22793,7 @@ jobs:
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.11.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22882,7 +22882,7 @@ jobs:
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.11.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -22937,7 +22937,7 @@ jobs:
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.11.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
