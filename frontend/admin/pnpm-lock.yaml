@@ -24,7 +24,7 @@ importers:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.39(typescript@5.9.3))
       postcss:
-        specifier: ^8.5.18
+        specifier: ^8.5.19
         version: 8.5.19
       tailwindcss:
         specifier: ^3.4.19
