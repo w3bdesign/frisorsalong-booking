@@ -389,6 +389,101 @@ TODO.md
 
 # Files
 
+## File: .github/workflows/codecov.yml
+````yaml
+name: Run Codecov tests and upload coverage
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/customer/**"
+jobs:
+  backend-test:
+    name: Run backend tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          flags: backend
+          fail_ci_if_error: true
+  frontend-customer-test:
+    name: Run frontend customer tests and collect coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend/customer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Setup pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run tests
+        run: pnpm test:unit --coverage
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend/customer/coverage
+          flags: frontend-customer
+          fail_ci_if_error: true
+````
+
 ## File: .github/workflows/repomix.yml
 ````yaml
 name: Repository Documentation
@@ -22689,101 +22784,6 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
-## File: .github/workflows/codecov.yml
-````yaml
-name: Run Codecov tests and upload coverage
-on:
-  push:
-    paths:
-      - "backend/**"
-      - "frontend/customer/**"
-jobs:
-  backend-test:
-    name: Run backend tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          flags: backend
-          fail_ci_if_error: true
-  frontend-customer-test:
-    name: Run frontend customer tests and collect coverage
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/customer
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-          run_install: false
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Setup pnpm cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm test:unit --coverage
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend/customer/coverage
-          flags: frontend-customer
-          fail_ci_if_error: true
-````
-
 ## File: backend/package.json
 ````json
 {
@@ -22906,7 +22906,7 @@ jobs:
     "postcss": "^8.5.19",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.40",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
@@ -22923,7 +22923,7 @@ jobs:
     "jsdom": "^29.1.1",
     "prettier": "^3.9.5",
     "typescript": "~5.9.3",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10",
     "vue-tsc": "^3.3.7"
   }
@@ -22958,7 +22958,7 @@ jobs:
     "axios": "^1.18.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.40",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "@pinia/testing": "^1.0.3",
@@ -22984,7 +22984,7 @@ jobs:
     "start-server-and-test": "^3.0.11",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vite-plugin-vue-devtools": "^8.1.5",
     "vitest": "^4.1.10",
     "vue-tsc": "^3.3.7"
