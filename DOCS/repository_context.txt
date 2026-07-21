@@ -22829,7 +22829,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.28",
-    "@nestjs/swagger": "^11.4.5",
+    "@nestjs/swagger": "^11.4.6",
     "@nestjs/typeorm": "^11.0.3",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
