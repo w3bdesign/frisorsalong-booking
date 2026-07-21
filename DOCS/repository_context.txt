@@ -22899,7 +22899,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   },
   "dependencies": {
     "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.5.3",
+    "autoprefixer": "^10.5.4",
     "axios": "1.18.1",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
@@ -22972,7 +22972,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.5.3",
+    "autoprefixer": "^10.5.4",
     "cypress": "^15.18.1",
     "eslint": "^10.7.0",
     "eslint-plugin-cypress": "^6.4.3",
