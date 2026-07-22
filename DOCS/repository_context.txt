@@ -35,7 +35,7 @@ The content is organized as follows:
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 # Directory Structure
-```
+````
 .github/
   workflows/
     codecov.yml
@@ -385,7 +385,7 @@ LICENSE
 README.md
 renovate.json
 TODO.md
-```
+````
 
 # Files
 
@@ -10747,6 +10747,207 @@ export class AppController {
     return { status: 'ok' };
   }
 }
+````
+
+## File: backend/src/app.module.spec.ts
+````typescript
+import type { DynamicModule, INestApplication } from "@nestjs/common";
+// Base mock module class that all mock modules will extend
+class BaseMockModule {
+  static register(): DynamicModule {
+    return {
+      module: this,
+      providers: [],
+      exports: [],
+    };
+  }
+}
+// Mock implementations must be at the top level
+const mockTypeOrmModule = {
+  forRootAsync: jest.fn().mockReturnValue({
+    module: class MockModule {
+      static forRoot(): DynamicModule {
+        return {
+          module: MockModule,
+          providers: [],
+          exports: [],
+        };
+      }
+    },
+  }),
+  forFeature: jest.fn().mockReturnValue({
+    module: class MockFeatureModule {
+      static forFeature(): DynamicModule {
+        return {
+          module: MockFeatureModule,
+          providers: [],
+          exports: [],
+        };
+      }
+    },
+  }),
+};
+// Mock modules must be defined before imports
+jest.mock("@nestjs/typeorm", () => ({
+  TypeOrmModule: mockTypeOrmModule,
+  getRepositoryToken: () => "SHOP_CODE_REPOSITORY",
+  InjectRepository: () => () => ({
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  }),
+}));
+// Now we can have our imports
+import { Test } from "@nestjs/testing";
+import { AppModule } from "./app.module";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { join } from "node:path";
+// Mock repositories
+const mockRepository = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+const mockShopCodeRepository = {
+  ...mockRepository,
+  findOne: jest.fn().mockResolvedValue({ code: "TEST123" }),
+};
+// Create a proper mock of ConfigService
+class MockConfigService extends ConfigService {
+  get(key: string): string | undefined {
+    switch (key) {
+      case "DATABASE_URL":
+        return "postgres://test:test@localhost:5432/test";
+      case "NODE_ENV":
+        return "test";
+      default:
+        return undefined;
+    }
+  }
+}
+const mockConfigService = new MockConfigService();
+// Mock feature modules
+jest.mock("./auth/auth.module", () => ({
+  AuthModule: class MockAuthModule extends BaseMockModule {},
+}));
+jest.mock("./users/users.module", () => ({
+  UsersModule: class MockUsersModule extends BaseMockModule {},
+}));
+jest.mock("./employees/employees.module", () => ({
+  EmployeesModule: class MockEmployeesModule extends BaseMockModule {},
+}));
+jest.mock("./services/services.module", () => ({
+  ServicesModule: class MockServicesModule extends BaseMockModule {},
+}));
+jest.mock("./bookings/bookings.module", () => ({
+  BookingsModule: class MockBookingsModule extends BaseMockModule {},
+}));
+jest.mock("./orders/orders.module", () => ({
+  OrdersModule: class MockOrdersModule extends BaseMockModule {},
+}));
+jest.mock("./shops/shops.module", () => ({
+  ShopsModule: class MockShopsModule extends BaseMockModule {},
+}));
+// Mock entities
+jest.mock("./users/entities/user.entity", () => ({
+  User: class MockUser {
+    id = "";
+  },
+}));
+jest.mock("./employees/entities/employee.entity", () => ({
+  Employee: class MockEmployee {
+    id = "";
+  },
+}));
+jest.mock("./services/entities/service.entity", () => ({
+  Service: class MockService {
+    id = "";
+  },
+}));
+jest.mock("./bookings/entities/booking.entity", () => ({
+  Booking: class MockBooking {
+    id = "";
+  },
+}));
+jest.mock("./orders/entities/order.entity", () => ({
+  Order: class MockOrder {
+    id = "";
+  },
+}));
+jest.mock("./shops/entities/shop-code.entity", () => ({
+  ShopCode: class MockShopCode {
+    id = "";
+  },
+}));
+interface TypeOrmModuleOptions {
+  type: string;
+  url: string;
+  entities: string[];
+  synchronize: boolean;
+  logging: boolean;
+  ssl: {
+    rejectUnauthorized: boolean;
+  };
+}
+interface MockCall {
+  useFactory: (_config: ConfigService) => TypeOrmModuleOptions;
+}
+describe("AppModule", () => {
+  let app: INestApplication;
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(ConfigService)
+      .useValue(mockConfigService)
+      .overrideProvider("SHOP_CODE_REPOSITORY")
+      .useValue(mockShopCodeRepository)
+      .compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+  });
+  afterEach(async () => {
+    if (app) {
+      await app.close();
+    }
+  });
+  it("should be defined", () => {
+    expect(app).toBeDefined();
+  });
+  it("should configure TypeOrmModule with correct database settings", () => {
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalled();
+    const calls = mockTypeOrmModule.forRootAsync.mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const [options] = calls[0] as [MockCall];
+    const factoryFn = options.useFactory;
+    expect(factoryFn).toBeDefined();
+    const config = factoryFn(mockConfigService);
+    expect(config).toEqual({
+      type: "postgres",
+      url: "postgres://test:test@localhost:5432/test",
+      entities: [join(__dirname, "**", "*.entity{.ts,.js}")],
+      synchronize: false,
+      logging: false,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
+  });
+  it("should configure TypeOrmModule with correct injection", () => {
+    expect(mockTypeOrmModule.forRootAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imports: [ConfigModule],
+        inject: [ConfigService],
+      })
+    );
+  });
+});
 ````
 
 ## File: backend/src/app.module.ts
@@ -22903,7 +23104,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "axios": "1.18.1",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
-    "postcss": "^8.5.19",
+    "postcss": "^8.5.20",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.40",
     "vue-router": "^5.2.0"
@@ -22979,7 +23180,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "eslint-plugin-vue": "^10.9.2",
     "jsdom": "^29.1.1",
     "npm-run-all2": "^9.0.2",
-    "postcss": "^8.5.19",
+    "postcss": "^8.5.20",
     "prettier": "^3.9.5",
     "start-server-and-test": "^3.0.11",
     "tailwindcss": "^3.4.19",
