@@ -23126,7 +23126,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "typescript": "~5.9.3",
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.7"
+    "vue-tsc": "^3.3.8"
   }
 }
 ````
@@ -23188,7 +23188,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "vite": "^8.1.5",
     "vite-plugin-vue-devtools": "^8.1.5",
     "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.7"
+    "vue-tsc": "^3.3.8"
   }
 }
 ````
