@@ -23106,7 +23106,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "pinia": "^3.0.4",
     "postcss": "^8.5.25",
     "tailwindcss": "^3.4.19",
-    "vue": "^3.5.40",
+    "vue": "^3.5.41",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
@@ -23158,7 +23158,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   "dependencies": {
     "axios": "^1.19.0",
     "pinia": "^3.0.4",
-    "vue": "^3.5.40",
+    "vue": "^3.5.41",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
