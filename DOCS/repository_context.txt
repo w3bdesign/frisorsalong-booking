@@ -23176,7 +23176,7 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
     "autoprefixer": "^10.5.4",
     "cypress": "^15.20.0",
     "eslint": "^10.8.0",
-    "eslint-plugin-cypress": "^6.4.3",
+    "eslint-plugin-cypress": "^6.4.4",
     "eslint-plugin-vue": "^10.10.0",
     "jsdom": "^29.1.1",
     "npm-run-all2": "^9.0.3",
