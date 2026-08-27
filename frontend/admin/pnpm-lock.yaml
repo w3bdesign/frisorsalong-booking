@@ -64,7 +64,7 @@ importers:
         specifier: ^0.9.1
         version: 0.9.1(typescript@5.9.3)(vue@3.5.41(typescript@5.9.3))
       eslint:
-        specifier: ^10.9.0
+        specifier: ^10.9.1
         version: 10.9.1(jiti@1.21.7)
       eslint-plugin-vue:
         specifier: ^10.10.0
