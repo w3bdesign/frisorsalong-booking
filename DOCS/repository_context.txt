@@ -23107,7 +23107,7 @@ jobs:
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",
     "vue": "^3.5.43",
-    "vue-router": "^5.3.0"
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
@@ -23159,7 +23159,7 @@ jobs:
     "axios": "^1.20.0",
     "pinia": "^4.0.3",
     "vue": "^3.5.43",
-    "vue-router": "^5.3.0"
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@pinia/testing": "^2.0.1",
