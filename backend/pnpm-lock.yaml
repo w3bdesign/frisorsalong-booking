@@ -30,8 +30,8 @@ importers:
         specifier: ^11.4.7
         version: 11.4.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
       '@nestjs/typeorm':
-        specifier: ^11.0.3
-        version: 11.0.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31(pg@8.23.1)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))
+        specifier: ^12.0.2
+        version: 12.0.2(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31(pg@8.23.1)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -821,11 +821,12 @@ packages:
       '@nestjs/platform-express':
         optional: true
 
-  '@nestjs/typeorm@11.0.3':
-    resolution: {integrity: sha512-zJ+E5l7auVVA7c0PsvcMdyvRPKTUqU5s2ToYmOA2QEsXQ42qbUGtK4+1HlRfpHqBkCSXP+phiH4luvf9DyJNog==}
+  '@nestjs/typeorm@12.0.2':
+    resolution: {integrity: sha512-16b8s8mGkQdTH4i+dhhCwYkfuhWpLMdtuK82vOMjwa5ZpKYjFohU2jvbqkEJmx03fVO4HEpb0aw4VQXo+lxdKw==}
+    engines: {node: '>=20.19.0'}
     peerDependencies:
-      '@nestjs/common': ^10.0.0 || ^11.0.0
-      '@nestjs/core': ^10.0.0 || ^11.0.0
+      '@nestjs/common': ^10.0.0 || ^11.0.0 || ^12.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0 || ^12.0.0
       reflect-metadata: ^0.1.13 || ^0.2.0
       rxjs: ^7.2.0
       typeorm: ^0.3.0 || ^1.0.0-dev
@@ -950,9 +951,6 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
-
-  '@types/node@24.19.0':
-    resolution: {integrity: sha512-zY+5tKxXdhGh1PYI0ac+7juvEu4OI6vWtVVoj5i2m42jxAY1U+zHGt6QCyOFwykdP62sM3MJ9stoYYUw5aCWew==}
 
   '@types/node@24.19.2':
     resolution: {integrity: sha512-93d49wCWJkCyN87MxLpNN6KXPCwFw7bVUg79mGUV1OS40JGWwVCr8n61DXCSqz7CV6/VfPkb7xec7uP2M+QHWQ==}
@@ -3998,7 +3996,7 @@ snapshots:
 
   '@jest/pattern@30.4.0':
     dependencies:
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       jest-regex-util: 30.4.0
 
   '@jest/reporters@30.4.1(supports-color@8.1.1)':
@@ -4099,7 +4097,7 @@ snapshots:
       '@jest/schemas': 30.4.1
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       '@types/yargs': 17.0.33
       chalk: 4.1.2
 
@@ -4283,7 +4281,7 @@ snapshots:
     optionalDependencies:
       '@nestjs/platform-express': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(supports-color@8.1.1)
 
-  '@nestjs/typeorm@11.0.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31(pg@8.23.1)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))':
+  '@nestjs/typeorm@12.0.2(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@0.3.31(pg@8.23.1)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))':
     dependencies:
       '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
       '@nestjs/core': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -4428,10 +4426,6 @@ snapshots:
   '@types/methods@1.1.4': {}
 
   '@types/ms@2.1.0': {}
-
-  '@types/node@24.19.0':
-    dependencies:
-      undici-types: 7.24.6
 
   '@types/node@24.19.2':
     dependencies:
@@ -5799,7 +5793,7 @@ snapshots:
   jest-haste-map@30.4.1:
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -5985,7 +5979,7 @@ snapshots:
   jest-util@30.4.1:
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       chalk: 4.1.2
       ci-info: 4.3.0
       graceful-fs: 4.2.11
@@ -6013,13 +6007,13 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@30.4.1:
     dependencies:
-      '@types/node': 24.19.0
+      '@types/node': 24.19.2
       '@ungap/structured-clone': 1.3.0
       jest-util: 30.4.1
       merge-stream: 2.0.0
