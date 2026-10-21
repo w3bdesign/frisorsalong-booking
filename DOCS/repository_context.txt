@@ -23125,7 +23125,7 @@ jobs:
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "vite": "^8.3.4",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "vue-tsc": "^3.3.13"
   }
 }
@@ -23167,7 +23167,7 @@ jobs:
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "@vitest/eslint-plugin": "1.6.27",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
@@ -23187,7 +23187,7 @@ jobs:
     "typescript": "~5.9.3",
     "vite": "^8.3.4",
     "vite-plugin-vue-devtools": "^8.2.1",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "vue-tsc": "^3.3.13"
   }
 }
