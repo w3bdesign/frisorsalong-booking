@@ -23176,7 +23176,7 @@ jobs:
     "autoprefixer": "^10.6.1",
     "cypress": "^15.21.1",
     "eslint": "^10.13.0",
-    "eslint-plugin-cypress": "^6.4.4",
+    "eslint-plugin-cypress": "^7.0.2",
     "eslint-plugin-vue": "^10.11.1",
     "jsdom": "^30.1.3",
     "npm-run-all2": "^9.0.3",
