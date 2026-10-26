@@ -23102,7 +23102,7 @@ jobs:
     "@types/chart.js": "^4.0.0",
     "autoprefixer": "^10.6.1",
     "axios": "1.20.0",
-    "chart.js": "^4.5.1",
+    "chart.js": "^4.6.1",
     "pinia": "^4.1.0",
     "postcss": "^8.5.31",
     "tailwindcss": "^3.4.19",
