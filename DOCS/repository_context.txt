@@ -22927,7 +22927,7 @@ jobs:
         with:
           node-version: "24"
       - name: Install Repomix
-        run: npm install -g repomix
+        run: npm install -g --ignore-scripts repomix@1.18.1
       - name: Generate Repository Documentation
         run: |
           echo "Creating DOCS directory..."
