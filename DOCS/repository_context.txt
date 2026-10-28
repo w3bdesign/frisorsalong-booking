@@ -22831,7 +22831,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 11
+          version: 12
           run_install: false
       - name: Get pnpm store directory
         shell: bash
@@ -22873,7 +22873,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 11
+          version: 12
           run_install: false
       - name: Get pnpm store directory
         shell: bash
@@ -22994,7 +22994,7 @@ jobs:
   "author": "",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.28.6",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -23083,7 +23083,7 @@ jobs:
   "name": "admin-dashboard",
   "version": "0.0.3",
   "private": true,
-  "packageManager": "pnpm@11.28.6",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -23138,7 +23138,7 @@ jobs:
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.28.6",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
@@ -23174,7 +23174,7 @@ jobs:
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.6.1",
-    "cypress": "^15.21.1",
+    "cypress": "^16.2.0",
     "eslint": "^10.13.0",
     "eslint-plugin-cypress": "^7.0.2",
     "eslint-plugin-vue": "^10.11.1",
