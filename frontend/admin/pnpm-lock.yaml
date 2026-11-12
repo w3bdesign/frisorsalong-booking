@@ -237,7 +237,7 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
       vite:
-        specifier: ^8.3.6
+        specifier: ^8.3.7
         version: 8.3.7(@types/node@24.19.2)(jiti@1.21.7)(yaml@2.9.0)
       vitest:
         specifier: ^5.1.0
