@@ -38,7 +38,7 @@
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.6.1",
+    "autoprefixer": "^10.6.2",
     "cypress": "^16.2.1",
     "eslint": "^10.13.0",
     "eslint-plugin-cypress": "^7.0.4",
