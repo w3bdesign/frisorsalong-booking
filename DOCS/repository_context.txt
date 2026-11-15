@@ -23111,7 +23111,7 @@ jobs:
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.5",
+    "@tsconfig/node24": "^24.0.6",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
@@ -23163,7 +23163,7 @@ jobs:
   },
   "devDependencies": {
     "@pinia/testing": "^2.0.2",
-    "@tsconfig/node24": "^24.0.5",
+    "@tsconfig/node24": "^24.0.6",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
