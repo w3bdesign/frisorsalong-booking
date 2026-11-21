@@ -23174,7 +23174,7 @@ jobs:
     "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.6.2",
-    "cypress": "^16.2.1",
+    "cypress": "^16.3.0",
     "eslint": "^10.13.0",
     "eslint-plugin-cypress": "^7.0.5",
     "eslint-plugin-vue": "^10.11.1",
