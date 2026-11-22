@@ -214,7 +214,7 @@ importers:
         version: 10.2.0(eslint@10.15.0(jiti@1.21.7))(prettier@3.9.10)
       '@vue/eslint-config-typescript':
         specifier: ^14.9.0
-        version: 14.9.0(eslint-plugin-vue@10.11.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))))(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)
+        version: 14.9.0(eslint-plugin-vue@10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))))(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)
       '@vue/test-utils':
         specifier: ^2.6.0
         version: 2.6.0(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@5.9.3))
@@ -225,8 +225,8 @@ importers:
         specifier: ^10.15.0
         version: 10.15.0(jiti@1.21.7)
       eslint-plugin-vue:
-        specifier: ^10.11.1
-        version: 10.11.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7)))
+        specifier: ^10.12.1
+        version: 10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7)))
       jsdom:
         specifier: ^30.1.3
         version: 30.1.3
@@ -1096,8 +1096,8 @@ packages:
       eslint-config-prettier:
         optional: true
 
-  eslint-plugin-vue@10.11.1:
-    resolution: {integrity: sha512-pasVXhl7wUmIvhujoqs/m0mJ9r59QW1IR9XXYKGR0FETzSM+Hhlf4qKIYgWiDDP+9YKv4YfbwskD7LqIdVcgQw==}
+  eslint-plugin-vue@10.12.1:
+    resolution: {integrity: sha512-Z5hmchVWq4EEOCn131J2p/uS4hjkrC+goPV5c/YApTY68xTqV3K5IYqD0mYGupDvZ6iYoTSuhSZUoWN+gZIqZQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       '@stylistic/eslint-plugin': ^2.0.0 || ^3.0.0 || ^4.0.0 || ^5.0.0
@@ -1683,8 +1683,8 @@ packages:
     resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
     engines: {node: '>=4'}
 
-  postcss-selector-parser@7.1.4:
-    resolution: {integrity: sha512-HeP7D2wyhkR+XaK6v4W8oRF62Dsz4flyuczALJp61GckGm42u1saSSJ/0auvcBqxs3jMRFEcPK34At/0JBKdOg==}
+  postcss-selector-parser@7.2.1:
+    resolution: {integrity: sha512-GwxlMgTTXwIom+ebC7an3k6RaJDwklRQQnfiXsLPGicu8FYV/k/+1/9YY2OU2+r938H2t4X0TDxoif+HP2rjzQ==}
     engines: {node: '>=4'}
 
   postcss-value-parser@4.2.0:
@@ -2653,11 +2653,11 @@ snapshots:
     transitivePeerDependencies:
       - '@types/eslint'
 
-  '@vue/eslint-config-typescript@14.9.0(eslint-plugin-vue@10.11.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))))(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)':
+  '@vue/eslint-config-typescript@14.9.0(eslint-plugin-vue@10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))))(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/utils': 8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)
       eslint: 10.15.0(jiti@1.21.7)
-      eslint-plugin-vue: 10.11.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7)))
+      eslint-plugin-vue: 10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7)))
       fast-glob: 3.3.3
       typescript-eslint: 8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3)
       vue-eslint-parser: 10.4.0(eslint@10.15.0(jiti@1.21.7))
@@ -2971,13 +2971,13 @@ snapshots:
     optionalDependencies:
       eslint-config-prettier: 10.1.8(eslint@10.15.0(jiti@1.21.7))
 
-  eslint-plugin-vue@10.11.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))):
+  eslint-plugin-vue@10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7))(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7))):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@10.15.0(jiti@1.21.7))
       eslint: 10.15.0(jiti@1.21.7)
       natural-compare: 1.4.0
       nth-check: 2.1.1
-      postcss-selector-parser: 7.1.4
+      postcss-selector-parser: 7.2.1
       semver: 7.8.5
       vue-eslint-parser: 10.4.0(eslint@10.15.0(jiti@1.21.7))
       xml-name-validator: 5.0.0
@@ -3525,9 +3525,8 @@ snapshots:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
 
-  postcss-selector-parser@7.1.4:
+  postcss-selector-parser@7.2.1:
     dependencies:
-      cssesc: 3.0.0
       util-deprecate: 1.0.2
 
   postcss-value-parser@4.2.0: {}
