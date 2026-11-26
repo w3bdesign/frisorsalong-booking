@@ -217,7 +217,7 @@ importers:
         specifier: ^1.16.1
         version: 1.16.1
       '@tsconfig/node26':
-        specifier: ^26.0.0
+        specifier: ^26.0.2
         version: 26.0.2
       '@types/jsdom':
         specifier: ^30.0.0
