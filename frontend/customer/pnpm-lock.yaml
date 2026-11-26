@@ -241,8 +241,8 @@ importers:
         specifier: ^10.15.0
         version: 10.15.0(jiti@1.21.7)(supports-color@8.1.1)
       eslint-plugin-cypress:
-        specifier: ^7.1.0
-        version: 7.1.0(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))
+        specifier: ^7.2.0
+        version: 7.2.0(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))
       eslint-plugin-vue:
         specifier: ^10.12.1
         version: 10.12.1(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(vue-eslint-parser@10.4.0(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1))
@@ -1590,8 +1590,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-cypress@7.1.0:
-    resolution: {integrity: sha512-aCTx12rYVF/JEVRLL+hEpxGw0VUyvYm36lLqlFLTN74Y5B/nsh7HAFYIPP+RexisCFVCAiWMt0qrbQTCHGIT2w==}
+  eslint-plugin-cypress@7.2.0:
+    resolution: {integrity: sha512-R3PMPaQyVvscLo9ZgDNl4S2FSdqroBv3kagMZK/iS7uoji0hzku6TpUmhGL3POSU/Phn+gbMA6Dk2agvTBY+lA==}
     peerDependencies:
       '@typescript-eslint/parser': '>=8'
       eslint: '>=10'
@@ -4608,7 +4608,7 @@ snapshots:
     dependencies:
       eslint: 10.15.0(jiti@1.21.7)(supports-color@8.1.1)
 
-  eslint-plugin-cypress@7.1.0(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1)):
+  eslint-plugin-cypress@7.2.0(@typescript-eslint/parser@8.60.1(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3))(eslint@10.15.0(jiti@1.21.7)(supports-color@8.1.1)):
     dependencies:
       eslint: 10.15.0(jiti@1.21.7)(supports-color@8.1.1)
       globals: 17.14.0
