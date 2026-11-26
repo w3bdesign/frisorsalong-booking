@@ -20507,28 +20507,6 @@ export default {
 }
 ````
 
-## File: frontend/customer/tsconfig.node.json
-````json
-{
-  "extends": "@tsconfig/node24/tsconfig.json",
-  "include": [
-    "vite.config.*",
-    "vitest.config.*",
-    "cypress.config.*",
-    "nightwatch.conf.*",
-    "playwright.config.*"
-  ],
-  "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["node"]
-  }
-}
-````
-
 ## File: frontend/customer/tsconfig.vitest.json
 ````json
 {
@@ -22755,6 +22733,28 @@ please refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Implement application monitoring, error tracking, and health checks.
 ````
 
+## File: frontend/customer/tsconfig.node.json
+````json
+{
+  "extends": "@tsconfig/node26/tsconfig.json",
+  "include": [
+    "vite.config.*",
+    "vitest.config.*",
+    "cypress.config.*",
+    "nightwatch.conf.*",
+    "playwright.config.*"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  }
+}
+````
+
 ## File: Dockerfile
 ````dockerfile
 # Multi-stage Dockerfile for building and running both backend and frontend
@@ -23111,7 +23111,7 @@ jobs:
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
-    "@tsconfig/node24": "^24.0.6",
+    "@tsconfig/node26": "^26.0.2",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.11",
@@ -23163,7 +23163,7 @@ jobs:
   },
   "devDependencies": {
     "@pinia/testing": "^2.0.2",
-    "@tsconfig/node24": "^24.0.6",
+    "@tsconfig/node26": "^26.0.2",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.11",
