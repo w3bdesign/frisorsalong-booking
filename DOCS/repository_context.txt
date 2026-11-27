@@ -23100,7 +23100,7 @@ jobs:
   },
   "dependencies": {
     "@types/chart.js": "^4.0.0",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "axios": "1.20.0",
     "chart.js": "^4.6.1",
     "pinia": "^4.1.0",
@@ -23173,7 +23173,7 @@ jobs:
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.9.1",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "cypress": "^16.3.0",
     "eslint": "^10.15.0",
     "eslint-plugin-cypress": "^7.2.0",
