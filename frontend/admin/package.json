@@ -21,7 +21,7 @@
     "@types/chart.js": "^4.0.0",
     "autoprefixer": "^10.7.0",
     "axios": "1.21.1",
-    "chart.js": "^4.6.1",
+    "chart.js": "^4.6.2",
     "pinia": "^4.1.0",
     "postcss": "^8.5.33",
     "tailwindcss": "^3.4.19",
